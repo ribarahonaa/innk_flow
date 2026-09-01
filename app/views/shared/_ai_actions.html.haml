@@ -1,11 +1,22 @@
--# Botones que disparan tareas de IA. Solo se muestran si el modo efectivo no
--# es `human`: si el desafío eligió trabajar sin IA, no hay nada que ofrecer.
+-# Botones que disparan tareas de IA.
+-#
+-# Por defecto se ocultan cuando el modo efectivo es `human`: dentro de un
+-# módulo, "solo personas" significa que ahí no interviene la IA.
+-#
+-# `always: true` es para las acciones de AUTORÍA —armar el flujo, proponer los
+-# campos del formulario—. Ahí el modo no manda: define cómo se trabaja DENTRO
+-# del desafío, no si su dueño puede pedir una mano para diseñarlo. Lo que
+-# proponga siempre pasa por revisión humana.
 - mode = local_assigns.fetch(:mode)
-- return if mode == "human"
+- always = local_assigns.fetch(:always, false)
+- return if mode == "human" && !always
 
 .ai-actions
   %span.ai-chip IA
-  %span.muted= t("flow.ai_modes.#{mode}")
+  - if mode == "human"
+    %span.muted La propuesta pasa por tu revisión.
+  - else
+    %span.muted= t("flow.ai_modes.#{mode}")
   - actions.each do |action|
     = button_to action[:label],
                 challenge_ai_requests_path(challenge, purpose: action[:purpose], step_id: action[:step_id], idea_id: action[:idea_id], field_key: action[:field_key], count: action[:count]),

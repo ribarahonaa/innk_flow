@@ -6,6 +6,23 @@
     %p.muted Arrastrá los módulos para armar el flujo.
   = link_to "Ver desafío", challenge_path(@challenge), class: "btn btn--ghost"
 
+= render "shared/ai_suggestions", suggestions: @pending_suggestions
+
+-# Asistencia para ARMAR el flujo. Disponible cualquiera sea el modo del
+-# desafío: elegir "solo personas" define cómo se trabaja dentro de cada
+-# módulo, no si su dueño puede pedir ayuda para diseñarlo.
+- if policy(@challenge).update_pipeline?
+  .card
+    %h2.section-title Armar el flujo con IA
+    - if @challenge.draft?
+      %p.muted La IA lee el brief y propone qué módulos usar, en qué orden y con qué configuración. Revisás la propuesta antes de que se aplique.
+      = render "shared/ai_actions", challenge: @challenge, mode: @challenge.ai_default_mode, always: true,
+               actions: [{ label: "Proponer el flujo", purpose: "propose_pipeline" }]
+    - else
+      %p.muted
+        El flujo ya arrancó, así que no se puede reemplazar entero: los módulos ejecutados son parte del historial del desafío.
+        Podés seguir agregando módulos a mano después del último ejecutado.
+
 -# Isla Vue. Las props vienen serializadas del server (PipelinePresenter), no
 -# de un fetch al montar: una vuelta de red menos y la tenencia la garantiza
 -# el scope de Ruby.

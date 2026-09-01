@@ -15,13 +15,6 @@
 
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 
-- if @challenge.draft? && policy(@challenge).update_pipeline?
-  .card
-    %h2.section-title Armar el flujo con IA
-    %p.muted La IA lee el brief y propone qué módulos usar, en qué orden y con qué configuración.
-    = render "shared/ai_actions", challenge: @challenge, mode: @challenge.ai_default_mode,
-             actions: [{ label: "Proponer el flujo", purpose: "propose_pipeline" }]
-
 - if @challenge.brief.present?
   .card
     %h2.section-title Brief

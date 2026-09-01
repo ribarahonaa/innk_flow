@@ -49,9 +49,9 @@ RSpec.describe "capa de IA", type: :request do
       expect(flash[:notice]).to match(/aplicó automáticamente/)
     end
 
-    it "la propuesta aparece en la pantalla del desafío" do
+    it "la propuesta aparece en el builder, que es donde se arma el flujo" do
       post challenge_ai_requests_path(challenge, purpose: "propose_pipeline")
-      get challenge_path(challenge)
+      get builder_challenge_path(challenge)
 
       expect(response.body).to include("Propuestas de la IA")
       expect(response.body).to include("Postulación de ideas → Ronda de feedback")
@@ -95,17 +95,59 @@ RSpec.describe "capa de IA", type: :request do
     end
   end
 
-  describe "el modo human no ofrece IA" do
+  # El modo define cómo se trabaja DENTRO del desafío. Armar el flujo es una
+  # acción de autoría del dueño, y ahí el modo no manda.
+  describe "asistencia para armar el flujo, con el desafío en modo human" do
+    before do
+      as_company(company) { challenge.update!(ai_default_mode: "human") }
+      sign_in(owner, company: company)
+    end
+
+    it "el builder OFRECE pedirle el flujo a la IA igual" do
+      get builder_challenge_path(challenge)
+
+      expect(response.body).to include("Armar el flujo con IA")
+      expect(response.body).to include("Proponer el flujo")
+      expect(response.body).to include("La propuesta pasa por tu revisión")
+    end
+
+    it "el pedido funciona y deja la propuesta para revisar" do
+      post challenge_ai_requests_path(challenge, purpose: "propose_pipeline")
+
+      as_company(company) do
+        expect(AiSuggestion.pending_review.count).to eq(1)
+        # Nunca se auto-aplica: un desafío "solo personas" no delega decisiones.
+        expect(challenge.steps.reload).to be_empty
+        expect(AiRun.first.mode).to eq("ai_assisted")
+      end
+    end
+
+    it "dentro de un módulo en modo human NO se ofrece IA" do
+      step = as_company(company) do
+        s = challenge.steps.create!(kind: "ideation", position: 1)
+        challenge.pipeline.start!
+        s
+      end
+
+      get challenge_step_path(challenge, step)
+      expect(response.body).not_to include("Proponer campos")
+    end
+  end
+
+  describe "el builder con el flujo ya arrancado" do
     before do
       as_company(company) do
-        challenge.update!(ai_default_mode: "human")
-        challenge.steps.create!(kind: "ideation", position: 1)
+        challenge.steps.create!(kind: "ideation", position: 1, status: "completed")
+        challenge.update!(status: "running")
       end
       sign_in(owner, company: company)
     end
 
-    it "la pantalla del desafío no muestra botones de IA" do
-      get challenge_path(challenge)
+    it "explica por qué no se puede reemplazar el flujo, en vez de esconder el botón" do
+      get builder_challenge_path(challenge)
+
+      expect(response.body).to include("Armar el flujo con IA")
+      expect(response.body).to include("El flujo ya arrancó")
       expect(response.body).not_to include("Proponer el flujo")
     end
   end

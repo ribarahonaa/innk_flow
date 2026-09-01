@@ -33,6 +33,7 @@ class ChallengesController < ApplicationController
   def builder
     authorize @challenge, :builder?
     @props = PipelinePresenter.new(@challenge, membership: current_membership).as_json
+    @pending_suggestions = AiSuggestion.pending_review.where(challenge_id: @challenge.id).recent
   end
 
   def start
