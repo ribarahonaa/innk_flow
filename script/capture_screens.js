@@ -44,13 +44,26 @@ async function shot(page, name, url, prepare) {
   await shot(page, '03-new-challenge', '/challenges/new');
   await shot(page, '04-challenge', `/challenges/${CHALLENGE}`);
 
-  // El builder es una isla Vue: se espera a que monte de verdad.
-  await shot(page, '05-builder', `/challenges/${CHALLENGE}/builder`, async (p) => {
-    await p.waitForSelector('.step-card', { timeout: 10000 });
-    const cards = p.locator('.step-card:not(.step-card--locked)');
-    if (await cards.count()) await cards.first().click();
-    await p.waitForTimeout(300);
-  });
+  // El builder es una isla Vue, y se llega NAVEGANDO POR EL LINK, no con un
+  // goto directo.
+  //
+  // La diferencia importa: Turbo intercepta los links y reemplaza el body sin
+  // disparar DOMContentLoaded. Un goto directo monta la isla igual y esconde
+  // el bug; el link es el camino que usa una persona de verdad.
+  await page.goto(`${BASE}/challenges/${CHALLENGE}`, { waitUntil: 'networkidle' });
+  await page.click('a:has-text("Editar flujo")');
+  await page.waitForSelector('.builder .step-card', { timeout: 10000 });
+  const cards = page.locator('.step-card:not(.step-card--locked)');
+  if (await cards.count()) await cards.first().click();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/05-builder.png`, fullPage: true });
+  shots.push('05-builder');
+
+  // Una isla que no montó deja el placeholder: es un fallo, no una captura.
+  if (await page.locator('.island-placeholder').count()) {
+    failures++;
+    console.error('[ISLA] el builder no montó: quedó "Cargando el editor de flujo…"');
+  }
 
   await shot(page, '06-ideas', `/challenges/${CHALLENGE}/ideas`);
 
