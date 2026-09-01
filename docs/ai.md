@@ -44,13 +44,23 @@ alguien pide, no como el operario por defecto.
 |---|---|---|
 | **Idear** | Genera las ideas candidatas | Nada. La IA acompaña a quien postula (copiloto, duplicados) |
 | **Evolución** | Genera feedback para cada idea | Igual: el feedback se pide |
-| **Evaluación** | Evalúa cada idea del cohorte | Nada. La IA es una opinión más que se puede pedir |
+| **Evaluación** | **Cubre el mínimo del módulo**: si pide 3 por idea, hace 3 | Nada. La IA es una opinión más que se puede pedir |
 | **Selección** | — | — |
 | **Reportería** | Escribe el resumen narrativo | Se pide desde la pantalla |
 
 Dos salvaguardas en «Idear»: no genera si el desafío **ya tiene** ideas de IA
 (reactivar el módulo no lo llena de duplicados), y las ideas nacen postuladas y
 marcadas `origin: "ai"` — visibles como cualquier otra, no en un limbo aparte.
+
+En modo automático la IA hace tantas pasadas como el módulo requiera, y cada
+una es una consulta independiente al proveedor —su propio `ai_run`, su propio
+prompt— así que el promedio y la dispersión significan algo. Las evaluaciones
+humanas que ya existan **descuentan** del mínimo que la IA tiene que cubrir.
+
+Una evaluación de IA que no puntúa **no se guarda**: si el modelo responde con
+criterios que el módulo no tiene, o con valores fuera de escala, el run queda
+fallido y la sugerencia pendiente. Guardarla contaría para el mínimo y dejaría
+cerrar el módulo con el ranking vacío.
 
 Las evaluaciones de la IA entran **al promedio junto a las humanas**: mismo
 anclaje a la versión, misma justificación por criterio, misma pantalla. No son

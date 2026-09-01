@@ -1,4 +1,4 @@
-\restrict 8mq9boC9OGpsZriN8AgCUAspBzexpP81qPR6kaW8HzD7Py0dOSpo0jfZgzxR0Pc
+\restrict OagNNh7cr7mqCltqqbXd5ZVpCLczrVGIpPM4D4d1adGhB556rIsDVh2tpw3OQsk
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -1192,7 +1192,7 @@ CREATE INDEX index_assessments_on_idea_id ON public.assessments USING btree (ide
 -- Name: index_assessments_unique_ai; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_assessments_unique_ai ON public.assessments USING btree (challenge_step_id, idea_id) WHERE ((superseded_at IS NULL) AND (evaluator_id IS NULL));
+CREATE UNIQUE INDEX index_assessments_unique_ai ON public.assessments USING btree (challenge_step_id, idea_id, ai_run_id) WHERE ((superseded_at IS NULL) AND (evaluator_id IS NULL));
 
 
 --
@@ -2325,11 +2325,12 @@ ALTER TABLE ONLY public.step_entries
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 8mq9boC9OGpsZriN8AgCUAspBzexpP81qPR6kaW8HzD7Py0dOSpo0jfZgzxR0Pc
+\unrestrict OagNNh7cr7mqCltqqbXd5ZVpCLczrVGIpPM4D4d1adGhB556rIsDVh2tpw3OQsk
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260901140000'),
 ('20260901130000'),
 ('20260901120000'),
 ('20260831223705'),

@@ -169,17 +169,26 @@ module Flow
         end.compact
       end
 
-      # En modo automático la IA evalúa cada idea del cohorte. Una llamada por
-      # idea, encolada: nunca fan-out síncrono dentro del request.
+      # En modo automático la IA cubre el mínimo del módulo: si pide 3
+      # evaluaciones por idea, hace 3. Cada pasada es una consulta
+      # independiente al proveedor —su propio ai_run— así que el promedio y la
+      # dispersión significan algo, igual que con tres evaluadores humanos.
+      #
+      # Una llamada por pasada, encolada: nunca fan-out síncrono en el request.
       #
       # En `ai_assisted` no se dispara sola — la IA queda disponible como una
       # opinión más que alguien puede pedir, no como el evaluador por defecto.
       def request_ai_assessments!
         step.step_entries.each do |entry|
-          Flow::AI::RunJob.perform_later(
-            step.company_id, "evaluate_idea",
-            { "step_id" => step.id, "idea_id" => entry.idea_id }
-          )
+          faltan = min_assessments - assessments_for(entry.idea_id).size
+          next if faltan <= 0
+
+          faltan.times do |pass|
+            Flow::AI::RunJob.perform_later(
+              step.company_id, "evaluate_idea",
+              { "step_id" => step.id, "idea_id" => entry.idea_id, "pass" => pass + 1 }
+            )
+          end
         end
       end
 

@@ -37,7 +37,8 @@ module Flow
         field = ids["field_key"] && step&.form_fields&.find_by(key: ids["field_key"])
 
         { challenge: challenge || step&.challenge || idea&.challenge,
-          step: step, idea: idea, field: field, count: ids["count"] }.compact
+          step: step, idea: idea, field: field,
+          count: ids["count"], pass: ids["pass"] }.compact
       end
 
       def effective_mode(context)

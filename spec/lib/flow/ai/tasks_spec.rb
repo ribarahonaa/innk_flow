@@ -138,6 +138,40 @@ RSpec.describe "tareas de IA" do
     end
   end
 
+  describe Flow::AI::Tasks::EvaluateIdea do
+    let(:set) do
+      s = CriteriaSet.create!(name: "Comité")
+      s.criteria.create!(key: "impacto_negocio", name: "Impacto", weight: 1, source: "manual",
+                         scale_type: "numeric", scale_config: { "min" => 1, "max" => 10 })
+      s.refresh_status!
+      s
+    end
+    let(:evaluation) { challenge.steps.create!(kind: "evaluation", position: 2, criteria_set: set) }
+    let(:idea_a_evaluar) do
+      i = create(:idea, challenge: challenge, status: "active")
+      Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "Una idea" }).call
+      i.update!(submitted_at: Time.current)
+      i
+    end
+
+    it "NO guarda una evaluación si la IA responde criterios que no existen en el set" do
+      # El fixture responde impacto/factibilidad/esfuerzo; este set pide
+      # impacto_negocio. Sin este chequeo se guardaba una evaluación con cero
+      # scores que igual contaba para el mínimo, y el módulo cerraba con el
+      # ranking vacío.
+      Flow::Handlers::Base.for(evaluation).activate!
+      task = described_class.new(challenge: challenge, step: evaluation.reload, idea: idea_a_evaluar)
+
+      result = Flow::AI::Runner.call(task, mode: "ai_auto", challenge: challenge,
+                                           step: evaluation, idea: idea_a_evaluar)
+
+      expect(result).not_to be_ok
+      expect(result.error_sentence).to match(/no evaluó ninguno de los criterios/)
+      expect(evaluation.assessments.reload).to be_empty
+      expect(result.suggestion.reload).to be_pending, "queda para que lo mire una persona"
+    end
+  end
+
   describe Flow::AI::ApplySuggestion do
     it "editar antes de aceptar guarda lo que REALMENTE se aplicó" do
       task = Flow::AI::Tasks::ProposePipeline.new(challenge: challenge)

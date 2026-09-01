@@ -65,19 +65,41 @@ module Flow
         # ver lo que acabás de pedir no protege de nada.
         def applies_on_request? = true
 
-        def context_snapshot = { "criteria_keys" => answerable_criteria.map { _1["key"] } }
+        def context_snapshot
+          { "criteria_keys" => answerable_criteria.map { _1["key"] }, "pass" => pass }
+        end
+
+        # Cada pasada es una consulta distinta: sin esto las tres tendrían la
+        # misma clave y el runner devolvería siempre la primera.
+        def idempotency_key
+          Digest::SHA256.hexdigest([purpose, pass, JSON.generate(messages)].join(":"))[0, 32]
+        end
 
         def apply!(payload, suggestion:)
           handler = step.handler
           snapshot = handler.criteria_snapshot
 
+          # Si la IA respondió con criterios que este módulo no tiene, no se
+          # guarda nada: una evaluación sin puntaje igual contaría para el
+          # mínimo y dejaría cerrar el módulo con el ranking vacío.
+          esperadas = answerable_criteria.map { _1["key"] }
+          devueltas = payload["scores"].map { _1["criterion_key"] }
+          reconocidas = devueltas & esperadas
+
+          if reconocidas.empty?
+            return [false, ["la IA no evaluó ninguno de los criterios de este módulo " \
+                            "(esperaba #{esperadas.join(', ')}; respondió #{devueltas.join(', ')})"]]
+          end
+
+          # Una evaluación por RUN: dos pasadas de la IA son dos opiniones, no
+          # una sobrescribiendo a la otra.
           assessment = step.assessments.find_or_initialize_by(
-            idea_id: idea.id, evaluator_id: nil, superseded_at: nil
+            idea_id: idea.id, evaluator_id: nil, ai_run_id: suggestion.ai_run_id, superseded_at: nil
           )
           assessment.assign_attributes(
             idea_version_id: idea.current_version_id, actor_type: "ai",
             status: "submitted", submitted_at: Time.current,
-            ai_run_id: suggestion.ai_run_id, overall_comment: payload["overall_comment"]
+            overall_comment: payload["overall_comment"]
           )
           assessment.save!
 
@@ -98,6 +120,16 @@ module Flow
           end
 
           Flow::Evaluation::ScoreAssessment.new(assessment, criteria_snapshot: snapshot).call
+          assessment.reload
+
+          # Puede pasar que las claves coincidan pero ningún valor entre en la
+          # escala. Tampoco sirve.
+          if assessment.normalized_score.blank?
+            assessment.destroy
+            return [false, ["la evaluación de la IA quedó sin puntaje: revisá que los valores " \
+                            "entren en la escala de cada criterio"]]
+          end
+
           entry = StepEntry.find_or_create_by!(challenge_step_id: step.id, idea_id: idea.id) do |e|
             e.entered_at = Time.current
             e.input_version_id = idea.current_version_id
@@ -113,6 +145,10 @@ module Flow
         end
 
         private
+
+        # Número de pasada. Con un proveedor real y temperatura > 0, cada una
+        # da una lectura ligeramente distinta.
+        def pass = context.fetch(:pass, 1).to_i
 
         def answerable_criteria
           (step.settings["criteria"] || []).select { |c| %w[manual ai].include?(c["source"]) }

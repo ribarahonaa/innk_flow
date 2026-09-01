@@ -272,10 +272,58 @@ RSpec.describe "«Evaluación» con IA automática" do
     step.reload
   end
 
-  it "en ai_auto encola una evaluación por idea" do
+  it "en ai_auto encola una evaluación por idea cuando el mínimo es 1" do
     expect { evaluation_with("ai_auto") }
       .to have_enqueued_job(Flow::AI::RunJob)
       .with(company.id, "evaluate_idea", hash_including("idea_id" => idea.id))
+      .exactly(:once)
+  end
+
+  it "CUBRE EL MÍNIMO del módulo: si pide 3 por idea, hace 3" do
+    # Antes encolaba una sola y el módulo quedaba trabado para siempre:
+    # can_complete? nunca podía dar verdadero.
+    step = challenge.steps.create!(kind: "evaluation", position: 2, ai_mode: "ai_auto",
+                                   criteria_set: set, config: { "min_assessments" => 3 })
+
+    expect { Flow::Handlers::Base.for(step).activate! }
+      .to have_enqueued_job(Flow::AI::RunJob).exactly(3).times
+  end
+
+  it "con el mínimo en 3, la IA lo completa y el módulo se puede cerrar" do
+    step = challenge.steps.create!(kind: "evaluation", position: 2, ai_mode: "ai_auto",
+                                   criteria_set: set, config: { "min_assessments" => 3 })
+    Flow::Handlers::Base.for(step).activate!
+    perform_enqueued_jobs
+
+    step.reload
+    expect(step.assessments.count).to eq(3)
+    expect(step.assessments.map(&:by_ai?).uniq).to eq([true])
+    expect(step.assessments.map(&:ai_run_id).uniq.size).to eq(3), "cada pasada es una consulta propia"
+
+    ready, reasons = Flow::Handlers::Base.for(step).can_complete?
+    expect(ready).to be(true), reasons.join(" ")
+  end
+
+  it "no repite las que ya existen: completa lo que falta" do
+    step = challenge.steps.create!(kind: "evaluation", position: 2, ai_mode: "ai_auto",
+                                   criteria_set: set, config: { "min_assessments" => 3 })
+    Flow::Handlers::Base.for(step).activate!
+    perform_enqueued_jobs
+
+    # Reactivar no vuelve a pedir: ya están las tres.
+    expect { Flow::Handlers::Base.for(step.reload).send(:request_ai_assessments!) }
+      .not_to have_enqueued_job(Flow::AI::RunJob)
+  end
+
+  it "una evaluación humana descuenta del mínimo que cubre la IA" do
+    step = challenge.steps.create!(kind: "evaluation", position: 2, ai_mode: "ai_auto",
+                                   criteria_set: set, config: { "min_assessments" => 3 })
+    Flow::Handlers::Base.for(step).activate!
+    step.assessments.create!(idea: idea, idea_version_id: idea.current_version_id,
+                             evaluator: author, status: "submitted", submitted_at: Time.current)
+
+    expect { Flow::Handlers::Base.for(step.reload).send(:request_ai_assessments!) }
+      .to have_enqueued_job(Flow::AI::RunJob).exactly(2).times
   end
 
   it "en ai_assisted NO evalúa sola" do
