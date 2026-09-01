@@ -58,7 +58,7 @@ class PipelinePresenter
   end
 
   def step_json(step)
-    {
+    json = {
       id: step.id,
       slug: step.slug,
       kind: step.kind,
@@ -78,6 +78,25 @@ class PipelinePresenter
       # línea de agua se dibujan sin handle de arrastre y en gris.
       locked: step.touched?,
       removable: pipeline.can_remove?(step)
+    }
+    # `form` solo existe en «Idear». Nada de `.compact` sobre el hash entero:
+    # se llevaría puestas las claves que valen nil a propósito —`aiMode: nil`
+    # es "heredá del desafío", y sin ella el select del panel queda en blanco.
+    json[:form] = form_json(step) if step.ideation?
+    json
+  end
+
+  # El builder no edita el formulario —definir las preguntas es una tarea en sí
+  # y el panel lateral no da—, pero sí tiene que MOSTRAR que existe. Sin esto el
+  # dueño no se entera de que le falta hasta que arranca el desafío.
+  def form_json(step)
+    fields = step.form_fields.ordered
+    {
+      count: fields.size,
+      requiredCount: fields.count(&:required?),
+      labels: fields.first(4).map(&:label),
+      more: [fields.size - 4, 0].max,
+      editUrl: Rails.application.routes.url_helpers.challenge_form_path(challenge)
     }
   end
 

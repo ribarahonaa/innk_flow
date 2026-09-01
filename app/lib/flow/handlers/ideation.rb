@@ -10,22 +10,19 @@ module Flow
     class Ideation < Base
       DEFAULT_MIN_IDEAS = 1
 
-      # Campos por defecto cuando nadie configuró el formulario. Deliberadamente
-      # mínimos: la gracia es que el dueño (o la IA, en Fase 5) los defina.
-      DEFAULT_FIELDS = [
-        { key: "titulo", label: "Título", field_type: "text", required: true,
-          config: { "is_title" => true }, position: 0 },
-        { key: "problema", label: "¿Qué problema resuelve?", field_type: "textarea",
-          required: true, position: 1 },
-        { key: "solucion", label: "¿Cómo funcionaría?", field_type: "textarea",
-          required: true, position: 2 }
-      ].freeze
-
+      # SIN FORMULARIO NO SE ARRANCA.
+      #
+      # Antes se sembraban tres campos por defecto acá adentro, al activar. Eso
+      # dejaba al dueño sin ver nunca sus propias preguntas: nacían con el
+      # desafío ya corriendo, cuando la ventana para cambiarlas ya se había
+      # cerrado. Ahora el formulario se define antes, en /challenges/:id/form, y
+      # el módulo se niega a abrir vacío en vez de inventar preguntas por su
+      # cuenta.
       def can_activate?
         return [true, []] if step.form_fields.any?
 
-        # No se bloquea: se siembran los campos por defecto en activate!.
-        [true, []]
+        [false, ["«#{step.name}» no tiene formulario: nadie podría postular una idea. " \
+                 "Definí las preguntas antes de arrancar."]]
       end
 
       def progress
@@ -51,7 +48,6 @@ module Flow
       protected
 
       def on_activate
-        seed_default_fields! if step.form_fields.empty?
         request_generated_ideas! if effective_ai_mode == "ai_auto"
       end
 
@@ -90,12 +86,6 @@ module Flow
           step.company_id, "generate_ideas",
           { "step_id" => step.id, "count" => settings.fetch("generated_ideas", 5).to_i }
         )
-      end
-
-      def seed_default_fields!
-        DEFAULT_FIELDS.each do |attributes|
-          step.form_fields.create!(**attributes)
-        end
       end
     end
   end

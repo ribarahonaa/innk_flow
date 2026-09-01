@@ -981,3 +981,96 @@ input:focus, textarea:focus, select:focus {
 }
 .field-check input { width: auto; }
 .builder__config select[multiple] { min-height: 88px; }
+
+// ── Editor del formulario de postulación ────────────────────────────────────
+.field-editor {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+
+.field-edit {
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+  padding: .85rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+
+  &--dragging { opacity: .4; }
+  &--over { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(37, 99, 235, .12); }
+
+  &__handle {
+    cursor: grab;
+    color: var(--muted);
+    font-size: 1.1rem;
+    line-height: 1.6;
+    user-select: none;
+  }
+
+  &__body { flex: 1; display: flex; flex-direction: column; gap: .4rem; min-width: 0; }
+
+  // Los `input`/`select` de la hoja son `width: 100%`. Dentro de un flex eso
+  // deja al select comiéndose la fila y a la etiqueta reducida a un cuadrado.
+  &__line {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+
+    select { flex: 0 0 12rem; width: auto; }
+    select:disabled { background: var(--bg); color: var(--muted); cursor: not-allowed; }
+  }
+
+  &__label { flex: 1 1 auto; min-width: 0; font-weight: 600; }
+
+  &__hint { font-size: .85rem; }
+
+  &__flags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .9rem;
+    font-size: .8rem;
+    color: var(--muted);
+
+    label { display: flex; align-items: center; gap: .3rem; margin: 0; font-weight: 400; }
+    input { margin: 0; }
+  }
+
+  &__key { font-size: .75rem; color: var(--muted); }
+
+  &__answered { color: var(--warn); }
+
+  &__remove {
+    background: none;
+    border: 0;
+    color: var(--muted);
+    font-size: 1.3rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 .2rem;
+
+    &:hover { color: #b91c1c; }
+  }
+}
+
+.field-editor__actions {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+
+// Resumen del formulario dentro del panel del builder.
+.config-form {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  align-items: flex-start;
+
+  &__title { font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  &__labels { margin: 0; font-size: .9rem; }
+}

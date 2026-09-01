@@ -124,7 +124,7 @@ RSpec.describe "capa de IA", type: :request do
 
     it "dentro de un módulo en modo human NO se ofrece IA" do
       step = as_company(company) do
-        s = challenge.steps.create!(kind: "ideation", position: 1)
+        s = seed_form!(challenge.steps.create!(kind: "ideation", position: 1))
         challenge.pipeline.start!
         s
       end
@@ -137,7 +137,7 @@ RSpec.describe "capa de IA", type: :request do
   describe "el builder con el flujo ya arrancado" do
     before do
       as_company(company) do
-        challenge.steps.create!(kind: "ideation", position: 1, status: "completed")
+        seed_form!(challenge.steps.create!(kind: "ideation", position: 1, status: "completed"))
         challenge.update!(status: "running")
       end
       sign_in(owner, company: company)
@@ -225,7 +225,7 @@ RSpec.describe "la IA evaluando", type: :request do
   let!(:challenge) do
     as_company(company) do
       c = create(:challenge, name: "Merma", ai_default_mode: "ai_assisted")
-      c.steps.create!(kind: "ideation", position: 1, status: "completed")
+      seed_form!(c.steps.create!(kind: "ideation", position: 1, status: "completed"))
       c.steps.create!(kind: "evaluation", position: 2, name: "Técnica", criteria_set: set)
       c.update!(status: "running")
       c
@@ -345,7 +345,7 @@ RSpec.describe "cambiar el modo de IA de un módulo en curso", type: :request do
   let!(:challenge) do
     as_company(company) do
       c = create(:challenge, ai_default_mode: "human")
-      c.steps.create!(kind: "ideation", position: 1, status: "completed")
+      seed_form!(c.steps.create!(kind: "ideation", position: 1, status: "completed"))
       c.steps.create!(kind: "evaluation", position: 2, name: "Comité", ai_mode: "human", status: "active")
       c.update!(status: "running")
       c

@@ -31,7 +31,7 @@ RSpec.describe "resolver feedback", type: :request do
   let!(:challenge) do
     as_company(company) do
       c = create(:challenge, name: "Merma")
-      c.steps.create!(kind: "ideation", position: 1, name: "Postulación")
+      seed_form!(c.steps.create!(kind: "ideation", position: 1, name: "Postulación"))
       c.steps.create!(kind: "evolution", position: 2, name: "Ronda de feedback")
       c
     end

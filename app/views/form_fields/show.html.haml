@@ -1,0 +1,35 @@
+- content_for :title, "Formulario · #{@challenge.name}"
+.page-head
+  %div
+    %p.breadcrumb
+      = link_to "Desafíos", challenges_path
+      = " › "
+      = link_to @challenge.name, challenge_path(@challenge)
+      = " › "
+      = link_to "Flujo", builder_challenge_path(@challenge)
+    %h1.page-title Formulario de postulación
+    %p.muted Lo que se le pregunta a quien postula una idea a este desafío.
+
+- if @locked
+  .flash.flash--warn
+    Ya hay ideas postuladas. Podés cambiar etiquetas, ayudas, obligatoriedad y orden, pero no el tipo ni la clave de un campo, ni quitarlo: las respuestas ya guardadas quedarían huérfanas.
+
+- if @fields.empty?
+  .card
+    %h2.section-title Todavía no hay campos
+    %p.muted Sin formulario nadie puede postular. Empezá con los básicos, pedile una propuesta a la IA, o armalo a mano.
+    .report-actions
+      = button_to "Usar los tres básicos", seed_defaults_challenge_form_path(@challenge), class: "btn btn--primary btn--sm"
+      = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode, always: true,
+               actions: [{ label: "Proponer campos con IA", purpose: "suggest_form_fields", step_id: @step.id }]
+- else
+  = render "shared/ai_suggestions", suggestions: @pending_suggestions
+  .card
+    = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode, always: true,
+             actions: [{ label: "Rehacer el formulario con IA", purpose: "suggest_form_fields", step_id: @step.id }]
+
+%div{ "data-island": "form-editor", data: { props: @props.to_json } }
+  .card.island-placeholder
+    %p.muted Cargando el editor…
+
+= javascript_include_tag "packs/form_editor", defer: true, nonce: content_security_policy_nonce

@@ -53,8 +53,11 @@ async function shot(page, name, url, prepare) {
   await page.goto(`${BASE}/challenges/${CHALLENGE}`, { waitUntil: 'networkidle' });
   await page.click('a:has-text("Editar flujo")');
   await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
-  const cards = page.locator('.step-card:not(.step-card--locked)');
-  if (await cards.count()) await cards.first().click();
+  // Se abre el panel de «Idear»: es el que muestra el formulario, y en el demo
+  // ya está ejecutado (bloqueado), que es justo el caso que interesa ver.
+  const ideationCard = page.locator('.step-card', { hasText: 'Postulación' }).first();
+  if (await ideationCard.count()) await ideationCard.click();
+  await page.waitForTimeout(200);
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/05-builder.png`, fullPage: true });
   shots.push('05-builder');
@@ -63,6 +66,24 @@ async function shot(page, name, url, prepare) {
   if (await page.locator('.island-placeholder').count()) {
     failures++;
     console.error('[ISLA] el builder no montó: quedó "Cargando el editor de flujo…"');
+  }
+
+  // El formulario de postulación: se llega desde el panel del módulo «Idear»,
+  // que es donde el dueño se entera de que existe.
+  const formLink = page.locator('a:has-text("Editar el formulario")');
+  if (await formLink.count()) {
+    await formLink.first().click();
+    await page.waitForSelector('[data-island-mounted="true"] .field-edit', { timeout: 15000 });
+    await page.screenshot({ path: `${OUT}/05b-form.png`, fullPage: true });
+    shots.push('05b-form');
+
+    if (await page.locator('.island-placeholder').count()) {
+      failures++;
+      console.error('[ISLA] el editor del formulario no montó');
+    }
+  } else {
+    failures++;
+    console.error('[LINK] el panel de «Idear» no ofrece editar el formulario');
   }
 
   await shot(page, '06-ideas', `/challenges/${CHALLENGE}/ideas`);
@@ -92,6 +113,17 @@ async function shot(page, name, url, prepare) {
   for (const [index, link] of stepLinks.entries()) {
     await shot(page, `09-${index + 1}-step-${link.text.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, link.href);
   }
+
+  // El desafío en borrador: «Idear» todavía no tiene formulario. El builder lo
+  // marca como error y la pantalla ofrece las dos salidas.
+  await page.goto(`${BASE}/challenges/onboarding-remoto/builder`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
+  await page.locator('.step-card', { hasText: 'Postulación' }).first().click();
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: `${OUT}/09-9-builder-sin-formulario.png`, fullPage: true });
+  shots.push('09-9-builder-sin-formulario');
+
+  await shot(page, '09-10-form-vacio', '/challenges/onboarding-remoto/form');
 
   await shot(page, '10-criteria', '/criteria_sets');
   await shot(page, '11-ai-runs', '/admin/ai_runs');

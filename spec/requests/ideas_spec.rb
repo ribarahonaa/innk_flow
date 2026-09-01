@@ -22,7 +22,7 @@ RSpec.describe "ideas", type: :request do
   let!(:challenge) do
     as_company(company) do
       c = create(:challenge, name: "Merma en bodega")
-      c.steps.create!(kind: "ideation", position: 1, name: "Postulación")
+      seed_form!(c.steps.create!(kind: "ideation", position: 1, name: "Postulación"))
       c.steps.create!(kind: "evaluation", position: 2, name: "Evaluación")
       c.pipeline.start!
       c
@@ -199,7 +199,7 @@ RSpec.describe "ideas", type: :request do
       other = without_tenant { create(:company, slug: "otra") }
       foreign_challenge = as_company(other) do
         c = create(:challenge)
-        c.steps.create!(kind: "ideation", position: 1)
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
         c
       end
       foreign_idea = as_company(other) { create(:idea, challenge: foreign_challenge) }

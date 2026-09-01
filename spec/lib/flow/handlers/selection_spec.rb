@@ -10,7 +10,7 @@ RSpec.describe Flow::Handlers::Selection do
   let(:challenge) { create(:challenge) }
 
   # ideation → evaluación técnica → evaluación de comité → selección
-  let!(:ideation) { challenge.steps.create!(kind: "ideation", position: 1, slug: "ideation") }
+  let!(:ideation) { seed_form!(challenge.steps.create!(kind: "ideation", position: 1, slug: "ideation")) }
   let!(:tecnica)  { challenge.steps.create!(kind: "evaluation", position: 2, slug: "eval_tecnica", name: "Técnica") }
   let!(:comite)   { challenge.steps.create!(kind: "evaluation", position: 3, slug: "eval_comite", name: "Comité") }
 
@@ -69,7 +69,7 @@ RSpec.describe Flow::Handlers::Selection do
 
     it "no se puede activar sin una evaluación previa" do
       solo = create(:challenge)
-      solo.steps.create!(kind: "ideation", position: 1)
+      seed_form!(solo.steps.create!(kind: "ideation", position: 1))
       step = solo.steps.create!(kind: "selection", position: 2)
 
       ready, reasons = described_class.new(step).can_activate?
@@ -204,7 +204,7 @@ RSpec.describe Flow::Handlers::Selection do
 
     it "una selección con filtros propios se sostiene sin evaluación previa" do
       solo = create(:challenge)
-      solo.steps.create!(kind: "ideation", position: 1)
+      seed_form!(solo.steps.create!(kind: "ideation", position: 1))
       step = solo.steps.create!(kind: "selection", position: 2, criteria_set: filters)
 
       ready, = described_class.new(step).can_activate?

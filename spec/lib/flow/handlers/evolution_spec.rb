@@ -10,7 +10,7 @@ RSpec.describe Flow::Handlers::Evolution do
   let(:reviewer) { without_tenant { create(:user, name: "Raúl Revisor") } }
 
   let(:challenge) { create(:challenge, ai_default_mode: "human") }
-  let!(:ideation) { challenge.steps.create!(kind: "ideation", position: 1) }
+  let!(:ideation) { seed_form!(challenge.steps.create!(kind: "ideation", position: 1)) }
   let!(:step) { challenge.steps.create!(kind: "evolution", position: 2, name: "Ronda de feedback") }
 
   let!(:idea) do

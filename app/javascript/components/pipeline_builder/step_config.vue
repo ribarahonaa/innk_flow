@@ -22,6 +22,31 @@
       <p class="field-hint">{{ aiModeDescription }}</p>
     </div>
 
+    <!-- El formulario de postulación: se resume acá, se edita en su pantalla -->
+    <template v-if="step.form">
+      <hr class="config-rule" />
+      <div class="config-form">
+        <label class="config-form__title">Formulario de postulación</label>
+
+        <p v-if="!step.form.count" class="field-hint field-hint--warn">
+          Sin campos: nadie puede postular una idea.
+        </p>
+        <template v-else>
+          <p class="config-form__labels">
+            {{ step.form.labels.join(' · ') }}<span v-if="step.form.more"> · +{{ step.form.more }}</span>
+          </p>
+          <p class="field-hint">
+            {{ step.form.count }} {{ step.form.count === 1 ? 'campo' : 'campos' }},
+            {{ step.form.requiredCount }} {{ step.form.requiredCount === 1 ? 'obligatorio' : 'obligatorios' }}
+          </p>
+        </template>
+
+        <a :href="step.form.editUrl" class="btn btn--ghost btn--sm">
+          {{ step.form.count ? 'Editar el formulario' : 'Definir el formulario' }}
+        </a>
+      </div>
+    </template>
+
     <!-- Lo propio del kind, desde el esquema del server -->
     <template v-if="essential.length">
       <hr class="config-rule" />

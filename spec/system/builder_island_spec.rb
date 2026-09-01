@@ -36,7 +36,7 @@ RSpec.describe "isla del builder", type: :system, js: true do
   let!(:challenge) do
     Flow::Tenant.with(company) do
       c = Challenge.create!(name: "Merma", brief: "Reducir merma.", slug: "merma")
-      c.steps.create!(kind: "ideation", position: 1, name: "Postulación")
+      seed_form!(c.steps.create!(kind: "ideation", position: 1, name: "Postulación"))
       c.steps.create!(kind: "evaluation", position: 2, name: "Evaluación")
       c
     end

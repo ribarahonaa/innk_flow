@@ -10,7 +10,7 @@ RSpec.describe Flow::Reports::Builder do
   let(:evaluator) { without_tenant { create(:user, name: "Eva") } }
   let(:challenge) { create(:challenge, name: "Merma") }
 
-  let!(:ideation) { challenge.steps.create!(kind: "ideation", position: 1, slug: "ideation", name: "Postulación") }
+  let!(:ideation) { seed_form!(challenge.steps.create!(kind: "ideation", position: 1, slug: "ideation", name: "Postulación")) }
   let!(:tecnica) { challenge.steps.create!(kind: "evaluation", position: 2, slug: "eval_tecnica", name: "Técnica") }
   let!(:seleccion) { challenge.steps.create!(kind: "selection", position: 3, slug: "corte", name: "Corte") }
   let!(:reporte) { challenge.steps.create!(kind: "reporting", position: 4, slug: "reporte", name: "Cierre") }

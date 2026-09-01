@@ -7,7 +7,7 @@ RSpec.describe Flow::Handlers::Ideation do
   around { |example| as_company(company) { example.run } }
 
   let(:challenge) { create(:challenge) }
-  let!(:ideation) { challenge.steps.create!(kind: "ideation", position: 1) }
+  let!(:ideation) { seed_form!(challenge.steps.create!(kind: "ideation", position: 1)) }
   let!(:evaluation) { challenge.steps.create!(kind: "evaluation", position: 2) }
   let(:handler) { described_class.new(ideation) }
 
@@ -20,21 +20,28 @@ RSpec.describe Flow::Handlers::Ideation do
     idea
   end
 
-  describe "#activate!" do
-    it "siembra el formulario por defecto si nadie lo configuró" do
+  describe "#can_activate?" do
+    # ANTES: si nadie había configurado el formulario, `activate!` sembraba tres
+    # campos por defecto. El dueño del desafío no veía nunca sus propias
+    # preguntas: nacían con el desafío ya corriendo, cuando la ventana para
+    # cambiarlas ya se había cerrado. Ahora se niega a abrir vacío.
+    it "no deja arrancar un módulo sin formulario" do
+      otro = create(:challenge)
+      vacio = otro.steps.create!(kind: "ideation", position: 1)
+      ok, errors = described_class.new(vacio).can_activate?
+
+      expect(ok).to be(false)
+      expect(errors.join).to include("no tiene formulario")
+    end
+
+    it "y no lo inventa: el formulario queda como lo dejó su dueño" do
       handler.activate!
 
       expect(ideation.reload.form_fields.map(&:key)).to eq(%w[titulo problema solucion])
-      expect(ideation.form_fields.first.config["is_title"]).to be(true)
     end
+  end
 
-    it "respeta el formulario existente" do
-      ideation.form_fields.create!(key: "propio", label: "Campo propio")
-      handler.activate!
-
-      expect(ideation.reload.form_fields.map(&:key)).to eq(%w[propio])
-    end
-
+  describe "#activate!" do
     it "arranca con el cohorte VACÍO: las ideas nacen acá, no llegan de antes" do
       handler.activate!
       expect(ideation.reload.step_entries).to be_empty
@@ -150,7 +157,7 @@ RSpec.describe "«Idear» con IA automática" do
   let(:challenge) { create(:challenge, brief: "Reducir la merma en bodega.") }
 
   def ideation_with(mode)
-    step = challenge.steps.create!(kind: "ideation", position: 1, ai_mode: mode)
+    step = seed_form!(challenge.steps.create!(kind: "ideation", position: 1, ai_mode: mode))
     Flow::Handlers::Base.for(step).activate!
     step.reload
   end

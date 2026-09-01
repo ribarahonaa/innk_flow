@@ -18,7 +18,11 @@ RSpec.describe Flow::Pipeline do
     challenge = create(:challenge, status: "draft")
     spec.each_with_index do |token, index|
       kind, status = token.split(":")
-      challenge.steps.create!(kind: kind, position: index + 1, status: status || "pending")
+      step = challenge.steps.create!(kind: kind, position: index + 1, status: status || "pending")
+      # Un módulo de ideación sin formulario no valida ni arranca. El helper le
+      # da el mínimo para que los specs de acá hablen del pipeline y no del
+      # formulario; el spec que prueba la falta lo arma aparte.
+      seed_form!(step) if kind == "ideation"
     end
     challenge.update!(status: challenge_status)
     challenge.steps.reset

@@ -174,6 +174,11 @@ module Flow
         errors << "«#{step.name}» no tiene ninguna evaluación previa de la cual tomar puntaje."
       end
 
+      if (ideation = list.find(&:ideation?)) && ideation.pending? && ideation.form_fields.empty?
+        errors << "«#{ideation.name}» no tiene formulario: nadie podría postular una idea. " \
+                  "Definí las preguntas desde «Editar el formulario»."
+      end
+
       if (ideation = list.find(&:ideation?)) && list.first != ideation
         warnings << "«Idear» no es el primer módulo: los que están antes no van a recibir ideas."
       end

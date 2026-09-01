@@ -27,7 +27,7 @@ RSpec.describe Flow::Handlers::Evaluation do
   end
 
   let(:challenge) { create(:challenge) }
-  let!(:ideation) { challenge.steps.create!(kind: "ideation", position: 1) }
+  let!(:ideation) { seed_form!(challenge.steps.create!(kind: "ideation", position: 1)) }
   let!(:step) { challenge.steps.create!(kind: "evaluation", position: 2, criteria_set: set) }
 
   let!(:idea) do
@@ -245,7 +245,7 @@ RSpec.describe "«Evaluación» con IA automática" do
 
   let(:author) { without_tenant { create(:user) } }
   let(:challenge) { create(:challenge) }
-  let!(:ideation) { challenge.steps.create!(kind: "ideation", position: 1) }
+  let!(:ideation) { seed_form!(challenge.steps.create!(kind: "ideation", position: 1)) }
 
   let(:set) do
     s = CriteriaSet.create!(name: "Técnica")

@@ -29,6 +29,17 @@ RSpec.describe "API del pipeline", type: :request do
       expect(json["permissions"]).to include("canEdit" => true, "canReorder" => true)
     end
 
+    # `aiMode: nil` NO es una clave ausente: significa "heredá el modo del
+    # desafío", y el panel del builder la usa para preseleccionar esa opción.
+    it "manda aiMode aunque valga nil: la ausencia y el nil dicen cosas distintas" do
+      as_company(company) { challenge.steps.create!(kind: "ideation", position: 1) }
+
+      get pipeline_path
+      expect(json["steps"].first).to have_key("aiMode")
+      expect(json["steps"].first["aiMode"]).to be_nil
+      expect(json["steps"].first["effectiveAiMode"]).to eq(challenge.ai_default_mode)
+    end
+
     it "deshabilita «Idear» en la paleta cuando ya está en el flujo" do
       as_company(company) { challenge.steps.create!(kind: "ideation", position: 1) }
 
@@ -54,7 +65,36 @@ RSpec.describe "API del pipeline", type: :request do
       expect(json["steps"].map { _1["position"] }).to eq([1.0, 2.0, 3.0])
       expect(json["steps"].first["settings"]).to eq("min_ideas" => 3)
       expect(json["steps"].second["effectiveAiMode"]).to eq("ai_auto")
+    end
+
+    # El flujo recién armado NO es válido todavía: «Idear» nace sin preguntas y
+    # el builder lo dice ahí mismo, en vez de dejar que el desafío arranque con
+    # un formulario que nadie definió.
+    it "avisa que «Idear» todavía no tiene formulario, y con qué link resolverlo" do
+      put pipeline_path, params: {
+        lock_version: 0,
+        steps: [{ id: nil, kind: "ideation", name: "Postulación" },
+                { id: nil, kind: "evaluation", name: "Técnica" }]
+      }, as: :json
+
+      expect(json["validation"]["valid"]).to be(false)
+      expect(json["validation"]["errors"].join).to include("no tiene formulario")
+      expect(json["steps"].first["form"]).to include("count" => 0)
+      expect(json["steps"].first["form"]["editUrl"]).to eq("/challenges/#{challenge.slug}/form")
+    end
+
+    it "y vuelve a ser válido una vez definidas las preguntas" do
+      put pipeline_path, params: {
+        lock_version: 0,
+        steps: [{ id: nil, kind: "ideation", name: "Postulación" },
+                { id: nil, kind: "evaluation", name: "Técnica" }]
+      }, as: :json
+
+      as_company(company) { seed_form!(challenge.steps.reload.find(&:ideation?)) }
+
+      get pipeline_path
       expect(json["validation"]["valid"]).to be(true)
+      expect(json["steps"].first["form"]).to include("count" => 3, "requiredCount" => 3)
     end
 
     it "rechaza un segundo módulo de ideación" do

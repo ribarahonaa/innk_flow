@@ -74,6 +74,15 @@ es:
       top_n: "Top N"
       top_percent: "Top N %"
       threshold: "Puntaje mínimo"
+    field_types:
+      text: "Texto corto"
+      textarea: "Texto largo"
+      number: "Número"
+      date: "Fecha"
+      select: "Lista desplegable"
+      multi_select: "Selección múltiple"
+      file: "Archivo"
+      rich_text: "Texto con formato"
     criterion_sources:
       manual: "Lo puntúa una persona"
       automatic: "Lo verifica el sistema"

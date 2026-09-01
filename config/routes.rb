@@ -48,6 +48,11 @@ Rails.application.routes.draw do
 
     # Dispara una tarea de IA sobre este desafío (o uno de sus módulos/ideas).
     resources :ai_requests, only: %i[create]
+
+    # El formulario de postulación del desafío (vive en su módulo de ideación).
+    resource :form, only: %i[show], controller: "form_fields" do
+      post :seed_defaults
+    end
   end
 
   # Mantenedor de criterios de la empresa.
@@ -70,6 +75,7 @@ Rails.application.routes.draw do
       resources :challenges, only: [], param: :slug do
         # El builder lee y guarda el pipeline COMPLETO acá.
         resource :pipeline, only: %i[show update]
+        resource :form_fields, only: %i[show update], path: "form"
       end
     end
   end

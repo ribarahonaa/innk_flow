@@ -80,8 +80,20 @@ Flow::Tenant.bypass! do
     autores = User.where(email: %w[part1@demo.test part2@demo.test gestor@demo.test]).to_a
     evaluadores = User.where(email: %w[eval1@demo.test eval2@demo.test gestor@demo.test]).to_a
 
-    pipeline.start!
+    # El formulario lo define el dueño del desafío antes de arrancar: sin
+    # preguntas nadie puede postular y `start!` no deja abrir el módulo.
     ideation = pipeline.ideation_step
+    [
+      ["titulo", "Título", "text", { "is_title" => true }, "Una frase que identifique la idea."],
+      ["problema", "¿Qué problema resuelve?", "textarea", {}, "La situación actual y su costo."],
+      ["solucion", "¿Cómo funcionaría?", "textarea", {}, "Qué se hace y quién lo hace."]
+    ].each_with_index do |(key, label, type, config, hint), index|
+      ideation.form_fields.create!(key: key, label: label, field_type: type, hint: hint,
+                                   required: true, position: index, config: config)
+    end
+
+    pipeline.start!
+    ideation.reload
 
     semillas = [
       ["Sensores de peso por rack",
@@ -208,13 +220,20 @@ Flow::Tenant.bypass! do
     # Un segundo desafío EN BORRADOR: así el builder se puede editar libremente
     # y se ve el contraste con el que ya arrancó.
     Challenge.where(slug: "onboarding-remoto").destroy_all
-    Challenge.create!(
+    borrador = Challenge.create!(
       slug: "onboarding-remoto",
       name: "Mejorar el onboarding remoto",
       brief: "Las primeras dos semanas de alguien que entra remoto son confusas: no sabe a quién " \
              "preguntar ni qué se espera de él. Buscamos ideas para que la primera quincena sea clara.",
       ai_default_mode: "ai_assisted"
     )
+
+    # A propósito SIN formulario: es el estado en que nace un desafío. El
+    # builder lo marca como error y la pantalla del formulario ofrece las dos
+    # salidas (los básicos, o pedírselo a la IA).
+    [["ideation", "Postulación"], ["evaluation", "Primera revisión"]].each do |kind, name|
+      borrador.pipeline.insert(kind: kind, after: :end, name: name)
+    end
 
     puts "Desafío en curso:  #{challenge.name}"
     puts "  módulos:   #{challenge.steps.count} · activo: #{challenge.pipeline.active_step&.name}"

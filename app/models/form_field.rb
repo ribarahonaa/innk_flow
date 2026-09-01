@@ -22,6 +22,19 @@ class FormField < ApplicationRecord
 
   def multi? = field_type == "multi_select"
 
+  def title? = config["is_title"] == true
+
+  def type_label = I18n.t("flow.field_types.#{field_type}")
+
+  # Cuántas ideas respondieron este campo. Es lo que hace visible el costo de
+  # borrarlo o renombrarlo.
+  def answered_count
+    @answered_count ||= IdeaVersion
+                        .where(idea_id: challenge_step.challenge.ideas.select(:id))
+                        .where("payload ? :k", k: key)
+                        .select(:idea_id).distinct.count
+  end
+
   private
 
   def derive_key

@@ -43,7 +43,7 @@ RSpec.describe "desafíos", type: :request do
     it "renderiza la vista del desafío con su flujo" do
       challenge = as_company(company) do
         c = create(:challenge, name: "Merma")
-        c.steps.create!(kind: "ideation", position: 1, name: "Postulación")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1, name: "Postulación"))
         c.steps.create!(kind: "selection", position: 2, name: "Corte")
         c
       end
@@ -80,7 +80,7 @@ RSpec.describe "desafíos", type: :request do
     it "arranca un desafío válido y activa el primer módulo" do
       challenge = as_company(company) do
         c = create(:challenge)
-        c.steps.create!(kind: "ideation", position: 1)
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
         c.steps.create!(kind: "evaluation", position: 2)
         c
       end
