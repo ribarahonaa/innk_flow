@@ -12,8 +12,21 @@
 
 .idea-layout
   .idea-layout__main
+    - if @ai_scores.any? && !@prefill
+      .card.ai-guide-banner
+        %h2.section-title
+          La IA ya evaluó esta idea
+          %span.ai-chip IA
+        %p.muted Vas a ver su valor y su razón junto a cada criterio. Podés partir de ahí y ajustar.
+        = link_to "Precargar con los valores de la IA",
+                  new_challenge_step_assessment_path(@challenge, @step, idea_id: @idea.id, prefill: "ai"),
+                  class: "btn btn--ghost btn--sm"
+
     .card
       %h2.section-title Ficha de evaluación
+      - if @prefill
+        .flash.flash--warn
+          Precargado con los valores de la IA. Revisá cada criterio antes de guardar: la evaluación queda a tu nombre.
       = form_with url: challenge_step_assessments_path(@challenge, @step), method: :post do
         = hidden_field_tag :idea_id, @idea.id
 
@@ -21,6 +34,9 @@
           - record = Criterion.find_by(id: criterion["id"])
           - scale = record&.scale
           - existing = @assessment.assessment_scores.detect { |s| s.criterion_key == criterion["key"] }
+          - ai_score = @ai_scores[criterion["key"]]
+          - value_now = existing&.raw_value
+          - value_now = ai_score&.raw_value if @prefill && value_now.blank?
           .criterion-field
             .criterion-field__head
               %label{ for: "scores_#{criterion['key']}" }
@@ -33,19 +49,43 @@
             - when "numeric"
               .scale-radios
                 - scale.options.each do |value|
-                  %label.scale-radio
-                    = radio_button_tag "scores[#{criterion['key']}]", value, existing&.raw_value == value.to_s, id: "scores_#{criterion['key']}_#{value}"
+                  - suggested = ai_score&.raw_value.to_s == value.to_s
+                  %label.scale-radio{ class: ("scale-radio--suggested" if suggested),
+                                      title: (suggested ? "La IA pondría #{value}" : nil) }
+                    = radio_button_tag "scores[#{criterion['key']}]", value, value_now == value.to_s, id: "scores_#{criterion['key']}_#{value}"
                     %span= value
               %p.field-hint
                 = scale.lower_better? ? "Menos es mejor." : "Más es mejor."
             - when "letter", "rubric"
               .scale-options
                 - scale.options.each do |label, value|
-                  %label.scale-option
-                    = radio_button_tag "scores[#{criterion['key']}]", value, existing&.raw_value == value.to_s
+                  - suggested = ai_score&.raw_value.to_s == value.to_s
+                  %label.scale-option{ class: ("scale-option--suggested" if suggested) }
+                    = radio_button_tag "scores[#{criterion['key']}]", value, value_now == value.to_s
                     %span= label
+                    - if suggested
+                      %span.ai-mark IA
+            - when "boolean"
+              .scale-options
+                - scale.options.each do |label, value|
+                  - suggested = ai_score&.raw_value.to_s == value.to_s
+                  %label.scale-option{ class: ("scale-option--suggested" if suggested) }
+                    = radio_button_tag "scores[#{criterion['key']}]", value, value_now == value.to_s
+                    %span= label
+                    - if suggested
+                      %span.ai-mark IA
             - else
-              = text_field_tag "scores[#{criterion['key']}]", existing&.raw_value
+              = text_field_tag "scores[#{criterion['key']}]", value_now
+
+            -# La sugerencia va PEGADA al criterio, no en un bloque aparte que
+            -# haya que copiar a mano. Es lo que la vuelve una guía y no una
+            -# opinión suelta.
+            - if ai_score
+              .ai-hint
+                %span.ai-chip IA
+                %strong.ai-hint__value= ai_score.raw_value.presence || "—"
+                - if ai_score.comment.present?
+                  %span.ai-hint__reason= ai_score.comment
 
             = text_field_tag "comments[#{criterion['key']}]", existing&.comment, placeholder: "Comentario (opcional)", class: "criterion-field__comment"
 
@@ -65,29 +105,20 @@
           = submit_tag "Guardar evaluación", class: "btn btn--primary"
 
   %aside.idea-layout__side
-    - opinion = @step.assessments.current.submitted_ones.detect { |a| a.idea_id == @idea.id && a.by_ai? }
-    - if opinion
-      .card.assessment-detail--ai
-        %h2.section-title
-          Lo que opina la IA
-          %span.ai-chip IA
-        %p.muted.field-hint Es una referencia. Tu evaluación es independiente.
-        - if opinion.overall_comment.present?
-          %p.assessment-detail__comment= opinion.overall_comment
-        %ul.assessment-detail__scores
-          - opinion.assessment_scores.sort_by(&:criterion_key).each do |score|
-            %li
-              %span.assessment-detail__criterion= score.criterion_key
-              %strong= score.raw_value.presence || "—"
-              - if score.comment.present?
-                %span.muted= score.comment
-    - elsif @step.effective_ai_mode != "human" && policy(@challenge).update_pipeline?
+    - if @ai_scores.empty? && @step.effective_ai_mode != "human" && policy(@challenge).update_pipeline?
       .card
-        %h2.section-title ¿Querés una segunda opinión?
-        %p.muted.field-hint La IA evalúa con los mismos criterios y deja su justificación.
-        = button_to "Pedir la opinión de la IA",
+        %h2.section-title ¿Querés que la IA te guíe?
+        %p.muted.field-hint Evalúa con los mismos criterios y te muestra qué pondría en cada uno, con su razón.
+        = button_to "Pedir la guía de la IA",
                     challenge_ai_requests_path(@challenge, purpose: "evaluate_idea", step_id: @step.id, idea_id: @idea.id),
                     class: "btn btn--ghost btn--sm btn--block"
+
+    - if @ai_assessment&.overall_comment.present?
+      .card.assessment-detail--ai
+        %h2.section-title
+          Comentario general de la IA
+          %span.ai-chip IA
+        %p.assessment-detail__comment= @ai_assessment.overall_comment
 
     .card
       %h2.section-title La idea

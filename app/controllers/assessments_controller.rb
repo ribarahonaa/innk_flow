@@ -10,6 +10,8 @@ class AssessmentsController < ApplicationController
     authorize @assessment, :create?
     @idea = @assessment.idea
     @handler = handler
+    @ai_scores = ai_suggestion_scores
+    @prefill = params[:prefill] == "ai" && @ai_scores.any?
   end
 
   def create
@@ -33,6 +35,7 @@ class AssessmentsController < ApplicationController
   rescue ActiveRecord::RecordInvalid => e
     @idea = @assessment.idea
     @handler = handler
+    @ai_scores = ai_suggestion_scores
     flash.now[:alert] = e.record.errors.full_messages.to_sentence
     render :new, status: :unprocessable_entity
   end
@@ -56,6 +59,21 @@ class AssessmentsController < ApplicationController
     @step.assessments.new(idea: idea, evaluator: current_user,
                           idea_version_id: idea.current_version_id, actor_type: "human")
   end
+
+  # Lo que la IA puso en cada criterio, para guiar a quien evalúa: el valor y
+  # el porqué, mostrados JUNTO al criterio en vez de en un bloque aparte que
+  # hay que copiar a mano.
+  def ai_suggestion_scores
+    ai = @step.assessments.current.submitted_ones
+              .includes(:assessment_scores)
+              .detect { |a| a.idea_id == idea.id && a.by_ai? }
+    return {} if ai.nil?
+
+    @ai_assessment = ai
+    ai.assessment_scores.index_by(&:criterion_key)
+  end
+
+  attr_reader :ai_assessment
 
   def entry_for(idea_id)
     StepEntry.find_or_create_by!(challenge_step_id: @step.id, idea_id: idea_id) do |e|

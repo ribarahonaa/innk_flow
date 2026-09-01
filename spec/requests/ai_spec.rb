@@ -251,11 +251,11 @@ RSpec.describe "la IA evaluando", type: :request do
     expect(response.body).to include("Pedirle una evaluación a la IA")
   end
 
-  it "la ficha de evaluación ofrece una segunda opinión" do
+  it "la ficha de evaluación ofrece que la IA te guíe" do
     get new_challenge_step_assessment_path(challenge, step, idea_id: idea.id)
 
-    expect(response.body).to include("¿Querés una segunda opinión?")
-    expect(response.body).to include("Pedir la opinión de la IA")
+    expect(response.body).to include("¿Querés que la IA te guíe?")
+    expect(response.body).to include("Pedir la guía de la IA")
   end
 
   it "pedirla produce una evaluación que entra al promedio" do
@@ -269,14 +269,52 @@ RSpec.describe "la IA evaluando", type: :request do
     end
   end
 
-  it "una vez hecha, la ficha muestra su opinión en vez del botón" do
-    post challenge_ai_requests_path(challenge, purpose: "evaluate_idea", step_id: step.id, idea_id: idea.id)
+  describe "la IA como guía en la ficha" do
+    before { post challenge_ai_requests_path(challenge, purpose: "evaluate_idea", step_id: step.id, idea_id: idea.id) }
 
-    get new_challenge_step_assessment_path(challenge, step, idea_id: idea.id)
+    it "muestra el valor y la razón JUNTO A CADA criterio" do
+      get new_challenge_step_assessment_path(challenge, step, idea_id: idea.id)
 
-    expect(response.body).to include("Lo que opina la IA")
-    expect(response.body).to include("Tu evaluación es independiente")
-    expect(response.body).not_to include("Pedir la opinión de la IA")
+      # El valor de cada criterio, pegado al criterio y no en un bloque aparte.
+      expect(response.body).to include("ai-hint")
+      expect(response.body).to include("diferencia de inventario")   # razón de impacto
+      expect(response.body).to include("Requiere integración con el WMS") # razón de factibilidad
+      expect(response.body).not_to include("Pedir la guía de la IA")
+    end
+
+    it "marca en la escala el valor que pondría la IA" do
+      get new_challenge_step_assessment_path(challenge, step, idea_id: idea.id)
+
+      expect(response.body).to include("scale-radio--suggested")
+      expect(response.body).to include("La IA pondría 8")
+    end
+
+    it "ofrece precargar el formulario, sin hacerlo solo" do
+      get new_challenge_step_assessment_path(challenge, step, idea_id: idea.id)
+
+      expect(response.body).to include("Precargar con los valores de la IA")
+      # Sin precargar, ningún radio viene marcado.
+      expect(response.body).not_to match(/name="scores\[impacto\]"[^>]*checked/)
+    end
+
+    it "con prefill deja los valores puestos y avisa que la evaluación es tuya" do
+      get new_challenge_step_assessment_path(challenge, step, idea_id: idea.id, prefill: "ai")
+
+      expect(response.body).to match(/value="8"[^>]*checked/)
+      expect(response.body).to include("la evaluación queda a tu nombre")
+    end
+
+    it "el evaluador puede guardar valores distintos a los sugeridos" do
+      post challenge_step_assessments_path(challenge, step),
+           params: { idea_id: idea.id, scores: { impacto: "3", factibilidad: "3", esfuerzo: "9" },
+                     overall_comment: "No coincido con la IA" }
+
+      as_company(company) do
+        mine = step.assessments.current.submitted_ones.detect { |a| a.evaluator_id == owner.id }
+        expect(mine.assessment_scores.find_by(criterion_key: "impacto").raw_value).to eq("3")
+        expect(step.assessments.count).to eq(2), "la de la IA se conserva junto a la mía"
+      end
+    end
   end
 
   it "la pantalla del módulo muestra la evaluación con su justificación" do

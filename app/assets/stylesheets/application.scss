@@ -877,3 +877,47 @@ input:focus, textarea:focus, select:focus {
   font-size: 11px;
   color: var(--muted);
 }
+
+// ── La IA como guía dentro del formulario ────────────────────────────────
+.ai-guide-banner { border-color: #d8c9f5; background: #faf7ff; }
+
+.scale-radio--suggested span {
+  border-color: #c4b5fd;
+  border-style: dashed;
+  color: #7c3aed;
+}
+.scale-radio--suggested input:checked + span {
+  background: var(--accent);
+  border-color: var(--accent);
+  border-style: solid;
+  color: #fff;
+}
+.scale-option--suggested { border-color: #ddd0f7; }
+.ai-mark {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: #f3ecfd;
+  color: #7c3aed;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.ai-hint {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 9px;
+  padding: 8px 11px;
+  border-left: 3px solid #ddd0f7;
+  border-radius: 0 6px 6px 0;
+  background: #faf7ff;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.ai-hint__value {
+  font-size: 14px;
+  color: #7c3aed;
+  min-width: 18px;
+}
+.ai-hint__reason { color: var(--muted); }
