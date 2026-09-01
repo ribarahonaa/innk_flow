@@ -9,7 +9,7 @@ module Flow
         items = FeedbackItem.where(idea_id: idea.id)
         return pass("sin feedback recibido") if items.empty?
 
-        open_items = items.count { |item| !item.addressed }
+        open_items = items.count(&:open?)
         return pass("#{items.size} atendidos") if open_items.zero?
 
         fail("#{open_items} sin atender")

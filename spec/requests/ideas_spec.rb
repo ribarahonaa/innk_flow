@@ -131,6 +131,20 @@ RSpec.describe "ideas", type: :request do
       expect(response).to have_http_status(:forbidden)
     end
 
+    it "el autor SÍ puede editar durante una ronda de evolución" do
+      # Es la razón de ser del módulo: responder al feedback actualizando la
+      # idea. Sin esto, «Evolución» no sirve para nada.
+      as_company(company) do
+        idea.update!(submitted_at: Time.current, status: "active")
+        challenge.steps.create!(kind: "evolution", position: 3, name: "Ronda", status: "active")
+        challenge.steps.find_by(kind: "ideation").update!(status: "completed")
+      end
+      sign_in(participant, company: company)
+
+      get edit_challenge_idea_path(challenge, idea)
+      expect(response).to have_http_status(:ok)
+    end
+
     it "el autor NO puede editar una vez postulada" do
       as_company(company) { idea.update!(submitted_at: Time.current, status: "active") }
       sign_in(participant, company: company)

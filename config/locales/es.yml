@@ -61,6 +61,10 @@ es:
     report_modes:
       by_version: "por versión"
       latest: "versión vigente"
+    feedback_resolutions:
+      answered: "Respondido en una versión"
+      acknowledged: "Tomado en cuenta"
+      dismissed: "No aplica"
     feedback_kinds:
       suggestion: "Sugerencia"
       question: "Pregunta"

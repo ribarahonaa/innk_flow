@@ -28,7 +28,7 @@ module Flow
         feedback_index.fetch(idea_id, [])
       end
 
-      def open_feedback_for(idea_id) = feedback_for(idea_id).reject(&:addressed)
+      def open_feedback_for(idea_id) = feedback_for(idea_id).select(&:open?)
 
       # Una idea "respondió" si publicó una versión nueva desde este módulo.
       def responded?(entry)
@@ -44,8 +44,13 @@ module Flow
         entry = step.step_entries.find_by(idea_id: idea.id)
         entry&.update!(status: "done", output_version_id: version.id, resolved_at: Time.current)
 
-        FeedbackItem.where(challenge_step_id: step.id, idea_id: idea.id, addressed: false)
-                    .update_all(addressed: true, addressed_by_version_id: version.id, updated_at: Time.current)
+        # Publicar una versión responde el feedback ABIERTO de este módulo.
+        # Es una atribución generosa —quizás la versión resolvió solo uno de
+        # tres— por eso cada comentario se puede cerrar a mano, uno por uno,
+        # desde el tablero.
+        FeedbackItem.where(challenge_step_id: step.id, idea_id: idea.id, resolution: nil).find_each do |item|
+          item.resolve!(resolution: "answered", user: version.created_by, version: version)
+        end
         entry
       end
 

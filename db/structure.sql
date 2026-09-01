@@ -1,4 +1,4 @@
-\restrict 7nztThUfFBObC4bDl2ecTzx8UhDNJPD5i4wXcT6umXFeP32yDSaxhh4GneMBoeD
+\restrict 8mq9boC9OGpsZriN8AgCUAspBzexpP81qPR6kaW8HzD7Py0dOSpo0jfZgzxR0Pc
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -344,8 +344,13 @@ CREATE TABLE public.feedback_items (
     ai_run_id uuid,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    resolution character varying,
+    resolution_note text,
+    resolved_at timestamp(6) without time zone,
+    resolved_by_id uuid,
     CONSTRAINT feedback_items_actor_type_check CHECK (((actor_type)::text = ANY ((ARRAY['human'::character varying, 'ai'::character varying])::text[]))),
-    CONSTRAINT feedback_items_kind_check CHECK (((kind)::text = ANY ((ARRAY['suggestion'::character varying, 'question'::character varying, 'issue'::character varying])::text[])))
+    CONSTRAINT feedback_items_kind_check CHECK (((kind)::text = ANY ((ARRAY['suggestion'::character varying, 'question'::character varying, 'issue'::character varying])::text[]))),
+    CONSTRAINT feedback_items_resolution_check CHECK (((resolution IS NULL) OR ((resolution)::text = ANY ((ARRAY['answered'::character varying, 'acknowledged'::character varying, 'dismissed'::character varying])::text[]))))
 );
 
 
@@ -1324,6 +1329,13 @@ CREATE INDEX index_feedback_items_on_idea_id_and_addressed ON public.feedback_it
 
 
 --
+-- Name: index_feedback_items_on_resolved_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_feedback_items_on_resolved_by_id ON public.feedback_items USING btree (resolved_by_id);
+
+
+--
 -- Name: index_form_fields_on_challenge_step_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2030,6 +2042,14 @@ ALTER TABLE ONLY public.idea_versions
 
 
 --
+-- Name: feedback_items fk_rails_bf283495fd; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.feedback_items
+    ADD CONSTRAINT fk_rails_bf283495fd FOREIGN KEY (resolved_by_id) REFERENCES public.users(id);
+
+
+--
 -- Name: active_storage_attachments fk_rails_c3b3935057; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2305,11 +2325,12 @@ ALTER TABLE ONLY public.step_entries
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 7nztThUfFBObC4bDl2ecTzx8UhDNJPD5i4wXcT6umXFeP32yDSaxhh4GneMBoeD
+\unrestrict 8mq9boC9OGpsZriN8AgCUAspBzexpP81qPR6kaW8HzD7Py0dOSpo0jfZgzxR0Pc
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260901130000'),
 ('20260901120000'),
 ('20260831223705'),
 ('20260831210000'),

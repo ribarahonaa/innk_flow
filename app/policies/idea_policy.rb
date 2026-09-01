@@ -10,16 +10,28 @@ class IdeaPolicy < ApplicationPolicy
   # abierto.
   def create? = membership.present?
 
-  # Editar: el autor mientras la idea sigue en borrador, o un gestor.
-  # Una idea ya postulada no se edita "en caliente": se le publica una versión
-  # nueva desde un módulo de evolución.
+  # Editar = publicar una versión nueva.
+  #
+  # El autor puede mientras la idea sigue en borrador, y también cuando hay un
+  # módulo de EVOLUCIÓN abierto: responder al feedback actualizando la idea es
+  # exactamente para lo que existe ese módulo. Fuera de esos dos momentos, una
+  # idea postulada no se edita en caliente.
   def update?
     return false if record.nil?
     return true if manager?
+    return false unless record.author_id == membership.user_id
 
-    record.author_id == membership.user_id && record.draft?
+    record.draft? || evolution_open?
   end
 
   def submit? = update?
   def destroy? = manager? || (record.author_id == membership.user_id && record.draft?)
+
+  private
+
+  # ¿El desafío está en una ronda de evolución ahora mismo?
+  def evolution_open?
+    step = record.challenge.pipeline.active_step
+    step.present? && step.evolution?
+  end
 end

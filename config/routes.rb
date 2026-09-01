@@ -28,7 +28,12 @@ Rails.application.routes.draw do
         post :reinstate
         post :verdict
       end
-      resources :feedback_items, only: %i[create], path: "feedback"
+      resources :feedback_items, only: %i[create], path: "feedback" do
+        member do
+          post :resolve
+          post :reopen
+        end
+      end
       resources :reports, only: %i[create] do
         collection { get :statuses }
       end

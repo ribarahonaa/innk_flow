@@ -45,7 +45,7 @@
       .card
         %h2.section-title
           Feedback recibido
-          %span.muted= " (#{@feedback.count(&:addressed) }/#{@feedback.size} atendidos)"
+          %span.muted= " (#{@feedback.count { |i| !i.open? }}/#{@feedback.size} atendidos)"
         %ul.feedback-list
           - @feedback.each do |item|
             %li.feedback-item{ class: ("is-addressed" if item.addressed) }
@@ -55,8 +55,10 @@
                 - if item.by_ai?
                   %span.ai-chip IA
                 %span.muted= "· desde «#{item.challenge_step.name}» sobre #{item.idea_version.label}"
-                - if item.addressed
-                  %span.status-chip.status-chip--completed= "atendido en #{item.addressed_by_version&.label}"
+                - unless item.open?
+                  %span.status-chip.status-chip--completed= item.resolution_label
+                  - if item.addressed_by_version
+                    %span.muted= "en #{item.addressed_by_version.label}"
               %p.feedback-item__body= item.body
 
   %aside.idea-layout__side

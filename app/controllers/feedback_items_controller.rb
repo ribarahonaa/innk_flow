@@ -21,11 +21,41 @@ class FeedbackItemsController < ApplicationController
     end
   end
 
+  # Cerrar un comentario a mano, sin tener que editar la idea.
+  def resolve
+    @feedback = FeedbackItem.find(params[:id])
+    authorize @feedback, :resolve?
+
+    @feedback.resolve!(
+      resolution: params[:resolution],
+      user: current_user,
+      note: params[:note]
+    )
+
+    redirect_back fallback_location: challenge_step_path(@challenge, @step),
+                  notice: "Comentario marcado como «#{@feedback.resolution_label.downcase}»."
+  rescue ActiveRecord::RecordInvalid => e
+    redirect_back fallback_location: challenge_step_path(@challenge, @step),
+                  alert: e.record.errors.full_messages.to_sentence
+  end
+
+  # Reabrir: la resolución fue apresurada.
+  def reopen
+    @feedback = FeedbackItem.find(params[:id])
+    authorize @feedback, :resolve?
+
+    @feedback.update!(resolution: nil, resolved_by: nil, resolved_at: nil,
+                      resolution_note: nil, addressed_by_version_id: nil)
+
+    redirect_back fallback_location: challenge_step_path(@challenge, @step),
+                  notice: "Comentario reabierto."
+  end
+
   private
 
   def set_context
     @challenge = Challenge.find_by!(slug: params[:challenge_id])
     @step = @challenge.steps.find(params[:step_id])
-    @idea = @challenge.ideas.find(params[:idea_id])
+    @idea = @challenge.ideas.find(params[:idea_id]) if params[:idea_id].present?
   end
 end
