@@ -4,6 +4,29 @@
 - ranking = @handler.ranking
 - above = ranking.select(&:above_cut?)
 
+- gates = @handler.gate_criteria
+- if gates.any?
+  .card
+    .section-head
+      %h2.section-title
+        Filtros
+        %span.muted= " · #{gates.size} #{'condición'.pluralize(gates.size)} para poder avanzar"
+      - if @step.criteria_set && policy(@challenge).update_pipeline?
+        = link_to "Editar el set", edit_criteria_set_path(@step.criteria_set), class: "btn btn--ghost btn--sm"
+    %p.muted.field-hint Una idea avanza solo si los cumple todos. Después se aplica el corte por puntaje.
+    %ul.field-list
+      - gates.each do |gate|
+        - criterion = Criterion.find_by(id: gate["id"])
+        %li.field-list__item
+          %span
+            = gate["name"]
+            %span.source-chip{ class: "source-chip--#{gate['source']}" }= t("flow.criterion_sources.#{gate['source']}")
+          %span.field-list__type
+            - if gate["source"] == "automatic" && criterion&.check
+              = criterion.check.description
+            - else
+              veredicto por idea
+
 .card
   %h2.section-title Corte
   %p.muted
@@ -34,17 +57,20 @@
           %th #
           %th Idea
           %th Puntaje
+          - gates.each do |gate|
+            %th{ title: gate["name"] }= gate["name"].truncate(18)
           - @handler.source_steps.each do |source|
             %th= source.name
       %tbody
         - ranking.each_with_index do |row, index|
           - if index == above.size && above.size < ranking.size
             %tr.cut-line
-              %td{ colspan: 4 + @handler.source_steps.size }
+              %td{ colspan: 4 + gates.size + @handler.source_steps.size }
                 %span.cut-line__label= "línea de corte · #{t("flow.cut_modes.#{@handler.cut_mode}")}"
           %tr{ class: ("is-below" unless row.above_cut?) }
             %td.ranking-table__check
-              = check_box_tag "advancing_idea_ids[]", row.idea.id, row.above_cut?, id: "advance_#{row.idea.id}"
+              = check_box_tag "advancing_idea_ids[]", row.idea.id, row.above_cut?, id: "advance_#{row.idea.id}",
+                              disabled: !row.passes_gates?
             %td.muted= row.rank
             %td
               = link_to row.idea.title, challenge_idea_path(@challenge, row.idea), class: "step-table__link"
@@ -54,6 +80,24 @@
                 %strong= "#{(row.score * 100).round(1)}%"
               - else
                 %span.muted sin puntaje
+            - row.gates.each do |gate|
+              %td.gate-cell
+                - case gate[:passed]
+                - when true
+                  %span.gate.gate--pass{ title: gate[:detail] } ✓
+                - when false
+                  %span.gate.gate--fail{ title: gate[:detail] } ✗
+                - else
+                  - if @step.active? && policy(@step).advance?
+                    .gate-verdict
+                      = button_to "✓", verdict_challenge_step_selection_path(@challenge, @step),
+                                  params: { idea_id: row.idea.id, criterion_key: gate[:key], passed: true },
+                                  class: "gate-verdict__btn gate-verdict__btn--yes", title: "Cumple"
+                      = button_to "✗", verdict_challenge_step_selection_path(@challenge, @step),
+                                  params: { idea_id: row.idea.id, criterion_key: gate[:key], passed: false },
+                                  class: "gate-verdict__btn gate-verdict__btn--no", title: "No cumple"
+                  - else
+                    %span.gate.gate--pending —
             - @handler.source_steps.each do |source|
               %td.muted
                 - value = row.sources[source.slug]

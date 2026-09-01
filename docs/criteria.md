@@ -25,6 +25,71 @@ módulo: un set puede volverse inválido después de asignarse.
 
 ---
 
+## Un criterio tiene DOS ejes
+
+Antes estaban colapsados en `scale_type`, y `formula` figuraba como si fuera una
+escala cuando en realidad es un origen.
+
+| `source` — quién produce el valor | |
+|---|---|
+| `manual` | Lo puntúa una persona en la ficha de evaluación |
+| `automatic` | Lo verifica el sistema sobre la idea. Nadie lo responde |
+| `ai` | Lo decide la IA |
+| `formula` | Se calcula a partir de otros criterios del set |
+
+| `scale_type` — qué forma tiene | |
+|---|---|
+| `numeric` · `letter` · `rubric` | Escalas de puntuación |
+| `boolean` | Sí / no. La forma de un veredicto |
+
+**El origen manda sobre la forma cuando la determina**: un criterio automático
+siempre es `boolean` (la verificación pasa o no pasa) y uno de fórmula siempre
+es `numeric` (produce un número en un rango). El modelo lo fuerza en
+`align_scale_with_source`, para que no exista un check con escala de letras.
+
+### Criterios automáticos
+
+Se verifican solos contra la idea y valen 1 si pasan, 0 si no — con el mismo
+peso que cualquier otro criterio del set.
+
+| `check` | Qué verifica | Config |
+|---|---|---|
+| `field_present` | El campo tiene contenido | `field_key`, `min_length` |
+| `contributors_count` | Participan al menos N personas | `minimum` |
+| `version_count` | La idea evolucionó | `minimum` |
+| `feedback_addressed` | No quedó feedback sin atender | — |
+| `has_attachment` | Adjuntó un archivo | `field_key` |
+
+```jsonc
+{ "check": "field_present", "field_key": "costo", "min_length": 200 }
+```
+
+Un `check` desconocido o mal configurado **no deja guardar el criterio**.
+
+---
+
+## Un set sirve para evaluar y para seleccionar
+
+Es el mismo objeto con dos usos:
+
+| Módulo | Qué hace con los criterios |
+|---|---|
+| **Evaluación** | Los puntúa. Cada uno aporta según su peso |
+| **Selección** | Los usa como **filtros**: la idea avanza solo si los cumple todos |
+
+En una selección, los automáticos se verifican solos y los de sí/no los responde
+una persona o la IA (`selection_verdicts`). Después de filtrar se aplica el corte
+por puntaje, **entre las que quedaron habilitadas**.
+
+Una selección con filtros propios **no necesita una evaluación previa**: se
+sostiene sola.
+
+Un veredicto sin responder deja a la idea en el limbo, así que el módulo no se
+puede cerrar hasta resolverlos todos. Los veredictos quedan anclados a la
+versión que se juzgó, igual que las notas.
+
+---
+
 ## Toda escala aterriza en [0,1]
 
 Es lo que hace comparables una nota 1-10, una letra A-F y una fórmula. El módulo
@@ -36,7 +101,8 @@ vino.
 | `numeric` | `{min, max, step, direction}` | `(v-min)/(max-min)`, invertido si `lower_better` |
 | `letter` | `{levels: [{key, value}]}` | `value / max_value` |
 | `rubric` | igual + `descriptor` por nivel | Idéntica a `letter` |
-| `formula` | `{expression, output: {min, max}}` | Criterio **derivado** |
+| `boolean` | `{true_label, false_label, direction}` | 1 o 0; `lower_better` invierte |
+| (source `formula`) | `{expression, output: {min, max}}` | Criterio **derivado** |
 
 `rubric` hereda de `letter`: la matemática es idéntica, lo único que agrega es
 prosa que guía al evaluador. Un motor menos que mantener.

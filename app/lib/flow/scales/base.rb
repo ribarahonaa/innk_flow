@@ -8,8 +8,22 @@ module Flow
     # A-F y con una fórmula: el módulo de selección lee un número entre 0 y 1
     # sin saber ni preguntar de qué escala vino.
     class Base
+      # El ORIGEN manda sobre la forma cuando la determina:
+      #
+      #   formula   -> el valor es un número dentro de un rango de salida
+      #   automatic -> el valor es el resultado de una verificación: sí o no
+      #
+      # Para los orígenes que sí dejan elegir forma (manual, ai), manda
+      # scale_type. Sin esto, un criterio fórmula se normalizaría contra el
+      # rango genérico 1..10 en vez de contra su propio `output`.
       def self.for(criterion)
-        const_get("Flow::Scales::#{criterion.scale_type.camelize}").new(criterion)
+        name = case criterion.source
+               when "formula" then "Formula"
+               when "automatic" then "Boolean"
+               else criterion.scale_type.camelize
+               end
+
+        const_get("Flow::Scales::#{name}").new(criterion)
       end
 
       def initialize(criterion)

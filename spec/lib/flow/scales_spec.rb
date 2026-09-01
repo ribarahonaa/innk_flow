@@ -10,8 +10,9 @@ RSpec.describe Flow::Scales do
 
   let(:set) { CriteriaSet.create!(name: "Set") }
 
-  def criterion(scale_type:, config: {}, key: "c")
-    set.criteria.new(key: key, name: "Criterio", weight: 1, scale_type: scale_type, scale_config: config)
+  def criterion(scale_type: "numeric", source: "manual", config: {}, key: "c")
+    set.criteria.new(key: key, name: "Criterio", weight: 1,
+                     source: source, scale_type: scale_type, scale_config: config)
   end
 
   describe "numeric" do
@@ -84,12 +85,12 @@ RSpec.describe Flow::Scales do
 
   describe "formula" do
     it "es un criterio DERIVADO: no lo completa el evaluador" do
-      scale = criterion(scale_type: "formula", config: { "expression" => "1 + 1" }).scale
+      scale = criterion(source: "formula", config: { "expression" => "1 + 1" }).scale
       expect(scale).to be_derived
     end
 
     it "normaliza el resultado contra el rango de salida" do
-      scale = criterion(scale_type: "formula",
+      scale = criterion(source: "formula",
                         config: { "expression" => "impacto", "output" => { "min" => 0, "max" => 10 } }).scale
 
       expect(scale.normalize(5.to_d)).to eq(0.5.to_d)

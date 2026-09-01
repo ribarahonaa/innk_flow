@@ -15,5 +15,8 @@ module Flow
 
     # Mutación de pipeline rechazada por la regla del insertion floor.
     class PipelineLocked < Error; end
+
+    # Un criterio automático declara una verificación que no existe.
+    class UnknownCheck < Error; end
   end
 end

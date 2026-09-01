@@ -10,12 +10,15 @@
       %tr
         %th Criterio
         %th Clave
-        %th Escala
+        %th Origen
+        %th Qué mide
         %th Peso
     %tbody
       - @set.criteria.each do |criterion|
         %tr
           %td= criterion.name
           %td: %code= criterion.key
-          %td.muted= t("flow.scale_types.#{criterion.scale_type}")
+          %td
+            %span.source-chip{ class: "source-chip--#{criterion.source}" }= t("flow.criterion_sources.#{criterion.source}")
+          %td.muted= criterion.summary
           %td.muted= "#{(criterion.weight.to_f * 100).round}%"

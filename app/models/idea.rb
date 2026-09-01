@@ -20,6 +20,8 @@ class Idea < ApplicationRecord
            class_name: "IdeaVersion", dependent: :destroy, inverse_of: :idea
   has_many :step_entries, dependent: :destroy
   has_many :assessments, dependent: :destroy
+  has_many :idea_contributors, dependent: :destroy
+  has_many :contributors, through: :idea_contributors, source: :user
 
   validates :status, inclusion: { in: STATUSES }
   validates :origin, inclusion: { in: ORIGINS }
@@ -37,6 +39,10 @@ class Idea < ApplicationRecord
   def payload = current_version&.payload || {}
 
   def version_count = versions.size
+
+  # Autor + colaboradores. Lo consulta el criterio automático "participan al
+  # menos N personas".
+  def people_count = 1 + idea_contributors.size
 
   # ¿Hay una versión posterior a la que juzgó este artefacto? Es cálculo de
   # display: una evaluación anclada a v2 no se invalida porque exista v3, pero

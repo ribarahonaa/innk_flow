@@ -173,7 +173,7 @@ RSpec.describe Flow::Handlers::Evaluation do
                          scale_config: { "min" => 1, "max" => 10 }, position: 0)
       s.criteria.create!(key: "esfuerzo", name: "Esfuerzo", weight: 0.5, scale_type: "numeric",
                          scale_config: { "min" => 1, "max" => 10 }, position: 1)
-      s.criteria.create!(key: "ice", name: "ICE", weight: 0, scale_type: "formula", position: 2,
+      s.criteria.create!(key: "ice", name: "ICE", weight: 0, source: "formula", scale_type: "numeric", position: 2,
                          scale_config: { "expression" => "impacto / esfuerzo",
                                          "output" => { "min" => 0, "max" => 10 } })
       s.refresh_status!

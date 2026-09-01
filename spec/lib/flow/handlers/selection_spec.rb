@@ -74,7 +74,7 @@ RSpec.describe Flow::Handlers::Selection do
 
       ready, reasons = described_class.new(step).can_activate?
       expect(ready).to be(false)
-      expect(reasons.join).to match(/no tiene ninguna evaluación previa/)
+      expect(reasons.join).to match(/no tiene criterios propios ni una evaluación previa/)
     end
   end
 
@@ -178,6 +178,97 @@ RSpec.describe Flow::Handlers::Selection do
       expect(log.map(&:outcome)).to eq(%w[eliminate reinstate])
       expect(log.last.reason).to eq("El comité la quiere ver")
       expect(log.first.outcome).to eq("eliminate"), "la decisión original se conserva"
+    end
+  end
+
+  describe "filtros: criterios de la propia selección" do
+    let(:filters) do
+      set = CriteriaSet.create!(name: "Filtros de comité")
+      set.criteria.create!(name: "Tiene costo", key: "tiene_costo", weight: 0.5, source: "automatic",
+                           source_config: { "check" => "field_present", "field_key" => "costo" })
+      set.criteria.create!(name: "¿Es viable?", key: "es_viable", weight: 0.5,
+                           source: "manual", scale_type: "boolean")
+      set.refresh_status!
+      set
+    end
+
+    def build_with_filters(config = {})
+      step = challenge.steps.create!(kind: "selection", position: 4, name: "Corte",
+                                     criteria_set: filters, config: config)
+      challenge.update!(status: "running")
+      tecnica.update!(status: "completed")
+      comite.update!(status: "completed")
+      Flow::Handlers::Base.for(step).activate!
+      described_class.new(step.reload)
+    end
+
+    it "una selección con filtros propios se sostiene sin evaluación previa" do
+      solo = create(:challenge)
+      solo.steps.create!(kind: "ideation", position: 1)
+      step = solo.steps.create!(kind: "selection", position: 2, criteria_set: filters)
+
+      ready, = described_class.new(step).can_activate?
+      expect(ready).to be(true)
+    end
+
+    it "verifica los filtros automáticos contra cada idea" do
+      # Solo la primera declara el costo.
+      Flow::Ideas::PublishVersion.new(ideas[0], payload: ideas[0].payload.merge("costo" => "8 celdas")).call
+      handler = build_with_filters
+
+      rows = handler.ranking.index_by { |row| row.idea.id }
+      expect(rows[ideas[0].id].gates.find { _1[:key] == "tiene_costo" }[:passed]).to be(true)
+      expect(rows[ideas[1].id].gates.find { _1[:key] == "tiene_costo" }[:passed]).to be(false)
+    end
+
+    it "una idea que no pasa un filtro NO avanza aunque puntúe alto" do
+      handler = build_with_filters("cut" => { "mode" => "top_n", "value" => 5 })
+
+      # Nadie declaró el costo: ninguna pasa el filtro automático.
+      expect(handler.ranking.select(&:above_cut?)).to be_empty
+      expect(handler.ranking.map(&:passes_gates?).uniq).to eq([false])
+    end
+
+    it "el veredicto de una persona resuelve el filtro de sí/no" do
+      Flow::Ideas::PublishVersion.new(ideas[0], payload: ideas[0].payload.merge("costo" => "8 celdas")).call
+      handler = build_with_filters("cut" => { "mode" => "top_n", "value" => 5 })
+
+      expect(handler.ranking.find { _1.idea == ideas[0] }.pending_gates.size).to eq(1)
+
+      handler.record_verdict!(idea: ideas[0], criterion_key: "es_viable", passed: true,
+                              decided_by: decider, note: "Sistemas confirmó que se puede")
+
+      row = described_class.new(handler.step.reload).ranking.find { _1.idea == ideas[0] }
+      expect(row.pending_gates).to be_empty
+      expect(row).to be_passes_gates
+      expect(row).to be_above_cut
+    end
+
+    it "no se puede cerrar el módulo con veredictos pendientes" do
+      handler = build_with_filters
+
+      ready, reasons = handler.can_complete?
+      expect(ready).to be(false)
+      expect(reasons.join).to match(/Faltan \d+ veredictos sobre los filtros/)
+    end
+
+    it "los filtros quedan CONGELADOS al activar el módulo" do
+      handler = build_with_filters
+      expect(handler.gate_criteria.map { _1["key"] }).to eq(%w[tiene_costo es_viable])
+
+      filters.criteria.find_by(key: "es_viable").update!(name: "Cambiado")
+      expect(described_class.new(handler.step.reload).gate_criteria.last["name"]).to eq("¿Es viable?")
+    end
+
+    it "el veredicto queda anclado a la versión que se juzgó" do
+      handler = build_with_filters
+      handler.record_verdict!(idea: ideas[0], criterion_key: "es_viable", passed: false,
+                              decided_by: decider, note: "Sin alcance definido")
+
+      verdict = SelectionVerdict.find_by(idea_id: ideas[0].id, criterion_key: "es_viable")
+      expect(verdict.idea_version_id).to eq(ideas[0].reload.current_version_id)
+      expect(verdict.decided_by_name).to eq(decider.name)
+      expect(verdict).not_to be_passed
     end
   end
 

@@ -26,6 +26,7 @@ Rails.application.routes.draw do
       # Confirmar el corte y repescar ideas que quedaron fuera.
       resource :selection, only: %i[update] do
         post :reinstate
+        post :verdict
       end
       resources :feedback_items, only: %i[create], path: "feedback"
       resources :reports, only: %i[create] do

@@ -70,10 +70,27 @@ es:
       top_n: "Top N"
       top_percent: "Top N %"
       threshold: "Puntaje mínimo"
+    criterion_sources:
+      manual: "Lo puntúa una persona"
+      automatic: "Lo verifica el sistema"
+      ai: "Lo decide la IA"
+      formula: "Se calcula con una fórmula"
+    checks:
+      field_present:
+        label: "Un campo está completo"
+      contributors_count:
+        label: "Participan varias personas"
+      version_count:
+        label: "La idea evolucionó"
+      feedback_addressed:
+        label: "Atendió el feedback"
+      has_attachment:
+        label: "Adjuntó un archivo"
     scale_types:
       numeric: "Numérica"
       letter: "Notas / letras"
       rubric: "Rúbrica"
+      boolean: "Sí / No"
       formula: "Fórmula"
     ai_purposes:
       propose_pipeline: "Proponer el flujo"

@@ -14,6 +14,23 @@ class SelectionsController < ApplicationController
                 notice: "Corte confirmado: avanzan #{advancing.size} #{'idea'.pluralize(advancing.size)}."
   end
 
+  # Un filtro de sí/no resuelto por una persona.
+  def verdict
+    authorize @step, :advance?
+    idea = @challenge.ideas.find(params[:idea_id])
+
+    @step.handler.record_verdict!(
+      idea: idea,
+      criterion_key: params[:criterion_key],
+      passed: params[:passed].to_s == "true",
+      decided_by: current_user,
+      note: params[:note].presence
+    )
+
+    redirect_to challenge_step_path(@challenge, @step),
+                notice: "Veredicto registrado para «#{idea.title.truncate(40)}»."
+  end
+
   def reinstate
     authorize @step, :advance?
     idea = @challenge.ideas.find(params[:idea_id])

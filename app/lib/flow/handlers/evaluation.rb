@@ -48,7 +48,12 @@ module Flow
 
       def criteria_snapshot = settings["criteria"] || []
 
-      def scored_criteria = criteria_snapshot.reject { |c| c["scale_type"] == "formula" }
+      # Lo que el evaluador realmente completa: ni las fórmulas ni los checks
+      # automáticos se preguntan.
+      def scored_criteria = criteria_snapshot.select { |c| c["source"].nil? || c["source"] == "manual" }
+
+      def automatic_criteria = criteria_snapshot.select { |c| c["source"] == "automatic" }
+      def derived_criteria = criteria_snapshot.select { |c| c["source"] == "formula" }
 
       def min_assessments = settings.fetch("min_assessments", DEFAULT_MIN_ASSESSMENTS).to_i
 

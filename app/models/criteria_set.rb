@@ -28,7 +28,8 @@ class CriteriaSet < ApplicationRecord
 
   def active_criteria = criteria.select(&:active)
 
-  def scored_criteria = active_criteria.reject { |c| c.scale.derived? }
+  def scored_criteria = active_criteria.select(&:answerable?)
+  def automatic_criteria = active_criteria.select(&:automatic?)
 
   def weight_total = active_criteria.sum { |c| c.weight.to_d }
 

@@ -11,9 +11,9 @@ class CriteriaSetsController < ApplicationController
   def new
     @set = CriteriaSet.new(name: "Nuevo set")
     authorize @set
-    @set.criteria.build(name: "Impacto", weight: 0.5, scale_type: "numeric",
+    @set.criteria.build(name: "Impacto", weight: 0.5, source: "manual", scale_type: "numeric",
                         scale_config: { "min" => 1, "max" => 10 }, position: 0)
-    @set.criteria.build(name: "Factibilidad", weight: 0.5, scale_type: "numeric",
+    @set.criteria.build(name: "Factibilidad", weight: 0.5, source: "manual", scale_type: "numeric",
                         scale_config: { "min" => 1, "max" => 10 }, position: 1)
   end
 
@@ -69,8 +69,9 @@ class CriteriaSetsController < ApplicationController
   def criteria_set_params
     params.require(:criteria_set).permit(
       :name, :description,
-      criteria_attributes: [:id, :key, :name, :description, :weight, :scale_type,
-                            :position, :active, :_destroy, { scale_config: {} }]
+      criteria_attributes: [:id, :key, :name, :description, :weight, :source, :scale_type,
+                            :position, :active, :_destroy,
+                            { scale_config: {}, source_config: {} }]
     )
   end
 end

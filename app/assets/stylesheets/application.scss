@@ -777,3 +777,53 @@ input:focus, textarea:focus, select:focus {
 
 .section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .section-head .section-title { margin-bottom: 10px; }
+
+// ── Origen de un criterio ────────────────────────────────────────────────
+.source-chip {
+  padding: 1px 8px;
+  margin-left: 6px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.source-chip--manual { background: var(--accent-soft); color: var(--accent); }
+.source-chip--automatic { background: #e7f7ee; color: var(--ok); }
+.source-chip--ai { background: #f3ecfd; color: #7c3aed; }
+.source-chip--formula { background: #fdf3e2; color: var(--warn); }
+
+.criterion-row__main { grid-template-columns: 1.6fr 1fr 80px 1.3fr 1.2fr; }
+.criterion-row__jsons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.checks-help { margin: 6px 0 18px; font-size: 12px; }
+.checks-help summary { cursor: pointer; color: var(--muted); margin-bottom: 8px; }
+
+@media (max-width: 1100px) {
+  .criterion-row__main { grid-template-columns: 1fr 1fr; }
+  .criterion-row__jsons { grid-template-columns: 1fr; }
+}
+
+// ── Filtros de selección ─────────────────────────────────────────────────
+.gate-cell { text-align: center; white-space: nowrap; }
+.gate { display: inline-block; font-weight: 700; font-size: 14px; }
+.gate--pass { color: var(--ok); }
+.gate--fail { color: var(--danger); }
+.gate--pending { color: var(--border); }
+
+.gate-verdict { display: inline-flex; gap: 3px; }
+.gate-verdict__btn {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.gate-verdict__btn--yes { color: var(--ok); }
+.gate-verdict__btn--yes:hover { background: #edfbf3; border-color: #a6e3bf; }
+.gate-verdict__btn--no { color: var(--danger); }
+.gate-verdict__btn--no:hover { background: #fef3f2; border-color: #f2b8b5; }
+.ranking-table input[type="checkbox"]:disabled { opacity: .35; }

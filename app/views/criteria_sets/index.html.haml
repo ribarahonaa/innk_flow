@@ -24,7 +24,6 @@
             %li.field-list__item
               %span
                 = criterion.name
-                - if criterion.derived?
-                  %span.derived-chip derivado
+                %span.source-chip{ class: "source-chip--#{criterion.source}" }= t("flow.criterion_sources.#{criterion.source}")
               %span.field-list__type= "#{(criterion.weight.to_f * 100).round}%"
         = link_to "Editar", edit_criteria_set_path(set), class: "btn btn--ghost btn--block"

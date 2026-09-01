@@ -11,16 +11,58 @@ module Flow
       CUT_MODES = %w[manual top_n top_percent threshold].freeze
       COMBINE_MODES = %w[weighted_avg max min last].freeze
 
-      Row = Data.define(:idea, :entry, :score, :rank, :sources, :above_cut) do
+      Row = Data.define(:idea, :entry, :score, :rank, :sources, :above_cut, :gates) do
         def above_cut? = above_cut
         def scored? = !score.nil?
+
+        # Una idea avanza si pasa TODOS los filtros y además entra en el corte.
+        def passes_gates? = gates.all? { |gate| gate[:passed] }
+        def pending_gates = gates.select { |gate| gate[:passed].nil? }
+        def failed_gates = gates.select { |gate| gate[:passed] == false }
+        def eligible? = passes_gates? && above_cut?
       end
 
       def can_activate?
+        # Con filtros propios la selección se sostiene sola: no necesita una
+        # evaluación previa para decidir quién pasa.
+        #
+        # Se mira el set ASIGNADO y no el snapshot: el snapshot se congela
+        # recién en activate!, que es justamente lo que esto habilita.
+        return [true, []] if step.criteria_set&.active_criteria&.any?
         return [true, []] if manual_source?
         return [true, []] if resolvable_sources.any?
 
-        [false, ["«#{step.name}» no tiene ninguna evaluación previa de la cual tomar puntaje"]]
+        [false, ["«#{step.name}» no tiene criterios propios ni una evaluación previa " \
+                 "de la cual tomar puntaje"]]
+      end
+
+      # Los criterios del set asignado actúan como FILTROS: condiciones que la
+      # idea tiene que cumplir para seguir. Los automáticos se verifican solos;
+      # los de sí/no los responde una persona o la IA.
+      def gate_criteria = settings["criteria"] || []
+
+      def automatic_gates = gate_criteria.select { |c| c["source"] == "automatic" }
+      def verdict_gates = gate_criteria.select { |c| %w[manual ai].include?(c["source"]) }
+
+      def verdicts_for(idea_id)
+        @verdicts ||= SelectionVerdict.where(challenge_step_id: step.id).group_by(&:idea_id)
+        @verdicts.fetch(idea_id, [])
+      end
+
+      # Registra el veredicto de una persona (o la IA) sobre un criterio.
+      def record_verdict!(idea:, criterion_key:, passed:, decided_by: nil, note: nil, ai_run_id: nil)
+        config = gate_criteria.find { |c| c["key"] == criterion_key }
+        verdict = SelectionVerdict.find_or_initialize_by(
+          challenge_step_id: step.id, idea_id: idea.id, criterion_key: criterion_key
+        )
+        verdict.assign_attributes(
+          idea_version_id: idea.current_version_id, criterion_id: config&.dig("id"),
+          passed: passed, decided_by: decided_by, actor_type: decided_by ? "human" : "ai",
+          note: note, ai_run_id: ai_run_id
+        )
+        verdict.save!
+        @verdicts = nil
+        verdict
       end
 
       def progress
@@ -29,12 +71,21 @@ module Flow
       end
 
       def can_complete?
-        return [true, []] unless manual_cut?
+        reasons = []
 
-        pending = step.step_entries.reject { |entry| decisions_by_idea.key?(entry.idea_id) }
-        return [true, []] if pending.empty?
+        # Un filtro de veredicto sin responder deja a la idea en el limbo: no
+        # se sabe si pasa o no.
+        pending_verdicts = ranking.sum { |row| row.pending_gates.size }
+        if pending_verdicts.positive?
+          reasons << "Faltan #{pending_verdicts} #{'veredicto'.pluralize(pending_verdicts)} sobre los filtros."
+        end
 
-        [false, ["Falta decidir sobre #{pending.size} #{'idea'.pluralize(pending.size)}."]]
+        if manual_cut?
+          pending = step.step_entries.reject { |entry| decisions_by_idea.key?(entry.idea_id) }
+          reasons << "Falta decidir sobre #{pending.size} #{'idea'.pluralize(pending.size)}." if pending.any?
+        end
+
+        [reasons.empty?, reasons]
       end
 
       # Tabla rankeada. Se calcula en lectura: persistirla sería estado
@@ -43,15 +94,43 @@ module Flow
         rows = step.step_entries.includes(idea: %i[current_version author]).map do |entry|
           sources = source_scores_for(entry.idea_id)
           Row.new(idea: entry.idea, entry: entry, score: combine(sources),
-                  rank: nil, sources: sources, above_cut: false)
+                  rank: nil, sources: sources, above_cut: false, gates: gates_for(entry.idea))
         end
 
-        ordered = rows.sort_by { |row| [row.score.nil? ? 1 : 0, -(row.score || 0), row.idea.created_at] }
-        cutoff = cut_size(ordered)
+        # Las que no pasan los filtros van al fondo: el corte por puntaje se
+        # aplica solo entre las que quedaron habilitadas.
+        ordered = rows.sort_by do |row|
+          [row.passes_gates? ? 0 : 1, row.score.nil? ? 1 : 0, -(row.score || 0), row.idea.created_at]
+        end
+
+        eligible = ordered.select(&:passes_gates?)
+        cutoff = cut_size(eligible)
 
         ordered.each_with_index.map do |row, index|
+          within = row.passes_gates? && eligible.index(row).to_i < cutoff && (row.scored? || no_score_source?)
           Row.new(idea: row.idea, entry: row.entry, score: row.score, rank: index + 1,
-                  sources: row.sources, above_cut: index < cutoff && row.scored?)
+                  sources: row.sources, above_cut: within, gates: row.gates)
+        end
+      end
+
+      # Estado de cada filtro para una idea: los automáticos se verifican en el
+      # momento, los de veredicto se leen de lo que alguien ya decidió.
+      def gates_for(idea)
+        gate_criteria.map do |config|
+          criterion = Criterion.find_by(id: config["id"])
+
+          if config["source"] == "automatic"
+            result = criterion&.verify(idea)
+            { key: config["key"], name: config["name"], kind: :automatic,
+              passed: result&.passed?, detail: result&.detail,
+              description: criterion&.check&.description }
+          else
+            verdict = verdicts_for(idea.id).find { |v| v.criterion_key == config["key"] }
+            { key: config["key"], name: config["name"], kind: :verdict,
+              passed: verdict&.passed, detail: verdict&.note,
+              decided_by: verdict&.decided_by_name,
+              description: config["description"] }
+          end
         end
       end
 
@@ -112,6 +191,10 @@ module Flow
         challenge.steps.select { |s| ids.include?(s.id) }
       end
 
+      # Sin fuente de puntaje, el corte no ordena nada: avanzan todas las que
+      # pasan los filtros.
+      def no_score_source? = source_steps.empty?
+
       def cut_mode = settings.dig("cut", "mode").presence || settings["cut_mode"].presence || "manual"
       def cut_value = (settings.dig("cut", "value") || settings["cut_value"]).to_f
       def manual_cut? = cut_mode == "manual"
@@ -123,6 +206,7 @@ module Flow
       # el puntaje de este módulo.
       def resolve_config!
         super
+        freeze_criteria!
         source = (step.config["score_source"] || {}).deep_dup
         steps = source["type"].to_s == "manual" ? [] : resolve_source_steps(source)
 
@@ -140,6 +224,16 @@ module Flow
       end
 
       private
+
+      # Los filtros se congelan igual que en una evaluación: editar el set
+      # después no puede cambiar retroactivamente quién pasó.
+      def freeze_criteria!
+        set = step.criteria_set
+        step.resolved_config = step.resolved_config.merge(
+          "criteria" => set ? set.active_criteria.map(&:to_snapshot) : [],
+          "criteria_set_id" => set&.id
+        )
+      end
 
       def manual_source? = (step.config.dig("score_source", "type") || settings.dig("score_source", "type")) == "manual"
 
@@ -201,6 +295,8 @@ module Flow
       end
 
       def cut_size(ordered)
+        return ordered.size if no_score_source?
+
         scored = ordered.count(&:scored?)
 
         case cut_mode
@@ -231,7 +327,8 @@ module Flow
         return if decisions_by_idea.any?
 
         advancing = ranking.select(&:above_cut?).map { |row| row.idea.id }
-        decide!(advancing, reason: "Corte automático (#{cut_mode})")
+        reason = gate_criteria.any? ? "Filtros + corte automático (#{cut_mode})" : "Corte automático (#{cut_mode})"
+        decide!(advancing, reason: reason)
       end
     end
   end

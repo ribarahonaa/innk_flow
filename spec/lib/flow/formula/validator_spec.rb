@@ -17,7 +17,7 @@ RSpec.describe Flow::Formula::Validator do
   end
 
   def formula(expression, key: "score")
-    set.criteria.new(key: key, name: "Score", weight: 0, scale_type: "formula",
+    set.criteria.new(key: key, name: "Score", weight: 0, source: "formula", scale_type: "numeric",
                      scale_config: { "expression" => expression, "output" => { "min" => 0, "max" => 10 } })
   end
 
@@ -95,11 +95,11 @@ RSpec.describe Flow::Formula::Validator do
       # Se construye como en la vida real — «score» existe primero, «neto»
       # lo referencia, y recién ahí alguien intenta cerrar el círculo.
       score = set.criteria.create!(
-        key: "score", name: "Score", weight: 0, scale_type: "formula",
+        key: "score", name: "Score", weight: 0, source: "formula", scale_type: "numeric",
         scale_config: { "expression" => "impacto * confianza", "output" => { "min" => 0, "max" => 10 } }
       )
       set.criteria.create!(
-        key: "neto", name: "Neto", weight: 0, scale_type: "formula",
+        key: "neto", name: "Neto", weight: 0, source: "formula", scale_type: "numeric",
         scale_config: { "expression" => "score * 2", "output" => { "min" => 0, "max" => 10 } }
       )
       set.criteria.reload

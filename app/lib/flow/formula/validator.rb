@@ -91,7 +91,7 @@ module Flow
       end
 
       def formula_dependencies(sibling)
-        return [] unless sibling.scale_type == "formula"
+        return [] unless sibling.source == "formula"
 
         Calculator.new(sibling.scale_config.to_h["expression"]).dependencies
       rescue StandardError

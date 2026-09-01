@@ -20,6 +20,7 @@ module Flow
 
       def call
         scores = assessment.assessment_scores.index_by(&:criterion_key)
+        compute_automatic!(scores)
         compute_derived!(scores)
 
         answered = scores.values.select(&:answered?)
@@ -39,14 +40,39 @@ module Flow
 
       private
 
+      # Los criterios automáticos no los completa nadie: se verifican contra la
+      # idea al guardar la evaluación. Un check que pasa vale 1, uno que no, 0,
+      # y pesa igual que cualquier otro criterio del set.
+      def compute_automatic!(scores)
+        @snapshot.select { |config| config["source"] == "automatic" }.each do |config|
+          criterion = Criterion.find_by(id: config["id"])
+          next if criterion.nil?
+
+          result = criterion.verify(assessment.idea)
+          upsert_score(config, scores) do |score|
+            score.assign_attributes(
+              raw_value: result&.passed? ? "1" : "0",
+              numeric_value: result&.passed? ? 1 : 0,
+              normalized_value: result&.passed? ? 1 : 0,
+              comment: result&.detail,
+              error: nil
+            )
+          end
+        rescue Flow::Errors::UnknownCheck => e
+          upsert_score(config, scores) do |score|
+            score.assign_attributes(numeric_value: nil, normalized_value: nil, error: e.message)
+          end
+        end
+      end
+
       # `raw_score` solo tiene sentido si todas las escalas comparten rango.
       # Si el set mezcla una nota 1-10 con una letra A-F, el número crudo no
       # significa nada y se deja nil: la UI muestra porcentaje.
       def raw_score_for(normalized)
         return nil if normalized.nil?
 
-        numerics = @snapshot.select { |c| c["scale_type"] == "numeric" }
-        return nil unless numerics.size == @snapshot.count { |c| c["scale_type"] != "formula" }
+        numerics = @snapshot.select { |c| c["scale_type"] == "numeric" && c["source"] == "manual" }
+        return nil unless numerics.size == @snapshot.count { |c| c["source"] == "manual" }
         return nil if numerics.empty?
 
         ranges = numerics.map { |c| [(c.dig("scale_config", "min") || 1).to_d, (c.dig("scale_config", "max") || 10).to_d] }.uniq
@@ -58,7 +84,7 @@ module Flow
 
       # Orden topológico: una fórmula puede depender de otra.
       def compute_derived!(scores)
-        derived = @snapshot.select { |c| c["scale_type"] == "formula" }
+        derived = @snapshot.select { |c| c["source"] == "formula" }
         return if derived.empty?
 
         remaining = derived.dup
