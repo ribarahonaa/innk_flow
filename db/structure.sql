@@ -1,4 +1,4 @@
-\restrict OagNNh7cr7mqCltqqbXd5ZVpCLczrVGIpPM4D4d1adGhB556rIsDVh2tpw3OQsk
+\restrict e6f6vWCPDLcdDbx9hE2dsL6bhf3pW0zTEyTmpDa1wdwtXFl8vPY68oA1dSLpsMK
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -2325,11 +2325,12 @@ ALTER TABLE ONLY public.step_entries
 -- PostgreSQL database dump complete
 --
 
-\unrestrict OagNNh7cr7mqCltqqbXd5ZVpCLczrVGIpPM4D4d1adGhB556rIsDVh2tpw3OQsk
+\unrestrict e6f6vWCPDLcdDbx9hE2dsL6bhf3pW0zTEyTmpDa1wdwtXFl8vPY68oA1dSLpsMK
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260901150000'),
 ('20260901140000'),
 ('20260901130000'),
 ('20260901120000'),

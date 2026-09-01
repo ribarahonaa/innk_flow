@@ -195,8 +195,8 @@ module Flow
       # pasan los filtros.
       def no_score_source? = source_steps.empty?
 
-      def cut_mode = settings.dig("cut", "mode").presence || settings["cut_mode"].presence || "manual"
-      def cut_value = (settings.dig("cut", "value") || settings["cut_value"]).to_f
+      def cut_mode = settings.dig("cut", "mode").presence || "manual"
+      def cut_value = settings.dig("cut", "value").to_f
       def manual_cut? = cut_mode == "manual"
 
       protected
@@ -257,13 +257,11 @@ module Flow
       end
 
       def cut_mode_from_config
-        mode = step.config.dig("cut", "mode").presence || step.config["cut_mode"].presence || "manual"
+        mode = step.config.dig("cut", "mode").presence || "manual"
         CUT_MODES.include?(mode) ? mode : "manual"
       end
 
-      def cut_value_from_config
-        (step.config.dig("cut", "value") || step.config["cut_value"]).to_f
-      end
+      def cut_value_from_config = step.config.dig("cut", "value").to_f
 
       def source_scores_for(idea_id)
         source_steps.each_with_object({}) do |source, acc|

@@ -15,8 +15,11 @@ module Flow
         Progress.new(done: done, total: entries.size, label: "ideas actualizadas")
       end
 
+      # Por defecto el módulo se puede cerrar con ideas que no respondieron: el
+      # feedback sin atender queda registrado y visible. Con `require_response`
+      # se exige que todas publiquen una versión.
       def can_complete?
-        return [true, []] if settings["allow_partial"] != false && !require_response?
+        return [true, []] unless require_response?
 
         pending = step.step_entries.reject { |entry| responded?(entry) }
         return [true, []] if pending.empty?

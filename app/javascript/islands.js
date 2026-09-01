@@ -33,6 +33,9 @@ export function mountIsland(name, component) {
       const app = createApp(component, props);
       app.mount(el);
       el.__vueApp = app;
+      // Señal explícita para los tests y para el script de capturas: esperar
+      // contenido es adivinar, esperar esto es determinista.
+      el.dataset.islandMounted = 'true';
     });
   }
 
@@ -41,6 +44,7 @@ export function mountIsland(name, component) {
       if (!el.__vueApp) return;
       el.__vueApp.unmount();
       delete el.__vueApp;
+      delete el.dataset.islandMounted;
     });
   }
 

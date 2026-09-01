@@ -92,96 +92,14 @@
 
     <!-- Configuración del módulo seleccionado -->
     <aside class="builder__config card">
-      <template v-if="selected">
-        <h2 class="section-title">{{ selected.kindLabel }}</h2>
-
-        <!--
-          Nombre y modo de IA se pueden cambiar aunque el módulo ya esté en
-          curso: renombrar no altera nada, y el modo es una política operativa
-          ("a partir de ahora acepto ayuda de la IA"), no parte del historial.
-          Lo estructural —tipo, posición, configuración— sí queda congelado.
-        -->
-        <div class="field">
-          <label>Nombre</label>
-          <input v-model="selected.name" type="text" />
-        </div>
-
-        <div class="field">
-          <label>Modo de IA</label>
-          <select v-model="selected.aiMode">
-            <option :value="null">Heredar del desafío ({{ challengeAiLabel }})</option>
-            <option v-for="mode in aiModes" :key="mode.value" :value="mode.value">
-              {{ mode.label }}
-            </option>
-          </select>
-          <p class="field-hint">{{ aiModeDescription }}</p>
-        </div>
-
-        <!-- Selección: de qué evaluación toma el puntaje -->
-        <div v-if="selected.kind === 'selection'" class="field">
-          <label>Puntaje que usa para ordenar</label>
-          <select v-model="selected.sourceStepId" :disabled="selected.locked">
-            <option :value="null">Automático (la evaluación previa más cercana)</option>
-            <option v-for="s in evaluationsBefore(selected)" :key="s.id" :value="s.id">
-              {{ s.name }}
-            </option>
-          </select>
-          <p v-if="!evaluationsBefore(selected).length" class="field-hint field-hint--warn">
-            No hay ninguna evaluación antes de este módulo.
-          </p>
-        </div>
-
-        <div v-if="selected.kind === 'selection'" class="field">
-          <label>Regla de corte</label>
-          <select v-model="selected.settings.cut_mode" :disabled="selected.locked">
-            <option value="manual">Manual (el dueño decide)</option>
-            <option value="top_n">Top N ideas</option>
-            <option value="top_percent">Top N %</option>
-            <option value="threshold">Puntaje mínimo</option>
-          </select>
-        </div>
-        <div v-if="selected.kind === 'selection' && selected.settings.cut_mode && selected.settings.cut_mode !== 'manual'" class="field">
-          <label>Valor</label>
-          <input v-model.number="selected.settings.cut_value" type="number" min="1" :disabled="selected.locked" />
-        </div>
-
-        <!-- Criterios del módulo de evaluación -->
-        <div v-if="selected.kind === 'evaluation'" class="field">
-          <label>Set de criterios</label>
-          <select v-model="selected.criteriaSetId" :disabled="selected.locked">
-            <option :value="null">Criterios por defecto (impacto, factibilidad, esfuerzo)</option>
-            <option v-for="set in criteriaSets" :key="set.id" :value="set.id">
-              {{ set.name }} — {{ set.criteriaCount }} criterios
-            </option>
-          </select>
-          <p v-if="selectedCriteriaSet" class="field-hint">
-            {{ selectedCriteriaSet.summary }}
-            <a :href="selectedCriteriaSet.editUrl" class="field-hint__link">editar</a>
-          </p>
-          <p v-else class="field-hint">
-            Se crean tres criterios genéricos al activar el módulo, editables desde ahí.
-            <a :href="urls.newCriteriaSet" class="field-hint__link">Crear un set propio</a>
-          </p>
-          <p v-if="selectedCriteriaSet && selectedCriteriaSet.status !== 'valid'" class="field-hint field-hint--warn">
-            Este set tiene algo que revisar: los pesos de sus criterios deben sumar 100%.
-          </p>
-        </div>
-
-        <div v-if="selected.kind === 'evaluation'" class="field">
-          <label>Evaluaciones mínimas por idea</label>
-          <input v-model.number="selected.settings.min_assessments" type="number" min="1" :disabled="selected.locked" />
-        </div>
-
-        <div v-if="selected.kind === 'ideation'" class="field">
-          <label>Ideas mínimas para poder avanzar</label>
-          <input v-model.number="selected.settings.min_ideas" type="number" min="1" :disabled="selected.locked" />
-        </div>
-
-        <p v-if="selected.locked" class="field-hint field-hint--warn">
-          Este módulo ya se ejecutó: su tipo, posición y configuración quedaron
-          congelados. El nombre y el modo de IA se pueden seguir ajustando.
-        </p>
-      </template>
+      <step-config
+        v-if="selected"
+        :step="selected"
+        :steps="steps"
+        :schema="settingsSchema"
+        :ai-modes="aiModes"
+        :challenge-ai-mode="challenge.aiDefaultMode"
+      />
       <template v-else>
         <h2 class="section-title">Configuración</h2>
         <p class="muted">Elegí un módulo del flujo para configurarlo.</p>
@@ -204,8 +122,11 @@
 </template>
 
 <script>
+import StepConfig from './step_config.vue';
+
 export default {
   name: 'PipelineBuilder',
+  components: { StepConfig },
 
   props: {
     challenge: { type: Object, required: true },
@@ -213,6 +134,7 @@ export default {
     palette: { type: Array, required: true },
     aiModes: { type: Array, required: true },
     criteriaSets: { type: Array, default: () => [] },
+    settingsSchema: { type: Object, default: () => ({}) },
     insertionFloor: { type: Number, default: null },
     validation: { type: Object, required: true },
     permissions: { type: Object, required: true },
@@ -237,10 +159,6 @@ export default {
       return this.steps.find((s) => this.keyOf(s) === this.selectedKey) || null;
     },
 
-    selectedCriteriaSet() {
-      if (!this.selected || !this.selected.criteriaSetId) return null;
-      return this.criteriaSets.find((set) => set.id === this.selected.criteriaSetId) || null;
-    },
 
     challengeAiLabel() {
       const mode = this.aiModes.find((m) => m.value === this.challenge.aiDefaultMode);
@@ -306,7 +224,8 @@ export default {
         aiMode: null,
         sourceStepId: null,
         criteriaSetId: null,
-        settings: {},
+        // Los valores por defecto vienen del esquema, no hardcodeados acá.
+        settings: this.defaultsFor(item.kind),
         locked: false,
         removable: true
       };
@@ -314,6 +233,24 @@ export default {
       this.steps.push(step);
       this.selectedKey = this.keyOf(step);
       this.refreshPalette();
+    },
+
+    // Defaults declarados en Flow::StepSettings, resueltos desde el esquema.
+    defaultsFor(kind) {
+      const groups = this.settingsSchema[kind] || {};
+      const fields = [...(groups.essential || []), ...(groups.advanced || [])];
+      const settings = {};
+
+      fields.forEach((field) => {
+        if (field.column || field.default === undefined) return;
+        const segs = field.key.split('.');
+        const last = segs.pop();
+        let node = settings;
+        segs.forEach((seg) => { node[seg] = node[seg] || {}; node = node[seg]; });
+        node[last] = field.default;
+      });
+
+      return settings;
     },
 
     removeStep(index) {

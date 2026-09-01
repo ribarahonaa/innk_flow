@@ -13,6 +13,18 @@ require Rails.root.join("spec/system_support/driver")
 # El setup no usa `pipeline.start!`: ese método abre `with_lock` (SELECT FOR
 # UPDATE) y deadlockea contra el pool compartido de los system specs.
 RSpec.describe "isla del builder", type: :system, js: true do
+  # El servidor de Capybara corre en otro hilo y sus escrituras pueden quedar
+  # fuera de la transacción del ejemplo. Sin esta limpieza, los datos se filtran
+  # a los specs siguientes y aparecen fallos intermitentes en otros archivos.
+  after do
+    Flow::Tenant.bypass! do
+      [SelectionVerdict, SelectionDecision, FeedbackItem, AssessmentScore, Assessment,
+       StepEntry, IdeaVersion, IdeaContributor, Idea, Criterion, CriteriaSet,
+       StepAssignment, AiSuggestion, AiRun, Report, FormField, ChallengeStep,
+       Challenge, Membership, Session, Identity, User, Company].each(&:delete_all)
+    end
+  end
+
   let!(:company) { Flow::Tenant.bypass! { Company.create!(name: "Acme", slug: "acme") } }
   let!(:owner) do
     Flow::Tenant.bypass! do
@@ -40,7 +52,7 @@ RSpec.describe "isla del builder", type: :system, js: true do
   it "monta entrando por URL directa" do
     visit builder_challenge_path(challenge)
 
-    expect(page).to have_css(".builder .step-card", wait: 10)
+    expect(page).to have_css('[data-island-mounted="true"] .step-card', wait: 15)
     expect(page).to have_no_css(".island-placeholder")
   end
 
@@ -48,7 +60,7 @@ RSpec.describe "isla del builder", type: :system, js: true do
     visit challenge_path(challenge)
     click_link "Editar flujo"
 
-    expect(page).to have_css(".builder .step-card", wait: 10)
+    expect(page).to have_css('[data-island-mounted="true"] .step-card', wait: 15)
     expect(page).to have_no_css(".island-placeholder"),
                     "quedó el placeholder: la isla no montó tras la navegación de Turbo"
     expect(page).to have_content("Postulación")
@@ -62,7 +74,7 @@ RSpec.describe "isla del builder", type: :system, js: true do
     visit challenge_path(challenge)
     click_link "Editar flujo"
     expect(page).to have_current_path(builder_challenge_path(challenge), wait: 10)
-    expect(page).to have_css(".builder .step-card", wait: 10)
+    expect(page).to have_css('[data-island-mounted="true"] .step-card', wait: 15)
 
     click_link "Ver desafío"
     expect(page).to have_current_path(challenge_path(challenge), wait: 10)
@@ -70,7 +82,7 @@ RSpec.describe "isla del builder", type: :system, js: true do
 
     click_link "Editar flujo"
     expect(page).to have_current_path(builder_challenge_path(challenge), wait: 10)
-    expect(page).to have_css(".builder .step-card", wait: 10)
+    expect(page).to have_css('[data-island-mounted="true"] .step-card', wait: 15)
     expect(page).to have_no_css(".island-placeholder")
   end
 end

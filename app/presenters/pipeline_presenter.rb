@@ -22,6 +22,7 @@ class PipelinePresenter
       palette: palette,
       aiModes: ai_modes,
       criteriaSets: criteria_sets,
+      settingsSchema: settings_schema,
       insertionFloor: pipeline.insertion_floor&.to_f,
       validation: validation_json,
       permissions: {
@@ -93,6 +94,41 @@ class PipelinePresenter
         singleton: singleton,
         disabled: singleton && taken.include?(kind)
       }
+    end
+  end
+
+  # El esquema de configuración de cada kind, con las opciones dinámicas ya
+  # resueltas. El builder lo renderiza tal cual: no declara campos propios, así
+  # que agregar una opción es tocar Flow::StepSettings y nada más.
+  def settings_schema
+    Flow::StepSettings::SCHEMA.transform_values do |groups|
+      groups.transform_values do |fields|
+        fields.map { |field| resolve_field(field) }
+      end
+    end
+  end
+
+  def resolve_field(field)
+    resolved = field.deep_dup
+    resolved[:options] = dynamic_options(field[:source]) if field[:source]
+    resolved
+  end
+
+  # Las opciones que dependen del desafío. `previous_*` se filtran en el
+  # cliente contra la posición del módulo elegido, porque el orden cambia
+  # mientras se edita el flujo.
+  def dynamic_options(source)
+    case source.to_s
+    when "criteria_sets"
+      criteria_sets.map { |set| { value: set[:id], label: "#{set[:name]} — #{set[:criteriaCount]} criterios" } }
+    when "previous_evaluations"
+      pipeline.steps.select(&:evaluation?).map do |step|
+        { value: step.id, label: step.name, position: step.position.to_f }
+      end
+    when "previous_steps"
+      pipeline.steps.map { |step| { value: step.slug, label: step.name, position: step.position.to_f } }
+    else
+      []
     end
   end
 

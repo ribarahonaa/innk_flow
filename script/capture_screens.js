@@ -52,7 +52,7 @@ async function shot(page, name, url, prepare) {
   // el bug; el link es el camino que usa una persona de verdad.
   await page.goto(`${BASE}/challenges/${CHALLENGE}`, { waitUntil: 'networkidle' });
   await page.click('a:has-text("Editar flujo")');
-  await page.waitForSelector('.builder .step-card', { timeout: 10000 });
+  await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
   const cards = page.locator('.step-card:not(.step-card--locked)');
   if (await cards.count()) await cards.first().click();
   await page.waitForTimeout(300);
