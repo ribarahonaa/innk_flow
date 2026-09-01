@@ -55,14 +55,21 @@ RSpec.describe "isla del builder", type: :system, js: true do
   end
 
   it "sigue montada al volver al builder por segunda vez" do
+    # Ida y vuelta: Turbo cachea la página al salir y la restaura al volver.
+    # Se espera la URL antes que el contenido — si no, la aserción puede correr
+    # contra el preview cacheado que Turbo pinta antes del body definitivo, y
+    # el spec se vuelve intermitente.
     visit challenge_path(challenge)
     click_link "Editar flujo"
-    expect(page).to have_css(".builder", wait: 10)
+    expect(page).to have_current_path(builder_challenge_path(challenge), wait: 10)
+    expect(page).to have_css(".builder .step-card", wait: 10)
 
     click_link "Ver desafío"
+    expect(page).to have_current_path(challenge_path(challenge), wait: 10)
     expect(page).to have_css(".step-table", wait: 10)
 
     click_link "Editar flujo"
+    expect(page).to have_current_path(builder_challenge_path(challenge), wait: 10)
     expect(page).to have_css(".builder .step-card", wait: 10)
     expect(page).to have_no_css(".island-placeholder")
   end

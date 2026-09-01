@@ -139,6 +139,28 @@
           <input v-model.number="selected.settings.cut_value" type="number" min="1" :disabled="selected.locked" />
         </div>
 
+        <!-- Criterios del módulo de evaluación -->
+        <div v-if="selected.kind === 'evaluation'" class="field">
+          <label>Set de criterios</label>
+          <select v-model="selected.criteriaSetId" :disabled="selected.locked">
+            <option :value="null">Criterios por defecto (impacto, factibilidad, esfuerzo)</option>
+            <option v-for="set in criteriaSets" :key="set.id" :value="set.id">
+              {{ set.name }} — {{ set.criteriaCount }} criterios
+            </option>
+          </select>
+          <p v-if="selectedCriteriaSet" class="field-hint">
+            {{ selectedCriteriaSet.summary }}
+            <a :href="selectedCriteriaSet.editUrl" class="field-hint__link">editar</a>
+          </p>
+          <p v-else class="field-hint">
+            Se crean tres criterios genéricos al activar el módulo, editables desde ahí.
+            <a :href="urls.newCriteriaSet" class="field-hint__link">Crear un set propio</a>
+          </p>
+          <p v-if="selectedCriteriaSet && selectedCriteriaSet.status !== 'valid'" class="field-hint field-hint--warn">
+            Este set tiene algo que revisar: los pesos de sus criterios deben sumar 100%.
+          </p>
+        </div>
+
         <div v-if="selected.kind === 'evaluation'" class="field">
           <label>Evaluaciones mínimas por idea</label>
           <input v-model.number="selected.settings.min_assessments" type="number" min="1" :disabled="selected.locked" />
@@ -183,6 +205,7 @@ export default {
     steps: { type: Array, required: true },
     palette: { type: Array, required: true },
     aiModes: { type: Array, required: true },
+    criteriaSets: { type: Array, default: () => [] },
     insertionFloor: { type: Number, default: null },
     validation: { type: Object, required: true },
     permissions: { type: Object, required: true },
@@ -205,6 +228,11 @@ export default {
   computed: {
     selected() {
       return this.steps.find((s) => this.keyOf(s) === this.selectedKey) || null;
+    },
+
+    selectedCriteriaSet() {
+      if (!this.selected || !this.selected.criteriaSetId) return null;
+      return this.criteriaSets.find((set) => set.id === this.selected.criteriaSetId) || null;
     },
 
     challengeAiLabel() {
@@ -270,6 +298,7 @@ export default {
         statusLabel: 'Pendiente',
         aiMode: null,
         sourceStepId: null,
+        criteriaSetId: null,
         settings: {},
         locked: false,
         removable: true
@@ -335,6 +364,7 @@ export default {
           name: s.name,
           aiMode: s.aiMode,
           sourceStepId: s.sourceStepId,
+          criteriaSetId: s.criteriaSetId,
           settings: s.settings || {}
         }))
       };

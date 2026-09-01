@@ -10,7 +10,13 @@
     = yield :head
   %body
     %header.app-header
-      .app-header__brand innk flow
+      .app-header__brand= link_to "innk flow", root_path, class: "app-header__brand-link"
+      - if signed_in? && current_company
+        %nav.app-nav
+          = link_to "Desafíos", challenges_path, class: "app-nav__link#{' is-active' if controller_name.in?(%w[challenges steps ideas assessments])}"
+          - if current_membership&.manages_challenges?
+            = link_to "Criterios", criteria_sets_path, class: "app-nav__link#{' is-active' if controller_name == 'criteria_sets'}"
+            = link_to "IA", ai_runs_path, class: "app-nav__link#{' is-active' if controller_name.start_with?('ai_')}"
       .app-header__spacer
       = yield :header_right
       - if signed_in?

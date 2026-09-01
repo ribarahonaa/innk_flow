@@ -21,6 +21,7 @@ class PipelinePresenter
       steps: pipeline.steps.map { |step| step_json(step) },
       palette: palette,
       aiModes: ai_modes,
+      criteriaSets: criteria_sets,
       insertionFloor: pipeline.insertion_floor&.to_f,
       validation: validation_json,
       permissions: {
@@ -31,7 +32,9 @@ class PipelinePresenter
       urls: {
         pipeline: Rails.application.routes.url_helpers.api_v1_challenge_pipeline_path(challenge),
         show: Rails.application.routes.url_helpers.challenge_path(challenge),
-        start: Rails.application.routes.url_helpers.start_challenge_path(challenge)
+        start: Rails.application.routes.url_helpers.start_challenge_path(challenge),
+        criteriaSets: Rails.application.routes.url_helpers.criteria_sets_path,
+        newCriteriaSet: Rails.application.routes.url_helpers.new_criteria_set_path
       }
     }
   end
@@ -66,6 +69,8 @@ class PipelinePresenter
       aiMode: step.ai_mode,
       effectiveAiMode: step.effective_ai_mode,
       sourceStepId: step.source_step_id,
+      criteriaSetId: step.criteria_set_id,
+      criteriaSetName: step.criteria_set&.name,
       settings: step.settings,
       touched: step.touched?,
       # La UI muestra la restricción, no solo la rechaza: los módulos bajo la
@@ -87,6 +92,22 @@ class PipelinePresenter
         description: I18n.t("flow.kind_descriptions.#{kind}"),
         singleton: singleton,
         disabled: singleton && taken.include?(kind)
+      }
+    end
+  end
+
+  # Sets de la biblioteca de la empresa, para asignarlos a un módulo de
+  # evaluación desde el builder. Sin esto, el aviso "no tiene criterios
+  # asignados" no tiene dónde resolverse.
+  def criteria_sets
+    CriteriaSet.library.includes(:criteria).order(:name).map do |set|
+      {
+        id: set.id,
+        name: set.name,
+        status: set.status,
+        criteriaCount: set.active_criteria.size,
+        summary: set.active_criteria.map { |c| "#{c.name} #{(c.weight.to_f * 100).round}%" }.join(" · "),
+        editUrl: Rails.application.routes.url_helpers.edit_criteria_set_path(set)
       }
     end
   end

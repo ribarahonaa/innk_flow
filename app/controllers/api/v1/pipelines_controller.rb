@@ -81,6 +81,7 @@ module Api
             after: after,
             name: attrs[:name].presence,
             ai_mode: attrs[:aiMode].presence,
+            criteria_set_id: attrs[:criteriaSetId].presence,
             config: attrs[:settings].presence || {}
           )
           # El id provisional del cliente se reemplaza por el real.
@@ -110,6 +111,7 @@ module Api
           step.ai_mode = attrs[:aiMode].presence
           step.config = attrs[:settings] if attrs.key?(:settings)
           step.source_step_id = attrs[:sourceStepId].presence
+          step.criteria_set_id = attrs[:criteriaSetId].presence if attrs.key?(:criteriaSetId)
           next if step.save
 
           "«#{step.name}»: #{step.errors.full_messages.join(', ')}"

@@ -12,14 +12,27 @@
       .progress-bar__fill{ style: "width: #{[progress.pct, 100].min}%" }
 
 .card
-  %h2.section-title
-    Criterios
-    - if @step.criteria_set
-      %span.muted= " · #{@step.criteria_set.name}"
+  .section-head
+    %h2.section-title
+      Criterios
+      - if @step.criteria_set
+        %span.muted= " · #{@step.criteria_set.name}"
+    - if @step.criteria_set && policy(@challenge).update_pipeline?
+      = link_to "Editar el set", edit_criteria_set_path(@step.criteria_set), class: "btn btn--ghost btn--sm"
+    - elsif policy(@challenge).update_pipeline?
+      = link_to "Elegir un set", builder_challenge_path(@challenge), class: "btn btn--ghost btn--sm"
+
   - if @handler.criteria_snapshot.empty?
-    %p.muted Este módulo todavía no tiene criterios asignados.
+    %p.muted
+      Este módulo todavía no tiene criterios asignados. Se le crean tres por defecto al activarlo,
+      o podés elegir un set desde
+      = succeed "." do
+        = link_to "Editar flujo", builder_challenge_path(@challenge)
   - else
-    %p.muted.field-hint Congelados al activar el módulo: editar el set ahora no altera lo ya evaluado.
+    %p.muted.field-hint
+      Congelados al activar el módulo: editar el set ahora no altera lo ya evaluado.
+      - if @step.criteria_set&.inline?
+        Este set es propio de este módulo.
     %table.step-table
       %thead
         %tr

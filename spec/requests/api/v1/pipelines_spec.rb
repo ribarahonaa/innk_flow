@@ -147,6 +147,67 @@ RSpec.describe "API del pipeline", type: :request do
     end
   end
 
+  describe "criterios de un módulo de evaluación" do
+    let!(:set) do
+      as_company(company) do
+        s = CriteriaSet.create!(name: "Técnica avanzada")
+        s.criteria.create!(key: "impacto", name: "Impacto", weight: 0.5, scale_type: "numeric")
+        s.criteria.create!(key: "riesgo", name: "Riesgo", weight: 0.5, scale_type: "numeric")
+        s.refresh_status!
+        s
+      end
+    end
+
+    it "expone los sets de la biblioteca para poder elegir uno" do
+      get pipeline_path
+
+      names = json["criteriaSets"].map { _1["name"] }
+      expect(names).to include("Técnica avanzada")
+      expect(json["criteriaSets"].first["criteriaCount"]).to eq(2)
+      expect(json["criteriaSets"].first["editUrl"]).to be_present
+    end
+
+    it "asigna el set al guardar el flujo" do
+      put pipeline_path, params: {
+        lock_version: 0,
+        steps: [
+          { id: nil, kind: "ideation" },
+          { id: nil, kind: "evaluation", name: "Técnica", criteriaSetId: set.id }
+        ]
+      }, as: :json
+
+      expect(response).to have_http_status(:ok)
+      evaluation = json["steps"].find { _1["kind"] == "evaluation" }
+      expect(evaluation["criteriaSetId"]).to eq(set.id)
+      expect(evaluation["criteriaSetName"]).to eq("Técnica avanzada")
+    end
+
+    it "el módulo usa ESOS criterios al activarse, no los por defecto" do
+      put pipeline_path, params: {
+        lock_version: 0,
+        steps: [{ id: nil, kind: "ideation" },
+                { id: nil, kind: "evaluation", name: "Técnica", criteriaSetId: set.id }]
+      }, as: :json
+
+      as_company(company) do
+        step = challenge.steps.reload.find_by(kind: "evaluation")
+        Flow::Handlers::Base.for(step).activate!
+
+        expect(step.reload.settings["criteria"].map { _1["key"] }).to eq(%w[impacto riesgo])
+      end
+    end
+
+    it "sin set asignado avisa dónde elegirlo" do
+      as_company(company) do
+        challenge.steps.create!(kind: "ideation", position: 1)
+        challenge.steps.create!(kind: "evaluation", position: 2, name: "Técnica")
+      end
+
+      get pipeline_path
+      expect(json["validation"]["warnings"].join).to match(/panel de configuración del módulo, en «Editar flujo»/)
+    end
+  end
+
   describe "aislamiento entre empresas" do
     it "el pipeline de otra empresa da 404" do
       other = without_tenant { create(:company, slug: "otra") }

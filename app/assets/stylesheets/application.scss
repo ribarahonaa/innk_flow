@@ -758,3 +758,22 @@ input:focus, textarea:focus, select:focus {
   font-size: 12px;
 }
 .theme-card__count { font-size: 20px; font-weight: 650; color: #7c3aed; }
+
+// ── Navegación principal ─────────────────────────────────────────────────
+.app-header__brand-link { color: inherit; text-decoration: none; }
+.app-nav { display: flex; gap: 4px; margin-left: 18px; }
+.app-nav__link {
+  padding: 5px 11px;
+  border-radius: 7px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 550;
+}
+.app-nav__link:hover { background: var(--bg); color: var(--text); }
+.app-nav__link.is-active { background: var(--accent-soft); color: var(--accent); }
+
+.field-hint__link { margin-left: 4px; }
+
+.section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.section-head .section-title { margin-bottom: 10px; }
