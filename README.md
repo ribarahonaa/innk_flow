@@ -110,6 +110,7 @@ para lo interactivo, y la tenencia la garantiza el scope de Ruby.
 | PKs **UUIDv7** | No adivinables (un id secuencial es un oráculo de enumeración cross-tenant) y ordenados por tiempo, así los índices no se fragmentan |
 | `connection_pool ~> 2.4` | La 3.x exige Ruby ≥3.4 |
 | npm `playwright` == gema `playwright-ruby-client` | Con versiones distintas cada spec pierde ~2 minutos en el handshake |
+| Al agregar una gema, `make rebuild` (no solo `app`) | `sidekiq` corre en su propia imagen: si no se rebuildea, arranca con el bundle viejo y falla con `Could not find <gema> in locally installed gems` |
 
 ---
 

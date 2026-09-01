@@ -99,6 +99,7 @@ module Flow
 
       def on_activate
         assign_evaluators!
+        request_ai_assessments! if effective_ai_mode == "ai_auto"
       end
 
       # Antes de congelar el snapshot: si el módulo no tiene criterios, se le
@@ -166,6 +167,20 @@ module Flow
           values = group.filter_map { |s| s.normalized_value&.to_d }
           values.empty? ? nil : (values.sum / values.size).to_f.round(4)
         end.compact
+      end
+
+      # En modo automático la IA evalúa cada idea del cohorte. Una llamada por
+      # idea, encolada: nunca fan-out síncrono dentro del request.
+      #
+      # En `ai_assisted` no se dispara sola — la IA queda disponible como una
+      # opinión más que alguien puede pedir, no como el evaluador por defecto.
+      def request_ai_assessments!
+        step.step_entries.each do |entry|
+          Flow::AI::RunJob.perform_later(
+            step.company_id, "evaluate_idea",
+            { "step_id" => step.id, "idea_id" => entry.idea_id }
+          )
+        end
       end
 
       # Todos los que pueden evaluar en la empresa, salvo que ya haya

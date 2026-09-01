@@ -136,3 +136,56 @@ RSpec.describe Flow::Handlers::Ideation do
     end
   end
 end
+RSpec.describe "«Idear» con IA automática" do
+  let(:company) { without_tenant { create(:company) } }
+  around { |example| as_company(company) { example.run } }
+
+  let!(:owner) do
+    without_tenant do
+      user = create(:user)
+      create(:membership, :owner, company: company, user: user)
+      user
+    end
+  end
+  let(:challenge) { create(:challenge, brief: "Reducir la merma en bodega.") }
+
+  def ideation_with(mode)
+    step = challenge.steps.create!(kind: "ideation", position: 1, ai_mode: mode)
+    Flow::Handlers::Base.for(step).activate!
+    step.reload
+  end
+
+  it "en ai_auto genera las ideas al abrir el módulo" do
+    expect { ideation_with("ai_auto") }
+      .to have_enqueued_job(Flow::AI::RunJob)
+      .with(company.id, "generate_ideas", hash_including("count" => 5))
+  end
+
+  it "en ai_assisted NO las genera sola: la IA acompaña a quien postula" do
+    expect { ideation_with("ai_assisted") }.not_to have_enqueued_job(Flow::AI::RunJob)
+  end
+
+  it "en human no llama al proveedor" do
+    expect { ideation_with("human") }.not_to have_enqueued_job(Flow::AI::RunJob)
+  end
+
+  it "no vuelve a generarlas si el módulo se reactiva" do
+    step = ideation_with("ai_auto")
+    idea = create(:idea, challenge: challenge, author: owner, origin: "ai")
+    Flow::Ideas::PublishVersion.new(idea, payload: { "titulo" => "Ya generada" }).call
+
+    expect { Flow::Handlers::Base.for(step).send(:on_activate) }
+      .not_to have_enqueued_job(Flow::AI::RunJob)
+  end
+
+  it "las ideas generadas quedan postuladas y marcadas como de IA" do
+    step = ideation_with("ai_auto")
+    perform_enqueued_jobs
+
+    ideas = challenge.ideas.reload
+    expect(ideas.count).to eq(5)
+    expect(ideas.map(&:origin).uniq).to eq(%w[ai])
+    expect(ideas.map(&:submitted_at)).to all(be_present)
+    expect(ideas.first.current_version).to be_by_ai
+  end
+end

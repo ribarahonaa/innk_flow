@@ -52,6 +52,7 @@ module Flow
 
       def on_activate
         seed_default_fields! if step.form_fields.empty?
+        request_generated_ideas! if effective_ai_mode == "ai_auto"
       end
 
       # Al cerrar la postulación las ideas pasan a `active`: recién ahí entran
@@ -74,6 +75,22 @@ module Flow
       end
 
       private
+
+      # En modo automático la IA genera las ideas al abrir el módulo, igual que
+      # «Evolución» genera feedback y «Reportería» el resumen.
+      #
+      # En `ai_assisted` NO se dispara sola: ahí la IA acompaña a quien postula
+      # (copiloto, duplicados) y generar candidatas queda como una acción que el
+      # dueño pide desde la pantalla. Llenar el desafío de ideas sin que nadie
+      # las pidiera sería invasivo.
+      def request_generated_ideas!
+        return if challenge.ideas.where(origin: "ai").exists?
+
+        Flow::AI::RunJob.perform_later(
+          step.company_id, "generate_ideas",
+          { "step_id" => step.id, "count" => settings.fetch("generated_ideas", 5).to_i }
+        )
+      end
 
       def seed_default_fields!
         DEFAULT_FIELDS.each do |attributes|

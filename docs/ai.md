@@ -34,6 +34,28 @@ con el motivo en `review_note`: la decisión vuelve a una persona.
 
 ---
 
+## Qué dispara cada módulo al activarse
+
+En `ai_auto` la IA **hace el trabajo del módulo sola**, apenas se abre. En
+`ai_assisted` no se dispara nada: la IA queda disponible como una mano que
+alguien pide, no como el operario por defecto.
+
+| Módulo | `ai_auto` al activarse | `ai_assisted` |
+|---|---|---|
+| **Idear** | Genera las ideas candidatas | Nada. La IA acompaña a quien postula (copiloto, duplicados) |
+| **Evolución** | Genera feedback para cada idea | Igual: el feedback se pide |
+| **Evaluación** | Evalúa cada idea del cohorte | Nada. La IA es una opinión más que se puede pedir |
+| **Selección** | — | — |
+| **Reportería** | Escribe el resumen narrativo | Se pide desde la pantalla |
+
+Dos salvaguardas en «Idear»: no genera si el desafío **ya tiene** ideas de IA
+(reactivar el módulo no lo llena de duplicados), y las ideas nacen postuladas y
+marcadas `origin: "ai"` — visibles como cualquier otra, no en un limbo aparte.
+
+Las evaluaciones de la IA entran **al promedio junto a las humanas**: mismo
+anclaje a la versión, misma justificación por criterio, misma pantalla. No son
+una categoría aparte.
+
 ## Aceptar es un solo lugar
 
 `Flow::AI::ApplySuggestion` corre exactamente el mismo `task.apply!` que usa la

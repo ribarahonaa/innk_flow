@@ -239,3 +239,89 @@ RSpec.describe Flow::Handlers::Evaluation do
     end
   end
 end
+RSpec.describe "«Evaluación» con IA automática" do
+  let(:company) { without_tenant { create(:company) } }
+  around { |example| as_company(company) { example.run } }
+
+  let(:author) { without_tenant { create(:user) } }
+  let(:challenge) { create(:challenge) }
+  let!(:ideation) { challenge.steps.create!(kind: "ideation", position: 1) }
+
+  let(:set) do
+    s = CriteriaSet.create!(name: "Técnica")
+    s.criteria.create!(key: "impacto", name: "Impacto", weight: 0.4, source: "manual",
+                       scale_type: "numeric", scale_config: { "min" => 1, "max" => 10 }, position: 0)
+    s.criteria.create!(key: "factibilidad", name: "Factibilidad", weight: 0.35, source: "manual",
+                       scale_type: "numeric", scale_config: { "min" => 1, "max" => 10 }, position: 1)
+    s.criteria.create!(key: "esfuerzo", name: "Esfuerzo", weight: 0.25, source: "manual",
+                       scale_type: "numeric", scale_config: { "min" => 1, "max" => 10 }, position: 2)
+    s.refresh_status!
+    s
+  end
+
+  let!(:idea) do
+    i = create(:idea, challenge: challenge, author: author, status: "active")
+    Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "Sensores" }, author: author).call
+    i.update!(submitted_at: Time.current)
+    i
+  end
+
+  def evaluation_with(mode)
+    step = challenge.steps.create!(kind: "evaluation", position: 2, ai_mode: mode, criteria_set: set)
+    Flow::Handlers::Base.for(step).activate!
+    step.reload
+  end
+
+  it "en ai_auto encola una evaluación por idea" do
+    expect { evaluation_with("ai_auto") }
+      .to have_enqueued_job(Flow::AI::RunJob)
+      .with(company.id, "evaluate_idea", hash_including("idea_id" => idea.id))
+  end
+
+  it "en ai_assisted NO evalúa sola" do
+    expect { evaluation_with("ai_assisted") }.not_to have_enqueued_job(Flow::AI::RunJob)
+  end
+
+  it "la evaluación de IA entra al promedio como una más" do
+    step = evaluation_with("ai_auto")
+    perform_enqueued_jobs
+
+    assessment = step.assessments.reload.first
+    expect(assessment).to be_by_ai
+    expect(assessment.evaluator_id).to be_nil
+    expect(assessment.evaluator_name).to eq("IA")
+    expect(assessment).to be_submitted
+
+    # Escala 1..10 normaliza (v-1)/9:
+    #   impacto      8 -> 0.778 x 0.40 = 0.311
+    #   factibilidad 6 -> 0.556 x 0.35 = 0.194
+    #   esfuerzo     5 -> 0.444 x 0.25 = 0.111
+    expect(assessment.normalized_score.to_f).to be_within(0.001).of(0.6167)
+    expect(step.step_entries.first.result["score"]).to be_within(0.001).of(0.6167)
+  end
+
+  it "queda anclada a la versión que juzgó, con la justificación por criterio" do
+    step = evaluation_with("ai_auto")
+    perform_enqueued_jobs
+
+    assessment = step.assessments.reload.first
+    expect(assessment.idea_version_id).to eq(idea.reload.current_version_id)
+    expect(assessment.overall_comment).to include("costo estimado")
+
+    scores = assessment.assessment_scores.index_by(&:criterion_key)
+    expect(scores["impacto"].raw_value).to eq("8")
+    expect(scores["impacto"].comment).to include("diferencia de inventario")
+    expect(scores.keys).to match_array(%w[impacto factibilidad esfuerzo])
+  end
+
+  it "deja rastro en la auditoría" do
+    step = evaluation_with("ai_auto")
+    perform_enqueued_jobs
+
+    run = AiRun.find_by(purpose: "evaluate_idea")
+    expect(run).to be_succeeded
+    expect(run.idea_id).to eq(idea.id)
+    expect(run.challenge_step_id).to eq(step.id)
+    expect(AiSuggestion.find_by(ai_run_id: run.id)).to be_accepted
+  end
+end

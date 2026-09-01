@@ -1,0 +1,11 @@
+{
+  "overall_comment": "La idea identifica bien dónde se pierde el producto y propone una medición concreta, pero llega sin costo estimado ni criterio de éxito, lo que hace difícil compararla con las otras.",
+  "scores": [
+    { "criterion_key": "impacto", "value": 8,
+      "reason": "Ataca el punto donde se concentra la diferencia de inventario; si funciona, el efecto es medible en el mismo trimestre." },
+    { "criterion_key": "factibilidad", "value": 6,
+      "reason": "Requiere integración con el WMS, que la idea menciona pero no confirma. Depende de un equipo que no está involucrado todavía." },
+    { "criterion_key": "esfuerzo", "value": 5,
+      "reason": "Instalación de hardware más integración: no es trivial, pero está acotado a un centro." }
+  ]
+}
