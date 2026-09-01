@@ -1,0 +1,15 @@
+en:
+  date:
+    formats:
+      default: "%d-%m-%Y"
+      short: "%d-%m"
+      long: "%B %d, %Y"
+  time:
+    formats:
+      default: "%d-%m-%Y %H:%M"
+      short: "%d-%m-%Y %H:%M"
+      long: "%B %d, %Y at %H:%M"
+  auth:
+    sign_in_required: "Sign in to continue."
+    invalid_credentials: "Wrong email or password."
+    signed_out: "Signed out."

@@ -1,0 +1,15 @@
+- if ideas.empty?
+  %p.muted Todavía no hay ideas.
+- else
+  %ul.idea-list
+    - ideas.each do |idea|
+      %li.idea-list__item
+        = link_to challenge_idea_path(challenge, idea), class: "idea-list__link" do
+          %span.idea-list__title= idea.title
+          %span.idea-list__meta
+            = idea.author.name
+            %span.version-chip= idea.current_version&.label
+            - if idea.origin == "ai"
+              %span.ai-chip IA
+        %span.status-chip{ class: "status-chip--#{{ 'active' => 'active', 'eliminated' => 'skipped' }.fetch(idea.status, 'pending')}" }
+          = t("flow.idea_statuses.#{idea.status}")

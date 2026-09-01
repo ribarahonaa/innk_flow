@@ -1,0 +1,54 @@
+= form_with model: set do |f|
+  - if set.errors.any?
+    .flash.flash--alert= set.errors.full_messages.to_sentence
+  - if set.persisted? && set.validation_errors.any?
+    .flash.flash--warn
+      %ul
+        - set.validation_errors.each do |error|
+          %li= error
+
+  .field
+    = f.label :name, "Nombre"
+    = f.text_field :name, required: true
+  .field
+    = f.label :description, "Descripción"
+    = f.text_area :description, rows: 2
+
+  %h2.section-title Criterios
+  %p.field-hint Los pesos de los criterios activos deben sumar 100%.
+
+  .criteria-editor
+    = f.fields_for :criteria do |cf|
+      .criterion-row
+        .criterion-row__main
+          .field
+            = cf.label :name, "Nombre"
+            = cf.text_field :name
+          .field
+            = cf.label :key, "Clave"
+            = cf.text_field :key, placeholder: "se genera del nombre"
+            %p.field-hint Las fórmulas la usan como variable.
+          .field
+            = cf.label :weight, "Peso"
+            = cf.number_field :weight, step: 0.05, min: 0, max: 1
+          .field
+            = cf.label :scale_type, "Escala"
+            = cf.select :scale_type, Criterion::SCALE_TYPES.map { |t| [t("flow.scale_types.#{t}"), t] }
+        .criterion-row__config
+          .field
+            = cf.label "scale_config_expression", "Configuración (JSON)"
+            = text_area_tag "criteria_set[criteria_attributes][#{cf.index}][scale_config]",
+                            cf.object.scale_config.to_json, rows: 2, class: "code-input"
+            %p.field-hint
+              numeric: <code>{"min":1,"max":10}</code> ·
+              formula: <code>{"expression":"impacto / esfuerzo","output":{"min":0,"max":10}}</code>
+          .criterion-row__actions
+            = cf.check_box :active
+            = cf.label :active, "Activo", class: "inline-label"
+            - if cf.object.persisted?
+              = cf.check_box :_destroy
+              = cf.label :_destroy, "Eliminar", class: "inline-label"
+
+  .form-actions
+    = link_to "Cancelar", criteria_sets_path, class: "btn btn--ghost"
+    = f.submit "Guardar", class: "btn btn--primary"

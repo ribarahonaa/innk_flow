@@ -1,0 +1,6 @@
+:concurrency: 5
+:queues:
+  - [flow_ai, 3]
+  - [flow_steps, 2]
+  - [flow_reports, 1]
+  - [default, 1]

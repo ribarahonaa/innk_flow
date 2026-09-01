@@ -1,0 +1,18 @@
+-# Cabecera común a todas las pantallas de módulo.
+.page-head
+  %div
+    %p.breadcrumb
+      = link_to "Desafíos", challenges_path
+      = " › "
+      = link_to step.challenge.name, challenge_path(step.challenge)
+    %h1.page-title= step.name
+    %p.muted
+      %span.status-chip{ class: "status-chip--#{step.status}" }= t("flow.statuses.#{step.status}")
+      %span= " · #{t("flow.kinds.#{step.kind}")} · IA: #{t("flow.ai_modes.#{step.effective_ai_mode}")}"
+  .page-head__actions
+    - ready, reasons = handler.can_complete?
+    - if policy(step).advance? && step.active?
+      - if ready
+        = button_to "Cerrar módulo y avanzar", advance_challenge_step_path(step.challenge, step), class: "btn btn--primary"
+      - else
+        %span.muted{ title: reasons.join(" ") }= reasons.first

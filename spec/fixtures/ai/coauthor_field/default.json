@@ -1,0 +1,4 @@
+{
+  "suggestion": "Instalar celdas de carga en los racks que concentran el 80% de la merma histórica y comparar, al cierre de cada turno, el peso esperado según el sistema contra el peso real medido. Cuando la diferencia supere el umbral definido, se genera una alerta al supervisor del turno con la ubicación exacta. Piloto acotado a un centro durante dos meses para medir antes de decidir si se escala.",
+  "reason": "El texto original decía qué instalar pero no cuándo se compara, quién recibe la alerta ni cómo se acota el piloto. Se agregaron esos tres puntos sin inventar cifras que no estaban en la idea."
+}

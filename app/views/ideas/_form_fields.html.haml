@@ -1,0 +1,22 @@
+-# Formulario dinámico: los campos los define el módulo de ideación.
+- fields.each do |field|
+  .field
+    = label_tag "payload_#{field.key}", field.label
+    - value = payload[field.key]
+    - case field.field_type
+    - when "textarea"
+      = text_area_tag "payload[#{field.key}]", value, rows: 4, id: "payload_#{field.key}", required: field.required
+    - when "rich_text"
+      = text_area_tag "payload[#{field.key}]", value, rows: 8, id: "payload_#{field.key}", required: field.required
+    - when "number"
+      = number_field_tag "payload[#{field.key}]", value, id: "payload_#{field.key}", required: field.required
+    - when "date"
+      = date_field_tag "payload[#{field.key}]", value, id: "payload_#{field.key}", required: field.required
+    - when "select"
+      = select_tag "payload[#{field.key}]", options_for_select(field.options, value), include_blank: true, id: "payload_#{field.key}"
+    - when "multi_select"
+      = select_tag "payload[#{field.key}][]", options_for_select(field.options, Array(value)), multiple: true, id: "payload_#{field.key}"
+    - else
+      = text_field_tag "payload[#{field.key}]", value, id: "payload_#{field.key}", required: field.required
+    - if field.hint.present?
+      %p.field-hint= field.hint

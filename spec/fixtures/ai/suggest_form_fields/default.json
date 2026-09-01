@@ -1,0 +1,14 @@
+{
+  "fields": [
+    { "key": "titulo", "label": "Título de la idea", "field_type": "text",
+      "required": true, "is_title": true, "hint": "Una frase que la identifique." },
+    { "key": "problema", "label": "¿Qué problema resuelve?", "field_type": "textarea",
+      "required": true, "hint": "Describí la situación actual y su costo." },
+    { "key": "solucion", "label": "¿Cómo funcionaría?", "field_type": "textarea",
+      "required": true, "hint": "Lo más concreto posible: qué se hace, quién lo hace." },
+    { "key": "impacto_estimado", "label": "Impacto estimado", "field_type": "select",
+      "required": false, "options": ["Bajo", "Medio", "Alto"] },
+    { "key": "area", "label": "Área donde se aplicaría", "field_type": "text", "required": false },
+    { "key": "esfuerzo", "label": "Esfuerzo estimado (semanas)", "field_type": "number", "required": false }
+  ]
+}

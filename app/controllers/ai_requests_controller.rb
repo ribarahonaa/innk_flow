@@ -1,0 +1,52 @@
+# frozen_string_literal: true
+
+# Dispara una tarea de IA. Siempre síncrono desde la UI para que la maqueta se
+# sienta inmediata; en producción con un proveedor real esto encola
+# Flow::AI::RunJob y la pantalla hace polling.
+class AiRequestsController < ApplicationController
+  def create
+    @challenge = Challenge.find_by!(slug: params[:challenge_id])
+    authorize @challenge, :update_pipeline?
+
+    context = build_context
+    task = Flow::AI::Tasks::Base.for(params[:purpose], **context)
+
+    result = Flow::AI::Runner.call(
+      task,
+      mode: resolved_mode(context),
+      requested_by: current_user,
+      challenge: @challenge, step: context[:step], idea: context[:idea]
+    )
+
+    redirect_back fallback_location: challenge_path(@challenge),
+                  notice: result.ok? ? success_message(result) : nil,
+                  alert: result.ok? ? nil : "La IA no pudo responder: #{result.error_sentence}"
+  rescue ArgumentError => e
+    redirect_back fallback_location: challenge_path(@challenge), alert: e.message
+  end
+
+  private
+
+  def build_context
+    step = params[:step_id].present? ? @challenge.steps.find(params[:step_id]) : nil
+    idea = params[:idea_id].present? ? @challenge.ideas.find(params[:idea_id]) : nil
+    field = params[:field_key].present? ? step&.form_fields&.find_by(key: params[:field_key]) : nil
+
+    { challenge: @challenge, step: step, idea: idea, field: field,
+      count: params[:count].presence&.to_i }.compact
+  end
+
+  # El modo efectivo del módulo manda; si la tarea no cuelga de un módulo
+  # (proponer el pipeline, p.ej.), manda el default del desafío. `human` no
+  # llega hasta acá: la UI no ofrece el botón.
+  def resolved_mode(context)
+    mode = context[:step]&.effective_ai_mode || @challenge.ai_default_mode
+    mode == "human" ? "ai_assisted" : mode
+  end
+
+  def success_message(result)
+    return "La IA respondió y se aplicó automáticamente." if result.suggestion&.accepted?
+
+    "La IA respondió. Revisá la propuesta antes de aplicarla."
+  end
+end

@@ -1,0 +1,16 @@
+!!!
+%html
+  %head
+    %meta{ charset: "utf-8" }
+    :css
+      body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #1c2024; }
+      h1 { font-size: 20px; margin: 0 0 4px; }
+      h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #667085; margin: 22px 0 8px; }
+      .muted { color: #667085; }
+      table { width: 100%; border-collapse: collapse; }
+      th { text-align: left; font-size: 9px; text-transform: uppercase; color: #667085;
+           border-bottom: 1px solid #e3e6ea; padding: 5px 6px; }
+      td { padding: 6px; border-bottom: 1px solid #eef0f3; }
+      .cover { border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 8px; }
+  %body
+    = yield

@@ -1,0 +1,38 @@
+- content_for :title, "Llamada de IA"
+.page-head
+  %div
+    %p.breadcrumb= link_to "Auditoría de IA", ai_runs_path
+    %h1.page-title= t("flow.ai_purposes.#{@run.purpose}", default: @run.purpose.humanize)
+    %p.muted
+      %span.status-chip{ class: "status-chip--#{@run.succeeded? ? 'completed' : (@run.failed? ? 'skipped' : 'pending')}" }= @run.status
+      %span= " · #{t("flow.ai_modes.#{@run.mode}")} · #{@run.provider}/#{@run.model} · #{@run.latency_ms} ms · #{@run.tokens_total} tokens"
+
+- if @run.error.present?
+  .flash.flash--alert= @run.error
+
+.card
+  %h2.section-title Prompt
+  %pre.code-block= JSON.pretty_generate(@run.prompt)
+
+.card
+  %h2.section-title Respuesta
+  %pre.code-block= @run.response ? JSON.pretty_generate(@run.response) : "—"
+
+- if @run.ai_suggestions.any?
+  .card
+    %h2.section-title Sugerencias derivadas
+    %table.step-table
+      %thead
+        %tr
+          %th Estado
+          %th Revisó
+          %th Cuándo
+          %th Nota
+      %tbody
+        - @run.ai_suggestions.each do |suggestion|
+          %tr
+            %td
+              %span.status-chip{ class: "status-chip--#{suggestion.pending? ? 'pending' : 'completed'}" }= suggestion.status
+            %td.muted= suggestion.reviewed_by&.name || (suggestion.auto_accepted_at ? "automático" : "—")
+            %td.muted= suggestion.reviewed_at ? l(suggestion.reviewed_at, format: :short) : "—"
+            %td.muted= suggestion.review_note

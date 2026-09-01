@@ -1,0 +1,45 @@
+.cover
+  %h1= @data["challenge"]["name"]
+  %p.muted
+    = "Reporte generado el #{l(Time.current, format: :long)}"
+    = " · modo #{@data['mode'] == 'by_version' ? 'por versión' : 'versión vigente'}"
+- if @data["challenge"]["brief"].present?
+  %p= @data["challenge"]["brief"]
+
+%h2 Embudo
+%table
+  %thead
+    %tr
+      %th Módulo
+      %th Entraron
+      %th Avanzaron
+      %th Eliminadas
+  %tbody
+    - @data["funnel"].each do |stage|
+      %tr
+        %td= stage["name"]
+        %td= stage["entered"]
+        %td= stage["advanced"]
+        %td= stage["eliminated"]
+
+- if @data["ranking"].any?
+  %h2 Ranking
+  %table
+    %thead
+      %tr
+        %th #
+        %th Idea
+        %th Autor
+        %th Puntaje
+        %th Evaluada sobre
+    %tbody
+      - @data["ranking"].each do |row|
+        %tr
+          %td= row["rank"]
+          %td= row["title"]
+          %td= row["author"]
+          %td= "#{(row['score'] * 100).round(1)}%"
+          %td.muted
+            = row["version"]
+            - if row["stale"]
+              = " (la idea ya va por #{row['current_version']})"

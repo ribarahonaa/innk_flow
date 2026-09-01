@@ -1,0 +1,10 @@
+{
+  "items": [
+    { "kind": "question",
+      "body": "¿Cuál es el costo estimado y en cuánto tiempo se recupera? Sin eso el comité no puede comparar esta idea con las otras." },
+    { "kind": "suggestion",
+      "body": "Acotá el piloto a un solo centro y definí qué métrica tiene que moverse para considerarlo exitoso. Un alcance grande sin criterio de éxito es difícil de aprobar." },
+    { "kind": "issue",
+      "body": "La idea asume que el WMS puede recibir el dato en tiempo real. Conviene confirmarlo con Sistemas antes de avanzar, porque si no la propuesta cambia bastante." }
+  ]
+}

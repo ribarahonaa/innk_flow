@@ -1,0 +1,28 @@
+!!!
+%html{ lang: I18n.locale }
+  %head
+    %title= content_for(:title) || "innk flow"
+    %meta{ name: "viewport", content: "width=device-width,initial-scale=1" }
+    = csrf_meta_tags
+    = csp_meta_tag
+    = stylesheet_link_tag "application-build-css", "data-turbo-track": "reload", nonce: content_security_policy_nonce
+    = javascript_include_tag "application-build", "data-turbo-track": "reload", defer: true, nonce: content_security_policy_nonce
+    = yield :head
+  %body
+    %header.app-header
+      .app-header__brand innk flow
+      .app-header__spacer
+      = yield :header_right
+      - if signed_in?
+        .app-header__session
+          %span.app-header__company= current_company&.name
+          %span.app-header__user
+            = current_user.name
+            %span.app-header__role= current_membership&.role
+          - if current_user.multi_company?
+            = link_to "Cambiar empresa", select_company_path, class: "app-header__link"
+          = button_to "Salir", logout_path, method: :delete, class: "app-header__link app-header__link--button"
+    %main.app-main
+      - flash.each do |type, message|
+        .flash{ class: "flash--#{type}" }= message
+      = yield

@@ -1,0 +1,18 @@
+- content_for :title, "Ideas · #{@challenge.name}"
+.page-head
+  %div
+    %p.breadcrumb= link_to @challenge.name, challenge_path(@challenge)
+    %h1.page-title Ideas
+    %p.muted= "#{@alive.size} en carrera · #{@eliminated.size} no avanzaron"
+  - if @challenge.pipeline.ideation_step&.active?
+    = link_to "Postular una idea", new_challenge_idea_path(@challenge), class: "btn btn--primary"
+
+.card
+  %h2.section-title En carrera
+  = render "ideas/list", ideas: @alive, challenge: @challenge
+
+- if @eliminated.any?
+  .card
+    %h2.section-title No avanzaron
+    %p.muted Quedaron fuera en un módulo de selección. Siguen consultables y pueden repescarse.
+    = render "ideas/list", ideas: @eliminated, challenge: @challenge

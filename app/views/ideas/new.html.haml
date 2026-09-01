@@ -1,0 +1,11 @@
+- content_for :title, "Postular una idea"
+.card.narrow
+  %p.breadcrumb= link_to @challenge.name, challenge_path(@challenge)
+  %h1.page-title Postular una idea
+  %p.muted Se guarda como borrador. Podés seguir editándola hasta postularla.
+
+  = form_with url: challenge_ideas_path(@challenge), method: :post do
+    = render "ideas/form_fields", fields: @fields, payload: {}
+    .form-actions
+      = link_to "Cancelar", challenge_path(@challenge), class: "btn btn--ghost"
+      = submit_tag "Guardar borrador", class: "btn btn--primary"

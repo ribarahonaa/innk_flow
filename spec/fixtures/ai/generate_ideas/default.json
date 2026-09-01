@@ -1,0 +1,29 @@
+{
+  "ideas": [
+    { "title": "Conteo cíclico dirigido por variabilidad",
+      "payload": {
+        "titulo": "Conteo cíclico dirigido por variabilidad",
+        "problema": "El conteo cíclico recorre la bodega de forma pareja, y gasta la misma cantidad de horas en SKUs estables que en los que concentran la diferencia.",
+        "solucion": "Priorizar el conteo por variabilidad histórica de cada SKU: los que más se desvían se cuentan semanalmente, el resto pasa a trimestral. Se libera tiempo sin perder cobertura." } },
+    { "title": "Sellado con precinto numerado en despacho",
+      "payload": {
+        "titulo": "Sellado con precinto numerado en despacho",
+        "problema": "Entre que el pedido sale de picking y sube al camión no hay custodia registrada, y ahí aparece parte de la diferencia.",
+        "solucion": "Precinto numerado al cerrar el pedido, con el número asociado al remito. Cualquier apertura intermedia queda evidenciada." } },
+    { "title": "Alerta de merma por desvío de peso",
+      "payload": {
+        "titulo": "Alerta de merma por desvío de peso",
+        "problema": "La merma se detecta al cierre de mes, cuando ya no se puede rastrear el turno ni la causa.",
+        "solucion": "Pesar el pallet al ingreso y al despacho. Si la diferencia supera un umbral, se abre una alerta al supervisor del turno en el momento." } },
+    { "title": "Reubicación de SKUs frágiles fuera de pasillos de tránsito",
+      "payload": {
+        "titulo": "Reubicación de SKUs frágiles fuera de pasillos de tránsito",
+        "problema": "Los productos con más rotura están en los pasillos de mayor circulación de autoelevadores.",
+        "solucion": "Cruzar el histórico de roturas con el mapa de circulación y reubicar los SKUs frágiles a racks de baja circulación." } },
+    { "title": "Checklist fotográfico en recepción",
+      "payload": {
+        "titulo": "Checklist fotográfico en recepción",
+        "problema": "Cuando el faltante viene de origen, no hay evidencia para reclamar al proveedor y la merma se absorbe internamente.",
+        "solucion": "Foto obligatoria del pallet al abrir el camión, adjunta al remito en el WMS. Habilita el reclamo y separa merma propia de merma de proveedor." } }
+  ]
+}

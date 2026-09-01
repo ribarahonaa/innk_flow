@@ -1,0 +1,86 @@
+- content_for :title, @idea.title
+.page-head
+  %div
+    %p.breadcrumb
+      = link_to @challenge.name, challenge_path(@challenge)
+      = " › "
+      = link_to "Ideas", challenge_ideas_path(@challenge)
+    %h1.page-title= @idea.title
+    %p.muted
+      = @idea.author.name
+      %span.version-chip= @idea.current_version&.label
+      - if @idea.submitted_at
+        %span= " · postulada #{l(@idea.submitted_at, format: :short)}"
+      - else
+        %span.status-chip.status-chip--pending Borrador
+  .page-head__actions
+    - if policy(@idea).update?
+      = link_to "Editar", edit_challenge_idea_path(@challenge, @idea), class: "btn btn--ghost"
+    - if @idea.submitted_at.nil? && policy(@idea).submit?
+      = button_to "Postular", submit_challenge_idea_path(@challenge, @idea), class: "btn btn--primary"
+
+= render "shared/ai_suggestions", suggestions: @pending_suggestions
+
+.idea-layout
+  .idea-layout__main
+    - if @ideation_step
+      = render "shared/ai_actions", challenge: @challenge, mode: @ideation_step.effective_ai_mode,
+               actions: [{ label: "Detectar duplicados", purpose: "detect_duplicates", idea_id: @idea.id, step_id: @ideation_step.id }]
+    .card
+      %h2.section-title Contenido
+      %p.muted= "Versión vigente: #{@idea.current_version&.label}"
+      %dl.answer-list
+        - @fields.each do |field|
+          - value = @idea.payload[field.key]
+          %dt
+            = field.label
+            - if @ideation_step && @ideation_step.effective_ai_mode != "human" && policy(@idea).update?
+              = button_to "Mejorar con IA",
+                          challenge_ai_requests_path(@challenge, purpose: "coauthor_field", idea_id: @idea.id, step_id: @ideation_step.id, field_key: field.key),
+                          class: "link-button"
+          %dd{ class: ("is-empty" if value.blank?) }
+            = value.is_a?(Array) ? value.join(", ") : (value.presence || "—")
+
+    - if @feedback&.any?
+      .card
+        %h2.section-title
+          Feedback recibido
+          %span.muted= " (#{@feedback.count(&:addressed) }/#{@feedback.size} atendidos)"
+        %ul.feedback-list
+          - @feedback.each do |item|
+            %li.feedback-item{ class: ("is-addressed" if item.addressed) }
+              .feedback-item__head
+                %span.feedback-kind{ class: "feedback-kind--#{item.kind}" }= item.kind_label
+                %span.muted= item.author_name
+                - if item.by_ai?
+                  %span.ai-chip IA
+                %span.muted= "· desde «#{item.challenge_step.name}» sobre #{item.idea_version.label}"
+                - if item.addressed
+                  %span.status-chip.status-chip--completed= "atendido en #{item.addressed_by_version&.label}"
+              %p.feedback-item__body= item.body
+
+  %aside.idea-layout__side
+    .card
+      %h2.section-title
+        Historial
+        %span.muted= " (#{@versions.size})"
+      %ol.version-timeline
+        - @versions.reverse_each do |version|
+          %li.version-timeline__item{ class: ("is-current" if version.current?) }
+            .version-timeline__head
+              %span.version-chip= version.label
+              - if version.current?
+                %span.muted vigente
+            .version-timeline__meta
+              = version.author_name
+              - if version.by_ai?
+                %span.ai-chip IA
+            - if version.change_note.present?
+              %p.version-timeline__note= version.change_note
+            - if version.source_step
+              %p.muted.version-timeline__source= "desde «#{version.source_step.name}»"
+            %p.muted.version-timeline__date= l(version.created_at, format: :short)
+      - if @versions.size > 1
+        = link_to "Ver cambios entre versiones",
+                  diff_challenge_idea_path(@challenge, @idea, a: @versions.first.id, b: @versions.last.id),
+                  class: "btn btn--ghost btn--block"

@@ -1,0 +1,27 @@
+-# Polling del estado de los reportes: mismo patrón que innk_r5 (endpoint JSON
+-# scopeado + tope de intentos para no dejar un timer eterno).
+- if Report.where(challenge_step_id: step.id, status: "pending").exists?
+  = javascript_tag nonce: content_security_policy_nonce do
+    :plain
+      (function () {
+        if (window.__flowReportsTimer) return;
+        var attempts = 0;
+        var MAX = 120; // ~10 minutos
+        window.__flowReportsTimer = setInterval(function () {
+          attempts += 1;
+          if (attempts > MAX) { clearInterval(window.__flowReportsTimer); return; }
+
+          fetch("#{statuses_challenge_step_reports_path(challenge, step)}", {
+            headers: { Accept: "application/json" }
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data.pending === 0) {
+                clearInterval(window.__flowReportsTimer);
+                window.__flowReportsTimer = null;
+                window.location.reload();
+              }
+            })
+            .catch(function () { clearInterval(window.__flowReportsTimer); });
+        }, 4000);
+      })();

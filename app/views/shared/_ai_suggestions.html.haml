@@ -1,0 +1,24 @@
+-# Panel de revisión: lo que la IA propuso y todavía nadie decidió.
+-# En modo ai_auto estas tarjetas no aparecen (se auto-aceptan), pero el rastro
+-# queda igual en /admin/ai_runs.
+- suggestions = suggestions.to_a
+- return if suggestions.empty?
+
+.card.ai-panel
+  %h2.section-title
+    Propuestas de la IA
+    %span.ai-chip= suggestions.size
+  - suggestions.each do |suggestion|
+    - task = Flow::AI::Tasks::Base.for(suggestion.purpose, challenge: suggestion.ai_run.challenge, step: suggestion.ai_run.challenge_step, idea: suggestion.ai_run.idea) rescue nil
+    .ai-suggestion
+      .ai-suggestion__head
+        %span.ai-suggestion__purpose= t("flow.ai_purposes.#{suggestion.purpose}", default: suggestion.purpose.humanize)
+        %span.muted= l(suggestion.created_at, format: :short)
+      .ai-suggestion__body
+        - if task
+          = task.preview(suggestion.payload)
+        - else
+          %code= suggestion.payload.to_json.truncate(240)
+      .ai-suggestion__actions
+        = button_to "Aplicar", accept_ai_suggestion_path(suggestion), class: "btn btn--primary btn--sm"
+        = button_to "Descartar", reject_ai_suggestion_path(suggestion), class: "btn btn--ghost btn--sm"

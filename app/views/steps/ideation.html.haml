@@ -1,0 +1,37 @@
+- content_for :title, "#{@step.name} · #{@challenge_name = @step.challenge.name}"
+= render "steps/header", step: @step, handler: @handler
+
+- progress = @handler.progress
+.card
+  .step-progress
+    %div
+      %strong= progress.done
+      %span.muted= " de #{progress.total} #{progress.label}"
+    .progress-bar
+      .progress-bar__fill{ style: "width: #{[progress.pct, 100].min}%" }
+  - if @step.active? && policy(Idea.new(challenge: @step.challenge)).create?
+    = link_to "Postular una idea", new_challenge_idea_path(@step.challenge), class: "btn btn--primary"
+
+= render "shared/ai_suggestions", suggestions: @pending_suggestions
+
+.card
+  %h2.section-title Formulario de postulación
+  %p.muted Estos son los campos que responde quien postula.
+  = render "shared/ai_actions", challenge: @step.challenge, mode: @step.effective_ai_mode,
+           actions: [{ label: "Proponer campos", purpose: "suggest_form_fields", step_id: @step.id }]
+  %ul.field-list
+    - @handler.form_fields.each do |field|
+      %li.field-list__item
+        %span.field-list__label
+          = field.label
+          - if field.required
+            %span.field-list__req *
+        %span.field-list__type= field.field_type
+
+.card
+  %h2.section-title
+    Ideas postuladas
+    %span.muted= " (#{@handler.submitted_ideas.count})"
+  = render "shared/ai_actions", challenge: @step.challenge, mode: @step.effective_ai_mode,
+           actions: [{ label: "Generar ideas candidatas", purpose: "generate_ideas", step_id: @step.id, count: 5 }]
+  = render "ideas/list", ideas: @handler.submitted_ideas.includes(:current_version, :author).recent, challenge: @step.challenge

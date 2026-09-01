@@ -1,0 +1,65 @@
+- content_for :title, @challenge.name
+.page-head
+  %div
+    %p.breadcrumb= link_to "Desafíos", challenges_path
+    %h1.page-title= @challenge.name
+    %p.muted
+      %span.status-chip{ class: "status-chip--#{@challenge.status}" }= t("flow.challenge_statuses.#{@challenge.status}")
+      %span= " · modo IA: #{t("flow.ai_modes.#{@challenge.ai_default_mode}")}"
+  .page-head__actions
+    = link_to "Ideas", challenge_ideas_path(@challenge), class: "btn btn--ghost"
+    - if policy(@challenge).builder?
+      = link_to "Editar flujo", builder_challenge_path(@challenge), class: "btn btn--ghost"
+    - if policy(@challenge).start?
+      = button_to "Arrancar", start_challenge_path(@challenge), class: "btn btn--primary"
+
+= render "shared/ai_suggestions", suggestions: @pending_suggestions
+
+- if @challenge.draft? && policy(@challenge).update_pipeline?
+  .card
+    %h2.section-title Armar el flujo con IA
+    %p.muted La IA lee el brief y propone qué módulos usar, en qué orden y con qué configuración.
+    = render "shared/ai_actions", challenge: @challenge, mode: @challenge.ai_default_mode,
+             actions: [{ label: "Proponer el flujo", purpose: "propose_pipeline" }]
+
+- if @challenge.brief.present?
+  .card
+    %h2.section-title Brief
+    %p= simple_format(@challenge.brief)
+
+.card
+  %h2.section-title Flujo
+  = render "challenges/flow_strip", challenge: @challenge
+
+  - if @report.errors.any?
+    .flash.flash--alert
+      %strong Falta resolver:
+      %ul
+        - @report.errors.each do |error|
+          %li= error
+  - if @report.warnings.any?
+    .flash.flash--warn
+      %ul
+        - @report.warnings.each do |warning|
+          %li= warning
+
+  %table.step-table
+    %thead
+      %tr
+        %th #
+        %th Módulo
+        %th Estado
+        %th Modo IA
+        %th Toma insumo de
+    %tbody
+      - @challenge.steps.each_with_index do |step, index|
+        %tr{ class: ("is-touched" if step.touched?) }
+          %td.muted= index + 1
+          %td
+            = link_to challenge_step_path(@challenge, step), class: "step-table__link" do
+              %strong= step.name
+            %span.muted= " (#{t("flow.kinds.#{step.kind}")})"
+          %td
+            %span.status-chip{ class: "status-chip--#{step.status}" }= t("flow.statuses.#{step.status}")
+          %td.muted= t("flow.ai_modes.#{step.effective_ai_mode}")
+          %td.muted= step.source_step&.name || "—"

@@ -1,0 +1,86 @@
+# frozen_string_literal: true
+
+# La ficha de evaluación: una idea, los criterios del módulo, una nota por
+# criterio.
+class AssessmentsController < ApplicationController
+  before_action :set_context
+
+  def new
+    @assessment = existing_assessment || build_assessment
+    authorize @assessment, :create?
+    @idea = @assessment.idea
+    @handler = handler
+  end
+
+  def create
+    @assessment = existing_assessment || build_assessment
+    authorize @assessment, :create?
+
+    @assessment.transaction do
+      @assessment.assign_attributes(
+        idea_version_id: @assessment.idea.current_version_id,
+        overall_comment: params[:overall_comment],
+        status: "submitted",
+        submitted_at: Time.current
+      )
+      @assessment.save!
+      write_scores!
+      Flow::Evaluation::ScoreAssessment.new(@assessment, criteria_snapshot: handler.criteria_snapshot).call
+      handler.recompute_entry!(entry_for(@assessment.idea_id))
+    end
+
+    redirect_to challenge_step_path(@challenge, @step), notice: "Evaluación registrada."
+  rescue ActiveRecord::RecordInvalid => e
+    @idea = @assessment.idea
+    @handler = handler
+    flash.now[:alert] = e.record.errors.full_messages.to_sentence
+    render :new, status: :unprocessable_entity
+  end
+
+  private
+
+  def set_context
+    @challenge = Challenge.find_by!(slug: params[:challenge_id])
+    @step = @challenge.steps.find(params[:step_id])
+  end
+
+  def handler = @handler ||= @step.handler
+
+  def idea = @idea_record ||= @challenge.ideas.find(params[:idea_id])
+
+  def existing_assessment
+    @step.assessments.current.find_by(idea_id: idea.id, evaluator_id: current_user.id)
+  end
+
+  def build_assessment
+    @step.assessments.new(idea: idea, evaluator: current_user,
+                          idea_version_id: idea.current_version_id, actor_type: "human")
+  end
+
+  def entry_for(idea_id)
+    StepEntry.find_or_create_by!(challenge_step_id: @step.id, idea_id: idea_id) do |e|
+      e.entered_at = Time.current
+    end
+  end
+
+  # Solo se escriben los criterios del SNAPSHOT del módulo: una clave que no
+  # está congelada ahí se descarta.
+  def write_scores!
+    submitted = params.fetch(:scores, {}).permit!.to_h
+    comments = params.fetch(:comments, {}).permit!.to_h
+
+    handler.scored_criteria.each do |config|
+      criterion = Criterion.find_by(id: config["id"])
+      raw = submitted[config["key"]]
+      numeric, normalized = criterion ? criterion.score(raw) : [nil, nil]
+
+      score = @assessment.assessment_scores.find_or_initialize_by(criterion_key: config["key"])
+      score.assign_attributes(
+        criterion_id: config["id"], weight_used: config["weight"],
+        raw_value: raw.presence&.to_s, numeric_value: numeric,
+        normalized_value: normalized, comment: comments[config["key"]].presence
+      )
+      score.save!
+    end
+  end
+end

@@ -1,0 +1,23 @@
+/.bundle
+/log/*
+!/log/.keep
+/tmp/*
+!/tmp/.keep
+!/tmp/pids
+/tmp/pids/*
+!/tmp/pids/.keep
+/storage/*
+!/storage/.keep
+/public/assets
+node_modules/
+/app/assets/builds/*
+!/app/assets/builds/.keep
+.env
+.byebug_history
+
+# La master key descifra config/credentials.yml.enc: nunca al repo.
+/config/master.key
+/config/credentials/*.key
+
+# Artefactos de las corridas de `make screens`.
+/tmp/screenshots

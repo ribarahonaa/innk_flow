@@ -1,0 +1,47 @@
+- content_for :title, "Auditoría de IA"
+.page-head
+  %div
+    %h1.page-title Auditoría de IA
+    %p.muted Toda llamada al proveedor deja rastro, incluso con el adapter de fixtures.
+
+.stat-row
+  .stat-card
+    %span.stat-card__value= @stats[:total]
+    %span.stat-card__label llamadas
+  .stat-card
+    %span.stat-card__value{ class: ("is-bad" if @stats[:failed].positive?) }= @stats[:failed]
+    %span.stat-card__label fallidas
+  .stat-card
+    %span.stat-card__value= number_with_delimiter(@stats[:tokens])
+    %span.stat-card__label tokens
+  .stat-card
+    %span.stat-card__value= "#{@stats[:avg_latency] || 0} ms"
+    %span.stat-card__label latencia media
+
+.card
+  - if @runs.empty?
+    %p.muted Todavía no se llamó a la IA.
+  - else
+    %table.step-table
+      %thead
+        %tr
+          %th Propósito
+          %th Contexto
+          %th Modo
+          %th Estado
+          %th Tokens
+          %th Latencia
+          %th Cuándo
+      %tbody
+        - @runs.each do |run|
+          %tr
+            %td
+              = link_to t("flow.ai_purposes.#{run.purpose}", default: run.purpose.humanize), ai_run_path(run), class: "step-table__link"
+            %td.muted= [run.challenge&.name, run.challenge_step&.name, run.idea&.title].compact.join(" · ").truncate(48)
+            %td.muted= t("flow.ai_modes.#{run.mode}")
+            %td
+              %span.status-chip{ class: "status-chip--#{run.succeeded? ? 'completed' : (run.failed? ? 'skipped' : 'pending')}" }
+                = run.status
+            %td.muted= run.tokens_total
+            %td.muted= "#{run.latency_ms} ms"
+            %td.muted= l(run.created_at, format: :short)

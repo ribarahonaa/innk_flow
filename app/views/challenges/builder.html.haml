@@ -1,0 +1,16 @@
+- content_for :title, "#{@challenge.name} · Flujo"
+.page-head
+  %div
+    %p.breadcrumb= link_to "Desafíos", challenges_path
+    %h1.page-title= @challenge.name
+    %p.muted Arrastrá los módulos para armar el flujo.
+  = link_to "Ver desafío", challenge_path(@challenge), class: "btn btn--ghost"
+
+-# Isla Vue. Las props vienen serializadas del server (PipelinePresenter), no
+-# de un fetch al montar: una vuelta de red menos y la tenencia la garantiza
+-# el scope de Ruby.
+%div{ "data-island": "pipeline-builder", data: { props: @props.to_json } }
+  .card.island-placeholder
+    %p.muted Cargando el editor de flujo…
+
+= javascript_include_tag "packs/pipeline_builder", defer: true, nonce: content_security_policy_nonce

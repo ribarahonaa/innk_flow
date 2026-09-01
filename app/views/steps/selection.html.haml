@@ -1,0 +1,111 @@
+- content_for :title, @step.name
+= render "steps/header", step: @step, handler: @handler
+
+- ranking = @handler.ranking
+- above = ranking.select(&:above_cut?)
+
+.card
+  %h2.section-title Corte
+  %p.muted
+    - if @handler.source_steps.any?
+      Puntajes de
+      %strong= @handler.source_steps.map(&:name).join(" + ")
+      - if @handler.source_steps.size > 1
+        - weights = @step.settings.dig("score_source", "weights") || {}
+        - if weights.present?
+          = "(#{@handler.source_steps.map { |s| "#{s.name} #{(weights[s.slug].to_f * 100).round}%" }.join(', ')})"
+    - else
+      Sin fuente de puntaje: el orden es manual.
+  %p.muted
+    Regla:
+    %strong= t("flow.cut_modes.#{@handler.cut_mode}")
+    - unless @handler.manual_cut?
+      = "· #{@handler.cut_value.to_i}"
+
+= form_with url: challenge_step_selection_path(@challenge, @step), method: :patch do
+  .card
+    %h2.section-title
+      Ranking
+      %span.muted= " · #{above.size} de #{ranking.size} avanzan"
+    %table.step-table.ranking-table
+      %thead
+        %tr
+          %th.ranking-table__check Avanza
+          %th #
+          %th Idea
+          %th Puntaje
+          - @handler.source_steps.each do |source|
+            %th= source.name
+      %tbody
+        - ranking.each_with_index do |row, index|
+          - if index == above.size && above.size < ranking.size
+            %tr.cut-line
+              %td{ colspan: 4 + @handler.source_steps.size }
+                %span.cut-line__label= "línea de corte · #{t("flow.cut_modes.#{@handler.cut_mode}")}"
+          %tr{ class: ("is-below" unless row.above_cut?) }
+            %td.ranking-table__check
+              = check_box_tag "advancing_idea_ids[]", row.idea.id, row.above_cut?, id: "advance_#{row.idea.id}"
+            %td.muted= row.rank
+            %td
+              = link_to row.idea.title, challenge_idea_path(@challenge, row.idea), class: "step-table__link"
+              %span.muted= " · #{row.idea.author.name}"
+            %td
+              - if row.scored?
+                %strong= "#{(row.score * 100).round(1)}%"
+              - else
+                %span.muted sin puntaje
+            - @handler.source_steps.each do |source|
+              %td.muted
+                - value = row.sources[source.slug]
+                = value ? "#{(value * 100).round}%" : "—"
+
+    - if @step.active? && policy(@step).advance?
+      .field
+        = label_tag :reason, "Motivo del corte (queda en el registro)"
+        = text_field_tag :reason, nil, placeholder: "El comité priorizó impacto sobre esfuerzo"
+      .form-actions
+        = submit_tag "Confirmar corte", class: "btn btn--primary"
+
+- eliminated = @handler.eliminated_ideas
+- if eliminated.any?
+  .card
+    %h2.section-title
+      No avanzaron
+      %span.muted= " (#{eliminated.size})"
+    %p.muted Siguen consultables. Se pueden repescar al módulo activo.
+    %ul.idea-list
+      - eliminated.each do |idea|
+        %li.idea-list__item
+          = link_to challenge_idea_path(@challenge, idea), class: "idea-list__link" do
+            %span.idea-list__title= idea.title
+            %span.idea-list__meta
+              = idea.author.name
+              %span.version-chip= idea.current_version&.label
+          - if policy(@step).advance?
+            = button_to "Repescar", reinstate_challenge_step_selection_path(@challenge, @step, idea_id: idea.id),
+                        class: "btn btn--ghost btn--sm"
+
+- decisions = SelectionDecision.where(challenge_step_id: @step.id).latest_first.includes(:idea, :decided_by).limit(30)
+- if decisions.any?
+  .card
+    %h2.section-title Registro de decisiones
+    %table.step-table
+      %thead
+        %tr
+          %th Idea
+          %th Decisión
+          %th Puesto
+          %th Quién
+          %th Motivo
+          %th Cuándo
+      %tbody
+        - decisions.each do |decision|
+          %tr
+            %td= decision.idea.title.truncate(40)
+            %td
+              %span.status-chip{ class: "status-chip--#{decision.advance? ? 'completed' : (decision.reinstate? ? 'active' : 'skipped')}" }
+                = decision.label
+            %td.muted= decision.rank || "—"
+            %td.muted= decision.decided_by_name
+            %td.muted= decision.reason
+            %td.muted= l(decision.decided_at, format: :short)

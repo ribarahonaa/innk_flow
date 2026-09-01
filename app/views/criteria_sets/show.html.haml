@@ -1,0 +1,21 @@
+- content_for :title, @set.name
+.page-head
+  %div
+    %p.breadcrumb= link_to "Criterios", criteria_sets_path
+    %h1.page-title= @set.name
+  = link_to "Editar", edit_criteria_set_path(@set), class: "btn btn--ghost"
+.card
+  %table.step-table
+    %thead
+      %tr
+        %th Criterio
+        %th Clave
+        %th Escala
+        %th Peso
+    %tbody
+      - @set.criteria.each do |criterion|
+        %tr
+          %td= criterion.name
+          %td: %code= criterion.key
+          %td.muted= t("flow.scale_types.#{criterion.scale_type}")
+          %td.muted= "#{(criterion.weight.to_f * 100).round}%"

@@ -1,0 +1,96 @@
+es:
+  # Formato DD-MM-YYYY en las tres capas. En innk_r5 esto se desalineó entre el
+  # datepicker, el formato de parseo y el de display, y produjo fechas mal
+  # interpretadas: acá arrancan iguales desde el día uno.
+  date:
+    formats:
+      default: "%d-%m-%Y"
+      short: "%d-%m"
+      long: "%d de %B de %Y"
+    day_names: [domingo, lunes, martes, miércoles, jueves, viernes, sábado]
+    abbr_day_names: [dom, lun, mar, mié, jue, vie, sáb]
+    month_names: [~, enero, febrero, marzo, abril, mayo, junio, julio, agosto, septiembre, octubre, noviembre, diciembre]
+    abbr_month_names: [~, ene, feb, mar, abr, may, jun, jul, ago, sep, oct, nov, dic]
+  time:
+    formats:
+      default: "%d-%m-%Y %H:%M"
+      short: "%d-%m-%Y %H:%M"
+      long: "%d de %B de %Y a las %H:%M"
+    am: "am"
+    pm: "pm"
+  auth:
+    sign_in_required: "Iniciá sesión para continuar."
+    invalid_credentials: "Correo o contraseña incorrectos."
+    signed_out: "Cerraste sesión."
+  activerecord:
+    errors:
+      messages:
+        record_invalid: "La validación falló: %{errors}"
+  flow:
+    kinds:
+      ideation: "Idear"
+      evolution: "Evolución"
+      evaluation: "Evaluación"
+      selection: "Selección"
+      reporting: "Reportería"
+    kind_descriptions:
+      ideation: "Generación de la idea. Se genera una sola vez por desafío."
+      evolution: "Se da feedback a la idea y el autor la actualiza. Cada cambio queda como una versión nueva."
+      evaluation: "Se puntúa la idea con criterios, notas o una fórmula propia."
+      selection: "Reduce el pool: solo avanzan las mejores según el criterio elegido."
+      reporting: "Genera reportes del estado del desafío en este punto del flujo."
+    ai_modes:
+      human: "Solo personas"
+      ai_assisted: "IA asistida"
+      ai_auto: "IA automática"
+    ai_mode_descriptions:
+      human: "Sin IA. Todo el trabajo lo hacen las personas."
+      ai_assisted: "La IA propone y una persona acepta, edita o rechaza cada sugerencia."
+      ai_auto: "La IA hace el trabajo. Queda registrado igual, auto-aceptado."
+    statuses:
+      pending: "Pendiente"
+      activating: "Activando"
+      active: "En curso"
+      completed: "Completado"
+      skipped: "Salteado"
+    report_kinds:
+      funnel: "Embudo"
+      ranking: "Ranking"
+      snapshot: "Estado del desafío"
+      narrative: "Resumen narrativo"
+    report_modes:
+      by_version: "por versión"
+      latest: "versión vigente"
+    feedback_kinds:
+      suggestion: "Sugerencia"
+      question: "Pregunta"
+      issue: "Problema"
+    cut_modes:
+      manual: "Manual"
+      top_n: "Top N"
+      top_percent: "Top N %"
+      threshold: "Puntaje mínimo"
+    scale_types:
+      numeric: "Numérica"
+      letter: "Notas / letras"
+      rubric: "Rúbrica"
+      formula: "Fórmula"
+    ai_purposes:
+      propose_pipeline: "Proponer el flujo"
+      suggest_form_fields: "Proponer campos del formulario"
+      generate_ideas: "Generar ideas candidatas"
+      coauthor_field: "Copiloto de redacción"
+      detect_duplicates: "Detectar duplicados"
+      suggest_feedback: "Sugerir feedback"
+      evaluate_idea: "Evaluar idea"
+      summarize_challenge: "Resumen narrativo"
+    idea_statuses:
+      draft: "Borrador"
+      active: "En carrera"
+      eliminated: "No avanzó"
+      withdrawn: "Retirada"
+    challenge_statuses:
+      draft: "Borrador"
+      running: "En curso"
+      closed: "Cerrado"
+      archived: "Archivado"

@@ -1,0 +1,23 @@
+{
+  "name": "innk_flow",
+  "private": "true",
+  "engines": {
+    "node": "22.14.0",
+    "yarn": "1.22.19"
+  },
+  "scripts": {
+    "build": "node esbuild.config.js"
+  },
+  "dependencies": {
+    "@hotwired/turbo-rails": "^8.0.4",
+    "vue": "^3.4.21",
+    "vuedraggable": "^4.1.0"
+  },
+  "devDependencies": {
+    "@vue/compiler-sfc": "^3.4.21",
+    "esbuild": "^0.25.12",
+    "esbuild-plugin-vue-next": "^0.1.4",
+    "esbuild-sass-plugin": "3.3.1",
+    "sass": "^1.72.0"
+  }
+}

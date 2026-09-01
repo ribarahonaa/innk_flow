@@ -1,0 +1,9 @@
+{
+  "summary": "De las ideas postuladas emergieron tres familias claras: instrumentar la bodega para medir dónde se pierde producto, cerrar los huecos de custodia entre picking y despacho, y acortar el ciclo de detección para que la merma se vea en el turno y no al cierre de mes. Las que mejor puntuaron comparten un rasgo: proponen un piloto acotado con una métrica de éxito explícita, lo que las hace evaluables antes de comprometer presupuesto. Las que quedaron abajo no eran malas ideas, pero llegaron a la evaluación sin costo estimado ni alcance definido, y el comité no tenía con qué compararlas.",
+  "themes": [
+    { "name": "Instrumentación y medición", "count": 2, "note": "Sensores y pesaje. Alta puntuación en impacto, penalizadas en esfuerzo." },
+    { "name": "Control de custodia", "count": 2, "note": "Precintos y doble verificación. Barato y rápido de pilotear." },
+    { "name": "Visibilidad operativa", "count": 1, "note": "Tableros por turno. El comité valoró que no requiere inversión." }
+  ],
+  "left_behind": "«Cámaras en zona de merma» quedó última por esfuerzo y por dudas de privacidad que nadie levantó formalmente durante la evaluación. Vale revisarla si el piloto de pesaje confirma que la diferencia se genera en descarte."
+}

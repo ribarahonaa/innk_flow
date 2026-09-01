@@ -1,0 +1,9 @@
+.git
+.gitignore
+log/*
+tmp/*
+node_modules
+storage/*
+app/assets/builds/*
+!app/assets/builds/.keep
+.env

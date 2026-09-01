@@ -1,0 +1,74 @@
+- content_for :title, "Evaluar · #{@idea.title}"
+.page-head
+  %div
+    %p.breadcrumb
+      = link_to @challenge.name, challenge_path(@challenge)
+      = " › "
+      = link_to @step.name, challenge_step_path(@challenge, @step)
+    %h1.page-title= @idea.title
+    %p.muted
+      = "Evaluando la versión "
+      %span.version-chip= @idea.current_version&.label
+
+.idea-layout
+  .idea-layout__main
+    .card
+      %h2.section-title Ficha de evaluación
+      = form_with url: challenge_step_assessments_path(@challenge, @step), method: :post do
+        = hidden_field_tag :idea_id, @idea.id
+
+        - @handler.scored_criteria.each do |criterion|
+          - record = Criterion.find_by(id: criterion["id"])
+          - scale = record&.scale
+          - existing = @assessment.assessment_scores.detect { |s| s.criterion_key == criterion["key"] }
+          .criterion-field
+            .criterion-field__head
+              %label{ for: "scores_#{criterion['key']}" }
+                = criterion["name"]
+                %span.criterion-field__weight= "#{(criterion['weight'].to_f * 100).round}%"
+            - if criterion["description"].present?
+              %p.field-hint= criterion["description"]
+
+            - case criterion["scale_type"]
+            - when "numeric"
+              .scale-radios
+                - scale.options.each do |value|
+                  %label.scale-radio
+                    = radio_button_tag "scores[#{criterion['key']}]", value, existing&.raw_value == value.to_s, id: "scores_#{criterion['key']}_#{value}"
+                    %span= value
+              %p.field-hint
+                = scale.lower_better? ? "Menos es mejor." : "Más es mejor."
+            - when "letter", "rubric"
+              .scale-options
+                - scale.options.each do |label, value|
+                  %label.scale-option
+                    = radio_button_tag "scores[#{criterion['key']}]", value, existing&.raw_value == value.to_s
+                    %span= label
+            - else
+              = text_field_tag "scores[#{criterion['key']}]", existing&.raw_value
+
+            = text_field_tag "comments[#{criterion['key']}]", existing&.comment, placeholder: "Comentario (opcional)", class: "criterion-field__comment"
+
+        - derived = @handler.criteria_snapshot.select { _1["scale_type"] == "formula" }
+        - if derived.any?
+          .flash.flash--warn
+            %strong Criterios derivados:
+            = derived.map { _1["name"] }.join(", ")
+            se calculan solos al guardar, a partir de los anteriores.
+
+        .field
+          = label_tag :overall_comment, "Comentario general"
+          = text_area_tag :overall_comment, @assessment.overall_comment, rows: 3
+
+        .form-actions
+          = link_to "Cancelar", challenge_step_path(@challenge, @step), class: "btn btn--ghost"
+          = submit_tag "Guardar evaluación", class: "btn btn--primary"
+
+  %aside.idea-layout__side
+    .card
+      %h2.section-title La idea
+      %dl.answer-list
+        - (@challenge.pipeline.ideation_step&.form_fields&.ordered || []).each do |field|
+          - value = @idea.payload[field.key]
+          %dt= field.label
+          %dd{ class: ("is-empty" if value.blank?) }= value.presence || "—"

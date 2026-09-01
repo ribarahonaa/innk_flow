@@ -1,0 +1,28 @@
+- content_for :title, "Nuevo desafío"
+.card.narrow
+  %h1.page-title Nuevo desafío
+  %p.muted Definí el encabezado. El flujo de módulos se arma en el paso siguiente.
+
+  = form_with model: @challenge do |f|
+    - if @challenge.errors.any?
+      .flash.flash--alert= @challenge.errors.full_messages.to_sentence
+    .field
+      = f.label :name, "Nombre"
+      = f.text_field :name, autofocus: true, required: true, placeholder: "Reducir la merma en bodega"
+    .field
+      = f.label :brief, "Brief"
+      = f.text_area :brief, rows: 4, placeholder: "Qué problema se quiere resolver, para quién, y qué haría exitosa a una idea."
+      %p.field-hint Este texto es lo que lee la IA cuando propone el flujo, los campos del formulario o ideas candidatas.
+    .field
+      = f.label :ai_default_mode, "Modo de IA por defecto"
+      .radio-cards
+        - Challenge::AI_MODES.each do |mode|
+          %label.radio-card
+            = f.radio_button :ai_default_mode, mode
+            %span.radio-card__body
+              %strong= t("flow.ai_modes.#{mode}")
+              %span.muted= t("flow.ai_mode_descriptions.#{mode}")
+      %p.field-hint Cada módulo puede sobreescribirlo.
+    .form-actions
+      = link_to "Cancelar", challenges_path, class: "btn btn--ghost"
+      = f.submit "Crear y armar el flujo", class: "btn btn--primary"

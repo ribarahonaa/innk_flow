@@ -1,0 +1,60 @@
+# syntax = docker/dockerfile:1
+#
+# Imagen de tests (servicio `app_test`). Separada de Dockerfile.dev para que la
+# suite no herede el estado del container de desarrollo.
+#
+# Trae Chromium vía Playwright para los system specs. El navegador vive SOLO
+# acá: la imagen de desarrollo no lo necesita y pesaría de más.
+
+ARG RUBY_VERSION=3.3.0
+FROM ruby:$RUBY_VERSION-slim
+
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y \
+    build-essential libpq-dev git libvips pkg-config curl ca-certificates \
+    libxrender1 libxext6 libfontconfig1 libjpeg62-turbo fontconfig \
+    && rm -rf /var/lib/apt/lists/*
+
+# postgresql-client-17: el de Debian bookworm es 15, y `pg_dump` 15 se niega a
+# dumpear un server 17 ("server version mismatch"). Como el schema canónico es
+# db/structure.sql (ver config/application.rb), sin esto `db:prepare` falla.
+RUN install -d /usr/share/postgresql-common/pgdg && \
+    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+      -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc && \
+    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
+      > /etc/apt/sources.list.d/pgdg.list && \
+    apt-get update -qq && \
+    apt-get install --no-install-recommends -y postgresql-client-17 && \
+    rm -rf /var/lib/apt/lists/*
+
+ARG NODE_VERSION=22.14.0
+RUN curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz \
+    | tar -xJ -C /usr/local --strip-components=1
+
+ARG YARN_VERSION=1.22.19
+RUN curl -fsSL https://github.com/yarnpkg/yarn/releases/download/v${YARN_VERSION}/yarn-v${YARN_VERSION}.tar.gz \
+    | tar -xz -C /opt && \
+    ln -s /opt/yarn-v${YARN_VERSION}/bin/yarn /usr/local/bin/yarn
+
+WORKDIR /rails
+
+COPY Gemfile Gemfile.lock ./
+RUN bundle install
+
+COPY package.json yarn.lock ./
+RUN yarn install --check-files
+
+# Chromium + sus dependencias de sistema. `--with-deps` instala las libs que
+# el navegador necesita (fuentes, audio, gráficos) sin tener que enumerarlas.
+# DEBE coincidir con la versión de la gema playwright-ruby-client (ver
+# Gemfile.lock). Con versiones distintas el protocolo no calza: el driver
+# igual "funciona", pero cada spec pierde ~2 minutos reintentando y el log se
+# llena de "Missing type Selectors".
+ARG PLAYWRIGHT_VERSION=1.62.0
+RUN yarn add playwright@${PLAYWRIGHT_VERSION} && \
+    npx playwright install --with-deps chromium
+
+COPY . .
+
+ENV RAILS_ENV=test
+CMD ["sleep", "infinity"]

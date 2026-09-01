@@ -1,0 +1,12 @@
+-# Botones que disparan tareas de IA. Solo se muestran si el modo efectivo no
+-# es `human`: si el desafío eligió trabajar sin IA, no hay nada que ofrecer.
+- mode = local_assigns.fetch(:mode)
+- return if mode == "human"
+
+.ai-actions
+  %span.ai-chip IA
+  %span.muted= t("flow.ai_modes.#{mode}")
+  - actions.each do |action|
+    = button_to action[:label],
+                challenge_ai_requests_path(challenge, purpose: action[:purpose], step_id: action[:step_id], idea_id: action[:idea_id], field_key: action[:field_key], count: action[:count]),
+                class: "btn btn--ghost btn--sm"

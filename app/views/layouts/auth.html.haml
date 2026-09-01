@@ -1,0 +1,13 @@
+!!!
+%html{ lang: I18n.locale }
+  %head
+    %title= content_for(:title) || "innk flow"
+    %meta{ name: "viewport", content: "width=device-width,initial-scale=1" }
+    = csrf_meta_tags
+    = csp_meta_tag
+    = stylesheet_link_tag "application-build-css", "data-turbo-track": "reload", nonce: content_security_policy_nonce
+  %body.auth-body
+    .auth-card
+      - flash.each do |type, message|
+        .flash{ class: "flash--#{type}" }= message
+      = yield

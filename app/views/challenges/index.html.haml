@@ -1,0 +1,25 @@
+- content_for :title, "Desafíos"
+.page-head
+  %div
+    %h1.page-title Desafíos
+    %p.muted Cada desafío arma su propio flujo de módulos.
+  - if current_membership&.manages_challenges?
+    = link_to "Nuevo desafío", new_challenge_path, class: "btn btn--primary"
+
+- if @challenges.empty?
+  .card.empty-state
+    %h2 Todavía no hay desafíos
+    %p.muted El primero define su flujo eligiendo módulos y ordenándolos.
+    - if current_membership&.manages_challenges?
+      = link_to "Crear el primero", new_challenge_path, class: "btn btn--primary"
+- else
+  .challenge-grid
+    - @challenges.each do |challenge|
+      = link_to challenge_path(challenge), class: "card challenge-card" do
+        .challenge-card__head
+          %h2.challenge-card__name= challenge.name
+          %span.status-chip{ class: "status-chip--#{challenge.status}" }
+            = t("flow.challenge_statuses.#{challenge.status}")
+        - if challenge.brief.present?
+          %p.muted.challenge-card__brief= truncate(challenge.brief, length: 120)
+        = render "challenges/flow_strip", challenge: challenge

@@ -1,0 +1,69 @@
+- content_for :title, @step.name
+= render "steps/header", step: @step, handler: @handler
+= render "shared/ai_suggestions", suggestions: @pending_suggestions
+
+- progress = @handler.progress
+.card
+  .step-progress
+    %div
+      %strong= progress.done
+      %span.muted= " de #{progress.total} #{progress.label} · mínimo #{@handler.min_assessments} por idea"
+    .progress-bar
+      .progress-bar__fill{ style: "width: #{[progress.pct, 100].min}%" }
+
+.card
+  %h2.section-title
+    Criterios
+    - if @step.criteria_set
+      %span.muted= " · #{@step.criteria_set.name}"
+  - if @handler.criteria_snapshot.empty?
+    %p.muted Este módulo todavía no tiene criterios asignados.
+  - else
+    %p.muted.field-hint Congelados al activar el módulo: editar el set ahora no altera lo ya evaluado.
+    %table.step-table
+      %thead
+        %tr
+          %th Criterio
+          %th Escala
+          %th Peso
+      %tbody
+        - @handler.criteria_snapshot.each do |criterion|
+          %tr
+            %td
+              %strong= criterion["name"]
+              - if criterion["scale_type"] == "formula"
+                %span.derived-chip derivado
+                %code.formula-code= criterion.dig("scale_config", "expression")
+            %td.muted= t("flow.scale_types.#{criterion['scale_type']}")
+            %td.muted= "#{(criterion['weight'].to_f * 100).round}%"
+
+.card
+  %h2.section-title Ideas a evaluar
+  - if @step.step_entries.empty?
+    %p.muted Todavía no hay ideas en este módulo.
+  - else
+    %table.step-table
+      %thead
+        %tr
+          %th Idea
+          %th Evaluaciones
+          %th Puntaje
+          %th Dispersión
+          %th
+      %tbody
+        - @step.step_entries.includes(idea: %i[current_version author]).each do |entry|
+          - result = entry.result
+          %tr
+            %td
+              = link_to entry.idea.title, challenge_idea_path(@challenge, entry.idea), class: "step-table__link"
+              %span.muted= " · #{entry.idea.author.name}"
+            %td.muted= "#{result['assessments_count'] || 0} / #{@handler.min_assessments}"
+            %td
+              - if result["score"]
+                %strong= "#{(result['score'].to_f * 100).round}%"
+              - else
+                %span.muted —
+            %td.muted= result["dispersion"] ? result["dispersion"].to_f.round(3) : "—"
+            %td
+              - if @step.active?
+                = link_to "Evaluar", new_challenge_step_assessment_path(@challenge, @step, idea_id: entry.idea_id), class: "btn btn--ghost btn--sm"

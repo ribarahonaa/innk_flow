@@ -1,0 +1,85 @@
+# Stack de innk_flow.
+#
+# Los puertos publicados están corridos a propósito respecto de innk_r5
+# (3000/5433/6380) para poder tener los dos repos arriba al mismo tiempo:
+#   app 3001 · postgres 5434 · redis 6381 · app_test 6081
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: innk_flow_development
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+
+  redis:
+    image: redis:7
+    ports:
+      - "6381:6379"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: bundle exec rails server -b 0.0.0.0
+    volumes:
+      - .:/rails
+      # Anonymous volume: el bind mount del host taparía node_modules, que se
+      # instala dentro de la imagen. (Lección de r5.)
+      - /rails/node_modules
+    ports:
+      - "3001:3000"
+    environment: &app_env
+      DATABASE_HOST: db
+      DATABASE_USERNAME: postgres
+      DATABASE_PASSWORD: postgres
+      REDIS_URL: redis://redis:6379
+      RAILS_ENV: development
+      EDITOR: nano
+      # Proveedor de IA. `fixture` = determinista, sin red, sin API key.
+      # Cambiar a un adapter real es una variable de entorno, no un refactor.
+      FLOW_AI_PROVIDER: fixture
+    depends_on:
+      - db
+      - redis
+
+  sidekiq:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: bundle exec sidekiq
+    volumes:
+      - .:/rails
+      - /rails/node_modules
+    environment: *app_env
+    depends_on:
+      - db
+      - redis
+
+  app_test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    volumes:
+      - .:/rails
+      - /rails/node_modules
+    ports:
+      - "6081:6080"
+    environment:
+      DATABASE_HOST: db
+      DATABASE_USERNAME: postgres
+      DATABASE_PASSWORD: postgres
+      REDIS_URL: redis://redis:6379
+      RAILS_ENV: test
+      FLOW_AI_PROVIDER: fixture
+    depends_on:
+      - db
+      - redis
+    profiles:
+      - test
+
+volumes:
+  postgres_data:

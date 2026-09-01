@@ -1,0 +1,236 @@
+# frozen_string_literal: true
+
+# Semillas de la maqueta.
+#
+# Se siembran DOS empresas a propósito. La segunda ("otra") existe para que los
+# specs cross-tenant tengan contra qué probar y para que cualquiera pueda
+# comprobar a mano que el aislamiento funciona. Sin una segunda empresa, un
+# bug de tenencia es invisible.
+#
+# Todo corre bajo bypass!: el scoping automático no aplica cuando estás
+# creando las empresas mismas.
+
+Flow::Tenant.bypass! do
+  demo = Company.find_or_create_by!(slug: "demo") { |c| c.name = "Empresa Demo" }
+  otra = Company.find_or_create_by!(slug: "otra") { |c| c.name = "Otra Empresa" }
+
+  def upsert_user!(email:, name:, password: "Test1234")
+    user = User.find_or_initialize_by(email: email)
+    user.name = name
+    user.password = password
+    user.save!
+    Identity.find_or_create_by!(provider: Identity::PASSWORD, uid: email) { |i| i.user = user }
+    user
+  end
+
+  people = {
+    "admin@demo.test" => ["Ana Admin", "owner"],
+    "gestor@demo.test" => ["Gabriel Gestor", "admin"],
+    "eval1@demo.test" => ["Elena Evaluadora", "evaluator"],
+    "eval2@demo.test" => ["Emilio Evaluador", "evaluator"],
+    "part1@demo.test" => ["Paula Participante", "participant"],
+    "part2@demo.test" => ["Pedro Participante", "participant"]
+  }
+
+  people.each do |email, (name, role)|
+    user = upsert_user!(email: email, name: name)
+    Membership.find_or_create_by!(company: demo, user: user) { |m| m.role = role }
+  end
+
+  # Empresa espejo, con su propia gente. Ningún usuario cruza entre las dos:
+  # así un 200 donde debería haber 404 salta a la vista.
+  otra_admin = upsert_user!(email: "admin@otra.test", name: "Olga Otra")
+  Membership.find_or_create_by!(company: otra, user: otra_admin) { |m| m.role = "owner" }
+
+  # Una persona con acceso a las dos empresas: ejercita el selector post-login.
+  multi = upsert_user!(email: "multi@demo.test", name: "Marta Multiempresa")
+  Membership.find_or_create_by!(company: demo, user: multi) { |m| m.role = "admin" }
+  Membership.find_or_create_by!(company: otra, user: multi) { |m| m.role = "admin" }
+
+  # ── Desafío de ejemplo, recorrido completo ────────────────────────────
+  #
+  # Se ejecuta el flujo entero para que la maqueta abra con datos reales en
+  # cada pantalla: ideas con versiones, feedback atendido y sin atender,
+  # evaluaciones de dos rondas, un corte con eliminadas y el tablero final.
+  Flow::Tenant.with(demo) do
+    Challenge.where(slug: "merma-bodega").destroy_all
+
+    challenge = Challenge.create!(
+      slug: "merma-bodega",
+      name: "Reducir la merma en bodega",
+      brief: "La merma en bodega creció 18% interanual. Buscamos ideas que la reduzcan " \
+             "sin agregar dotación y que se puedan pilotear en un centro antes de fin de año.",
+      ai_default_mode: "ai_assisted"
+    )
+
+    pipeline = challenge.pipeline
+    [
+      ["ideation",   "Postulación de ideas",  { "min_ideas" => 3 },                          nil],
+      ["evolution",  "Ronda de feedback",     {},                                            "ai_assisted"],
+      ["evaluation", "Evaluación técnica",    { "min_assessments" => 2 },                    "human"],
+      ["selection",  "Corte a top 3",         { "cut" => { "mode" => "top_n", "value" => 3 } }, "human"],
+      ["evaluation", "Evaluación de comité",  { "min_assessments" => 3 },                    "human"],
+      ["selection",  "Finalistas",            { "cut" => { "mode" => "top_n", "value" => 2 } }, "human"],
+      ["reporting",  "Reporte de cierre",     { "mode" => "by_version" },                    "ai_auto"]
+    ].each do |kind, name, config, ai_mode|
+      pipeline.insert(kind: kind, after: :end, name: name, config: config, ai_mode: ai_mode)
+    end
+
+    admin = User.find_by!(email: "admin@demo.test")
+    autores = User.where(email: %w[part1@demo.test part2@demo.test gestor@demo.test]).to_a
+    evaluadores = User.where(email: %w[eval1@demo.test eval2@demo.test gestor@demo.test]).to_a
+
+    pipeline.start!
+    ideation = pipeline.ideation_step
+
+    semillas = [
+      ["Sensores de peso por rack",
+       "Nadie sabe en qué punto de la bodega se pierde producto: el inventario cuadra al ingreso y no al despacho.",
+       "Instalar celdas de carga en los racks críticos y comparar el peso esperado contra el real cada turno."],
+      ["Doble verificación en el picking",
+       "El 60% de las diferencias aparece en picking, donde una sola persona arma y valida el pedido.",
+       "Que un segundo operario escanee el pedido armado antes de sellarlo. Piloto en un centro por dos meses."],
+      ["Rotación FEFO automática",
+       "Se vence producto en la parte de atrás de los racks porque la reposición carga adelante.",
+       "Que el WMS asigne ubicación por fecha de vencimiento y bloquee el picking del lote más nuevo."],
+      ["Cámaras en zona de merma",
+       "La merma declarada no coincide con la observada en los conteos cíclicos.",
+       "Cámaras en la zona de descarte con revisión semanal por muestreo."],
+      ["Tablero de merma por turno",
+       "La merma se reporta mensual, cuando ya no se puede actuar sobre la causa.",
+       "Tablero con la merma del turno anterior visible en la bodega al empezar cada jornada."]
+    ]
+
+    ideas = semillas.each_with_index.map do |(titulo, problema, solucion), index|
+      idea = Idea.create!(challenge: challenge, author: autores[index % autores.size],
+                          status: "draft", origin: index == 4 ? "ai" : "human")
+
+      Flow::Ideas::PublishVersion.new(
+        idea, payload: { "titulo" => titulo, "problema" => problema, "solucion" => solucion },
+        author: idea.author, actor_type: idea.origin, source_step: ideation,
+        change_note: "Creación de la idea"
+      ).call
+
+      idea.update!(submitted_at: Time.current)
+      idea
+    end
+
+    pipeline.advance!  # → Ronda de feedback
+    evolution = pipeline.active_step
+
+    # Feedback humano sobre las dos primeras, que después lo atienden.
+    [
+      [ideas[0], "question", "¿Cuál es el costo estimado y en cuánto se recupera? Sin eso el comité no puede compararla."],
+      [ideas[1], "suggestion", "Acotá el piloto a un centro y definí qué métrica tiene que moverse para considerarlo exitoso."],
+      [ideas[3], "issue", "Hay que revisar el tema de privacidad antes de avanzar con cámaras en zona de trabajo."]
+    ].each do |idea, kind, body|
+      FeedbackItem.create!(challenge_step: evolution, idea: idea,
+                           idea_version_id: idea.current_version_id,
+                           author: admin, kind: kind, body: body)
+    end
+
+    # Dos autores responden publicando versiones nuevas.
+    respuestas = {
+      ideas[0] => ["Sensores de peso por rack (piloto acotado)",
+                   "Instalar celdas de carga en los racks críticos y comparar el peso esperado contra el real " \
+                   "cada turno. Se acota el piloto a un solo centro. Costo estimado: 8 celdas de carga y dos " \
+                   "semanas de integración; se recupera con evitar el 15% de la merma actual.",
+                   "Agregué el costo estimado que pidió el comité"],
+      ideas[1] => ["Doble verificación en el picking",
+                   "Que un segundo operario escanee el pedido armado antes de sellarlo. Piloto en un centro por " \
+                   "dos meses, con la diferencia de inventario como métrica de éxito.",
+                   "Acoté el alcance y definí la métrica"]
+    }
+
+    respuestas.each do |idea, (titulo, solucion, nota)|
+      version = Flow::Ideas::PublishVersion.new(
+        idea,
+        payload: idea.payload.merge("titulo" => titulo, "solucion" => solucion),
+        author: idea.author, source_step: evolution, change_note: nota
+      ).call.version
+      evolution.handler.record_response!(idea, version)
+    end
+
+    pipeline.advance!  # → Evaluación técnica
+
+    # ── Helper para evaluar un módulo completo ──
+    evaluar = lambda do |step, jueces, base_por_idea|
+      handler = step.handler
+      step.step_entries.includes(:idea).each_with_index do |entry, i|
+        jueces.each_with_index do |juez, j|
+          assessment = step.assessments.create!(
+            idea: entry.idea, idea_version_id: entry.idea.current_version_id,
+            evaluator: juez, status: "submitted", submitted_at: Time.current,
+            overall_comment: j.zero? ? "Evaluada sobre #{entry.idea.current_version.label}." : nil
+          )
+          handler.criteria_snapshot.each_with_index do |config, k|
+            criterion = Criterion.find(config["id"])
+            raw = [[base_por_idea[i][k] + (j - 1), 1].max, 10].min
+            numeric, normalized = criterion.score(raw)
+            assessment.assessment_scores.create!(
+              criterion_id: criterion.id, criterion_key: config["key"], weight_used: config["weight"],
+              raw_value: raw.to_s, numeric_value: numeric, normalized_value: normalized
+            )
+          end
+          Flow::Evaluation::ScoreAssessment.new(assessment, criteria_snapshot: handler.criteria_snapshot).call
+        end
+        handler.recompute_entry!(entry)
+      end
+    end
+
+    evaluar.call(pipeline.active_step, evaluadores, [[9, 8, 3], [8, 7, 4], [6, 6, 5], [4, 5, 7], [7, 8, 2]])
+    pipeline.advance!  # → Corte a top 3
+
+    corte = pipeline.active_step
+    corte.handler.decide!(
+      corte.handler.ranking.select(&:above_cut?).map { |row| row.idea.id },
+      decided_by: admin,
+      reason: "El comité priorizó lo que se puede pilotear este trimestre"
+    )
+    pipeline.advance!  # → Evaluación de comité
+
+    evaluar.call(pipeline.active_step, evaluadores, [[9, 8, 4], [7, 8, 3], [6, 7, 5]])
+    pipeline.advance!  # → Finalistas
+
+    finalistas = pipeline.active_step
+    finalistas.handler.decide!(
+      finalistas.handler.ranking.select(&:above_cut?).map { |row| row.idea.id },
+      decided_by: admin, reason: "Las dos que entran al presupuesto del trimestre"
+    )
+    pipeline.advance!  # → Reporte de cierre
+
+    reporte = pipeline.active_step
+    Flow::AI::Runner.call(
+      Flow::AI::Tasks::SummarizeChallenge.new(challenge: challenge, step: reporte),
+      mode: "ai_auto", challenge: challenge, step: reporte, requested_by: admin
+    )
+
+    # Un segundo desafío EN BORRADOR: así el builder se puede editar libremente
+    # y se ve el contraste con el que ya arrancó.
+    Challenge.where(slug: "onboarding-remoto").destroy_all
+    Challenge.create!(
+      slug: "onboarding-remoto",
+      name: "Mejorar el onboarding remoto",
+      brief: "Las primeras dos semanas de alguien que entra remoto son confusas: no sabe a quién " \
+             "preguntar ni qué se espera de él. Buscamos ideas para que la primera quincena sea clara.",
+      ai_default_mode: "ai_assisted"
+    )
+
+    puts "Desafío en curso:  #{challenge.name}"
+    puts "  módulos:   #{challenge.steps.count} · activo: #{challenge.pipeline.active_step&.name}"
+    puts "  ideas:     #{challenge.ideas.count} (#{challenge.ideas.alive.count} en carrera)"
+    puts "  versiones: #{IdeaVersion.where(idea_id: challenge.ideas.select(:id)).count}"
+    puts "  feedback:  #{FeedbackItem.where(idea_id: challenge.ideas.select(:id)).count}"
+    puts "  notas:     #{Assessment.where(idea_id: challenge.ideas.select(:id)).count}"
+    puts "  decisiones: #{SelectionDecision.where(idea_id: challenge.ideas.select(:id)).count}"
+    puts "Desafío en borrador: Mejorar el onboarding remoto"
+  end
+
+  puts ""
+  puts "Empresas:    #{Company.count}"
+  puts "Usuarios:    #{User.count}"
+  puts "Membresías:  #{Membership.count}"
+  puts ""
+  puts "  Login demo:  admin@demo.test / Test1234"
+  puts "  Multiempresa: multi@demo.test / Test1234"
+end

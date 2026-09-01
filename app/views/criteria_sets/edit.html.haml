@@ -1,0 +1,4 @@
+- content_for :title, "Editar set"
+.card
+  %h1.page-title= @set.name
+  = render "form", set: @set

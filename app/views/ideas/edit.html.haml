@@ -1,0 +1,17 @@
+- content_for :title, "Editar idea"
+.card.narrow
+  %p.breadcrumb= link_to @idea.title, challenge_idea_path(@challenge, @idea)
+  %h1.page-title Editar idea
+  .flash.flash--warn
+    Guardar no pisa el contenido: publica la versión
+    %strong= "v#{(@idea.versions.maximum(:number) || 0) + 1}"
+    y la anterior queda en el historial.
+
+  = form_with url: challenge_idea_path(@challenge, @idea), method: :patch do
+    = render "ideas/form_fields", fields: @fields, payload: @idea.payload
+    .field
+      = label_tag :change_note, "Qué cambiaste (opcional)"
+      = text_field_tag :change_note, nil, placeholder: "Ajusté el alcance según el feedback"
+    .form-actions
+      = link_to "Cancelar", challenge_idea_path(@challenge, @idea), class: "btn btn--ghost"
+      = submit_tag "Publicar versión", class: "btn btn--primary"
