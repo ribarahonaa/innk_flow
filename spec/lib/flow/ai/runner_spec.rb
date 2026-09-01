@@ -63,7 +63,7 @@ RSpec.describe Flow::AI::Runner do
   end
 
   describe "idempotencia" do
-    it "un pedido idéntico no vuelve a llamar al proveedor" do
+    it "un pedido idéntico no vuelve a llamar al proveedor mientras haya algo que revisar" do
       first = described_class.call(task, mode: "ai_assisted", challenge: challenge)
 
       expect { described_class.call(task, mode: "ai_assisted", challenge: challenge) }
@@ -71,6 +71,61 @@ RSpec.describe Flow::AI::Runner do
 
       second = described_class.call(task, mode: "ai_assisted", challenge: challenge)
       expect(second.run.id).to eq(first.run.id)
+      expect(second).to be_reused
+    end
+
+    # La idempotencia protege contra el REINTENTO del mismo pedido, no contra
+    # un pedido NUEVO de la persona.
+    it "tras DESCARTAR la propuesta, volver a pedir genera una revisable" do
+      first = described_class.call(task, mode: "ai_assisted", requested_by: user, challenge: challenge)
+      Flow::AI::ApplySuggestion.new(first.suggestion, user: user).reject!(note: "No me sirve")
+
+      second = described_class.call(task, mode: "ai_assisted", requested_by: user, challenge: challenge)
+
+      expect(second.run.id).not_to eq(first.run.id)
+      expect(second.suggestion).to be_pending
+      expect(second).not_to be_reused
+      expect(AiSuggestion.pending_review.count).to eq(1)
+    end
+
+    it "tras ACEPTAR la propuesta, volver a pedir también genera una nueva" do
+      challenge.steps.destroy_all
+      first = described_class.call(task, mode: "ai_assisted", requested_by: user, challenge: challenge)
+      Flow::AI::ApplySuggestion.new(first.suggestion, user: user).call
+
+      # El desafío ya no está en borrador tras aplicar el flujo, así que se
+      # vuelve a dejar editable para pedir otra propuesta.
+      challenge.update!(status: "draft")
+      second = described_class.call(task, mode: "ai_assisted", requested_by: user, challenge: challenge)
+
+      expect(second.run.id).not_to eq(first.run.id)
+      expect(second.suggestion).to be_pending
+    end
+
+    it "tras un FALLO del proveedor, el pedido siguiente reintenta de verdad" do
+      Flow::AI.provider = Flow::AI::Providers::Null.new
+      failed = described_class.call(task, mode: "ai_assisted", challenge: challenge)
+      expect(failed.run).to be_failed
+
+      Flow::AI.reset_provider!
+      retried = described_class.call(task, mode: "ai_assisted", challenge: challenge)
+
+      expect(retried).to be_ok
+      expect(retried.run.id).not_to eq(failed.run.id)
+      expect(retried.suggestion).to be_pending
+    end
+
+    it "guarda el número de intento en la clave, sin romper el índice único" do
+      first = described_class.call(task, mode: "ai_assisted", requested_by: user, challenge: challenge)
+      Flow::AI::ApplySuggestion.new(first.suggestion, user: user).reject!
+      second = described_class.call(task, mode: "ai_assisted", requested_by: user, challenge: challenge)
+      Flow::AI::ApplySuggestion.new(second.suggestion, user: user).reject!
+      third = described_class.call(task, mode: "ai_assisted", requested_by: user, challenge: challenge)
+
+      keys = [first, second, third].map { _1.run.idempotency_key }
+      expect(keys.uniq.size).to eq(3)
+      expect(keys[1]).to end_with(":2")
+      expect(keys[2]).to end_with(":3")
     end
   end
 

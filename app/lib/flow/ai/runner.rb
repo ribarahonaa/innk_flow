@@ -14,8 +14,9 @@ module Flow
     # pasar un módulo de auto a assisted sea legible en el historial. Si `auto`
     # escribiera directo al dominio habría dos caminos y un agujero.
     class Runner
-      Result = Data.define(:ok, :run, :suggestion, :errors) do
+      Result = Data.define(:ok, :run, :suggestion, :errors, :reused) do
         def ok? = ok
+        def reused? = reused
         def error_sentence = errors.join(". ")
       end
 
@@ -31,7 +32,7 @@ module Flow
       end
 
       def call
-        return already_done if existing_run
+        return already_done(reusable_run) if reusable_run
 
         run = create_run!
         response = invoke(run)
@@ -43,22 +44,59 @@ module Flow
       rescue StandardError => e
         Rails.logger.error("[Flow::AI::Runner] #{@task.purpose}: #{e.class} #{e.message}")
         run&.update(status: "failed", error: "#{e.class}: #{e.message}")
-        Result.new(ok: false, run: run, suggestion: nil, errors: [e.message])
+        Result.new(ok: false, run: run, suggestion: nil, errors: [e.message], reused: false)
       end
 
       private
 
       def provider = Flow::AI.provider
 
-      # Un pedido idéntico no vuelve a llamar al proveedor. Es lo que hace
-      # seguro reintentar el job.
-      def existing_run
-        @existing_run ||= AiRun.find_by(idempotency_key: @task.idempotency_key)
+      # ── Idempotencia ──────────────────────────────────────────────────
+      #
+      # Protege contra el REINTENTO del mismo pedido (un retry de Sidekiq, un
+      # doble clic), no contra un pedido NUEVO de la persona.
+      #
+      # La diferencia importa: si alguien pide una propuesta, la descarta y
+      # vuelve a pedirla, está pidiendo algo nuevo. Devolverle la sugerencia
+      # descartada la deja sin nada que revisar y sin forma de salir.
+      #
+      # Un run se reutiliza solo mientras sigue "vivo": está en curso, o su
+      # sugerencia todavía espera revisión. Una vez resuelta (aceptada, editada
+      # o rechazada) o fallida, el pedido siguiente genera un run nuevo, con la
+      # clave base más el número de intento.
+      def base_idempotency_key = @task.idempotency_key
+
+      def previous_runs
+        @previous_runs ||= AiRun.where(
+          "idempotency_key = :key OR idempotency_key LIKE :prefix",
+          key: base_idempotency_key, prefix: "#{base_idempotency_key}:%"
+        ).order(:created_at).to_a
       end
 
-      def already_done
-        Result.new(ok: existing_run.status == "succeeded", run: existing_run,
-                   suggestion: existing_run.ai_suggestions.first, errors: [])
+      def reusable_run
+        return @reusable_run if defined?(@reusable_run)
+
+        @reusable_run = previous_runs.reverse.find { |run| reusable?(run) }
+      end
+
+      def reusable?(run)
+        return true if %w[queued running].include?(run.status)
+        return false unless run.status == "succeeded"
+
+        # Sigue habiendo algo que revisar: no tiene sentido pedir de nuevo.
+        run.ai_suggestions.any?(&:pending?)
+      end
+
+      def effective_idempotency_key
+        return base_idempotency_key if previous_runs.empty?
+
+        "#{base_idempotency_key}:#{previous_runs.size + 1}"
+      end
+
+      def already_done(run)
+        Result.new(ok: run.status == "succeeded", run: run,
+                   suggestion: run.ai_suggestions.detect(&:pending?) || run.ai_suggestions.first,
+                   errors: [], reused: true)
       end
 
       def create_run!
@@ -68,7 +106,7 @@ module Flow
           purpose: @task.purpose, mode: @mode, status: "running",
           prompt: { messages: @task.messages, context: @task.context_snapshot },
           provider: provider.name,
-          idempotency_key: @task.idempotency_key
+          idempotency_key: effective_idempotency_key
         )
       end
 
@@ -94,7 +132,7 @@ module Flow
 
       def failed(run, message)
         run.update!(status: "failed", error: message)
-        Result.new(ok: false, run: run, suggestion: nil, errors: [message])
+        Result.new(ok: false, run: run, suggestion: nil, errors: [message], reused: false)
       end
 
       def build_suggestion!(run, response)
@@ -113,19 +151,19 @@ module Flow
       end
 
       def apply_if_auto(run, suggestion)
-        return Result.new(ok: true, run: run, suggestion: suggestion, errors: []) unless run.auto?
+        return Result.new(ok: true, run: run, suggestion: suggestion, errors: [], reused: false) unless run.auto?
 
         applied, errors = @task.apply!(suggestion.payload, suggestion: suggestion)
 
         if applied
           suggestion.update!(status: "accepted", auto_accepted_at: Time.current,
                              review_note: "Aceptada automáticamente (modo IA automática)")
-          Result.new(ok: true, run: run, suggestion: suggestion, errors: [])
+          Result.new(ok: true, run: run, suggestion: suggestion, errors: [], reused: false)
         else
           # La sugerencia queda pendiente: la IA propuso algo que el dominio
           # rechazó, y eso lo tiene que ver una persona.
           suggestion.update!(review_note: "No se pudo aplicar automáticamente: #{errors.join('. ')}")
-          Result.new(ok: false, run: run, suggestion: suggestion, errors: errors)
+          Result.new(ok: false, run: run, suggestion: suggestion, errors: errors, reused: false)
         end
       end
     end

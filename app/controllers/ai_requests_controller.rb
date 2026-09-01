@@ -47,6 +47,11 @@ class AiRequestsController < ApplicationController
   def success_message(result)
     return "La IA respondió y se aplicó automáticamente." if result.suggestion&.accepted?
 
+    # Un pedido repetido mientras la propuesta anterior sigue sin revisar no
+    # llama de nuevo al proveedor: se dice con todas las letras, en vez de
+    # anunciar una respuesta nueva que no existe.
+    return "Ya hay una propuesta esperando tu revisión más abajo." if result.reused?
+
     "La IA respondió. Revisá la propuesta antes de aplicarla."
   end
 end
