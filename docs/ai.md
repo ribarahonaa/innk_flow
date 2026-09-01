@@ -56,6 +56,16 @@ Las evaluaciones de la IA entran **al promedio junto a las humanas**: mismo
 anclaje a la versión, misma justificación por criterio, misma pantalla. No son
 una categoría aparte.
 
+### Tareas aditivas: pedirlas ya es aceptarlas
+
+Por defecto, en `ai_assisted` la IA propone y una persona decide. La excepción
+son las tareas **aditivas** —agregan algo sin reemplazar nada— donde apretar el
+botón ya es la decisión y pedir una confirmación extra sería burocracia.
+
+Hoy la única es `evaluate_idea`: suma una evaluación al conjunto, igual que si
+otra persona evaluara, y se puede reemplazar evaluando de nuevo. Se declara en
+la tarea con `applies_on_request?`, no con un `if` en el controller.
+
 ## Aceptar es un solo lugar
 
 `Flow::AI::ApplySuggestion` corre exactamente el mismo `task.apply!` que usa la

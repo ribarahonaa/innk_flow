@@ -13,7 +13,7 @@ class AiRequestsController < ApplicationController
 
     result = Flow::AI::Runner.call(
       task,
-      mode: resolved_mode(context),
+      mode: resolved_mode(context, task),
       requested_by: current_user,
       challenge: @challenge, step: context[:step], idea: context[:idea]
     )
@@ -38,13 +38,19 @@ class AiRequestsController < ApplicationController
 
   # El modo efectivo del módulo manda; si la tarea no cuelga de un módulo
   # (proponer el pipeline, p.ej.), manda el default del desafío. `human` no
-  # llega hasta acá: la UI no ofrece el botón.
-  def resolved_mode(context)
+  # llega hasta acá salvo para las acciones de autoría: la UI no ofrece el
+  # botón dentro de un módulo en modo human.
+  #
+  # Las tareas aditivas se aplican al pedirlas: el clic ya es la decisión.
+  def resolved_mode(context, task)
+    return "ai_auto" if task.applies_on_request?
+
     mode = context[:step]&.effective_ai_mode || @challenge.ai_default_mode
     mode == "human" ? "ai_assisted" : mode
   end
 
   def success_message(result)
+    return "Listo: la evaluación de la IA ya está en la lista." if result.run&.purpose == "evaluate_idea"
     return "La IA respondió y se aplicó automáticamente." if result.suggestion&.accepted?
 
     # Un pedido repetido mientras la propuesta anterior sigue sin revisar no

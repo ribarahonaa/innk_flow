@@ -198,3 +198,100 @@ RSpec.describe "capa de IA", type: :request do
     end
   end
 end
+RSpec.describe "la IA evaluando", type: :request do
+  let!(:company) { without_tenant { create(:company, slug: "acme") } }
+  let!(:owner) do
+    without_tenant do
+      u = create(:user, email: "owner@test.dev")
+      create(:membership, :owner, company: company, user: u)
+      u
+    end
+  end
+
+  let(:set) do
+    as_company(company) do
+      s = CriteriaSet.create!(name: "Técnica")
+      s.criteria.create!(key: "impacto", name: "Impacto", weight: 0.4, source: "manual",
+                         scale_type: "numeric", scale_config: { "min" => 1, "max" => 10 }, position: 0)
+      s.criteria.create!(key: "factibilidad", name: "Factibilidad", weight: 0.35, source: "manual",
+                         scale_type: "numeric", scale_config: { "min" => 1, "max" => 10 }, position: 1)
+      s.criteria.create!(key: "esfuerzo", name: "Esfuerzo", weight: 0.25, source: "manual",
+                         scale_type: "numeric", scale_config: { "min" => 1, "max" => 10 }, position: 2)
+      s.refresh_status!
+      s
+    end
+  end
+
+  let!(:challenge) do
+    as_company(company) do
+      c = create(:challenge, name: "Merma", ai_default_mode: "ai_assisted")
+      c.steps.create!(kind: "ideation", position: 1, status: "completed")
+      c.steps.create!(kind: "evaluation", position: 2, name: "Técnica", criteria_set: set)
+      c.update!(status: "running")
+      c
+    end
+  end
+  let(:step) { as_company(company) { challenge.steps.find_by(kind: "evaluation") } }
+
+  let!(:idea) do
+    as_company(company) do
+      i = create(:idea, challenge: challenge, author: owner, status: "active")
+      Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "Sensores" }, author: owner).call
+      i.update!(submitted_at: Time.current)
+      Flow::Handlers::Base.for(challenge.steps.find_by(kind: "evaluation")).activate!
+      i
+    end
+  end
+
+  before { sign_in(owner, company: company) }
+
+  it "en modo asistido la pantalla OFRECE pedirle una evaluación" do
+    get challenge_step_path(challenge, step)
+
+    expect(response.body).to include("Pedirle una evaluación a la IA")
+  end
+
+  it "la ficha de evaluación ofrece una segunda opinión" do
+    get new_challenge_step_assessment_path(challenge, step, idea_id: idea.id)
+
+    expect(response.body).to include("¿Querés una segunda opinión?")
+    expect(response.body).to include("Pedir la opinión de la IA")
+  end
+
+  it "pedirla produce una evaluación que entra al promedio" do
+    post challenge_ai_requests_path(challenge, purpose: "evaluate_idea", step_id: step.id, idea_id: idea.id)
+
+    as_company(company) do
+      assessment = step.assessments.reload.first
+      expect(assessment).to be_by_ai
+      expect(assessment.normalized_score).to be_present
+      expect(step.step_entries.find_by(idea_id: idea.id).result["score"]).to be_present
+    end
+  end
+
+  it "una vez hecha, la ficha muestra su opinión en vez del botón" do
+    post challenge_ai_requests_path(challenge, purpose: "evaluate_idea", step_id: step.id, idea_id: idea.id)
+
+    get new_challenge_step_assessment_path(challenge, step, idea_id: idea.id)
+
+    expect(response.body).to include("Lo que opina la IA")
+    expect(response.body).to include("Tu evaluación es independiente")
+    expect(response.body).not_to include("Pedir la opinión de la IA")
+  end
+
+  it "la pantalla del módulo muestra la evaluación con su justificación" do
+    post challenge_ai_requests_path(challenge, purpose: "evaluate_idea", step_id: step.id, idea_id: idea.id)
+
+    get challenge_step_path(challenge, step)
+
+    expect(response.body).to include("Evaluaciones hechas")
+    expect(response.body).to include("diferencia de inventario")
+  end
+
+  it "en modo human no se ofrece" do
+    as_company(company) { step.update!(ai_mode: "human") }
+
+    get challenge_step_path(challenge, step)
+    expect(response.body).not_to include("Pedirle una evaluación a la IA")
+  end
+end

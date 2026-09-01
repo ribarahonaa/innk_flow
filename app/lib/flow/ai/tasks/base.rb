@@ -54,6 +54,14 @@ module Flow
         # parámetros.
         def context_snapshot = {}
 
+        # ¿Pedir esta tarea a mano equivale a aceptarla?
+        #
+        # Por defecto NO: en `ai_assisted` la IA propone y una persona decide.
+        # La excepción son las tareas ADITIVAS —agregan una opinión sin tocar
+        # lo que ya existe— donde apretar el botón ya es la decisión y pedir
+        # una confirmación extra sería burocracia.
+        def applies_on_request? = false
+
         # Dos pedidos idénticos no deben producir dos llamadas.
         def idempotency_key
           Digest::SHA256.hexdigest([purpose, JSON.generate(messages)].join(":"))[0, 32]

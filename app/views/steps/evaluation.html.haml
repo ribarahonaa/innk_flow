@@ -50,6 +50,18 @@
             %td.muted= t("flow.scale_types.#{criterion['scale_type']}")
             %td.muted= "#{(criterion['weight'].to_f * 100).round}%"
 
+- pendientes = @step.step_entries.select { |e| @handler.assessments_for(e.idea_id).size < @handler.min_assessments }
+- if @step.active? && @step.effective_ai_mode != "human" && pendientes.any? && policy(@challenge).update_pipeline?
+  .card
+    %h2.section-title Pedirle una evaluación a la IA
+    %p.muted
+      La IA evalúa con los mismos criterios y su nota entra al promedio como una más, con su
+      justificación por criterio.
+    = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode,
+             actions: pendientes.first(1).map { |e| { label: "Evaluar «#{e.idea.title.truncate(28)}»", purpose: "evaluate_idea", step_id: @step.id, idea_id: e.idea_id } }
+    - if pendientes.size > 1
+      %p.field-hint= "Quedan #{pendientes.size} ideas sin la cantidad mínima de evaluaciones."
+
 .card
   %h2.section-title Ideas a evaluar
   - if @step.step_entries.empty?
@@ -70,13 +82,58 @@
             %td
               = link_to entry.idea.title, challenge_idea_path(@challenge, entry.idea), class: "step-table__link"
               %span.muted= " · #{entry.idea.author.name}"
-            %td.muted= "#{result['assessments_count'] || 0} / #{@handler.min_assessments}"
+            %td.muted
+              = "#{result['assessments_count'] || 0} / #{@handler.min_assessments}"
+              - evaluadores = @handler.assessments_for(entry.idea_id)
+              - if evaluadores.any?
+                %span.evaluators
+                  - evaluadores.each do |assessment|
+                    %span.evaluator-chip{ class: ("evaluator-chip--ai" if assessment.by_ai?),
+                                          title: "#{assessment.evaluator_name}: #{assessment.overall_comment}" }
+                      = assessment.by_ai? ? "IA" : assessment.evaluator_name.split.map(&:first).join
             %td
               - if result["score"]
                 %strong= "#{(result['score'].to_f * 100).round}%"
               - else
                 %span.muted —
             %td.muted= result["dispersion"] ? result["dispersion"].to_f.round(3) : "—"
-            %td
+            %td.nowrap
               - if @step.active?
                 = link_to "Evaluar", new_challenge_step_assessment_path(@challenge, @step, idea_id: entry.idea_id), class: "btn btn--ghost btn--sm"
+                - if @step.effective_ai_mode != "human" && policy(@challenge).update_pipeline?
+                  = button_to "IA", challenge_ai_requests_path(@challenge, purpose: "evaluate_idea", step_id: @step.id, idea_id: entry.idea_id),
+                              class: "btn btn--ghost btn--sm", title: "Que la IA evalúe esta idea"
+
+- hechas = @step.assessments.current.submitted_ones.includes(:idea, :evaluator, :assessment_scores).to_a
+- if hechas.any?
+  .card
+    %h2.section-title
+      Evaluaciones hechas
+      %span.muted= " (#{hechas.size})"
+    %p.muted.field-hint Las de la IA cuentan igual que las de una persona: mismo peso en el promedio.
+    - hechas.group_by(&:idea).each do |idea, lista|
+      .assessment-group
+        %h3.assessment-group__title
+          = link_to idea.title, challenge_idea_path(@challenge, idea), class: "step-table__link"
+        - lista.each do |assessment|
+          .assessment-detail{ class: ("assessment-detail--ai" if assessment.by_ai?) }
+            .assessment-detail__head
+              %strong= assessment.evaluator_name
+              - if assessment.by_ai?
+                %span.ai-chip IA
+              %span.version-chip= assessment.idea_version.label
+              - if assessment.stale?
+                %span.stale-chip= "la idea ya va por #{idea.current_version&.label}"
+              - if assessment.normalized_score
+                %span.assessment-detail__score= "#{(assessment.normalized_score.to_f * 100).round(1)}%"
+            - if assessment.overall_comment.present?
+              %p.assessment-detail__comment= assessment.overall_comment
+            %ul.assessment-detail__scores
+              - assessment.assessment_scores.sort_by { |s| s.criterion_key }.each do |score|
+                %li
+                  %span.assessment-detail__criterion= score.criterion_key
+                  %strong= score.raw_value.presence || "—"
+                  - if score.comment.present?
+                    %span.muted= score.comment
+                  - if score.error.present?
+                    %span.stale-chip= score.error

@@ -65,6 +65,30 @@
           = submit_tag "Guardar evaluación", class: "btn btn--primary"
 
   %aside.idea-layout__side
+    - opinion = @step.assessments.current.submitted_ones.detect { |a| a.idea_id == @idea.id && a.by_ai? }
+    - if opinion
+      .card.assessment-detail--ai
+        %h2.section-title
+          Lo que opina la IA
+          %span.ai-chip IA
+        %p.muted.field-hint Es una referencia. Tu evaluación es independiente.
+        - if opinion.overall_comment.present?
+          %p.assessment-detail__comment= opinion.overall_comment
+        %ul.assessment-detail__scores
+          - opinion.assessment_scores.sort_by(&:criterion_key).each do |score|
+            %li
+              %span.assessment-detail__criterion= score.criterion_key
+              %strong= score.raw_value.presence || "—"
+              - if score.comment.present?
+                %span.muted= score.comment
+    - elsif @step.effective_ai_mode != "human" && policy(@challenge).update_pipeline?
+      .card
+        %h2.section-title ¿Querés una segunda opinión?
+        %p.muted.field-hint La IA evalúa con los mismos criterios y deja su justificación.
+        = button_to "Pedir la opinión de la IA",
+                    challenge_ai_requests_path(@challenge, purpose: "evaluate_idea", step_id: @step.id, idea_id: @idea.id),
+                    class: "btn btn--ghost btn--sm btn--block"
+
     .card
       %h2.section-title La idea
       %dl.answer-list

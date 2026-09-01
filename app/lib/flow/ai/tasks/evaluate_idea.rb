@@ -59,6 +59,12 @@ module Flow
 
         def target_attributes = { idea: idea }
 
+        # Pedir la opinión de la IA ya es aceptarla: no reemplaza nada, agrega
+        # una evaluación más al conjunto —igual que si otra persona evaluara— y
+        # se puede reemplazar evaluando de nuevo. Exigir un segundo clic para
+        # ver lo que acabás de pedir no protege de nada.
+        def applies_on_request? = true
+
         def context_snapshot = { "criteria_keys" => answerable_criteria.map { _1["key"] } }
 
         def apply!(payload, suggestion:)
