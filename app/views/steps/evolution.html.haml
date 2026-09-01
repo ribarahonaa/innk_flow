@@ -2,6 +2,8 @@
 = render "steps/header", step: @step, handler: @handler
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 
+= render "steps/ai_mode", step: @step
+
 - progress = @handler.progress
 .card
   .step-progress

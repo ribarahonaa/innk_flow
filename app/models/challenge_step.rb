@@ -14,7 +14,14 @@ class ChallengeStep < ApplicationRecord
 
   # Campos que se congelan cuando el step deja de estar pending. Cambiarlos
   # después reescribiría la historia (p.ej. mover un módulo ya ejecutado).
+  #
+  # `name` y `ai_mode` NO están: renombrar un módulo no altera nada, y el modo
+  # de IA es una política operativa —"a partir de ahora acepto ayuda de la
+  # IA"— que se puede cambiar sin tocar lo ya hecho.
   FROZEN_ATTRIBUTES = %w[kind slug challenge_id position config source_step_id].freeze
+
+  # Lo que se puede cambiar aunque el módulo ya esté en curso.
+  ADJUSTABLE_ATTRIBUTES = %w[name ai_mode].freeze
 
   belongs_to :challenge, inverse_of: :steps
   belongs_to :source_step, class_name: "ChallengeStep", optional: true

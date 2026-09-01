@@ -333,3 +333,82 @@ RSpec.describe "la IA evaluando", type: :request do
     expect(response.body).not_to include("Pedirle una evaluación a la IA")
   end
 end
+RSpec.describe "cambiar el modo de IA de un módulo en curso", type: :request do
+  let!(:company) { without_tenant { create(:company, slug: "acme") } }
+  let!(:owner) do
+    without_tenant do
+      u = create(:user, email: "owner@test.dev")
+      create(:membership, :owner, company: company, user: u)
+      u
+    end
+  end
+  let!(:challenge) do
+    as_company(company) do
+      c = create(:challenge, ai_default_mode: "human")
+      c.steps.create!(kind: "ideation", position: 1, status: "completed")
+      c.steps.create!(kind: "evaluation", position: 2, name: "Comité", ai_mode: "human", status: "active")
+      c.update!(status: "running")
+      c
+    end
+  end
+  let(:step) { as_company(company) { challenge.steps.find_by(kind: "evaluation") } }
+
+  before { sign_in(owner, company: company) }
+
+  it "la pantalla explica cómo habilitar la IA cuando está en «Solo personas»" do
+    get challenge_step_path(challenge, step)
+
+    expect(response.body).to include("Modo de IA")
+    expect(response.body).to include("la IA no interviene en este módulo")
+    expect(response.body).to include("IA asistida")
+  end
+
+  it "se puede cambiar el modo sin reiniciar el módulo" do
+    patch challenge_step_path(challenge, step), params: { challenge_step: { ai_mode: "ai_assisted" } }
+
+    as_company(company) do
+      expect(step.reload.ai_mode).to eq("ai_assisted")
+      expect(step).to be_active, "el módulo sigue en curso"
+    end
+  end
+
+  it "cambiado el modo, la IA aparece disponible" do
+    as_company(company) do
+      idea = create(:idea, challenge: challenge, author: owner, status: "active")
+      Flow::Ideas::PublishVersion.new(idea, payload: { "titulo" => "Una idea" }, author: owner).call
+      idea.update!(submitted_at: Time.current)
+      step.step_entries.create!(idea: idea, input_version_id: idea.current_version_id, entered_at: Time.current)
+      step.update!(resolved_config: { "criteria" => [], "min_assessments" => 1 })
+    end
+
+    get challenge_step_path(challenge, step)
+    expect(response.body).not_to include("Pedirle una evaluación a la IA")
+
+    patch challenge_step_path(challenge, step), params: { challenge_step: { ai_mode: "ai_assisted" } }
+    get challenge_step_path(challenge, step)
+
+    expect(response.body).to include("Pedirle una evaluación a la IA")
+  end
+
+  it "lo estructural sigue congelado" do
+    as_company(company) do
+      step.kind = "selection"
+      expect(step).not_to be_valid
+      expect(step.errors.full_messages.join).to match(/ya ejecutado no se puede modificar/)
+    end
+  end
+
+  it "un participante no puede cambiarlo" do
+    otro = without_tenant do
+      u = create(:user, email: "p@test.dev")
+      create(:membership, company: company, user: u, role: "participant")
+      u
+    end
+    sign_in(otro, company: company)
+
+    patch challenge_step_path(challenge, step), params: { challenge_step: { ai_mode: "ai_auto" } }
+
+    expect(response).to have_http_status(:forbidden)
+    expect(as_company(company) { step.reload.ai_mode }).to eq("human")
+  end
+end

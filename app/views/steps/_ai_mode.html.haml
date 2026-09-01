@@ -1,0 +1,24 @@
+-# Cambiar el modo de IA de un módulo EN CURSO.
+-#
+-# El modo es una política operativa, no parte del historial: decidir "a partir
+-# de ahora acepto ayuda de la IA" no altera nada de lo ya hecho. Por eso se
+-# puede cambiar acá, sin volver al builder ni reiniciar el módulo.
+- return unless policy(step).advance?
+
+.card.ai-mode-card
+  .section-head
+    %h2.section-title
+      Modo de IA
+      %span.muted= " · #{t("flow.ai_modes.#{step.effective_ai_mode}")}"
+    = form_with model: step, url: challenge_step_path(step.challenge, step), method: :patch, class: "ai-mode-form" do |f|
+      = f.select :ai_mode,
+                 Challenge::AI_MODES.map { |m| [t("flow.ai_modes.#{m}"), m] },
+                 { include_blank: "Heredar del desafío (#{t("flow.ai_modes.#{step.challenge.ai_default_mode}")})" },
+                 class: "ai-mode-form__select"
+      = f.submit "Cambiar", class: "btn btn--ghost btn--sm"
+  %p.muted.field-hint= t("flow.ai_mode_descriptions.#{step.effective_ai_mode}")
+  - if step.effective_ai_mode == "human"
+    %p.field-hint
+      Con «Solo personas» la IA no interviene en este módulo. Pasalo a
+      %strong «IA asistida»
+      para poder pedirle que te guíe en cada evaluación.

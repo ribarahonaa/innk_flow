@@ -2,6 +2,8 @@
 = render "steps/header", step: @step, handler: @handler
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 
+= render "steps/ai_mode", step: @step
+
 - data = @handler.dashboard
 - narrative = @handler.reports.detect { |r| r.kind == "narrative" && r.ready? }
 

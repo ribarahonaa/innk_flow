@@ -50,6 +50,8 @@
             %td.muted= t("flow.scale_types.#{criterion['scale_type']}")
             %td.muted= "#{(criterion['weight'].to_f * 100).round}%"
 
+= render "steps/ai_mode", step: @step
+
 - pendientes = @step.step_entries.select { |e| @handler.assessments_for(e.idea_id).size < @handler.min_assessments }
 - if @step.active? && @step.effective_ai_mode != "human" && pendientes.any? && policy(@challenge).update_pipeline?
   .card

@@ -26,6 +26,19 @@ class StepsController < ApplicationController
     end
   end
 
+  # Ajustes que no reescriben la historia: el nombre y el modo de IA.
+  def update
+    authorize @step, :advance?
+
+    if @step.update(step_params)
+      redirect_to challenge_step_path(@step.challenge, @step),
+                  notice: "Módulo actualizado: la IA queda en «#{t("flow.ai_modes.#{@step.effective_ai_mode}")}»."
+    else
+      redirect_to challenge_step_path(@step.challenge, @step),
+                  alert: @step.errors.full_messages.to_sentence
+    end
+  end
+
   def skip
     authorize @step, :skip?
     @step.handler.skip!(reason: params[:reason])
@@ -38,5 +51,9 @@ class StepsController < ApplicationController
   def set_step
     @challenge = Challenge.find_by!(slug: params[:challenge_id])
     @step = @challenge.steps.find(params[:id])
+  end
+
+  def step_params
+    params.require(:challenge_step).permit(*ChallengeStep::ADJUSTABLE_ATTRIBUTES)
   end
 end

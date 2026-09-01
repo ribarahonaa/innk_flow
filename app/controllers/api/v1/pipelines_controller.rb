@@ -105,13 +105,19 @@ module Api
           next if attrs[:id].blank?
 
           step = @challenge.steps.reload.find { |s| s.id == attrs[:id] }
-          next if step.nil? || step.touched?
+          next if step.nil?
 
+          # De un módulo ya en curso solo se ajustan nombre y modo de IA: lo
+          # estructural quedó congelado al activarlo.
           step.name = attrs[:name] if attrs.key?(:name) && attrs[:name].present?
           step.ai_mode = attrs[:aiMode].presence
-          step.config = attrs[:settings] if attrs.key?(:settings)
-          step.source_step_id = attrs[:sourceStepId].presence
-          step.criteria_set_id = attrs[:criteriaSetId].presence if attrs.key?(:criteriaSetId)
+
+          unless step.touched?
+            step.config = attrs[:settings] if attrs.key?(:settings)
+            step.source_step_id = attrs[:sourceStepId].presence
+            step.criteria_set_id = attrs[:criteriaSetId].presence if attrs.key?(:criteriaSetId)
+          end
+
           next if step.save
 
           "«#{step.name}»: #{step.errors.full_messages.join(', ')}"

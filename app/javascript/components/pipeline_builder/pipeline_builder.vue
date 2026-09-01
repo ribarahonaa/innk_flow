@@ -95,14 +95,20 @@
       <template v-if="selected">
         <h2 class="section-title">{{ selected.kindLabel }}</h2>
 
+        <!--
+          Nombre y modo de IA se pueden cambiar aunque el módulo ya esté en
+          curso: renombrar no altera nada, y el modo es una política operativa
+          ("a partir de ahora acepto ayuda de la IA"), no parte del historial.
+          Lo estructural —tipo, posición, configuración— sí queda congelado.
+        -->
         <div class="field">
           <label>Nombre</label>
-          <input v-model="selected.name" type="text" :disabled="selected.locked" />
+          <input v-model="selected.name" type="text" />
         </div>
 
         <div class="field">
           <label>Modo de IA</label>
-          <select v-model="selected.aiMode" :disabled="selected.locked">
+          <select v-model="selected.aiMode">
             <option :value="null">Heredar del desafío ({{ challengeAiLabel }})</option>
             <option v-for="mode in aiModes" :key="mode.value" :value="mode.value">
               {{ mode.label }}
@@ -172,7 +178,8 @@
         </div>
 
         <p v-if="selected.locked" class="field-hint field-hint--warn">
-          Este módulo ya se ejecutó: su configuración quedó congelada.
+          Este módulo ya se ejecutó: su tipo, posición y configuración quedaron
+          congelados. El nombre y el modo de IA se pueden seguir ajustando.
         </p>
       </template>
       <template v-else>

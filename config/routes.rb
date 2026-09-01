@@ -16,7 +16,7 @@ Rails.application.routes.draw do
     end
 
     # Pantalla de cada módulo del flujo. Despacha por kind.
-    resources :steps, only: %i[show] do
+    resources :steps, only: %i[show update] do
       member do
         post :advance
         post :skip
