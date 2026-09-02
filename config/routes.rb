@@ -53,6 +53,9 @@ Rails.application.routes.draw do
     # Dispara una tarea de IA sobre este desafío (o uno de sus módulos/ideas).
     resources :ai_requests, only: %i[create]
 
+    # Lo que van a ver las personas, antes de arrancar.
+    resource :preview, only: %i[show], controller: "previews"
+
     # El formulario de postulación del desafío (vive en su módulo de ideación).
     resource :form, only: %i[show], controller: "form_fields" do
       post :seed_defaults

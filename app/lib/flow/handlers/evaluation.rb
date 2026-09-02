@@ -48,6 +48,23 @@ module Flow
 
       def criteria_snapshot = settings["criteria"] || []
 
+      # Con qué criterios va a correr el módulo, ANTES de activarlo.
+      #
+      # `criteria_snapshot` solo existe una vez congelado, así que sin esto no
+      # hay forma de mostrarle a su dueño la ficha que van a ver quienes
+      # evalúan mientras todavía puede cambiarla. Los genéricos se instancian
+      # sin guardar: son los mismos que sembraría `before_resolve_config!`.
+      def criteria_preview
+        return criteria_snapshot.map { |c| [c, Criterion.find_by(id: c["id"])] } if step.touched?
+
+        records = step.criteria_set&.active_criteria || generic_criteria
+        records.map { |record| [record.to_snapshot, record] }
+      end
+
+      def generic_criteria
+        DEFAULT_CRITERIA.map { |attributes| Criterion.new(source: "manual", **attributes) }
+      end
+
       # Lo que el evaluador realmente completa: ni las fórmulas ni los checks
       # automáticos se preguntan.
       def scored_criteria = criteria_snapshot.select { |c| c["source"].nil? || c["source"] == "manual" }

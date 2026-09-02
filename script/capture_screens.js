@@ -106,6 +106,26 @@ async function shot(page, name, url, prepare) {
     console.error('[LINK] el panel de «Idear» no ofrece editar el formulario');
   }
 
+  // La previsualización: se llega por link desde el builder.
+  await page.goto(`${BASE}/challenges/onboarding-remoto/builder`, { waitUntil: 'networkidle' });
+  const previewLink = page.locator('a:has-text("Previsualizar")');
+  if (await previewLink.count()) {
+    await Promise.all([
+      page.waitForURL('**/preview', { timeout: 15000 }),
+      previewLink.first().click()
+    ]);
+    await page.waitForSelector('.preview-surface, .empty-state', { timeout: 10000 });
+    await page.screenshot({ path: `${OUT}/05c-preview-borrador.png`, fullPage: true });
+    shots.push('05c-preview-borrador');
+  } else {
+    failures++;
+    console.error('[LINK] el builder no ofrece previsualizar');
+  }
+
+  // El mismo preview sobre el desafío en curso, con su formulario y su set de
+  // criterios de verdad.
+  await shot(page, '05d-preview-configurado', `/challenges/${CHALLENGE}/preview`);
+
   await shot(page, '06-ideas', `/challenges/${CHALLENGE}/ideas`);
 
   // Una idea que EVOLUCIONÓ, para que el diff tenga dos versiones que comparar.

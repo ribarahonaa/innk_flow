@@ -9,6 +9,7 @@
   .page-head__actions
     = link_to "Ideas", challenge_ideas_path(@challenge), class: "btn btn--ghost"
     - if policy(@challenge).builder?
+      = link_to "Previsualizar", challenge_preview_path(@challenge), class: "btn btn--ghost"
       = link_to "Editar flujo", builder_challenge_path(@challenge), class: "btn btn--ghost"
     - if policy(@challenge).start?
       = button_to "Arrancar", start_challenge_path(@challenge), class: "btn btn--primary"

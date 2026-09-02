@@ -4,7 +4,9 @@
     %p.breadcrumb= link_to "Desafíos", challenges_path
     %h1.page-title= @challenge.name
     %p.muted Arrastrá los módulos para armar el flujo.
-  = link_to "Ver desafío", challenge_path(@challenge), class: "btn btn--ghost"
+  .page-head__actions
+    = link_to "Previsualizar", challenge_preview_path(@challenge), class: "btn btn--ghost"
+    = link_to "Ver desafío", challenge_path(@challenge), class: "btn btn--ghost"
 
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 

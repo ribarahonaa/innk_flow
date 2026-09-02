@@ -1,0 +1,97 @@
+- content_for :title, "Previsualizar · #{@challenge.name}"
+.page-head
+  %div
+    %p.breadcrumb
+      = link_to "Desafíos", challenges_path
+      = " › "
+      = link_to @challenge.name, challenge_path(@challenge)
+      = " › "
+      = link_to "Flujo", builder_challenge_path(@challenge)
+    %h1.page-title Lo que van a ver las personas
+    %p.muted Las pantallas reales de este desafío, con la configuración de ahora. Acá no se puede escribir.
+  = link_to "Volver al flujo", builder_challenge_path(@challenge), class: "btn btn--ghost"
+
+- if @report.errors.any?
+  .flash.flash--alert
+    %ul
+      - @report.errors.each do |error|
+        %li= error
+
+- if @pipeline.steps.empty?
+  .card.empty-state
+    %p.muted El desafío todavía no tiene módulos. Armá el flujo y volvé.
+
+- @pipeline.steps.each_with_index do |step, index|
+  - handler = step.handler
+  .card
+    .section-head
+      %div
+        %h2.section-title
+          = "#{index + 1}. #{step.name}"
+          %span.muted= " · #{t("flow.kinds.#{step.kind}")}"
+        %p.muted= t("flow.kind_descriptions.#{step.kind}")
+      %span.status-chip{ class: "status-chip--#{step.status}" }= t("flow.statuses.#{step.status}")
+
+    - case step.kind
+    - when "ideation"
+      - fields = handler.form_fields
+      - if fields.empty?
+        %p.field-hint.field-hint--warn
+          Sin campos: nadie puede postular.
+          = link_to "Definir el formulario", challenge_form_path(@challenge), class: "field-hint__link"
+      - else
+        %p.muted Lo que responde quien postula una idea:
+        %fieldset.preview-surface{ disabled: true }
+          = render "ideas/form_fields", fields: fields, payload: {}
+
+    - when "evaluation"
+      - criteria = handler.criteria_preview
+      -# Los automáticos y las fórmulas NO los completa nadie: los calcula el
+      -# sistema al guardar. Mostrarlos en la ficha sería prometer un trabajo
+      -# que nunca se pide.
+      - answerable, derived = criteria.partition { |c, _| c["source"].nil? || %w[manual ai].include?(c["source"]) }
+      - if criteria.empty?
+        %p.field-hint.field-hint--warn Este módulo no tiene criterios resolubles.
+      - else
+        - if answerable.any?
+          %p.muted
+            La ficha que completa quien evalúa, una vez por idea
+            = succeed "." do
+              = " (mínimo #{handler.min_assessments} por idea)"
+            - unless step.criteria_set
+              %span.field-hint.field-hint--warn Con los criterios genéricos, porque el módulo no tiene los suyos.
+          %fieldset.preview-surface{ disabled: true }
+            - answerable.each do |criterion, record|
+              = render "assessments/criterion_field", criterion: criterion, record: record
+        - else
+          %p.field-hint.field-hint--warn
+            Ningún criterio lo responde una persona: este módulo se resuelve entero solo.
+
+        - if derived.any?
+          %p.muted Sin que nadie los complete, el sistema calcula:
+          %ul.field-list
+            - derived.each do |criterion, record|
+              %li.field-list__item
+                %span.field-list__label
+                  = criterion["name"]
+                  %span.criterion-field__weight= "#{(criterion['weight'].to_f * 100).round}%"
+                %span.field-list__type= record&.summary
+
+    - when "selection"
+      = render "previews/selection", step: step, handler: handler, challenge: @challenge
+
+    - when "evolution"
+      %p.muted
+        Cada idea recibe comentarios y su autor publica una versión nueva.
+        - if step.settings["require_response"]
+          %strong El módulo no cierra hasta que todas respondan.
+        - else
+          Responder no es obligatorio para cerrar el módulo.
+
+    - when "reporting"
+      %p.muted
+        Se genera el reporte del estado del desafío en este punto, en pantalla, Excel y PDF.
+        - if step.settings["mode"] == "latest"
+          Sobre la versión vigente de cada idea, marcando lo que quedó desactualizado.
+        - else
+          Cada puntaje dice qué versión se evaluó: nunca promedia entre versiones distintas.

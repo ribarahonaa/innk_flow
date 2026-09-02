@@ -1295,3 +1295,26 @@ textarea:disabled {
 // Dentro de una tarjeta de opción el resumen del flujo va debajo del nombre,
 // no en la misma línea: son cuatro o seis nodos y no entran.
 .radio-card__body .flow-strip { margin: 4px 0; }
+
+// ── Previsualización ────────────────────────────────────────────────────────
+//
+// El `fieldset[disabled]` deja la pantalla inerte de verdad (ni foco ni
+// teclado), pero grisea todo. Acá se repone el color: la gracia del preview es
+// ver cómo se va a ver, no cómo se ve deshabilitado.
+.preview-surface {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    background: var(--surface);
+    color: var(--text);
+    cursor: default;
+  }
+
+  .scale-radio input:disabled + span,
+  .scale-option input:disabled + span { cursor: default; }
+}

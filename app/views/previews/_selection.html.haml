@@ -1,0 +1,26 @@
+-# La selección no tiene una pantalla que complete una persona: tiene filtros y
+-# una regla de corte. Se muestran como texto porque eso es lo que decide.
+- gates = step.criteria_set&.active_criteria || []
+- mode = step.settings.dig("cut", "mode").presence || "manual"
+- value = step.settings.dig("cut", "value")
+
+- if gates.any?
+  %p.muted Para avanzar, una idea tiene que cumplir todos estos filtros:
+  %ul.field-list
+    - gates.each do |criterion|
+      %li.field-list__item
+        %span.field-list__label= criterion.name
+        %span.field-list__type= criterion.summary
+- else
+  %p.muted Sin filtros: avanzan las mejores por puntaje, sin condiciones previas.
+
+%p.field-hint
+  - case mode
+  - when "top_n"
+    = "Corte: avanzan las #{value.to_i} mejores."
+  - when "top_percent"
+    = "Corte: avanza el #{value.to_i}% mejor."
+  - when "threshold"
+    = "Corte: avanzan las que llegan a #{value} de puntaje."
+  - else
+    Corte manual: el dueño del desafío decide idea por idea, con el ranking a la vista.
