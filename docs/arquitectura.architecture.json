@@ -1,0 +1,317 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Arquitectura de innk_flow",
+    "output": "arquitectura.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "camino-principal",
+        "label": "Camino de un pedido",
+        "focus": [
+          "navegador",
+          "rails",
+          "pipeline",
+          "postgres"
+        ],
+        "note": "Lo que recorre una petición: vista server-rendered, motor de flujo y estado durable."
+      },
+      {
+        "id": "aislamiento",
+        "label": "Aislamiento por empresa",
+        "focus": [
+          "pundit",
+          "rails",
+          "pipeline",
+          "postgres"
+        ],
+        "note": "Las cuatro capas de tenencia, de la autorización a la restriccion en Postgres."
+      },
+      {
+        "id": "trabajo-asincronico",
+        "label": "Trabajo asincrónico e IA",
+        "focus": [
+          "rails",
+          "redis",
+          "sidekiq",
+          "runner",
+          "proveedor"
+        ],
+        "note": "Lo que sale del ciclo de pedido: jobs, llamadas al proveedor y su rastro."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "islas",
+      "type": "frontend",
+      "label": "Islas Vue",
+      "sublabel": "builder · formulario · criterios",
+      "pos": [
+        40,
+        150
+      ],
+      "size": [
+        170,
+        66
+      ],
+      "tag": "props del server"
+    },
+    {
+      "id": "navegador",
+      "type": "external",
+      "label": "Navegador",
+      "sublabel": "HAML + Turbo",
+      "pos": [
+        40,
+        330
+      ],
+      "size": [
+        170,
+        66
+      ]
+    },
+    {
+      "id": "pundit",
+      "type": "security",
+      "label": "Pundit + TenantScoped",
+      "sublabel": "políticas y scope obligatorio",
+      "pos": [
+        330,
+        150
+      ],
+      "size": [
+        200,
+        66
+      ],
+      "tag": "404, nunca 403"
+    },
+    {
+      "id": "rails",
+      "type": "backend",
+      "label": "Rails 7.1",
+      "sublabel": "app :3001",
+      "pos": [
+        330,
+        330
+      ],
+      "size": [
+        200,
+        66
+      ]
+    },
+    {
+      "id": "pipeline",
+      "type": "backend",
+      "label": "Flow::Pipeline",
+      "sublabel": "motor + 5 handlers",
+      "pos": [
+        680,
+        330
+      ],
+      "size": [
+        200,
+        66
+      ],
+      "tag": "insertion floor"
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "PostgreSQL 17",
+      "sublabel": "innk_flow :5434",
+      "pos": [
+        1030,
+        330
+      ],
+      "size": [
+        200,
+        66
+      ],
+      "tag": "45 FKs compuestas"
+    },
+    {
+      "id": "redis",
+      "type": "messagebus",
+      "label": "Redis",
+      "sublabel": "cola :6381",
+      "pos": [
+        330,
+        520
+      ],
+      "size": [
+        200,
+        66
+      ]
+    },
+    {
+      "id": "sidekiq",
+      "type": "backend",
+      "label": "Sidekiq 7.2",
+      "sublabel": "jobs O(ideas) y archivos",
+      "pos": [
+        680,
+        520
+      ],
+      "size": [
+        200,
+        66
+      ]
+    },
+    {
+      "id": "runner",
+      "type": "backend",
+      "label": "Flow::AI::Runner",
+      "sublabel": "un camino, tres modos",
+      "pos": [
+        1030,
+        520
+      ],
+      "size": [
+        200,
+        66
+      ]
+    },
+    {
+      "id": "proveedor",
+      "type": "external",
+      "label": "Proveedor de IA",
+      "sublabel": "fixtures deterministas",
+      "pos": [
+        1030,
+        150
+      ],
+      "size": [
+        200,
+        66
+      ],
+      "tag": "adapter abierto"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Docker Compose · 3001 / 5434 / 6381",
+      "wraps": [
+        "rails",
+        "pundit",
+        "pipeline",
+        "postgres",
+        "redis",
+        "sidekiq",
+        "runner"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "Tenencia: (x_id, company_id)",
+      "wraps": [
+        "pipeline",
+        "postgres"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "navegador-rails",
+      "from": "navegador",
+      "to": "rails",
+      "label": "HTTPS · HTML",
+      "variant": "emphasis"
+    },
+    {
+      "id": "islas-rails",
+      "from": "islas",
+      "to": "rails",
+      "label": "PUT JSON · lista completa",
+      "fromSide": "right",
+      "toSide": "top"
+    },
+    {
+      "id": "pundit-rails",
+      "from": "pundit",
+      "to": "rails",
+      "label": "autoriza y acota",
+      "variant": "security",
+      "labelDy": 24
+    },
+    {
+      "id": "rails-pipeline",
+      "from": "rails",
+      "to": "pipeline",
+      "label": "with_lock + lock_version",
+      "variant": "emphasis"
+    },
+    {
+      "id": "pipeline-postgres",
+      "from": "pipeline",
+      "to": "postgres",
+      "label": "SQL",
+      "variant": "emphasis"
+    },
+    {
+      "id": "rails-redis",
+      "from": "rails",
+      "to": "redis",
+      "label": "encola",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "redis-sidekiq",
+      "from": "redis",
+      "to": "sidekiq",
+      "label": "consume"
+    },
+    {
+      "id": "sidekiq-runner",
+      "from": "sidekiq",
+      "to": "runner",
+      "label": "abre con Tenant.with"
+    },
+    {
+      "id": "runner-proveedor",
+      "from": "runner",
+      "to": "proveedor",
+      "label": "valida contra JSON Schema",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "right",
+      "labelDy": 52,
+      "labelDx": -110
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "La regla dura",
+      "items": [
+        "En borrador el flujo se edita libre",
+        "En curso solo se inserta después del último módulo tocado",
+        "Vive en insertion_floor y se revalida en el server"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Idea y versión",
+      "items": [
+        "La idea es identidad; la versión es contenido inmutable",
+        "Editar no pisa: publica v(n+1) con snapshot completo",
+        "Toda nota y decisión guarda qué versión juzgó"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Aislamiento en cuatro capas",
+      "items": [
+        "Sin tenant las queries revientan, no devuelven todo",
+        "Los controllers responden 404, nunca 403",
+        "Postgres rechaza atar una fila de una empresa a otra",
+        "Toda llamada a la IA deja su rastro en ai_runs"
+      ]
+    }
+  ]
+}
