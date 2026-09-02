@@ -12,4 +12,5 @@ class ChallengeStepPolicy < ApplicationPolicy
 
   # Editar el formulario de postulación.
   def manage_form? = manager?
+  def manage_criteria? = manager?
 end

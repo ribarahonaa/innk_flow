@@ -47,6 +47,38 @@
       </div>
     </template>
 
+    <!-- Los criterios: se resumen acá, se editan en su pantalla -->
+    <template v-if="step.criteria">
+      <hr class="config-rule" />
+      <div class="config-form">
+        <label class="config-form__title">{{ step.kind === 'selection' ? 'Filtros' : 'Criterios' }}</label>
+
+        <select v-if="!step.criteria.own" v-model="step.criteriaSetId" :disabled="step.locked">
+          <option :value="null">{{ blankLabel }}</option>
+          <option v-for="set in criteriaSets" :key="set.id" :value="set.id">
+            {{ set.name }} — {{ set.criteriaCount }} criterios
+          </option>
+        </select>
+
+        <template v-if="step.criteria.count">
+          <p class="config-form__labels">
+            {{ step.criteria.labels.join(' · ') }}<span v-if="step.criteria.more"> · +{{ step.criteria.more }}</span>
+          </p>
+          <p class="field-hint">
+            {{ step.criteria.own ? 'Propios de este módulo' : 'De la biblioteca' }} ·
+            {{ step.criteria.count }} {{ step.criteria.count === 1 ? 'criterio' : 'criterios' }}
+          </p>
+          <p v-if="!step.criteria.valid" class="field-hint field-hint--warn">
+            Los pesos no suman 100%: el módulo no va a poder arrancar.
+          </p>
+        </template>
+
+        <a :href="step.criteria.editUrl" class="btn btn--ghost btn--sm">
+          {{ step.criteria.own ? 'Editar los criterios' : 'Definir criterios propios de este módulo' }}
+        </a>
+      </div>
+    </template>
+
     <!-- Lo propio del kind, desde el esquema del server -->
     <template v-if="essential.length">
       <hr class="config-rule" />
@@ -87,6 +119,7 @@ export default {
     step: { type: Object, required: true },
     steps: { type: Array, required: true },
     schema: { type: Object, required: true },
+    criteriaSets: { type: Array, default: () => [] },
     aiModes: { type: Array, required: true },
     challengeAiMode: { type: String, required: true }
   },
@@ -101,6 +134,12 @@ export default {
     // Un módulo en curso abre lo avanzado: ahí el panel es para CONSULTAR con
     // qué quedó configurado, y esconder la mitad no ayuda.
     advancedOpen() { return this.step.locked; },
+
+    blankLabel() {
+      return this.step.kind === 'selection'
+        ? 'Sin filtros'
+        : 'Criterios genéricos (impacto, factibilidad, esfuerzo)';
+    },
 
     challengeAiLabel() {
       const mode = this.aiModes.find((m) => m.value === this.challengeAiMode);

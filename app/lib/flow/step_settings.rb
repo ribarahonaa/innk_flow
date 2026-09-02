@@ -37,11 +37,10 @@ module Flow
       },
 
       "evaluation" => {
+        # `criteria_set_id` NO vive acá: se elige en el bloque de criterios del
+        # panel, junto a la opción de definir los propios del módulo. Tenerlo
+        # como un campo suelto más dejaba dos lugares para lo mismo.
         essential: [
-          { key: "criteria_set_id", type: "select", column: true, source: "criteria_sets",
-            label: "Set de criterios",
-            blank: "Criterios por defecto (impacto, factibilidad, esfuerzo)",
-            hint: "Con qué se puntúa cada idea." },
           { key: "min_assessments", type: "number", default: 1, min: 1,
             label: "Evaluaciones mínimas por idea",
             hint: "En IA automática, la IA hace las que falten para llegar a este número." }
@@ -60,10 +59,6 @@ module Flow
 
       "selection" => {
         essential: [
-          { key: "criteria_set_id", type: "select", column: true, source: "criteria_sets",
-            label: "Filtros",
-            blank: "Sin filtros",
-            hint: "Condiciones que la idea tiene que cumplir para avanzar. Se aplican antes del corte." },
           { key: "source_step_id", type: "select", column: true, source: "previous_evaluations",
             label: "Puntaje que usa para ordenar",
             blank: "Automático (la evaluación previa más cercana)",

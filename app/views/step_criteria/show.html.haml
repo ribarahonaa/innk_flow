@@ -1,0 +1,50 @@
+- content_for :title, "Criterios · #{@step.name}"
+.page-head
+  %div
+    %p.breadcrumb
+      = link_to "Desafíos", challenges_path
+      = " › "
+      = link_to @challenge.name, challenge_path(@challenge)
+      = " › "
+      = link_to "Flujo", builder_challenge_path(@challenge)
+    %h1.page-title Criterios de «#{@step.name}»
+    - if @step.selection?
+      %p.muted Condiciones que la idea tiene que cumplir para avanzar. Se aplican antes del corte.
+    - else
+      %p.muted Con qué se puntúa cada idea en este módulo.
+
+- if @set.nil?
+  .card
+    %h2.section-title Este módulo todavía no tiene criterios propios
+    - if @step.criteria_set
+      %p.muted
+        Hoy usa
+        %strong= @step.criteria_set.name
+        de la biblioteca, que comparten otros desafíos. Editarlo desde acá los tocaría a todos.
+    - else
+      %p.muted Sin criterios propios se van a usar los genéricos: impacto, factibilidad y esfuerzo.
+
+    - if @step.touched?
+      %p.field-hint.field-hint--warn Este módulo ya se ejecutó: sus criterios quedaron congelados.
+    - else
+      .report-actions
+        - if @step.criteria_set
+          = button_to "Copiar ese set y hacerlo propio", challenge_step_criteria_path(@challenge, @step, from: "library"),
+                      class: "btn btn--primary btn--sm"
+        - else
+          = button_to "Usar los tres genéricos y editarlos", challenge_step_criteria_path(@challenge, @step, from: "defaults"),
+                      class: "btn btn--primary btn--sm"
+        = button_to "Empezar en blanco", challenge_step_criteria_path(@challenge, @step, from: "blank"),
+                    class: "btn btn--ghost btn--sm"
+        = link_to "Volver al flujo", builder_challenge_path(@challenge), class: "btn btn--ghost btn--sm"
+- else
+  .flash.flash--notice
+    Estos criterios son de este módulo: no afectan a otros desafíos.
+    = link_to "Guardarlos también en la biblioteca", promote_criteria_set_path(@set),
+              data: { turbo_method: :post }, class: "field-hint__link"
+
+  %div{ "data-island": "criteria-editor", data: { props: @props.to_json } }
+    .card.island-placeholder
+      %p.muted Cargando el editor de criterios…
+
+  = javascript_include_tag "packs/criteria_editor", defer: true, nonce: content_security_policy_nonce

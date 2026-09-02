@@ -190,9 +190,9 @@ module Flow
       warnings << "El flujo termina en «Evolución»: las ideas se actualizan pero nada las evalúa después." if list.last&.evolution?
 
       list.select { |s| s.evaluation? && s.pending? && s.criteria_set_id.blank? }.each do |step|
-        warnings << "«#{step.name}» no tiene criterios asignados: se van a usar los criterios por " \
-                    "defecto (impacto, factibilidad y esfuerzo). Podés elegir otro set desde el " \
-                    "panel de configuración del módulo, en «Editar flujo»."
+        warnings << "«#{step.name}» va a usar los criterios genéricos (impacto, factibilidad y " \
+                    "esfuerzo). Desde su panel podés elegir un set de la biblioteca o definir los " \
+                    "criterios propios de este módulo."
       end
 
       Report.new(errors: errors, warnings: warnings)

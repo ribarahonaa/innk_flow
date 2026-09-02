@@ -125,6 +125,25 @@ async function shot(page, name, url, prepare) {
 
   await shot(page, '09-10-form-vacio', '/challenges/onboarding-remoto/form');
 
+  // Los criterios del módulo de evaluación, desde su panel en el builder.
+  await page.goto(`${BASE}/challenges/onboarding-remoto/builder`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
+  await page.locator('.step-card', { hasText: 'Primera revisión' }).first().click();
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: `${OUT}/09-11-panel-evaluacion.png`, fullPage: true });
+  shots.push('09-11-panel-evaluacion');
+
+  const criteriaLink = page.locator('a:has-text("Definir criterios propios")');
+  if (await criteriaLink.count()) {
+    await criteriaLink.first().click();
+    await page.waitForLoadState('networkidle');
+    await page.screenshot({ path: `${OUT}/09-12-criterios-del-modulo.png`, fullPage: true });
+    shots.push('09-12-criterios-del-modulo');
+  } else {
+    failures++;
+    console.error('[LINK] el panel de evaluación no ofrece definir criterios propios');
+  }
+
   await shot(page, '10-criteria', '/criteria_sets');
 
   // El editor de criterios: la config que antes se escribía como JSON a mano.

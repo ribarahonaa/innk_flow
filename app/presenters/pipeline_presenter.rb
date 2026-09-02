@@ -83,7 +83,26 @@ class PipelinePresenter
     # se llevaría puestas las claves que valen nil a propósito —`aiMode: nil`
     # es "heredá del desafío", y sin ella el select del panel queda en blanco.
     json[:form] = form_json(step) if step.ideation?
+    json[:criteria] = criteria_json(step) if step.evaluation? || step.selection?
     json
+  end
+
+  # Igual que el formulario en «Idear»: el panel no edita los criterios —no
+  # entran en una columna de 290px— pero sí tiene que decir con cuáles va a
+  # correr el módulo y ofrecer la puerta.
+  def criteria_json(step)
+    set = step.criteria_set
+    criteria = set ? set.active_criteria : []
+
+    {
+      setName: set&.name,
+      own: set.present? && set.inline?,
+      count: criteria.size,
+      labels: criteria.first(4).map(&:name),
+      more: [criteria.size - 4, 0].max,
+      valid: set.nil? || set.validation_errors.empty?,
+      editUrl: Rails.application.routes.url_helpers.challenge_step_criteria_path(challenge, step)
+    }
   end
 
   # El builder no edita el formulario —definir las preguntas es una tarea en sí

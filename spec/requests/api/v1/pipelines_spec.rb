@@ -237,14 +237,30 @@ RSpec.describe "API del pipeline", type: :request do
       end
     end
 
-    it "sin set asignado avisa dónde elegirlo" do
+    it "sin set asignado avisa qué se va a usar y qué salidas hay" do
       as_company(company) do
-        challenge.steps.create!(kind: "ideation", position: 1)
+        seed_form!(challenge.steps.create!(kind: "ideation", position: 1))
         challenge.steps.create!(kind: "evaluation", position: 2, name: "Técnica")
       end
 
       get pipeline_path
-      expect(json["validation"]["warnings"].join).to match(/panel de configuración del módulo, en «Editar flujo»/)
+      expect(json["validation"]["warnings"].join).to match(/criterios genéricos/)
+      expect(json["validation"]["warnings"].join).to match(/criterios propios de este módulo/)
+    end
+
+    # El panel tiene que poder ofrecer las dos formas de tener criterios sin
+    # que el editor las adivine: el set de la biblioteca y los propios.
+    it "el paso de evaluación viaja con su resumen de criterios y su link" do
+      step_id = as_company(company) do
+        seed_form!(challenge.steps.create!(kind: "ideation", position: 1))
+        challenge.steps.create!(kind: "evaluation", position: 2, name: "Técnica").id
+      end
+
+      get pipeline_path
+      criteria = json["steps"].last["criteria"]
+
+      expect(criteria).to include("count" => 0, "own" => false)
+      expect(criteria["editUrl"]).to eq("/challenges/#{challenge.slug}/steps/#{step_id}/criteria")
     end
   end
 

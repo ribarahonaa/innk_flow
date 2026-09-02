@@ -97,6 +97,7 @@
         :step="selected"
         :steps="steps"
         :schema="settingsSchema"
+        :criteria-sets="criteriaSets"
         :ai-modes="aiModes"
         :challenge-ai-mode="challenge.aiDefaultMode"
       />

@@ -17,17 +17,21 @@
       Criterios
       - if @step.criteria_set
         %span.muted= " · #{@step.criteria_set.name}"
-    - if @step.criteria_set && policy(@challenge).update_pipeline?
-      = link_to "Editar el set", edit_criteria_set_path(@step.criteria_set), class: "btn btn--ghost btn--sm"
-    - elsif policy(@challenge).update_pipeline?
-      = link_to "Elegir un set", builder_challenge_path(@challenge), class: "btn btn--ghost btn--sm"
+    -# Un set inline es de ESTE módulo y se edita en su pantalla; uno de la
+    -# biblioteca lo comparten otros desafíos y se edita en el mantenedor.
+    - if policy(@challenge).update_pipeline?
+      - if @step.criteria_set&.inline?
+        = link_to "Ver los criterios", challenge_step_criteria_path(@challenge, @step), class: "btn btn--ghost btn--sm"
+      - elsif @step.criteria_set
+        = link_to "Ver el set", edit_criteria_set_path(@step.criteria_set), class: "btn btn--ghost btn--sm"
+      - else
+        = link_to "Definir los criterios", challenge_step_criteria_path(@challenge, @step), class: "btn btn--ghost btn--sm"
 
   - if @handler.criteria_snapshot.empty?
     %p.muted
-      Este módulo todavía no tiene criterios asignados. Se le crean tres por defecto al activarlo,
-      o podés elegir un set desde
+      Este módulo todavía no tiene criterios. Se le crean tres genéricos al activarlo, o podés
       = succeed "." do
-        = link_to "Editar flujo", builder_challenge_path(@challenge)
+        = link_to "definirlos ahora", challenge_step_criteria_path(@challenge, @step)
   - else
     %p.muted.field-hint
       Congelados al activar el módulo: editar el set ahora no altera lo ya evaluado.
@@ -134,7 +138,7 @@
               - assessment.assessment_scores.sort_by { |s| s.criterion_key }.each do |score|
                 %li
                   %span.assessment-detail__criterion= score.criterion_key
-                  %strong= score.raw_value.presence || "—"
+                  %strong= score.display_value
                   - if score.comment.present?
                     %span.muted= score.comment
                   - if score.error.present?

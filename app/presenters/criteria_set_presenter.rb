@@ -6,9 +6,10 @@
 # y del esquema. El editor no sabe qué parámetros pide cada verificación — los
 # recibe y los dibuja.
 class CriteriaSetPresenter
-  def initialize(set, membership: nil)
+  def initialize(set, membership: nil, back_url: nil)
     @set = set
     @membership = membership
+    @back_url = back_url
   end
 
   attr_reader :set, :membership
@@ -85,7 +86,7 @@ class CriteriaSetPresenter
     helpers = Rails.application.routes.url_helpers
     {
       save: set.persisted? ? helpers.api_v1_criteria_set_path(set) : helpers.api_v1_criteria_sets_path,
-      index: helpers.criteria_sets_path
+      index: @back_url || helpers.criteria_sets_path
     }
   end
 end
