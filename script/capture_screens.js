@@ -126,6 +126,26 @@ async function shot(page, name, url, prepare) {
   await shot(page, '09-10-form-vacio', '/challenges/onboarding-remoto/form');
 
   await shot(page, '10-criteria', '/criteria_sets');
+
+  // El editor de criterios: la config que antes se escribía como JSON a mano.
+  await page.goto(`${BASE}/criteria_sets`, { waitUntil: 'networkidle' });
+  const setLink = page.locator('a:has-text("Editar")').first();
+  if (await setLink.count()) {
+    await setLink.click();
+    await page.waitForSelector('[data-island-mounted="true"] .criterion-edit', { timeout: 15000 });
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(150);
+    await page.screenshot({ path: `${OUT}/10b-criteria-editor.png`, fullPage: true });
+    shots.push('10b-criteria-editor');
+
+    if (await page.locator('.island-placeholder').count()) {
+      failures++;
+      console.error('[ISLA] el editor de criterios no montó');
+    }
+  } else {
+    failures++;
+    console.error('[LINK] la biblioteca de criterios no ofrece editar un set');
+  }
   await shot(page, '11-ai-runs', '/admin/ai_runs');
 
   await browser.close();

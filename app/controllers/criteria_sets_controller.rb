@@ -2,31 +2,19 @@
 
 # Mantenedor de criterios de la empresa.
 class CriteriaSetsController < ApplicationController
-  before_action :set_criteria_set, only: %i[show edit update destroy promote]
+  before_action :set_criteria_set, only: %i[show edit destroy promote]
 
   def index
     @sets = policy_scope(CriteriaSet).library.includes(:criteria).order(:name)
   end
 
+  # El set nace VACÍO. Antes traía dos criterios ya puestos, que la mitad de
+  # las veces había que borrar: el editor ofrece plantillas de arranque, que es
+  # lo mismo pero elegido.
   def new
-    @set = CriteriaSet.new(name: "Nuevo set")
+    @set = CriteriaSet.new(name: "")
     authorize @set
-    @set.criteria.build(name: "Impacto", weight: 0.5, source: "manual", scale_type: "numeric",
-                        scale_config: { "min" => 1, "max" => 10 }, position: 0)
-    @set.criteria.build(name: "Factibilidad", weight: 0.5, source: "manual", scale_type: "numeric",
-                        scale_config: { "min" => 1, "max" => 10 }, position: 1)
-  end
-
-  def create
-    @set = CriteriaSet.new(criteria_set_params)
-    authorize @set
-
-    if @set.save
-      @set.refresh_status!
-      redirect_to criteria_sets_path, notice: "Set creado."
-    else
-      render :new, status: :unprocessable_entity
-    end
+    @props = CriteriaSetPresenter.new(@set, membership: current_membership).as_json
   end
 
   def show
@@ -35,17 +23,7 @@ class CriteriaSetsController < ApplicationController
 
   def edit
     authorize @set
-  end
-
-  def update
-    authorize @set
-
-    if @set.update(criteria_set_params)
-      @set.refresh_status!
-      redirect_to criteria_sets_path, notice: "Set actualizado."
-    else
-      render :edit, status: :unprocessable_entity
-    end
+    @props = CriteriaSetPresenter.new(@set, membership: current_membership).as_json
   end
 
   def destroy
@@ -64,14 +42,5 @@ class CriteriaSetsController < ApplicationController
 
   def set_criteria_set
     @set = CriteriaSet.find(params[:id])
-  end
-
-  def criteria_set_params
-    params.require(:criteria_set).permit(
-      :name, :description,
-      criteria_attributes: [:id, :key, :name, :description, :weight, :source, :scale_type,
-                            :position, :active, :_destroy,
-                            { scale_config: {}, source_config: {} }]
-    )
   end
 end

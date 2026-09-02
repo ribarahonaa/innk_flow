@@ -54,6 +54,9 @@ Flow::Tenant.bypass! do
   # evaluaciones de dos rondas, un corte con eliminadas y el tablero final.
   Flow::Tenant.with(demo) do
     Challenge.where(slug: "merma-bodega").destroy_all
+    # El seed se corre varias veces: los sets de la biblioteca no cuelgan del
+    # desafío, así que se limpian aparte o quedan duplicados.
+    CriteriaSet.library.where(name: "Evaluación técnica").destroy_all
 
     challenge = Challenge.create!(
       slug: "merma-bodega",
@@ -62,6 +65,27 @@ Flow::Tenant.bypass! do
              "sin agregar dotación y que se puedan pilotear en un centro antes de fin de año.",
       ai_default_mode: "ai_assisted"
     )
+
+    # Un set de criterios de la biblioteca, para que el desafío no corra con
+    # los criterios por defecto. Mezcla los dos ejes a propósito: dos que
+    # puntúa una persona, uno que verifica el sistema, y uno derivado.
+    tecnicos = CriteriaSet.create!(name: "Evaluación técnica", scope: "library",
+                                   description: "Impacto contra esfuerzo, con la idea completa como requisito.")
+    [
+      { name: "Impacto", key: "impacto", weight: 0.4, source: "manual", scale_type: "numeric",
+        description: "Cuánto baja la merma si funciona.",
+        scale_config: { "min" => 1, "max" => 10, "step" => 1, "direction" => "higher_better" } },
+      { name: "Esfuerzo", key: "esfuerzo", weight: 0.25, source: "manual", scale_type: "numeric",
+        description: "Cuánto cuesta implementarla.",
+        scale_config: { "min" => 1, "max" => 10, "step" => 1, "direction" => "lower_better" } },
+      { name: "Está desarrollada", key: "desarrollada", weight: 0.15, source: "automatic",
+        scale_type: "boolean",
+        source_config: { "check" => "field_present", "field_key" => "solucion", "min_length" => 120 } },
+      { name: "Prioridad", key: "prioridad", weight: 0.2, source: "formula", scale_type: "numeric",
+        description: "Impacto sobre esfuerzo.",
+        scale_config: { "expression" => "impacto / esfuerzo", "output" => { "min" => 0, "max" => 10 } } }
+    ].each_with_index { |attrs, index| tecnicos.criteria.create!(**attrs, position: index) }
+    tecnicos.refresh_status!
 
     pipeline = challenge.pipeline
     [
@@ -73,7 +97,9 @@ Flow::Tenant.bypass! do
       ["selection",  "Finalistas",            { "cut" => { "mode" => "top_n", "value" => 2 } }, "human"],
       ["reporting",  "Reporte de cierre",     { "mode" => "by_version" },                    "ai_auto"]
     ].each do |kind, name, config, ai_mode|
-      pipeline.insert(kind: kind, after: :end, name: name, config: config, ai_mode: ai_mode)
+      set = tecnicos if name == "Evaluación técnica"
+      pipeline.insert(kind: kind, after: :end, name: name, config: config, ai_mode: ai_mode,
+                      criteria_set: set)
     end
 
     admin = User.find_by!(email: "admin@demo.test")
@@ -175,9 +201,14 @@ Flow::Tenant.bypass! do
             evaluator: juez, status: "submitted", submitted_at: Time.current,
             overall_comment: j.zero? ? "Evaluada sobre #{entry.idea.current_version.label}." : nil
           )
-          handler.criteria_snapshot.each_with_index do |config, k|
+          # Solo los criterios que alguien responde. Los automáticos y las
+          # fórmulas los calcula ScoreAssessment: ponerles una nota a mano
+          # sería inventar lo que el sistema tiene que deducir.
+          answerable = handler.criteria_snapshot.select { |c| %w[manual ai].include?(c["source"]) }
+          answerable.each_with_index do |config, k|
             criterion = Criterion.find(config["id"])
-            raw = [[base_por_idea[i][k] + (j - 1), 1].max, 10].min
+            base = base_por_idea[i][k] || base_por_idea[i].last
+            raw = [[base + (j - 1), 1].max, 10].min
             numeric, normalized = criterion.score(raw)
             assessment.assessment_scores.create!(
               criterion_id: criterion.id, criterion_key: config["key"], weight_used: config["weight"],

@@ -1,82 +1,8 @@
-= form_with model: set do |f|
-  - if set.errors.any?
-    .flash.flash--alert= set.errors.full_messages.to_sentence
-  - if set.persisted? && set.validation_errors.any?
-    .flash.flash--warn
-      %ul
-        - set.validation_errors.each do |error|
-          %li= error
+-# El editor es una isla: los parámetros de cada verificación y de cada escala
+-# los declara Flow::CriterionSettings y el server los manda serializados. Antes
+-# esta pantalla pedía escribir el JSON a mano.
+%div{ "data-island": "criteria-editor", data: { props: @props.to_json } }
+  .card.island-placeholder
+    %p.muted Cargando el editor de criterios…
 
-  .field
-    = f.label :name, "Nombre"
-    = f.text_field :name, required: true
-  .field
-    = f.label :description, "Descripción"
-    = f.text_area :description, rows: 2
-
-  %h2.section-title Criterios
-  %p.field-hint
-    Un criterio tiene dos partes: <strong>quién produce el valor</strong> y <strong>qué forma tiene</strong>.
-    Los pesos de los criterios activos deben sumar 100%.
-
-  .criteria-editor
-    = f.fields_for :criteria do |cf|
-      .criterion-row
-        .criterion-row__main
-          .field
-            = cf.label :name, "Nombre"
-            = cf.text_field :name
-          .field
-            = cf.label :key, "Clave"
-            = cf.text_field :key, placeholder: "se genera del nombre"
-            %p.field-hint Las fórmulas la usan como variable.
-          .field
-            = cf.label :weight, "Peso"
-            = cf.number_field :weight, step: 0.05, min: 0, max: 1
-          .field
-            = cf.label :source, "Quién lo produce"
-            = cf.select :source, Criterion::SOURCES.map { |s| [t("flow.criterion_sources.#{s}"), s] }
-          .field
-            = cf.label :scale_type, "Forma del valor"
-            = cf.select :scale_type, Criterion::SCALE_TYPES.map { |t| [t("flow.scale_types.#{t}"), t] }
-            %p.field-hint Se ignora si lo verifica el sistema (sí/no) o es una fórmula (numérico).
-
-        .criterion-row__config
-          .field
-            = cf.label :description, "Descripción para quien evalúa"
-            = cf.text_field :description
-          .criterion-row__jsons
-            .field
-              = cf.label "source_config", "Qué verifica (solo para «lo verifica el sistema»)"
-              = text_area_tag "criteria_set[criteria_attributes][#{cf.index}][source_config]",
-                              cf.object.source_config.to_json, rows: 2, class: "code-input"
-              %p.field-hint
-                = succeed " · " do
-                  %code {"check":"field_present","field_key":"costo","min_length":200}
-                %code {"check":"contributors_count","minimum":2}
-            .field
-              = cf.label "scale_config", "Configuración de la escala"
-              = text_area_tag "criteria_set[criteria_attributes][#{cf.index}][scale_config]",
-                              cf.object.scale_config.to_json, rows: 2, class: "code-input"
-              %p.field-hint
-                = succeed " · " do
-                  %code {"min":1,"max":10}
-                %code {"expression":"impacto / esfuerzo","output":{"min":0,"max":10}}
-          .criterion-row__actions
-            = cf.check_box :active
-            = cf.label :active, "Activo", class: "inline-label"
-            - if cf.object.persisted?
-              = cf.check_box :_destroy
-              = cf.label :_destroy, "Eliminar", class: "inline-label"
-
-  %details.checks-help
-    %summary Verificaciones automáticas disponibles
-    %ul.field-list
-      - Flow::Checks::Base::TYPES.each do |type|
-        %li.field-list__item
-          %span= t("flow.checks.#{type}.label")
-          %span.field-list__type= %({"check":"#{type}"})
-
-  .form-actions
-    = link_to "Cancelar", criteria_sets_path, class: "btn btn--ghost"
-    = f.submit "Guardar", class: "btn btn--primary"
+= javascript_include_tag "packs/criteria_editor", defer: true, nonce: content_security_policy_nonce

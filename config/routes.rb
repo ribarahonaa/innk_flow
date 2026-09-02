@@ -56,7 +56,9 @@ Rails.application.routes.draw do
   end
 
   # Mantenedor de criterios de la empresa.
-  resources :criteria_sets do
+  # Se escribe SOLO por la API que usa el editor: un set con nested attributes
+  # por un lado y una isla por el otro serían dos caminos y una laguna.
+  resources :criteria_sets, only: %i[index new show edit destroy] do
     member { post :promote }
   end
 
@@ -77,6 +79,9 @@ Rails.application.routes.draw do
         resource :pipeline, only: %i[show update]
         resource :form_fields, only: %i[show update], path: "form"
       end
+
+      # El editor de criterios guarda el set COMPLETO acá.
+      resources :criteria_sets, only: %i[create update]
     end
   end
 

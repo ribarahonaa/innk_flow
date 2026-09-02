@@ -77,7 +77,7 @@
 
     <div class="field-editor__actions">
       <button type="button" class="btn btn--ghost btn--sm" @click="add">+ Agregar campo</button>
-      <span class="builder__spacer"></span>
+      <span class="editor-actions__spacer"></span>
       <span v-if="dirty" class="muted">Sin guardar</span>
       <span v-else-if="saved" class="muted">Guardado</span>
       <a :href="urls.back" class="btn btn--ghost">Volver al flujo</a>

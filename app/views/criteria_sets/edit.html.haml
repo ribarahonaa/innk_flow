@@ -1,4 +1,8 @@
 - content_for :title, "Editar set"
-.card
-  %h1.page-title= @set.name
-  = render "form", set: @set
+.page-head
+  %div
+    %p.breadcrumb= link_to "Criterios", criteria_sets_path
+    %h1.page-title= @set.name
+    %p.muted Con qué se puntúa o se filtra una idea.
+
+= render "form", set: @set

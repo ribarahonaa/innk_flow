@@ -1,4 +1,8 @@
 - content_for :title, "Nuevo set de criterios"
-.card
-  %h1.page-title Nuevo set de criterios
-  = render "form", set: @set
+.page-head
+  %div
+    %p.breadcrumb= link_to "Criterios", criteria_sets_path
+    %h1.page-title Nuevo set de criterios
+    %p.muted Con qué se puntúa o se filtra una idea.
+
+= render "form", set: @set
