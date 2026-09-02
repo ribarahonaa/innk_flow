@@ -63,6 +63,14 @@ posteriores.
 `spec/system_support/driver.rb` se requiere **solo desde los system specs**:
 cargar Capybara globalmente cuelga la suite entera.
 
+**Nunca `click_link` a secas en un system spec.** Turbo pinta la copia cacheada
+de una página mientras pide la definitiva; si el clic cae en esa ventana,
+Capybara toma un elemento que Turbo está por reemplazar y Playwright falla con
+«Element is not attached to the DOM». Usá `click_link_settled`
+(`spec/system_support/turbo.rb`), que espera a que se vaya
+`<html data-turbo-preview>`. El síntoma es una falla de una cada tres corridas
+**solo con la suite completa** — en aislamiento pasa siempre.
+
 ## Arquitectura: lo que hay que leer junto
 
 ### El motor del pipeline

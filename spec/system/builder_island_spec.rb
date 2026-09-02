@@ -2,6 +2,7 @@
 
 require "rails_helper"
 require Rails.root.join("spec/system_support/driver")
+require Rails.root.join("spec/system_support/turbo")
 
 # La isla del builder tiene que montar por LOS DOS caminos.
 #
@@ -58,7 +59,7 @@ RSpec.describe "isla del builder", type: :system, js: true do
 
   it "monta navegando por el link, que es lo que hace una persona" do
     visit challenge_path(challenge)
-    click_link "Editar flujo"
+    click_link_settled "Editar flujo"
 
     expect(page).to have_css('[data-island-mounted="true"] .step-card', wait: 15)
     expect(page).to have_no_css(".island-placeholder"),
@@ -72,15 +73,15 @@ RSpec.describe "isla del builder", type: :system, js: true do
     # contra el preview cacheado que Turbo pinta antes del body definitivo, y
     # el spec se vuelve intermitente.
     visit challenge_path(challenge)
-    click_link "Editar flujo"
+    click_link_settled "Editar flujo"
     expect(page).to have_current_path(builder_challenge_path(challenge), wait: 10)
     expect(page).to have_css('[data-island-mounted="true"] .step-card', wait: 15)
 
-    click_link "Ver desafío"
+    click_link_settled "Ver desafío"
     expect(page).to have_current_path(challenge_path(challenge), wait: 10)
     expect(page).to have_css(".step-table", wait: 10)
 
-    click_link "Editar flujo"
+    click_link_settled "Editar flujo"
     expect(page).to have_current_path(builder_challenge_path(challenge), wait: 10)
     expect(page).to have_css('[data-island-mounted="true"] .step-card', wait: 15)
     expect(page).to have_no_css(".island-placeholder")

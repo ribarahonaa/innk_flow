@@ -2,6 +2,7 @@
 
 require "rails_helper"
 require Rails.root.join("spec/system_support/driver")
+require Rails.root.join("spec/system_support/turbo")
 
 # Verifica que la infraestructura de system specs funciona: rack_test y
 # Chromium real.
