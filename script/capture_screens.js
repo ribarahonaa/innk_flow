@@ -200,6 +200,8 @@ async function shot(page, name, url, prepare) {
     console.error('[LINK] el panel de evaluación no ofrece definir criterios propios');
   }
 
+  await shot(page, '09-13-avisos', '/notifications');
+
   await shot(page, '10-criteria', '/criteria_sets');
 
   // El editor de criterios: la config que antes se escribía como JSON a mano.

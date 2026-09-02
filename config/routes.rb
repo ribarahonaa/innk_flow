@@ -72,6 +72,11 @@ Rails.application.routes.draw do
     member { post :promote }
   end
 
+  # La bandeja de avisos.
+  resources :notifications, only: %i[index show] do
+    collection { post :read_all }
+  end
+
   resources :ai_suggestions, only: [] do
     member do
       post :accept

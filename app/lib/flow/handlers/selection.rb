@@ -157,7 +157,23 @@ module Flow
               entry.resolve!(status: "eliminated", result: entry.result.merge("rank" => row&.rank))
               entry.idea.update!(status: "eliminated", eliminated_at_step_id: step.id)
             end
+
+            notify_outcome!(entry.idea, advances)
           end
+        end
+      end
+
+      # Enterarse de que tu idea quedó fuera por entrar a mirar la tabla es la
+      # peor forma de enterarse. Va a quien la creó y a quienes participaron.
+      def notify_outcome!(idea, advanced)
+        people = [idea.author] + idea.idea_contributors.includes(:user).map(&:user)
+
+        people.uniq.each do |person|
+          Flow::Notifications::Notify.call(
+            kind: advanced ? "idea_advanced" : "idea_eliminated",
+            user: person, step: step, idea: idea,
+            payload: { idea: idea.title, step: step.name }
+          )
         end
       end
 

@@ -10,7 +10,8 @@ module TenantResolution
 
   included do
     around_action :with_tenant_context
-    helper_method :current_user, :current_company, :current_membership, :signed_in?
+    helper_method :current_user, :current_company, :current_membership, :signed_in?,
+                  :unread_notifications
 
     rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
     rescue_from TenantScoped::MissingTenant, with: :render_not_found
@@ -71,5 +72,13 @@ module TenantResolution
       format.html { render "errors/forbidden", status: :forbidden, layout: "application" }
       format.json { render json: { error: "forbidden" }, status: :forbidden }
     end
+  end
+
+  # Contador de la campana. Se cachea por request: el layout lo pide una vez,
+  # pero un `redirect` que renderiza dos veces lo pediría dos.
+  def unread_notifications
+    return 0 unless signed_in? && Current.company
+
+    @unread_notifications ||= Notification.where(user_id: current_user.id).unread.count
   end
 end

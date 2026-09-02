@@ -21,6 +21,8 @@ class FeedbackItem < ApplicationRecord
   belongs_to :resolved_by, class_name: "User", optional: true
   belongs_to :ai_run, optional: true
 
+  after_create :notify_idea_people
+
   validates :body, presence: true
   validates :kind, inclusion: { in: KINDS }
   validates :actor_type, inclusion: { in: ACTOR_TYPES }
@@ -63,4 +65,21 @@ class FeedbackItem < ApplicationRecord
 
   # El feedback se dio sobre una versión anterior a la vigente.
   def stale? = idea.stale_for?(idea_version_id)
+
+  private
+
+  # El feedback existe para que el autor lo atienda: si no se entera, el módulo
+  # de evolución se queda esperando a alguien que no sabe que lo esperan.
+  def notify_idea_people
+    people = [idea.author] + idea.idea_contributors.includes(:user).map(&:user)
+    people = people.uniq.reject { |person| person.id == author_id }
+
+    people.each do |person|
+      Flow::Notifications::Notify.call(
+        kind: "feedback_received", user: person, step: challenge_step, idea: idea,
+        payload: { idea: idea.title, step: challenge_step&.name,
+                   author: author&.name || "La IA" }
+      )
+    end
+  end
 end

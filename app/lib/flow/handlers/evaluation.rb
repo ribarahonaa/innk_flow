@@ -222,6 +222,21 @@ module Flow
             assignment.role = "evaluator"
           end
         end
+
+        notify_evaluators!
+      end
+
+      # Sin esto, a nadie le llega que le tocó trabajo: el módulo abre y espera
+      # a que alguien entre a mirar por su cuenta.
+      def notify_evaluators!
+        pending = step.step_entries.size
+
+        step.step_assignments.includes(:user).each do |assignment|
+          Flow::Notifications::Notify.call(
+            kind: "assigned_to_evaluate", user: assignment.user, step: step,
+            payload: { step: step.name, challenge: challenge.name, count: pending }
+          )
+        end
       end
     end
   end

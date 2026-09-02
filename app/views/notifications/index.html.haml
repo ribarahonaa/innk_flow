@@ -1,0 +1,22 @@
+- content_for :title, "Avisos"
+.page-head
+  %div
+    %h1.page-title Avisos
+    %p.muted Lo que pasó mientras no estabas mirando.
+  - if @unread.positive?
+    = button_to "Marcar todo como leído", read_all_notifications_path, class: "btn btn--ghost"
+
+- if @notifications.empty?
+  .card.empty-state
+    %p.muted No hay avisos todavía.
+- else
+  %ul.notification-list
+    - @notifications.each do |notification|
+      %li.notification{ class: ("notification--unread" unless notification.read?) }
+        = link_to notification_path(notification), class: "notification__link" do
+          %span.notification__title= notification.title
+          %span.notification__body= notification.body
+          %span.notification__meta
+            - if notification.challenge
+              %span= notification.challenge.name
+            %span= l(notification.created_at, format: :short)

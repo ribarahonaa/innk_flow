@@ -1,4 +1,4 @@
-\restrict e6f6vWCPDLcdDbx9hE2dsL6bhf3pW0zTEyTmpDa1wdwtXFl8vPY68oA1dSLpsMK
+\restrict ihqAMn4QT2aIVrpgkUQW8f3WE0m0dYBWLpqhiA03RIUfBVgJmdXdhLEFicPbz4Z
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -125,9 +125,9 @@ CREATE TABLE public.ai_runs (
     redacted_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT ai_runs_mode_check CHECK (((mode)::text = ANY ((ARRAY['ai_assisted'::character varying, 'ai_auto'::character varying])::text[]))),
-    CONSTRAINT ai_runs_purpose_check CHECK (((purpose)::text = ANY ((ARRAY['propose_pipeline'::character varying, 'suggest_form_fields'::character varying, 'generate_ideas'::character varying, 'coauthor_field'::character varying, 'detect_duplicates'::character varying, 'suggest_feedback'::character varying, 'evaluate_idea'::character varying, 'summarize_challenge'::character varying])::text[]))),
-    CONSTRAINT ai_runs_status_check CHECK (((status)::text = ANY ((ARRAY['queued'::character varying, 'running'::character varying, 'succeeded'::character varying, 'failed'::character varying])::text[])))
+    CONSTRAINT ai_runs_mode_check CHECK (((mode)::text = ANY (ARRAY[('ai_assisted'::character varying)::text, ('ai_auto'::character varying)::text]))),
+    CONSTRAINT ai_runs_purpose_check CHECK (((purpose)::text = ANY (ARRAY[('propose_pipeline'::character varying)::text, ('suggest_form_fields'::character varying)::text, ('generate_ideas'::character varying)::text, ('coauthor_field'::character varying)::text, ('detect_duplicates'::character varying)::text, ('suggest_feedback'::character varying)::text, ('evaluate_idea'::character varying)::text, ('summarize_challenge'::character varying)::text]))),
+    CONSTRAINT ai_runs_status_check CHECK (((status)::text = ANY (ARRAY[('queued'::character varying)::text, ('running'::character varying)::text, ('succeeded'::character varying)::text, ('failed'::character varying)::text])))
 );
 
 
@@ -152,7 +152,7 @@ CREATE TABLE public.ai_suggestions (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT ai_suggestions_single_target_check CHECK (((((((challenge_id IS NOT NULL))::integer + ((challenge_step_id IS NOT NULL))::integer) + ((idea_id IS NOT NULL))::integer) + ((criteria_set_id IS NOT NULL))::integer) = 1)),
-    CONSTRAINT ai_suggestions_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'accepted'::character varying, 'edited'::character varying, 'rejected'::character varying])::text[])))
+    CONSTRAINT ai_suggestions_status_check CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('accepted'::character varying)::text, ('edited'::character varying)::text, ('rejected'::character varying)::text])))
 );
 
 
@@ -210,8 +210,8 @@ CREATE TABLE public.assessments (
     superseded_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT assessments_actor_type_check CHECK (((actor_type)::text = ANY ((ARRAY['human'::character varying, 'ai'::character varying])::text[]))),
-    CONSTRAINT assessments_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'submitted'::character varying])::text[])))
+    CONSTRAINT assessments_actor_type_check CHECK (((actor_type)::text = ANY (ARRAY[('human'::character varying)::text, ('ai'::character varying)::text]))),
+    CONSTRAINT assessments_status_check CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('submitted'::character varying)::text])))
 );
 
 
@@ -238,9 +238,9 @@ CREATE TABLE public.challenge_steps (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     criteria_set_id uuid,
-    CONSTRAINT challenge_steps_ai_mode_check CHECK (((ai_mode IS NULL) OR ((ai_mode)::text = ANY ((ARRAY['human'::character varying, 'ai_assisted'::character varying, 'ai_auto'::character varying])::text[])))),
-    CONSTRAINT challenge_steps_kind_check CHECK (((kind)::text = ANY ((ARRAY['ideation'::character varying, 'evolution'::character varying, 'evaluation'::character varying, 'selection'::character varying, 'reporting'::character varying])::text[]))),
-    CONSTRAINT challenge_steps_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'activating'::character varying, 'active'::character varying, 'completed'::character varying, 'skipped'::character varying])::text[])))
+    CONSTRAINT challenge_steps_ai_mode_check CHECK (((ai_mode IS NULL) OR ((ai_mode)::text = ANY (ARRAY[('human'::character varying)::text, ('ai_assisted'::character varying)::text, ('ai_auto'::character varying)::text])))),
+    CONSTRAINT challenge_steps_kind_check CHECK (((kind)::text = ANY (ARRAY[('ideation'::character varying)::text, ('evolution'::character varying)::text, ('evaluation'::character varying)::text, ('selection'::character varying)::text, ('reporting'::character varying)::text]))),
+    CONSTRAINT challenge_steps_status_check CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('activating'::character varying)::text, ('active'::character varying)::text, ('completed'::character varying)::text, ('skipped'::character varying)::text])))
 );
 
 
@@ -261,8 +261,8 @@ CREATE TABLE public.challenges (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT challenges_ai_default_mode_check CHECK (((ai_default_mode)::text = ANY ((ARRAY['human'::character varying, 'ai_assisted'::character varying, 'ai_auto'::character varying])::text[]))),
-    CONSTRAINT challenges_status_check CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'running'::character varying, 'closed'::character varying, 'archived'::character varying])::text[])))
+    CONSTRAINT challenges_ai_default_mode_check CHECK (((ai_default_mode)::text = ANY (ARRAY[('human'::character varying)::text, ('ai_assisted'::character varying)::text, ('ai_auto'::character varying)::text]))),
+    CONSTRAINT challenges_status_check CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('running'::character varying)::text, ('closed'::character varying)::text, ('archived'::character varying)::text])))
 );
 
 
@@ -300,8 +300,8 @@ CREATE TABLE public.criteria (
     source character varying DEFAULT 'manual'::character varying NOT NULL,
     source_config jsonb DEFAULT '{}'::jsonb NOT NULL,
     CONSTRAINT criteria_automatic_needs_check CHECK ((((source)::text <> 'automatic'::text) OR (source_config ? 'check'::text))),
-    CONSTRAINT criteria_scale_type_check CHECK (((scale_type)::text = ANY ((ARRAY['numeric'::character varying, 'letter'::character varying, 'rubric'::character varying, 'boolean'::character varying])::text[]))),
-    CONSTRAINT criteria_source_check CHECK (((source)::text = ANY ((ARRAY['manual'::character varying, 'automatic'::character varying, 'ai'::character varying, 'formula'::character varying])::text[])))
+    CONSTRAINT criteria_scale_type_check CHECK (((scale_type)::text = ANY (ARRAY[('numeric'::character varying)::text, ('letter'::character varying)::text, ('rubric'::character varying)::text, ('boolean'::character varying)::text]))),
+    CONSTRAINT criteria_source_check CHECK (((source)::text = ANY (ARRAY[('manual'::character varying)::text, ('automatic'::character varying)::text, ('ai'::character varying)::text, ('formula'::character varying)::text])))
 );
 
 
@@ -320,8 +320,8 @@ CREATE TABLE public.criteria_sets (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT criteria_sets_scope_check CHECK (((scope)::text = ANY ((ARRAY['library'::character varying, 'inline'::character varying])::text[]))),
-    CONSTRAINT criteria_sets_status_check CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'valid'::character varying, 'invalid'::character varying])::text[])))
+    CONSTRAINT criteria_sets_scope_check CHECK (((scope)::text = ANY (ARRAY[('library'::character varying)::text, ('inline'::character varying)::text]))),
+    CONSTRAINT criteria_sets_status_check CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('valid'::character varying)::text, ('invalid'::character varying)::text])))
 );
 
 
@@ -348,9 +348,9 @@ CREATE TABLE public.feedback_items (
     resolution_note text,
     resolved_at timestamp(6) without time zone,
     resolved_by_id uuid,
-    CONSTRAINT feedback_items_actor_type_check CHECK (((actor_type)::text = ANY ((ARRAY['human'::character varying, 'ai'::character varying])::text[]))),
-    CONSTRAINT feedback_items_kind_check CHECK (((kind)::text = ANY ((ARRAY['suggestion'::character varying, 'question'::character varying, 'issue'::character varying])::text[]))),
-    CONSTRAINT feedback_items_resolution_check CHECK (((resolution IS NULL) OR ((resolution)::text = ANY ((ARRAY['answered'::character varying, 'acknowledged'::character varying, 'dismissed'::character varying])::text[]))))
+    CONSTRAINT feedback_items_actor_type_check CHECK (((actor_type)::text = ANY (ARRAY[('human'::character varying)::text, ('ai'::character varying)::text]))),
+    CONSTRAINT feedback_items_kind_check CHECK (((kind)::text = ANY (ARRAY[('suggestion'::character varying)::text, ('question'::character varying)::text, ('issue'::character varying)::text]))),
+    CONSTRAINT feedback_items_resolution_check CHECK (((resolution IS NULL) OR ((resolution)::text = ANY (ARRAY[('answered'::character varying)::text, ('acknowledged'::character varying)::text, ('dismissed'::character varying)::text]))))
 );
 
 
@@ -371,7 +371,7 @@ CREATE TABLE public.form_fields (
     config jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT form_fields_field_type_check CHECK (((field_type)::text = ANY ((ARRAY['text'::character varying, 'textarea'::character varying, 'number'::character varying, 'date'::character varying, 'select'::character varying, 'multi_select'::character varying, 'file'::character varying, 'rich_text'::character varying])::text[])))
+    CONSTRAINT form_fields_field_type_check CHECK (((field_type)::text = ANY (ARRAY[('text'::character varying)::text, ('textarea'::character varying)::text, ('number'::character varying)::text, ('date'::character varying)::text, ('select'::character varying)::text, ('multi_select'::character varying)::text, ('file'::character varying)::text, ('rich_text'::character varying)::text])))
 );
 
 
@@ -421,7 +421,7 @@ CREATE TABLE public.idea_versions (
     change_note text,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT idea_versions_actor_type_check CHECK (((actor_type)::text = ANY ((ARRAY['human'::character varying, 'ai'::character varying])::text[])))
+    CONSTRAINT idea_versions_actor_type_check CHECK (((actor_type)::text = ANY (ARRAY[('human'::character varying)::text, ('ai'::character varying)::text])))
 );
 
 
@@ -441,8 +441,8 @@ CREATE TABLE public.ideas (
     submitted_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT ideas_origin_check CHECK (((origin)::text = ANY ((ARRAY['human'::character varying, 'ai'::character varying])::text[]))),
-    CONSTRAINT ideas_status_check CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying, 'eliminated'::character varying, 'withdrawn'::character varying])::text[])))
+    CONSTRAINT ideas_origin_check CHECK (((origin)::text = ANY (ARRAY[('human'::character varying)::text, ('ai'::character varying)::text]))),
+    CONSTRAINT ideas_status_check CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('active'::character varying)::text, ('eliminated'::character varying)::text, ('withdrawn'::character varying)::text])))
 );
 
 
@@ -472,7 +472,26 @@ CREATE TABLE public.memberships (
     role character varying DEFAULT 'participant'::character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT memberships_role_check CHECK (((role)::text = ANY ((ARRAY['owner'::character varying, 'admin'::character varying, 'evaluator'::character varying, 'participant'::character varying])::text[])))
+    CONSTRAINT memberships_role_check CHECK (((role)::text = ANY (ARRAY[('owner'::character varying)::text, ('admin'::character varying)::text, ('evaluator'::character varying)::text, ('participant'::character varying)::text])))
+);
+
+
+--
+-- Name: notifications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.notifications (
+    id uuid DEFAULT public.uuid_generate_v7() NOT NULL,
+    company_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    kind character varying NOT NULL,
+    challenge_id uuid,
+    challenge_step_id uuid,
+    idea_id uuid,
+    payload jsonb DEFAULT '{}'::jsonb NOT NULL,
+    read_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
 );
 
 
@@ -496,9 +515,9 @@ CREATE TABLE public.reports (
     ai_run_id uuid,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT reports_format_check CHECK (((format)::text = ANY ((ARRAY['dashboard'::character varying, 'xlsx'::character varying, 'pdf'::character varying])::text[]))),
-    CONSTRAINT reports_kind_check CHECK (((kind)::text = ANY ((ARRAY['funnel'::character varying, 'ranking'::character varying, 'snapshot'::character varying, 'narrative'::character varying])::text[]))),
-    CONSTRAINT reports_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'ready'::character varying, 'failed'::character varying])::text[])))
+    CONSTRAINT reports_format_check CHECK (((format)::text = ANY (ARRAY[('dashboard'::character varying)::text, ('xlsx'::character varying)::text, ('pdf'::character varying)::text]))),
+    CONSTRAINT reports_kind_check CHECK (((kind)::text = ANY (ARRAY[('funnel'::character varying)::text, ('ranking'::character varying)::text, ('snapshot'::character varying)::text, ('narrative'::character varying)::text]))),
+    CONSTRAINT reports_status_check CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('ready'::character varying)::text, ('failed'::character varying)::text])))
 );
 
 
@@ -530,8 +549,8 @@ CREATE TABLE public.selection_decisions (
     decided_at timestamp(6) without time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT selection_decisions_actor_type_check CHECK (((actor_type)::text = ANY ((ARRAY['human'::character varying, 'ai'::character varying])::text[]))),
-    CONSTRAINT selection_decisions_outcome_check CHECK (((outcome)::text = ANY ((ARRAY['advance'::character varying, 'eliminate'::character varying, 'reinstate'::character varying])::text[])))
+    CONSTRAINT selection_decisions_actor_type_check CHECK (((actor_type)::text = ANY (ARRAY[('human'::character varying)::text, ('ai'::character varying)::text]))),
+    CONSTRAINT selection_decisions_outcome_check CHECK (((outcome)::text = ANY (ARRAY[('advance'::character varying)::text, ('eliminate'::character varying)::text, ('reinstate'::character varying)::text])))
 );
 
 
@@ -554,7 +573,7 @@ CREATE TABLE public.selection_verdicts (
     note text,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT selection_verdicts_actor_type_check CHECK (((actor_type)::text = ANY ((ARRAY['human'::character varying, 'ai'::character varying])::text[])))
+    CONSTRAINT selection_verdicts_actor_type_check CHECK (((actor_type)::text = ANY (ARRAY[('human'::character varying)::text, ('ai'::character varying)::text])))
 );
 
 
@@ -588,7 +607,7 @@ CREATE TABLE public.step_assignments (
     weight numeric(8,6),
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT step_assignments_role_check CHECK (((role)::text = ANY ((ARRAY['evaluator'::character varying, 'jury'::character varying])::text[])))
+    CONSTRAINT step_assignments_role_check CHECK (((role)::text = ANY (ARRAY[('evaluator'::character varying)::text, ('jury'::character varying)::text])))
 );
 
 
@@ -609,7 +628,7 @@ CREATE TABLE public.step_entries (
     resolved_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT step_entries_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'in_progress'::character varying, 'done'::character varying, 'advanced'::character varying, 'eliminated'::character varying])::text[])))
+    CONSTRAINT step_entries_status_check CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('in_progress'::character varying)::text, ('done'::character varying)::text, ('advanced'::character varying)::text, ('eliminated'::character varying)::text])))
 );
 
 
@@ -921,6 +940,22 @@ ALTER TABLE ONLY public.memberships
 
 ALTER TABLE ONLY public.memberships
     ADD CONSTRAINT memberships_tenant_uniq UNIQUE (id, company_id);
+
+
+--
+-- Name: notifications notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: notifications notifications_tenant_uniq; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_tenant_uniq UNIQUE (id, company_id);
 
 
 --
@@ -1490,6 +1525,48 @@ CREATE INDEX index_memberships_on_user_id ON public.memberships USING btree (use
 
 
 --
+-- Name: index_notifications_on_challenge_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_notifications_on_challenge_id ON public.notifications USING btree (challenge_id);
+
+
+--
+-- Name: index_notifications_on_challenge_step_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_notifications_on_challenge_step_id ON public.notifications USING btree (challenge_step_id);
+
+
+--
+-- Name: index_notifications_on_company_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_notifications_on_company_id ON public.notifications USING btree (company_id);
+
+
+--
+-- Name: index_notifications_on_idea_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_notifications_on_idea_id ON public.notifications USING btree (idea_id);
+
+
+--
+-- Name: index_notifications_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_notifications_on_user_id ON public.notifications USING btree (user_id);
+
+
+--
+-- Name: index_notifications_on_user_id_and_read_at_and_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_notifications_on_user_id_and_read_at_and_created_at ON public.notifications USING btree (user_id, read_at, created_at DESC);
+
+
+--
 -- Name: index_reports_on_challenge_step_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2026,6 +2103,22 @@ ALTER TABLE ONLY public.ai_runs
 
 
 --
+-- Name: notifications fk_rails_b080fb4855; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT fk_rails_b080fb4855 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: notifications fk_rails_b7b9be1aed; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT fk_rails_b7b9be1aed FOREIGN KEY (company_id) REFERENCES public.companies(id);
+
+
+--
 -- Name: selection_verdicts fk_rails_b92213ac1d; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2202,6 +2295,30 @@ ALTER TABLE ONLY public.ideas
 
 
 --
+-- Name: notifications notifications_challenge_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_challenge_id_same_company FOREIGN KEY (challenge_id, company_id) REFERENCES public.challenges(id, company_id) ON DELETE CASCADE;
+
+
+--
+-- Name: notifications notifications_challenge_step_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_challenge_step_id_same_company FOREIGN KEY (challenge_step_id, company_id) REFERENCES public.challenge_steps(id, company_id) ON DELETE CASCADE;
+
+
+--
+-- Name: notifications notifications_idea_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_idea_id_same_company FOREIGN KEY (idea_id, company_id) REFERENCES public.ideas(id, company_id) ON DELETE CASCADE;
+
+
+--
 -- Name: reports reports_ai_run_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2325,11 +2442,12 @@ ALTER TABLE ONLY public.step_entries
 -- PostgreSQL database dump complete
 --
 
-\unrestrict e6f6vWCPDLcdDbx9hE2dsL6bhf3pW0zTEyTmpDa1wdwtXFl8vPY68oA1dSLpsMK
+\unrestrict ihqAMn4QT2aIVrpgkUQW8f3WE0m0dYBWLpqhiA03RIUfBVgJmdXdhLEFicPbz4Z
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260902180000'),
 ('20260901150000'),
 ('20260901140000'),
 ('20260901130000'),

@@ -21,6 +21,12 @@
       = yield :header_right
       - if signed_in?
         .app-header__session
+          = link_to notifications_path, class: "bell", title: "Avisos" do
+            %svg.bell__icon{ viewBox: "0 0 16 16", "aria-hidden": true }
+              %path{ fill: "currentColor", d: "M8 1.5a3.5 3.5 0 0 0-3.5 3.5v2.2L3.3 9.4a.6.6 0 0 0 .5.9h8.4a.6.6 0 0 0 .5-.9l-1.2-2.2V5A3.5 3.5 0 0 0 8 1.5Zm0 12a1.8 1.8 0 0 0 1.7-1.2H6.3A1.8 1.8 0 0 0 8 13.5Z" }
+            - count = unread_notifications
+            - if count.positive?
+              %span.bell__count= count > 9 ? "9+" : count
           %span.app-header__company= current_company&.name
           %span.app-header__user
             = current_user.name

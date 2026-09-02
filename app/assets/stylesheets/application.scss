@@ -1361,3 +1361,69 @@ textarea:disabled {
 
   select { width: auto; flex: 1; }
 }
+
+// ── Campana y bandeja de avisos ─────────────────────────────────────────────
+.bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  color: var(--muted);
+  padding: 2px 4px;
+
+  &:hover { color: var(--accent); }
+  &__icon { width: 17px; height: 17px; display: block; }
+
+  &__count {
+    position: absolute;
+    top: -4px;
+    right: -8px;
+    min-width: 16px;
+    padding: 0 4px;
+    border-radius: 99px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+  }
+}
+
+.notification-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notification {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+
+  &--unread { border-left-color: var(--accent); background: var(--accent-soft); }
+
+  &__link {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 12px 15px;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  &__title { font-weight: 600; }
+  &__body { font-size: 13px; color: var(--muted); }
+
+  &__meta {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+}

@@ -74,6 +74,19 @@ es:
       top_n: "Top N"
       top_percent: "Top N %"
       threshold: "Puntaje mínimo"
+    notifications:
+      assigned_to_evaluate:
+        title: "Te toca evaluar en «%{step}»"
+        body: "%{count} ideas esperan tu evaluación en «%{challenge}»."
+      feedback_received:
+        title: "«%{idea}» recibió un comentario"
+        body: "%{author} dejó un comentario en «%{step}»."
+      idea_advanced:
+        title: "«%{idea}» avanzó"
+        body: "Pasó el corte de «%{step}»."
+      idea_eliminated:
+        title: "«%{idea}» no avanzó"
+        body: "Quedó fuera en «%{step}». Sigue consultable y puede repescarse."
     contributor_roles:
       contributor: "colabora"
       sponsor: "patrocina"
