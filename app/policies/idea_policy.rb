@@ -25,6 +25,12 @@ class IdeaPolicy < ApplicationPolicy
   end
 
   def submit? = update?
+
+  # Sumar o sacar a alguien sigue la misma ventana que editar el contenido: en
+  # borrador, o con una ronda de evolución abierta. Un colaborador no es
+  # decorativo — hay criterios que cuentan personas —, así que agregarlo con la
+  # evaluación en curso movería el puntaje después del hecho.
+  def manage_contributors? = update?
   def destroy? = manager? || (record.author_id == membership.user_id && record.draft?)
 
   private

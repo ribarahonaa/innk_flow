@@ -74,6 +74,10 @@ es:
       top_n: "Top N"
       top_percent: "Top N %"
       threshold: "Puntaje mínimo"
+    contributor_roles:
+      contributor: "colabora"
+      sponsor: "patrocina"
+      reviewer: "revisa"
     field_types:
       text: "Texto corto"
       textarea: "Texto largo"

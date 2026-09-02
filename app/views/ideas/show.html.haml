@@ -34,12 +34,25 @@
           - value = @idea.payload[field.key]
           %dt
             = field.label
-            - if @ideation_step && @ideation_step.effective_ai_mode != "human" && policy(@idea).update?
+            -# Un adjunto no se reescribe con IA: `coauthor_field` trabaja
+            -# sobre texto y ahí no hay texto que mejorar.
+            - if field.field_type != "file" && @ideation_step && @ideation_step.effective_ai_mode != "human" && policy(@idea).update?
               = button_to "Mejorar con IA",
                           challenge_ai_requests_path(@challenge, purpose: "coauthor_field", idea_id: @idea.id, step_id: @ideation_step.id, field_key: field.key),
                           class: "link-button"
-          %dd{ class: ("is-empty" if value.blank?) }
-            = value.is_a?(Array) ? value.join(", ") : (value.presence || "—")
+          - if field.field_type == "file"
+            - attachment = @attachments[field.key]
+            %dd{ class: ("is-empty" if attachment.nil?) }
+              - if attachment
+                = link_to attachment.file.filename.to_s, rails_blob_path(attachment.file, disposition: "attachment")
+              - else
+                = "—"
+          - else
+            %dd{ class: ("is-empty" if value.blank?) }
+              = value.is_a?(Array) ? value.join(", ") : (value.presence || "—")
+
+    = render "ideas/contributors", idea: @idea, challenge: @challenge,
+             can_manage: policy(@idea).manage_contributors?, candidates: @contributor_candidates
 
     - if @feedback&.any?
       .card

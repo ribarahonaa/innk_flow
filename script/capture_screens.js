@@ -132,7 +132,9 @@ async function shot(page, name, url, prepare) {
   // Tomar la primera de la lista dejaba de capturar el diff en silencio cuando
   // esa idea tenía una sola versión.
   await page.goto(`${BASE}/challenges/${CHALLENGE}/ideas`, { waitUntil: 'networkidle' });
-  const versioned = page.locator('.idea-list__item', { has: page.locator('.version-chip', { hasText: 'v2' }) });
+  // «Sensores» es la idea completa del seed: dos versiones, colaboradores y un
+  // adjunto. Tomar cualquiera con v2 capturaba una sin esos datos.
+  const versioned = page.locator('.idea-list__item', { hasText: 'Sensores' });
   if (!(await versioned.count())) {
     failures++;
     console.error('[DATOS] ninguna idea tiene v2: el diff no se puede capturar');

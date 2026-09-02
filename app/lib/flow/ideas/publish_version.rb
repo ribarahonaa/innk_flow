@@ -14,9 +14,11 @@ module Flow
         def error_sentence = errors.join(". ")
       end
 
-      def initialize(idea, payload:, author: nil, actor_type: "human", source_step: nil, change_note: nil, title: nil)
+      def initialize(idea, payload:, author: nil, actor_type: "human", source_step: nil,
+                     change_note: nil, title: nil, files: {})
         @idea = idea
         @payload = payload || {}
+        @files = (files || {}).reject { |_, file| file.blank? }
         @author = author
         @actor_type = actor_type
         @source_step = source_step
@@ -43,6 +45,7 @@ module Flow
           )
 
           @idea.update!(current_version: version)
+          carry_attachments!(version)
         end
 
         Result.new(ok: true, version: version, errors: [])
@@ -59,10 +62,35 @@ module Flow
       end
 
       def unchanged?
+        return false if @files.any?
+
         current = @idea.current_version
         return false if current.nil?
 
         current.payload == normalized_payload && current.title == resolved_title
+      end
+
+      # Una versión es un snapshot COMPLETO, y eso incluye los archivos: sin
+      # esto, publicar v2 dejaría a v1 con el adjunto y a v2 sin nada, y el
+      # criterio "adjuntó un archivo" pasaría a fallar por haber corregido una
+      # palabra en otro campo.
+      #
+      # Se reutiliza el blob anterior en vez de copiarlo: es el mismo archivo.
+      def carry_attachments!(version)
+        # `reorder` y no `order`: la asociación ya viene ordenada por número
+        # ascendente, así que un `order` se encola detrás y gana el de la
+        # asociación — devolvía la PRIMERA versión en vez de la anterior.
+        previous = @idea.versions.where.not(id: version.id).reorder(number: :desc).first
+        inherited = previous ? previous.attachments.index_by(&:field_key) : {}
+
+        (inherited.keys | @files.keys.map(&:to_s)).each do |field_key|
+          upload = @files[field_key] || @files[field_key.to_sym]
+          source = inherited[field_key]
+          next if upload.blank? && source&.file&.attached? != true
+
+          attachment = version.attachments.create!(field_key: field_key)
+          attachment.file.attach(upload.presence || source.file.blob)
+        end
       end
 
       def resolved_title

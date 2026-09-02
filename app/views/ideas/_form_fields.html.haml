@@ -16,6 +16,17 @@
       = select_tag "payload[#{field.key}]", options_for_select(field.options, value), include_blank: true, id: "payload_#{field.key}"
     - when "multi_select"
       = select_tag "payload[#{field.key}][]", options_for_select(field.options, Array(value)), multiple: true, id: "payload_#{field.key}"
+    - when "file"
+      -# El adjunto vigente se arrastra a la versión nueva salvo que se suba
+      -# otro: nadie debería tener que volver a subir el mismo archivo para
+      -# corregir una palabra en otro campo.
+      - current = local_assigns[:attachments]&.detect { |a| a.field_key == field.key }
+      - if current&.file&.attached?
+        %p.field-hint
+          Adjunto actual:
+          %strong= current.file.filename.to_s
+          = " · se conserva si no subís otro."
+      = file_field_tag "files[#{field.key}]", id: "payload_#{field.key}"
     - else
       = text_field_tag "payload[#{field.key}]", value, id: "payload_#{field.key}", required: field.required
     - if field.hint.present?

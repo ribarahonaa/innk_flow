@@ -48,6 +48,9 @@ Rails.application.routes.draw do
         post :submit
         get  :diff
       end
+      # Quiénes más participaron de la idea. Sin esto el criterio automático
+      # "participan al menos N personas" no lo puede cumplir nadie.
+      resources :contributors, only: %i[create destroy], controller: "idea_contributors"
     end
 
     # Dispara una tarea de IA sobre este desafío (o uno de sus módulos/ideas).

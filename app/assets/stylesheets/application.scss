@@ -1318,3 +1318,46 @@ textarea:disabled {
   .scale-radio input:disabled + span,
   .scale-option input:disabled + span { cursor: default; }
 }
+
+// ── Quiénes participan de una idea ──────────────────────────────────────────
+.people-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.people-list__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.people-list__name { font-weight: 600; }
+.people-list__role { color: var(--muted); font-size: 12px; flex: 1; }
+
+.people-list__remove {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+
+  &:hover { color: var(--danger); }
+}
+
+.people-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+
+  select { width: auto; flex: 1; }
+}

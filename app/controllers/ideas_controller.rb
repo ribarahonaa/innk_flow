@@ -40,6 +40,9 @@ class IdeasController < ApplicationController
     @ideation_step = ideation_step
     @pending_suggestions = AiSuggestion.pending_review.where(idea_id: @idea.id).recent
     @feedback = FeedbackItem.where(idea_id: @idea.id).chronological.includes(:author, :challenge_step)
+    @contributor_candidates = contributor_candidates
+    @attachments = @idea.current_version&.attachments&.includes(file_attachment: :blob)
+                        &.index_by(&:field_key) || {}
   end
 
   def edit
@@ -88,6 +91,19 @@ class IdeasController < ApplicationController
 
   private
 
+  # Gente de la empresa que todavía no participa de esta idea. Se resuelve acá
+  # y no en la vista: es una query, y la vista no hace queries.
+  def contributor_candidates
+    return User.none unless policy(@idea).manage_contributors?
+
+    taken = [@idea.author_id] + @idea.idea_contributors.map(&:user_id)
+    User.joins(:memberships)
+        .where(memberships: { company_id: Current.company.id })
+        .where.not(id: taken)
+        .order(:name)
+        .distinct
+  end
+
   def set_challenge
     @challenge = Challenge.find_by!(slug: params[:challenge_id])
   end
@@ -108,8 +124,18 @@ class IdeasController < ApplicationController
       # Se atribuye al módulo ACTIVO cuando es de evolución: así el historial
       # dice desde dónde salió cada versión.
       source_step: evolution_step || ideation_step,
-      change_note: change_note
+      change_note: change_note,
+      files: file_params
     ).call
+  end
+
+  # Igual que el payload: solo los campos de archivo que el formulario declara.
+  # Lo que llegue con otra clave se descarta.
+  def file_params
+    keys = ideation_step&.form_fields&.select { |f| f.field_type == "file" }&.map(&:key) || []
+    return {} if keys.empty? || params[:files].blank?
+
+    params[:files].to_unsafe_h.slice(*keys)
   end
 
   def evolution_step

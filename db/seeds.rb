@@ -112,10 +112,11 @@ Flow::Tenant.bypass! do
     [
       ["titulo", "Título", "text", { "is_title" => true }, "Una frase que identifique la idea."],
       ["problema", "¿Qué problema resuelve?", "textarea", {}, "La situación actual y su costo."],
-      ["solucion", "¿Cómo funcionaría?", "textarea", {}, "Qué se hace y quién lo hace."]
+      ["solucion", "¿Cómo funcionaría?", "textarea", {}, "Qué se hace y quién lo hace."],
+      ["costeo", "Costeo estimado", "file", {}, "Una planilla o un PDF con los números, si los tenés."]
     ].each_with_index do |(key, label, type, config, hint), index|
       ideation.form_fields.create!(key: key, label: label, field_type: type, hint: hint,
-                                   required: true, position: index, config: config)
+                                   required: type != "file", position: index, config: config)
     end
 
     pipeline.start!
@@ -152,6 +153,24 @@ Flow::Tenant.bypass! do
       idea.update!(submitted_at: Time.current)
       idea
     end
+
+    # Dos ideas hechas entre varias personas, y una con su costeo adjunto.
+    # `autores` y `evaluadores` comparten a gestor@demo.test, así que se elige
+    # contra el autor real de cada idea en vez de por índice.
+    sumar = lambda do |idea, role, candidatos|
+      persona = candidatos.find { |u| u.id != idea.author_id }
+      IdeaContributor.create!(idea: idea, user: persona, role: role) if persona
+    end
+
+    sumar.call(ideas[0], "contributor", autores)
+    sumar.call(ideas[0], "sponsor", evaluadores.reject { |u| autores.include?(u) })
+    sumar.call(ideas[3], "reviewer", autores.reverse)
+
+    adjunto = ideas[0].current_version.attachments.create!(field_key: "costeo")
+    adjunto.file.attach(
+      io: StringIO.new("Costeo del piloto\nCeldas de carga (12 racks): 4.200.000 CLP\nInstalación: 900.000 CLP\n"),
+      filename: "costeo-sensores.txt", content_type: "text/plain"
+    )
 
     pipeline.advance!  # → Ronda de feedback
     evolution = pipeline.active_step

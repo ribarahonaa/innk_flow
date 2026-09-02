@@ -1,0 +1,31 @@
+-# Quiénes participaron, además de quien creó la idea.
+.card
+  .section-head
+    %div
+      %h2.section-title
+        Participan
+        %span.muted= " (#{idea.people_count})"
+      %p.muted Quien creó la idea cuenta; los criterios que piden más de una persona miran esto.
+
+  %ul.people-list
+    %li.people-list__item
+      %span.people-list__name= idea.author.name
+      %span.people-list__role creó la idea
+    - idea.idea_contributors.includes(:user).each do |contributor|
+      %li.people-list__item
+        %span.people-list__name= contributor.user.name
+        %span.people-list__role= t("flow.contributor_roles.#{contributor.role}")
+        - if can_manage
+          = button_to "×", challenge_idea_contributor_path(challenge, idea, contributor),
+                      method: :delete, class: "people-list__remove",
+                      form: { data: { turbo_confirm: "¿Sacar a #{contributor.user.name} de la idea?" } }
+
+  - if can_manage
+    - if candidates.any?
+      = form_with url: challenge_idea_contributors_path(challenge, idea), method: :post, class: "people-form" do
+        = select_tag :user_id, options_from_collection_for_select(candidates, :id, :name),
+                     include_blank: "Elegí a alguien"
+        = select_tag :role, options_for_select(IdeaContributor::ROLES.map { |r| [t("flow.contributor_roles.#{r}"), r] })
+        = submit_tag "Sumar", class: "btn btn--ghost btn--sm"
+    - else
+      %p.field-hint Ya está todo el equipo de la empresa en esta idea.
