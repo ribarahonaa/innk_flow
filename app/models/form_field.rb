@@ -6,6 +6,24 @@ class FormField < ApplicationRecord
 
   TYPES = %w[text textarea number date select multi_select file rich_text].freeze
 
+  # El formulario mínimo con el que se puede postular una idea a cualquier
+  # desafío. Es un atajo ofrecido, no un default que se aplique solo.
+  BASICS = [
+    { key: "titulo", label: "Título", field_type: "text", required: true,
+      config: { "is_title" => true }, hint: "Una frase que identifique la idea." },
+    { key: "problema", label: "¿Qué problema resuelve?", field_type: "textarea",
+      required: true, hint: "La situación actual y su costo." },
+    { key: "solucion", label: "¿Cómo funcionaría?", field_type: "textarea",
+      required: true, hint: "Lo más concreto posible: qué se hace y quién lo hace." }
+  ].freeze
+
+  def self.seed_basics!(step)
+    return false if step.nil? || step.form_fields.any?
+
+    BASICS.each_with_index { |attributes, index| step.form_fields.create!(**attributes, position: index) }
+    true
+  end
+
   belongs_to :challenge_step
 
   validates :label, presence: true

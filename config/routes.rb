@@ -13,6 +13,8 @@ Rails.application.routes.draw do
       get  :builder
       post :start
       post :close
+      # Arma el flujo desde una plantilla. Solo sobre un desafío sin módulos.
+      post :apply_template
     end
 
     # Pantalla de cada módulo del flujo. Despacha por kind.

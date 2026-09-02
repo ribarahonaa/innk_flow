@@ -9,15 +9,6 @@
 class FormFieldsController < ApplicationController
   before_action :set_context
 
-  DEFAULTS = [
-    { key: "titulo", label: "Título", field_type: "text", required: true,
-      config: { "is_title" => true }, hint: "Una frase que identifique la idea." },
-    { key: "problema", label: "¿Qué problema resuelve?", field_type: "textarea",
-      required: true, hint: "La situación actual y su costo." },
-    { key: "solucion", label: "¿Cómo funcionaría?", field_type: "textarea",
-      required: true, hint: "Lo más concreto posible: qué se hace y quién lo hace." }
-  ].freeze
-
   def show
     authorize @step, :manage_form?
     @fields = @step.form_fields.ordered
@@ -41,12 +32,8 @@ class FormFieldsController < ApplicationController
   def seed_defaults
     authorize @step, :manage_form?
 
-    if @step.form_fields.any?
+    unless FormField.seed_basics!(@step)
       return redirect_to challenge_form_path(@challenge), alert: "El formulario ya tiene campos."
-    end
-
-    DEFAULTS.each_with_index do |attributes, index|
-      @step.form_fields.create!(**attributes, position: index)
     end
 
     redirect_to challenge_form_path(@challenge), notice: "Listo: tres campos para empezar."

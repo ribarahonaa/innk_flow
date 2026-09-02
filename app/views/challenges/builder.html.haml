@@ -8,6 +8,21 @@
 
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 
+-# Un desafío sin módulos puede haber nacido en blanco. Armar seis módulos a
+-# mano por haberse arrepentido no es razonable: las plantillas siguen ahí.
+- if @challenge.draft? && @challenge.steps.empty? && policy(@challenge).update_pipeline?
+  .card
+    %h2.section-title Empezar de una plantilla
+    %p.muted Un flujo armado que después editás entero.
+    .template-picker
+      - Flow::FlowTemplates::TEMPLATES.each do |template|
+        .template-option
+          %strong= template[:name]
+          = render "challenges/template_outline", template: template
+          %p.muted= template[:description]
+          = button_to "Usar esta", apply_template_challenge_path(@challenge, template: template[:key]),
+                      class: "btn btn--ghost btn--sm"
+
 -# Asistencia para ARMAR el flujo. Disponible cualquiera sea el modo del
 -# desafío: elegir "solo personas" define cómo se trabaja dentro de cada
 -# módulo, no si su dueño puede pedir ayuda para diseñarlo.

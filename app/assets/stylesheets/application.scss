@@ -1260,3 +1260,38 @@ textarea:disabled {
 
   &__spacer { flex: 1; }
 }
+
+// ── Plantillas de flujo ─────────────────────────────────────────────────────
+.template-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.template-option {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+
+  p { margin: 0; font-size: 12px; }
+  // Las tarjetas de una grilla no miden lo mismo: el botón se ancla abajo para
+  // que la fila quede pareja.
+  .btn { margin-top: auto; }
+}
+
+// La flecha viaja con su nodo: si la línea se envuelve, no queda una flecha
+// suelta al final apuntando a nada.
+.flow-strip__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+// Dentro de una tarjeta de opción el resumen del flujo va debajo del nombre,
+// no en la misma línea: son cuatro o seis nodos y no entran.
+.radio-card__body .flow-strip { margin: 4px 0; }

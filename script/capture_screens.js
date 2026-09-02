@@ -9,6 +9,7 @@
 //
 // Requiere que el stack esté arriba (`make up`) y sembrado (`make seed`).
 const { chromium } = require('playwright');
+const fs = require('fs');
 
 const BASE = process.env.BASE_URL || 'http://localhost:3001';
 const OUT = process.env.OUT_DIR || '/shots';
@@ -25,6 +26,12 @@ async function shot(page, name, url, prepare) {
 }
 
 (async () => {
+  // Se limpia antes de empezar: una captura que dejó de tomarse queda en disco
+  // como si siguiera siendo el estado actual, y eso es peor que no tenerla.
+  for (const file of fs.readdirSync(OUT)) {
+    if (file.endsWith('.png')) fs.unlinkSync(`${OUT}/${file}`);
+  }
+
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 
@@ -42,6 +49,19 @@ async function shot(page, name, url, prepare) {
 
   await shot(page, '02-challenges', '/challenges');
   await shot(page, '03-new-challenge', '/challenges/new');
+
+  // Un desafío sin módulos ofrece las plantillas desde el builder.
+  await page.goto(`${BASE}/challenges/new`, { waitUntil: 'networkidle' });
+  await page.fill('input[name="challenge[name]"]', 'Desafío de prueba');
+  await page.fill('textarea[name="challenge[brief]"]', 'Brief de prueba para la captura.');
+  await page.check('input[name="template"][value="blank"]');
+  await Promise.all([
+    page.waitForURL('**/builder', { timeout: 15000 }),
+    page.click('input[type="submit"]')
+  ]);
+  await page.waitForSelector('[data-island-mounted="true"]', { timeout: 15000 });
+  await page.screenshot({ path: `${OUT}/03b-builder-plantillas.png`, fullPage: true });
+  shots.push('03b-builder-plantillas');
   await shot(page, '04-challenge', `/challenges/${CHALLENGE}`);
 
   // El builder es una isla Vue, y se llega NAVEGANDO POR EL LINK, no con un
@@ -88,11 +108,22 @@ async function shot(page, name, url, prepare) {
 
   await shot(page, '06-ideas', `/challenges/${CHALLENGE}/ideas`);
 
-  // La idea con más versiones, y su diff.
+  // Una idea que EVOLUCIONÓ, para que el diff tenga dos versiones que comparar.
+  // Tomar la primera de la lista dejaba de capturar el diff en silencio cuando
+  // esa idea tenía una sola versión.
   await page.goto(`${BASE}/challenges/${CHALLENGE}/ideas`, { waitUntil: 'networkidle' });
-  const idea = page.locator('.idea-list__link').first();
-  await idea.click();
-  await page.waitForLoadState('networkidle');
+  const versioned = page.locator('.idea-list__item', { has: page.locator('.version-chip', { hasText: 'v2' }) });
+  if (!(await versioned.count())) {
+    failures++;
+    console.error('[DATOS] ninguna idea tiene v2: el diff no se puede capturar');
+  }
+  // Se espera la URL, no `networkidle`: con Turbo el estado de red se calma
+  // antes de que el body nuevo esté puesto, y la captura salía de la lista.
+  await Promise.all([
+    page.waitForURL(/\/ideas\/[^/]+$/, { timeout: 15000 }),
+    versioned.first().locator('.idea-list__link').click()
+  ]);
+  await page.waitForSelector('.version-timeline', { timeout: 10000 });
   await page.screenshot({ path: `${OUT}/07-idea.png`, fullPage: true });
   shots.push('07-idea');
 
@@ -102,6 +133,9 @@ async function shot(page, name, url, prepare) {
     await page.waitForURL('**/diff**', { timeout: 10000 });
     await page.screenshot({ path: `${OUT}/08-diff.png`, fullPage: true });
     shots.push('08-diff');
+  } else {
+    failures++;
+    console.error('[LINK] la idea con v2 no ofrece ver el diff');
   }
 
   // Una pantalla por tipo de módulo, tomando el primero de cada kind.

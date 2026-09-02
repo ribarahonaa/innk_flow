@@ -1,7 +1,7 @@
 - content_for :title, "Nuevo desafío"
 .card.narrow
   %h1.page-title Nuevo desafío
-  %p.muted Definí el encabezado. El flujo de módulos se arma en el paso siguiente.
+  %p.muted Qué se pregunta, quién trabaja, y con qué flujo arranca. Todo se edita después.
 
   = form_with model: @challenge do |f|
     - if @challenge.errors.any?
@@ -23,6 +23,31 @@
               %strong= t("flow.ai_modes.#{mode}")
               %span.muted= t("flow.ai_mode_descriptions.#{mode}")
       %p.field-hint Cada módulo puede sobreescribirlo.
+
+    .field
+      = f.label :template, "Cómo arrancás el flujo"
+      .radio-cards
+        - Flow::FlowTemplates::TEMPLATES.each do |template|
+          %label.radio-card
+            = radio_button_tag :template, template[:key], template[:key] == "classic"
+            %span.radio-card__body
+              %strong= template[:name]
+              = render "challenges/template_outline", template: template
+              %span.muted= template[:description]
+
+        %label.radio-card
+          = radio_button_tag :template, "ai"
+          %span.radio-card__body
+            %strong Que lo proponga la IA
+            %span.muted La IA lee el brief y arma un flujo. Lo revisás antes de que se aplique.
+
+        %label.radio-card
+          = radio_button_tag :template, "blank"
+          %span.radio-card__body
+            %strong En blanco
+            %span.muted Lo armás vos, módulo por módulo.
+      %p.field-hint Cualquiera de estos flujos se edita entero después: la plantilla es un punto de partida, no un molde.
+
     .form-actions
       = link_to "Cancelar", challenges_path, class: "btn btn--ghost"
       = f.submit "Crear y armar el flujo", class: "btn btn--primary"

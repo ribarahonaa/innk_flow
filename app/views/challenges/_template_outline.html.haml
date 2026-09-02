@@ -1,0 +1,10 @@
+-# El flujo de una plantilla, como cadena de módulos.
+-#
+-# Cada flecha va PEGADA al nodo que la sigue: sueltas, al envolverse la línea
+-# quedaba una flecha colgando al final apuntando a nada.
+.flow-strip
+  - Flow::FlowTemplates.outline(template).each_with_index do |label, index|
+    %span.flow-strip__step
+      - if index.positive?
+        %span.flow-strip__arrow ›
+      %span.flow-strip__node= label

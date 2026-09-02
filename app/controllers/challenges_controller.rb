@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class ChallengesController < ApplicationController
-  before_action :set_challenge, only: %i[show builder start close]
+  before_action :set_challenge, only: %i[show builder start close apply_template]
 
   def index
     @challenges = policy_scope(Challenge).includes(:steps).order(created_at: :desc)
@@ -16,10 +16,22 @@ class ChallengesController < ApplicationController
     @challenge = Challenge.new(challenge_params)
     authorize @challenge
 
-    if @challenge.save
-      redirect_to builder_challenge_path(@challenge), notice: "Desafío creado. Armá su flujo."
+    return render(:new, status: :unprocessable_entity) unless @challenge.save
+
+    redirect_to builder_challenge_path(@challenge), notice: start_from(params[:template])
+  end
+
+  # Aplica una plantilla a un desafío que todavía no tiene módulos. Se ofrece
+  # también desde el builder: alguien puede haber creado el desafío en blanco y
+  # arrepentirse, y no tiene por qué armar seis módulos a mano por eso.
+  def apply_template
+    authorize @challenge, :update_pipeline?
+
+    if Flow::FlowTemplates.apply!(@challenge, params[:template])
+      redirect_to builder_challenge_path(@challenge), notice: "Flujo armado. Editalo como quieras."
     else
-      render :new, status: :unprocessable_entity
+      redirect_to builder_challenge_path(@challenge),
+                  alert: "La plantilla solo se puede aplicar a un desafío en borrador y sin módulos."
     end
   end
 
@@ -54,6 +66,21 @@ class ChallengesController < ApplicationController
   end
 
   private
+
+  # El flujo inicial: una plantilla, la propuesta de la IA, o nada.
+  def start_from(template)
+    return "Desafío creado. Armá su flujo." if template.blank? || template == "blank"
+
+    if template == "ai"
+      Flow::AI::RunJob.perform_later(@challenge.company_id, "propose_pipeline",
+                                     { "challenge_id" => @challenge.id })
+      return "Desafío creado. La IA está armando una propuesta: vas a poder revisarla acá."
+    end
+
+    return "Desafío creado. Armá su flujo." unless Flow::FlowTemplates.apply!(@challenge, template)
+
+    "Desafío creado con la plantilla «#{Flow::FlowTemplates.find(template)[:name]}». Editalo como quieras."
+  end
 
   def set_challenge
     # Scopeado por TenantScoped: un slug de otra empresa levanta
