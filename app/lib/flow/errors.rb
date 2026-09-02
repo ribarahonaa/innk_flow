@@ -18,5 +18,9 @@ module Flow
 
     # Un criterio automático declara una verificación que no existe.
     class UnknownCheck < Error; end
+
+    # El proveedor de IA configurado no soporta esa operación. No es un bug:
+    # es una capacidad que ese proveedor no tiene.
+    class ProviderUnsupported < Error; end
   end
 end

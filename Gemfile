@@ -39,6 +39,10 @@ gem "dentaku", "~> 3.5"
 # adapter de fixtures y para el proveedor real → no hay drift silencioso).
 gem "json_schemer"
 
+# El proveedor real. Se usa solo con FLOW_AI_PROVIDER=anthropic: el default
+# sigue siendo el de fixtures, sin red ni API key.
+gem "anthropic"
+
 # Reportería
 gem "caxlsx"
 gem "caxlsx_rails"

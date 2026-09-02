@@ -53,6 +53,22 @@ incluso con el adapter de fixtures. `ai_auto` no saltea la revisión: la
 auto-acepta, para que haya un solo camino y ninguna laguna de auditoría.
 → [`docs/ai.md`](docs/ai.md)
 
+El proveedor real es un adapter más. Para usarlo:
+
+```bash
+echo "FLOW_AI_PROVIDER=anthropic"        >> .env
+echo "ANTHROPIC_API_KEY=sk-ant-..."      >> .env
+make reup
+```
+
+El default sigue siendo `fixture`: sin red, sin credenciales y determinista,
+porque cada llamada real cuesta plata. El mismo JSON Schema valida los dos
+caminos, así que el adapter real no descubre drift en producción.
+
+**Una limitación honesta:** Anthropic no expone embeddings, así que
+«detectar duplicados» falla con ese proveedor en vez de fingir. Comparar
+significados necesita un proveedor de embeddings aparte y `pgvector`.
+
 **4. Toda escala aterriza en [0,1].** Una nota 1-10, una letra A-F y una fórmula
 ICE terminan siendo comparables, así que la selección ordena sin saber de dónde
 vino cada puntaje. Las fórmulas las escribe el usuario y **nunca** llegan a

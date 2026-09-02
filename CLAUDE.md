@@ -154,8 +154,17 @@ rastro de auditoría. Un run se reutiliza solo mientras está "vivo" (en curso, 
 con sugerencia pendiente de revisión): pedir de nuevo algo ya descartado tiene
 que generar un run nuevo, no devolver la sugerencia muerta.
 
-El proveedor es de fixtures deterministas. Los JSON Schema validan en los dos
-caminos (fixture y real), así que no debería haber drift.
+El proveedor se resuelve en `Flow::AI.provider` desde `FLOW_AI_PROVIDER`.
+`fixture` es el default (determinista, sin red ni credenciales); `anthropic` es
+el adapter real y **cada llamada cuesta plata**, así que nunca es el default.
+Los JSON Schema validan en los dos caminos, así que no hay drift.
+
+El adapter real tiene dos cosas no obvias: poda del schema las palabras que la
+API rechaza con 400 (`minItems`, `pattern`, …) pero valida la respuesta contra
+el schema **original**; y trata `stop_reason: :refusal` y `:max_tokens` como
+fallas explicadas, porque llegan con HTTP 200 y no como excepción. Anthropic no
+tiene embeddings: `embed` levanta `ProviderUnsupported` en vez de devolver los
+hashes del fixture disfrazados de semántica.
 
 Las tareas de **autoría** (armar el flujo, proponer los campos del formulario)
 se ofrecen aunque el módulo esté en «Solo personas»: ese modo define cómo se
