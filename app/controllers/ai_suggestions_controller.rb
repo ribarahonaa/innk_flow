@@ -37,14 +37,30 @@ class AiSuggestionsController < ApplicationController
     params.require(:payload).permit!.to_h
   end
 
+  # Vuelve a donde se pidió la propuesta, no a donde "vive" el objetivo.
+  #
+  # Los campos del formulario cuelgan de un módulo, así que por tipo de
+  # objetivo esto mandaba a la pantalla del módulo — sacándote del formulario
+  # que estabas editando justo cuando aceptabas los campos nuevos.
+  PATHS_BY_PURPOSE = {
+    "suggest_form_fields" => ->(s, r) { r.challenge_form_path(s.challenge_step.challenge) }
+  }.freeze
+
   def redirect_back_to_target(notice: nil, alert: nil)
-    target = @suggestion.idea || @suggestion.challenge_step || @suggestion.challenge
-    path = case target
-           when Idea then challenge_idea_path(target.challenge, target)
-           when ChallengeStep then challenge_step_path(target.challenge, target)
-           when Challenge then challenge_path(target)
-           else root_path
-           end
-    redirect_to path, notice: notice, alert: alert
+    redirect_to path_for(@suggestion), notice: notice, alert: alert
+  end
+
+  def path_for(suggestion)
+    routes = Rails.application.routes.url_helpers
+    by_purpose = PATHS_BY_PURPOSE[suggestion.purpose]
+    return by_purpose.call(suggestion, routes) if by_purpose
+
+    target = suggestion.idea || suggestion.challenge_step || suggestion.challenge
+    case target
+    when Idea then challenge_idea_path(target.challenge, target)
+    when ChallengeStep then challenge_step_path(target.challenge, target)
+    when Challenge then challenge_path(target)
+    else root_path
+    end
   end
 end

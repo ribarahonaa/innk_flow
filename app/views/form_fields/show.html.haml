@@ -14,6 +14,10 @@
   .flash.flash--warn
     Ya hay ideas postuladas. Podés cambiar etiquetas, ayudas, obligatoriedad y orden, pero no el tipo ni la clave de un campo, ni quitarlo: las respuestas ya guardadas quedarían huérfanas.
 
+-# El panel va antes del if: pedir la propuesta con el formulario VACÍO es el
+-# caso más común, y ahí es donde antes no se mostraba.
+= render "shared/ai_suggestions", suggestions: @pending_suggestions
+
 - if @fields.empty?
   .card
     %h2.section-title Todavía no hay campos
@@ -23,7 +27,6 @@
       = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode, always: true,
                actions: [{ label: "Proponer campos con IA", purpose: "suggest_form_fields", step_id: @step.id }]
 - else
-  = render "shared/ai_suggestions", suggestions: @pending_suggestions
   .card
     = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode, always: true,
              actions: [{ label: "Rehacer el formulario con IA", purpose: "suggest_form_fields", step_id: @step.id }]

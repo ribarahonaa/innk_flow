@@ -18,6 +18,14 @@ const CHALLENGE = 'merma-bodega';
 const shots = [];
 let failures = 0;
 
+// Un módulo por su TIPO, no por su nombre: el nombre es editable y una
+// propuesta de la IA lo reescribe entero.
+function porTipo(page, label) {
+  return page.locator('.step-card', {
+    has: page.locator('.step-card__kind', { hasText: label })
+  }).first();
+}
+
 async function shot(page, name, url, prepare) {
   await page.goto(BASE + url, { waitUntil: 'networkidle' });
   if (prepare) await prepare(page);
@@ -93,7 +101,10 @@ async function shot(page, name, url, prepare) {
   await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
   // Se abre el panel de «Idear»: es el que muestra el formulario, y en el demo
   // ya está ejecutado (bloqueado), que es justo el caso que interesa ver.
-  const ideationCard = page.locator('.step-card', { hasText: 'Postulación' }).first();
+  //
+  // Se filtra por TIPO y no por nombre: el nombre de un módulo lo cambia
+  // cualquiera —una propuesta de la IA lo renombra— y la captura se caía.
+  const ideationCard = porTipo(page, 'Idear');
   if (await ideationCard.count()) await ideationCard.click();
   await page.waitForTimeout(200);
   await page.waitForTimeout(300);
@@ -192,7 +203,7 @@ async function shot(page, name, url, prepare) {
   // marca como error y la pantalla ofrece las dos salidas.
   await page.goto(`${BASE}/challenges/onboarding-remoto/builder`, { waitUntil: 'networkidle' });
   await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
-  await page.locator('.step-card', { hasText: 'Postulación' }).first().click();
+  await porTipo(page, 'Idear').click();
   await page.waitForTimeout(200);
   await page.screenshot({ path: `${OUT}/09-9-builder-sin-formulario.png`, fullPage: true });
   shots.push('09-9-builder-sin-formulario');
@@ -202,7 +213,7 @@ async function shot(page, name, url, prepare) {
   // Los criterios del módulo de evaluación, desde su panel en el builder.
   await page.goto(`${BASE}/challenges/onboarding-remoto/builder`, { waitUntil: 'networkidle' });
   await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
-  await page.locator('.step-card', { hasText: 'Primera revisión' }).first().click();
+  await porTipo(page, 'Evaluación').click();
   await page.waitForTimeout(200);
   await page.screenshot({ path: `${OUT}/09-11-panel-evaluacion.png`, fullPage: true });
   shots.push('09-11-panel-evaluacion');

@@ -90,6 +90,53 @@ RSpec.describe "formulario de postulación", type: :request do
     end
   end
 
+  # El panel de propuestas vivía en la rama «ya hay campos» del if. Pedir la
+  # propuesta con el formulario VACÍO —el caso más común— la dejaba invisible:
+  # aparecía solo en la pantalla del módulo.
+  describe "la propuesta de la IA" do
+    before { sign_in(owner, company: company) }
+
+    def proponer
+      post challenge_ai_requests_path(challenge, purpose: "suggest_form_fields", step_id: step.id)
+    end
+
+    it "se ve en el formulario aunque todavía no haya campos" do
+      proponer
+
+      get challenge_form_path(challenge)
+      expect(response.body).to include("Propuestas de la IA")
+    end
+
+    it "y también cuando ya hay campos" do
+      as_company(company) { seed_form!(step) }
+      proponer
+
+      get challenge_form_path(challenge)
+      expect(response.body).to include("Propuestas de la IA")
+    end
+
+    # Los campos cuelgan de un módulo, así que redirigir por tipo de objetivo
+    # sacaba del formulario justo al aceptar los campos nuevos.
+    it "aplicarla te deja en el formulario, no en la pantalla del módulo" do
+      proponer
+      sugerencia = as_company(company) { AiSuggestion.pending_review.order(:created_at).last }
+
+      post accept_ai_suggestion_path(sugerencia)
+
+      expect(response).to redirect_to(challenge_form_path(challenge))
+      expect(fields).not_to be_empty
+    end
+
+    it "descartarla también" do
+      proponer
+      sugerencia = as_company(company) { AiSuggestion.pending_review.order(:created_at).last }
+
+      post reject_ai_suggestion_path(sugerencia)
+
+      expect(response).to redirect_to(challenge_form_path(challenge))
+    end
+  end
+
   describe "quién puede" do
     it "quien participa, no: el formulario es del dueño del desafío" do
       sign_in(participant, company: company)
