@@ -1,6 +1,6 @@
 .PHONY: help up down restart reup rebuild build ps logs logs-app logs-sidekiq logs-db \
 	rails shell bash yarn-build yarn-install psql \
-	migrate rollback seed setup \
+	migrate rollback seed setup clean-challenges \
 	workers-restart task rake exec restart-service \
 	test-build test-up test-down test-clean test-shell db-prepare-test spec spec-file spec-line test
 
@@ -26,6 +26,7 @@ help:
 	@echo "  shell              bash en el container app"
 	@echo "  migrate / rollback db:migrate / db:rollback"
 	@echo "  seed               db:seed (empresa demo + desafío completo)"
+	@echo "  clean-challenges   Borra los desafíos; deja empresas, usuarios y criterios"
 	@echo "  psql               psql contra innk_flow_development"
 	@echo "  task TASK='<t>'    Cualquier task de rails"
 	@echo ""
@@ -110,6 +111,9 @@ rollback:
 
 seed:
 	$(COMPOSE) exec $(APP_SERVICE) ./bin/rails db:seed
+
+clean-challenges:
+	$(COMPOSE) exec $(APP_SERVICE) ./bin/rails flow:limpiar_desafios
 
 psql:
 	$(COMPOSE) exec $(DB_SERVICE) psql -U postgres -d innk_flow_development

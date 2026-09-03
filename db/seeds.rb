@@ -7,6 +7,16 @@
 # comprobar a mano que el aislamiento funciona. Sin una segunda empresa, un
 # bug de tenencia es invisible.
 #
+# El seed NUNCA llama al proveedor real: activar módulos en `ai_auto` dispara
+# tareas de IA, y con `make seed` eso sería una llamada paga por corrida.
+#
+# No alcanza con fijar el proveedor acá: las tareas se ENCOLAN y las ejecuta
+# Sidekiq, que es otro proceso con su propio FLOW_AI_PROVIDER. Por eso los jobs
+# corren inline — así el proveedor de fixtures de esta línea es el que se usa,
+# y de paso el seed queda determinista y sin depender de que Sidekiq esté vivo.
+Flow::AI.provider = Flow::AI::Providers::Fixture.new
+ActiveJob::Base.queue_adapter = :inline
+
 # Todo corre bajo bypass!: el scoping automático no aplica cuando estás
 # creando las empresas mismas.
 
@@ -284,6 +294,18 @@ Flow::Tenant.bypass! do
     [["ideation", "Postulación"], ["evaluation", "Primera revisión"]].each do |kind, name|
       borrador.pipeline.insert(kind: kind, after: :end, name: name)
     end
+
+    # Un desafío SIN módulos, para la captura del selector de plantillas.
+    # Antes el script de capturas creaba uno en cada corrida y no lo borraba:
+    # la base de desarrollo terminó con dieciséis «desafio-de-prueba-N».
+    Challenge.where(slug: "sin-armar").destroy_all
+    Challenge.create!(
+      slug: "sin-armar",
+      name: "Programa de mejora continua",
+      brief: "Queremos un canal permanente para que cualquiera proponga mejoras al proceso " \
+             "de su área, con revisión mensual.",
+      ai_default_mode: "ai_assisted"
+    )
 
     puts "Desafío en curso:  #{challenge.name}"
     puts "  módulos:   #{challenge.steps.count} · activo: #{challenge.pipeline.active_step&.name}"

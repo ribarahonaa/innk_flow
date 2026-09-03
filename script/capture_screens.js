@@ -51,17 +51,12 @@ async function shot(page, name, url, prepare) {
   await shot(page, '03-new-challenge', '/challenges/new');
 
   // Un desafío sin módulos ofrece las plantillas desde el builder.
-  await page.goto(`${BASE}/challenges/new`, { waitUntil: 'networkidle' });
-  await page.fill('input[name="challenge[name]"]', 'Desafío de prueba');
-  await page.fill('textarea[name="challenge[brief]"]', 'Brief de prueba para la captura.');
-  await page.check('input[name="template"][value="blank"]');
-  await Promise.all([
-    page.waitForURL('**/builder', { timeout: 15000 }),
-    page.click('input[type="submit"]')
-  ]);
-  await page.waitForSelector('[data-island-mounted="true"]', { timeout: 15000 });
-  await page.screenshot({ path: `${OUT}/03b-builder-plantillas.png`, fullPage: true });
-  shots.push('03b-builder-plantillas');
+  //
+  // Se usa el que siembra el seed en vez de crear uno: crear uno por corrida
+  // dejaba un «desafio-de-prueba-N» en la base de desarrollo cada vez.
+  await shot(page, '03b-builder-plantillas', '/challenges/sin-armar/builder', async (p) => {
+    await p.waitForSelector('[data-island-mounted="true"]', { timeout: 15000 });
+  });
   await shot(page, '04-challenge', `/challenges/${CHALLENGE}`);
 
   // El builder es una isla Vue, y se llega NAVEGANDO POR EL LINK, no con un
