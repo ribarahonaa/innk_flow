@@ -6,12 +6,12 @@
       <p class="muted builder__hint">Hacé clic para agregarlo al final del flujo.</p>
 
       <button
-        v-for="item in palette"
+        v-for="item in localPalette"
         :key="item.kind"
         type="button"
         class="palette-item"
-        :class="{ 'palette-item--disabled': item.disabled || !permissions.canEdit }"
-        :disabled="item.disabled || !permissions.canEdit"
+        :class="{ 'palette-item--disabled': item.disabled || !localPermissions.canEdit }"
+        :disabled="item.disabled || !localPermissions.canEdit"
         @click="addStep(item)"
       >
         <span class="palette-item__label">
@@ -25,22 +25,22 @@
 
     <!-- Lista ordenada -->
     <section class="builder__flow">
-      <div v-if="validation.errors.length" class="flash flash--alert">
-        <ul><li v-for="(e, i) in validation.errors" :key="i">{{ e }}</li></ul>
+      <div v-if="localValidation.errors.length" class="flash flash--alert">
+        <ul><li v-for="(e, i) in localValidation.errors" :key="i">{{ e }}</li></ul>
       </div>
-      <div v-if="validation.warnings.length" class="flash flash--warn">
-        <ul><li v-for="(w, i) in validation.warnings" :key="i">{{ w }}</li></ul>
+      <div v-if="localValidation.warnings.length" class="flash flash--warn">
+        <ul><li v-for="(w, i) in localValidation.warnings" :key="i">{{ w }}</li></ul>
       </div>
       <div v-if="serverErrors.length" class="flash flash--alert">
         <ul><li v-for="(e, i) in serverErrors" :key="i">{{ e }}</li></ul>
       </div>
 
-      <div v-if="!steps.length" class="card empty-state">
+      <div v-if="!localSteps.length" class="card empty-state">
         <p class="muted">El flujo está vacío. Empezá agregando <strong>Idear</strong>.</p>
       </div>
 
       <ol class="step-list">
-        <template v-for="(step, index) in steps" :key="step.id || step.tempId">
+        <template v-for="(step, index) in localSteps" :key="step.id || step.tempId">
           <!-- La línea de agua: todo lo de arriba ya se ejecutó y no se toca -->
           <li v-if="showWaterline(index)" class="waterline">
             <span class="waterline__label">
@@ -79,7 +79,7 @@
             <span v-if="step.locked" class="step-card__lock" title="Módulo ya ejecutado">🔒</span>
 
             <button
-              v-if="!step.locked && permissions.canEdit"
+              v-if="!step.locked && localPermissions.canEdit"
               type="button"
               class="step-card__remove"
               title="Quitar del flujo"
@@ -95,11 +95,11 @@
       <step-config
         v-if="selected"
         :step="selected"
-        :steps="steps"
+        :steps="localSteps"
         :schema="settingsSchema"
         :criteria-sets="criteriaSets"
         :ai-modes="aiModes"
-        :challenge-ai-mode="challenge.aiDefaultMode"
+        :challenge-ai-mode="localChallenge.aiDefaultMode"
       />
       <template v-else>
         <h2 class="section-title">Configuración</h2>
@@ -115,7 +115,7 @@
       <button type="button" class="btn btn--ghost" :disabled="saving" @click="save">
         {{ saving ? 'Guardando…' : 'Guardar flujo' }}
       </button>
-      <a v-if="permissions.canStart && !dirty && validation.valid" class="btn btn--primary" :href="urls.show">
+      <a v-if="localPermissions.canStart && !dirty && localValidation.valid" class="btn btn--primary" :href="urls.show">
         Ir al desafío
       </a>
     </footer>
@@ -143,7 +143,28 @@ export default {
   },
 
   data() {
+    // LAS PROPS SON EL ESTADO INICIAL, NO EL ESTADO.
+    //
+    // Vue no hace reactivas las props de la raíz: mutarlas cambia el array
+    // pero no redibuja nada. Este componente hacía justo eso —`steps.push`,
+    // `steps.splice`, y el reemplazo entero tras guardar— así que agregar,
+    // quitar y reordenar módulos mutaban los datos en silencio y la pantalla
+    // seguía mostrando lo viejo. El segundo clic en la ✕ de una tarjeta que ya
+    // no existía reventaba con «Cannot read properties of undefined».
+    //
+    // Se copia una vez y se trabaja sobre la copia, igual que las otras dos
+    // islas. El server sigue siendo la fuente de verdad al guardar.
+    const inicial = JSON.parse(JSON.stringify({
+      steps: this.steps, palette: this.palette, challenge: this.challenge,
+      validation: this.validation, permissions: this.permissions
+    }));
+
     return {
+      localSteps: inicial.steps,
+      localPalette: inicial.palette,
+      localChallenge: inicial.challenge,
+      localValidation: inicial.validation,
+      localPermissions: inicial.permissions,
       selectedKey: null,
       draggingIndex: null,
       dropIndex: null,
@@ -157,29 +178,29 @@ export default {
 
   computed: {
     selected() {
-      return this.steps.find((s) => this.keyOf(s) === this.selectedKey) || null;
+      return this.localSteps.find((s) => this.keyOf(s) === this.selectedKey) || null;
     },
 
 
     challengeAiLabel() {
-      const mode = this.aiModes.find((m) => m.value === this.challenge.aiDefaultMode);
-      return mode ? mode.label : this.challenge.aiDefaultMode;
+      const mode = this.aiModes.find((m) => m.value === this.localChallenge.aiDefaultMode);
+      return mode ? mode.label : this.localChallenge.aiDefaultMode;
     },
 
     aiModeDescription() {
-      const value = this.selected?.aiMode || this.challenge.aiDefaultMode;
+      const value = this.selected?.aiMode || this.localChallenge.aiDefaultMode;
       return this.aiModes.find((m) => m.value === value)?.description || '';
     },
 
     // Índice del primer módulo NO tocado: ahí va la línea de agua.
     firstUnlockedIndex() {
-      const index = this.steps.findIndex((s) => !s.locked);
-      return index === -1 ? this.steps.length : index;
+      const index = this.localSteps.findIndex((s) => !s.locked);
+      return index === -1 ? this.localSteps.length : index;
     }
   },
 
   watch: {
-    steps: {
+    localSteps: {
       deep: true,
       handler() { this.dirty = true; }
     }
@@ -189,7 +210,7 @@ export default {
     keyOf(step) { return step.id || step.tempId; },
 
     aiLabel(step) {
-      const value = step.aiMode || this.challenge.aiDefaultMode;
+      const value = step.aiMode || this.localChallenge.aiDefaultMode;
       const mode = this.aiModes.find((m) => m.value === value);
       const label = mode ? mode.label : value;
       return step.aiMode ? label : `${label} (heredado)`;
@@ -203,16 +224,16 @@ export default {
     },
 
     canDrag(step) {
-      return this.permissions.canEdit && this.permissions.canReorder && !step.locked;
+      return this.localPermissions.canEdit && this.localPermissions.canReorder && !step.locked;
     },
 
     evaluationsBefore(step) {
-      const index = this.steps.indexOf(step);
-      return this.steps.slice(0, index).filter((s) => s.kind === 'evaluation');
+      const index = this.localSteps.indexOf(step);
+      return this.localSteps.slice(0, index).filter((s) => s.kind === 'evaluation');
     },
 
     addStep(item) {
-      if (item.disabled || !this.permissions.canEdit) return;
+      if (item.disabled || !this.localPermissions.canEdit) return;
 
       const step = {
         id: null,
@@ -231,7 +252,7 @@ export default {
         removable: true
       };
 
-      this.steps.push(step);
+      this.localSteps.push(step);
       this.selectedKey = this.keyOf(step);
       this.refreshPalette();
     },
@@ -255,21 +276,21 @@ export default {
     },
 
     removeStep(index) {
-      const [removed] = this.steps.splice(index, 1);
+      const [removed] = this.localSteps.splice(index, 1);
       if (this.selectedKey === this.keyOf(removed)) this.selectedKey = null;
       this.refreshPalette();
     },
 
     // Los módulos "únicos" (Idear) se deshabilitan cuando ya están en el flujo.
     refreshPalette() {
-      const kinds = this.steps.map((s) => s.kind);
-      this.palette.forEach((item) => {
+      const kinds = this.localSteps.map((s) => s.kind);
+      this.localPalette.forEach((item) => {
         if (item.singleton) item.disabled = kinds.includes(item.kind);
       });
     },
 
     onDragStart(index, event) {
-      if (!this.canDrag(this.steps[index])) {
+      if (!this.canDrag(this.localSteps[index])) {
         event.preventDefault();
         return;
       }
@@ -287,8 +308,8 @@ export default {
       // ejecutado es inmovible. El server lo revalida igual.
       if (targetIndex < this.firstUnlockedIndex) return;
 
-      const [moved] = this.steps.splice(from, 1);
-      this.steps.splice(targetIndex, 0, moved);
+      const [moved] = this.localSteps.splice(from, 1);
+      this.localSteps.splice(targetIndex, 0, moved);
       this.draggingIndex = null;
     },
 
@@ -302,8 +323,8 @@ export default {
       this.serverErrors = [];
 
       const payload = {
-        lock_version: this.challenge.lockVersion,
-        steps: this.steps.map((s) => ({
+        lock_version: this.localChallenge.lockVersion,
+        steps: this.localSteps.map((s) => ({
           id: s.id,
           kind: s.kind,
           name: s.name,
@@ -343,11 +364,11 @@ export default {
     },
 
     applyServerState(body) {
-      this.steps.splice(0, this.steps.length, ...body.steps);
-      this.palette.splice(0, this.palette.length, ...body.palette);
-      Object.assign(this.challenge, body.challenge);
-      Object.assign(this.validation, body.validation);
-      Object.assign(this.permissions, body.permissions);
+      this.localSteps = body.steps;
+      this.localPalette = body.palette;
+      this.localChallenge = body.challenge;
+      this.localValidation = body.validation;
+      this.localPermissions = body.permissions;
 
       this.$nextTick(() => {
         this.dirty = false;

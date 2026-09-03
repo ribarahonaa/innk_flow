@@ -182,6 +182,13 @@ Las props las serializa el **server** (`PipelinePresenter`,
 la tenencia la garantiza el scope de Ruby, no una ruta JSON que alguien podría
 olvidar scopear.
 
+**Las props son el estado INICIAL, no el estado.** Vue no hace reactivas las
+props de la raíz: mutarlas cambia los datos y **no redibuja nada**. Copiá a
+`data()` en el `data()` del componente y trabajá sobre la copia. El builder
+mutaba sus props (`steps.push`, `steps.splice`) y por eso agregar, quitar y
+reordenar módulos no se veían — y el segundo clic en una tarjeta fantasma
+reventaba con «Cannot read properties of undefined».
+
 Cada isla guarda la **lista completa** contra su API (`PUT`), y el server
 reconcilia. No agregues un segundo camino de escritura (nested attributes,
 endpoints por fila): la pantalla de criterios los tenía y se sacó.

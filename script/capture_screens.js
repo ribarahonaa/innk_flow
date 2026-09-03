@@ -57,6 +57,29 @@ async function shot(page, name, url, prepare) {
   await shot(page, '03b-builder-plantillas', '/challenges/sin-armar/builder', async (p) => {
     await p.waitForSelector('[data-island-mounted="true"]', { timeout: 15000 });
   });
+
+  // Los tres verbos del builder: agregar, quitar y que la pantalla lo muestre.
+  //
+  // Estuvo roto y nadie se enteró porque las capturas solo abrían el panel de
+  // un módulo. El componente mutaba las props —que Vue no hace reactivas—, así
+  // que los datos cambiaban y la pantalla seguía mostrando lo viejo. No se
+  // guarda: esto verifica la isla, no el server.
+  const cuentaTarjetas = () => page.locator('.step-card').count();
+  const antes = await cuentaTarjetas();
+
+  await page.locator('.palette-item:not(.palette-item--disabled)').first().click();
+  await page.waitForTimeout(200);
+  if (await cuentaTarjetas() !== antes + 1) {
+    failures++;
+    console.error('[BUILDER] agregar un módulo no se ve en pantalla');
+  }
+
+  await page.locator('.step-card__remove').last().click();
+  await page.waitForTimeout(200);
+  if (await cuentaTarjetas() !== antes) {
+    failures++;
+    console.error('[BUILDER] quitar un módulo no se ve en pantalla');
+  }
   await shot(page, '04-challenge', `/challenges/${CHALLENGE}`);
 
   // El builder es una isla Vue, y se llega NAVEGANDO POR EL LINK, no con un
