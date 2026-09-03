@@ -13,6 +13,7 @@ class StepCriteriaController < ApplicationController
   def show
     authorize @step, :manage_criteria?
 
+    @pending_suggestions = AiSuggestion.pending_review.where(challenge_step_id: @step.id).recent
     @set = own_set
     return if @set.nil?
 

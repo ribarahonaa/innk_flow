@@ -1,4 +1,4 @@
-\restrict ihqAMn4QT2aIVrpgkUQW8f3WE0m0dYBWLpqhiA03RIUfBVgJmdXdhLEFicPbz4Z
+\restrict h4k9XLAstPSi72dbIkjsyg0dIHml2NwJ71IMaiexEFaoIiFSY034v4lG9kFRUiv
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -126,7 +126,7 @@ CREATE TABLE public.ai_runs (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT ai_runs_mode_check CHECK (((mode)::text = ANY (ARRAY[('ai_assisted'::character varying)::text, ('ai_auto'::character varying)::text]))),
-    CONSTRAINT ai_runs_purpose_check CHECK (((purpose)::text = ANY (ARRAY[('propose_pipeline'::character varying)::text, ('suggest_form_fields'::character varying)::text, ('generate_ideas'::character varying)::text, ('coauthor_field'::character varying)::text, ('detect_duplicates'::character varying)::text, ('suggest_feedback'::character varying)::text, ('evaluate_idea'::character varying)::text, ('summarize_challenge'::character varying)::text]))),
+    CONSTRAINT ai_runs_purpose_check CHECK (((purpose)::text = ANY ((ARRAY['propose_pipeline'::character varying, 'suggest_form_fields'::character varying, 'suggest_criteria'::character varying, 'generate_ideas'::character varying, 'coauthor_field'::character varying, 'detect_duplicates'::character varying, 'suggest_feedback'::character varying, 'evaluate_idea'::character varying, 'summarize_challenge'::character varying])::text[]))),
     CONSTRAINT ai_runs_status_check CHECK (((status)::text = ANY (ARRAY[('queued'::character varying)::text, ('running'::character varying)::text, ('succeeded'::character varying)::text, ('failed'::character varying)::text])))
 );
 
@@ -2442,11 +2442,12 @@ ALTER TABLE ONLY public.step_entries
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ihqAMn4QT2aIVrpgkUQW8f3WE0m0dYBWLpqhiA03RIUfBVgJmdXdhLEFicPbz4Z
+\unrestrict h4k9XLAstPSi72dbIkjsyg0dIHml2NwJ71IMaiexEFaoIiFSY034v4lG9kFRUiv
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260903170000'),
 ('20260902180000'),
 ('20260901150000'),
 ('20260901140000'),

@@ -248,7 +248,9 @@ async function shot(page, name, url, prepare) {
   await page.screenshot({ path: `${OUT}/09-11-panel-evaluacion.png`, fullPage: true });
   shots.push('09-11-panel-evaluacion');
 
-  const criteriaLink = page.locator('a:has-text("Definir criterios propios")');
+  // Por DESTINO y no por texto: la etiqueta cambia según el módulo ya tenga
+  // criterios propios o no, y la captura se caía cuando alguien los definía.
+  const criteriaLink = page.locator('.config-form a[href*="/criteria"]');
   if (await criteriaLink.count()) {
     await criteriaLink.first().click();
     await page.waitForLoadState('networkidle');

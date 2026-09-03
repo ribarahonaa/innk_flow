@@ -24,6 +24,9 @@ module Flow
         edited = @payload.present? && @payload != @suggestion.payload
         payload = edited ? @payload : @suggestion.payload
 
+        # `apply!` puede aplicar PARTE: crear tres criterios de cinco, por
+        # ejemplo. Los errores viajan aunque haya salido bien, para que la
+        # pantalla no anuncie un éxito limpio sobre algo que quedó a medias.
         applied, errors = task.apply!(payload, suggestion: assign_reviewer)
         return Result.new(ok: false, errors: errors) unless applied
 
@@ -33,7 +36,7 @@ module Flow
           reviewed_by: @user,
           reviewed_at: Time.current
         )
-        Result.new(ok: true, errors: [])
+        Result.new(ok: true, errors: errors)
       end
 
       def reject!(note: nil)

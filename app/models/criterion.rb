@@ -84,7 +84,12 @@ class Criterion < ApplicationRecord
   def derive_key
     return if key.present? || name.blank?
 
+    # La `key` valida contra `[a-z][a-z0-9_]{0,39}`: un nombre largo —«Claridad
+    # de expectativas en los días 1 a 15»— genera una clave de 45 caracteres y
+    # el criterio se rechaza entero. Se recorta dejando lugar al sufijo que
+    # desambigua.
     base = name.to_s.parameterize(separator: "_").gsub(/\A[^a-z]+/, "").presence || "criterio"
+    base = base[0, 36].sub(/_+\z/, "").presence || "criterio"
     taken = criteria_set ? Criterion.where(criteria_set_id: criteria_set_id).pluck(:key) : []
     candidate = base
     n = 1

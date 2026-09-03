@@ -123,6 +123,7 @@ es:
       boolean: "Sí / No"
       formula: "Fórmula"
     ai_purposes:
+      suggest_criteria: "Proponer criterios"
       propose_pipeline: "Proponer el flujo"
       suggest_form_fields: "Proponer campos del formulario"
       generate_ideas: "Generar ideas candidatas"

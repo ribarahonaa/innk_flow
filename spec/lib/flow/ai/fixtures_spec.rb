@@ -9,9 +9,12 @@ RSpec.describe "fixtures de IA" do
   around { |example| as_company(company) { example.run } }
 
   let(:challenge) { create(:challenge) }
+  # Un formulario realista, no de un solo campo: algunos schemas se arman
+  # desde los campos declarados (`suggest_criteria` solo admite claves que
+  # existen), así que un formulario de juguete haría fallar fixtures válidos.
   let(:step) do
     s = challenge.steps.create!(kind: "ideation", position: 1)
-    s.form_fields.create!(key: "titulo", label: "Título", field_type: "text")
+    seed_form!(s)
     s
   end
   let(:idea) { create(:idea, challenge: challenge) }

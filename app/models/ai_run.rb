@@ -6,6 +6,7 @@ class AiRun < ApplicationRecord
   include TenantScoped
 
   PURPOSES = %w[
+    suggest_criteria
     propose_pipeline suggest_form_fields generate_ideas coauthor_field
     detect_duplicates suggest_feedback evaluate_idea summarize_challenge
   ].freeze

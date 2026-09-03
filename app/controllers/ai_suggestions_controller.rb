@@ -12,9 +12,19 @@ class AiSuggestionsController < ApplicationController
     result = Flow::AI::ApplySuggestion.new(@suggestion, user: current_user, payload: edited_payload).call
 
     redirect_back_to_target(
-      notice: result.ok? ? "Sugerencia aplicada." : nil,
-      alert: result.ok? ? nil : result.error_sentence
+      notice: (aplicada_del_todo?(result) ? "Sugerencia aplicada." : nil),
+      alert: result.ok? ? parcial(result) : result.error_sentence
     )
+  end
+
+  def aplicada_del_todo?(result) = result.ok? && result.errors.empty?
+
+  # Se aplicó, pero algo quedó afuera. Decirlo importa: si no, la pantalla
+  # muestra tres criterios donde la propuesta tenía cinco y nadie sabe por qué.
+  def parcial(result)
+    return nil if result.errors.empty?
+
+    "Se aplicó parcialmente: #{result.error_sentence}"
   end
 
   def reject
@@ -43,7 +53,10 @@ class AiSuggestionsController < ApplicationController
   # objetivo esto mandaba a la pantalla del módulo — sacándote del formulario
   # que estabas editando justo cuando aceptabas los campos nuevos.
   PATHS_BY_PURPOSE = {
-    "suggest_form_fields" => ->(s, r) { r.challenge_form_path(s.challenge_step.challenge) }
+    "suggest_form_fields" => ->(s, r) { r.challenge_form_path(s.challenge_step.challenge) },
+    "suggest_criteria" => lambda { |s, r|
+      r.challenge_step_criteria_path(s.challenge_step.challenge, s.challenge_step)
+    }
   }.freeze
 
   def redirect_back_to_target(notice: nil, alert: nil)

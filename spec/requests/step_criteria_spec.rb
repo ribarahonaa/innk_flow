@@ -132,6 +132,26 @@ RSpec.describe "criterios de un módulo", type: :request do
     end
   end
 
+  # Los criterios cuelgan de un módulo, así que redirigir por tipo de objetivo
+  # sacaba de la pantalla de criterios justo al aplicarlos.
+  describe "proponer los criterios con IA" do
+    it "la pantalla lo ofrece cuando el módulo no tiene criterios propios" do
+      get criteria_path
+      expect(response.body).to include("Proponer criterios con IA")
+    end
+
+    it "aplicar la propuesta deja en la pantalla de criterios, con el set puesto" do
+      post challenge_ai_requests_path(challenge, purpose: "suggest_criteria", step_id: step.id)
+      sugerencia = as_company(company) { AiSuggestion.pending_review.order(:created_at).last }
+
+      post accept_ai_suggestion_path(sugerencia)
+
+      expect(response).to redirect_to(criteria_path)
+      expect(set_of(step)&.scope).to eq("inline")
+      expect(criteria_of(step)).not_to be_empty
+    end
+  end
+
   describe "dónde no aplica" do
     it "un módulo de ideación no tiene criterios: 404" do
       ideation = as_company(company) { challenge.steps.reload.find(&:ideation?) }

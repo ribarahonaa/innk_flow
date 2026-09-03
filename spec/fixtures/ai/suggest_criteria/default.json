@@ -1,0 +1,54 @@
+{
+  "name": "Criterios de evaluación técnica",
+  "description": "Qué tanto mueve la aguja de la merma, contra lo que cuesta hacerlo.",
+  "criteria": [
+    {
+      "name": "Impacto sobre la merma",
+      "weight": 35,
+      "source": "manual",
+      "scale_type": "rubric",
+      "description": "Cuántos puntos de merma baja si funciona como está planteado.",
+      "levels": [
+        {
+          "label": "Marginal",
+          "value": 1,
+          "descriptor": "Baja la merma en un punto o menos."
+        },
+        {
+          "label": "Notable",
+          "value": 3,
+          "descriptor": "Baja la merma entre 2 y 5 puntos."
+        },
+        {
+          "label": "Decisivo",
+          "value": 5,
+          "descriptor": "Revierte el alza del 18% por sí sola."
+        }
+      ]
+    },
+    {
+      "name": "Se puede pilotear este año",
+      "weight": 25,
+      "source": "manual",
+      "scale_type": "numeric",
+      "description": "Qué tan realista es probarla en un centro antes de fin de año."
+    },
+    {
+      "name": "Dotación adicional",
+      "weight": 20,
+      "source": "manual",
+      "scale_type": "numeric",
+      "lower_is_better": true,
+      "description": "Cuánta gente extra pide. El brief pide no agregar dotación."
+    },
+    {
+      "name": "La solución está desarrollada",
+      "weight": 20,
+      "source": "automatic",
+      "check": "field_present",
+      "field_key": "solucion",
+      "min_length": 120,
+      "description": "Verifica que el «cómo funcionaría» esté explicado, no enunciado."
+    }
+  ]
+}
