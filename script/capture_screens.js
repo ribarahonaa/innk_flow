@@ -95,6 +95,7 @@ async function shot(page, name, url, prepare) {
   for (const url of ['/challenges/onboarding-remoto',
                      '/challenges/onboarding-remoto/builder',
                      '/challenges/onboarding-remoto/form',
+                     '/challenges/onboarding-remoto/criteria',
                      '/challenges/onboarding-remoto/preview']) {
     await page.goto(BASE + url, { waitUntil: 'networkidle' });
     if (await page.locator('.setup__step').count() !== 6) {
@@ -103,6 +104,7 @@ async function shot(page, name, url, prepare) {
     }
   }
   await shot(page, '03c-paso-a-paso', '/challenges/onboarding-remoto/form');
+  await shot(page, '03d-criterios-indice', '/challenges/onboarding-remoto/criteria');
   await shot(page, '04-challenge', `/challenges/${CHALLENGE}`);
 
   // El builder es una isla Vue, y se llega NAVEGANDO POR EL LINK, no con un

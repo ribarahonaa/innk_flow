@@ -7,6 +7,8 @@
       = link_to @challenge.name, challenge_path(@challenge)
       = " › "
       = link_to "Flujo", builder_challenge_path(@challenge)
+      = " › "
+      = link_to "Criterios", challenge_criteria_path(@challenge)
     %h1.page-title Criterios de «#{@step.name}»
     - if @step.selection?
       %p.muted Condiciones que la idea tiene que cumplir para avanzar. Se aplican antes del corte.

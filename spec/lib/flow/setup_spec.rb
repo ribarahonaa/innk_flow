@@ -61,12 +61,18 @@ RSpec.describe Flow::Setup do
     it "los criterios aparecen pendientes pero NO bloquean" do
       expect(step(:criteria)).not_to be_done
       expect(step(:criteria)).not_to be_blocked
-      expect(step(:criteria).hint).to eq("0 de 1 con criterios propios")
+      expect(step(:criteria).hint).to eq("0 de 1 módulos definidos")
     end
 
-    it "y el paso de criterios lleva al módulo que todavía no los tiene" do
-      evaluacion = challenge.steps.reload.find(&:evaluation?)
-      expect(step(:criteria).path).to eq(challenge_step_criteria_path(challenge, evaluacion))
+    # Antes llevaba al PRIMER módulo sin criterios. No se veía cuántos módulos
+    # puntúan ni en cuál estabas, y al volver atrás aterrizabas en otro porque
+    # «el primero sin resolver» había cambiado.
+    it "el paso de criterios lleva al índice de los módulos, no a uno" do
+      expect(step(:criteria).path).to eq(challenge_criteria_path(challenge))
+    end
+
+    it "y la pista habla de MÓDULOS, que es lo que se cuenta" do
+      expect(step(:criteria).hint).to eq("0 de 1 módulos definidos")
     end
   end
 

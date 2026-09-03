@@ -108,23 +108,17 @@ module Flow
 
       Step.new(key: :criteria, label: "Los criterios",
                hint: criteria_hint(scorers, propios),
-               path: criteria_path(scorers),
+               path: routes.challenge_criteria_path(challenge),
                status: scorers.empty? || propios == scorers.size ? :done : :pending,
                blocking: false)
     end
 
+    # «3 de 4» a secas se lee como «3 de 4 criterios». Son MÓDULOS.
     def criteria_hint(scorers, propios)
-      return "no hay módulos que puntúen" if scorers.empty?
-      return "#{propios} de #{scorers.size} con criterios propios" if propios < scorers.size
+      return "ningún módulo puntúa ni filtra" if scorers.empty?
+      return "#{propios} de #{scorers.size} módulos definidos" if propios < scorers.size
 
-      "#{scorers.size} #{'módulo'.pluralize(scorers.size)} con criterios"
-    end
-
-    def criteria_path(scorers)
-      pendiente = scorers.find { |s| s.criteria_set.blank? } || scorers.first
-      return routes.builder_challenge_path(challenge) if pendiente.nil?
-
-      routes.challenge_step_criteria_path(challenge, pendiente)
+      "#{scorers.size} #{'módulo'.pluralize(scorers.size)} definidos"
     end
 
     def review_step

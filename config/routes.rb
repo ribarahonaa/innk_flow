@@ -59,6 +59,9 @@ Rails.application.routes.draw do
     # Lo que van a ver las personas, antes de arrancar.
     resource :preview, only: %i[show], controller: "previews"
 
+    # Índice de los módulos que puntúan o filtran, con el estado de cada uno.
+    resource :criteria, only: %i[show], controller: "challenge_criteria"
+
     # El formulario de postulación del desafío (vive en su módulo de ideación).
     resource :form, only: %i[show], controller: "form_fields" do
       post :seed_defaults

@@ -1,0 +1,58 @@
+- content_for :title, "Criterios · #{@challenge.name}"
+.page-head
+  %div
+    %p.breadcrumb
+      = link_to "Desafíos", challenges_path
+      = " › "
+      = link_to @challenge.name, challenge_path(@challenge)
+      = " › "
+      = link_to "Flujo", builder_challenge_path(@challenge)
+    %h1.page-title Con qué se puntúa y se filtra
+    %p.muted Cada módulo que evalúa o selecciona tiene sus propios criterios. Estos son los de este desafío.
+
+- if @challenge.draft? && policy(@challenge).builder?
+  = render "shared/setup_progress", challenge: @challenge, current: :criteria
+
+- if @scorers.empty?
+  .card.empty-state
+    %p.muted
+      Este flujo no tiene módulos que puntúen ni filtren, así que no hay criterios que definir.
+      = link_to "Volver al flujo", builder_challenge_path(@challenge), class: "field-hint__link"
+- else
+  %ul.scorer-list
+    - @scorers.each do |step|
+      - set = step.criteria_set
+      - criterios = set ? set.active_criteria : []
+      %li.scorer{ class: ("scorer--pending" if set.nil?) }
+        .scorer__head
+          %div
+            %span.scorer__name= step.name
+            %span.scorer__kind= t("flow.kinds.#{step.kind}")
+            %span.muted= step.selection? ? " · filtra qué avanza" : " · puntúa cada idea"
+          %span.status-chip{ class: "status-chip--#{step.status}" }= t("flow.statuses.#{step.status}")
+
+        - if set.nil?
+          %p.field-hint.field-hint--warn
+            Sin criterios propios: va a usar los genéricos (impacto, factibilidad y esfuerzo).
+        - else
+          %p.scorer__origin
+            = set.inline? ? "Criterios propios de este módulo" : "De la biblioteca: #{set.name}"
+            %span.muted= " · #{criterios.size} #{'criterio'.pluralize(criterios.size)}"
+          %ul.field-list
+            - criterios.each do |criterion|
+              %li.field-list__item
+                %span.field-list__label
+                  = criterion.name
+                  %span.criterion-field__weight= "#{(criterion.weight.to_f * 100).round}%"
+                %span.field-list__type= criterion.summary
+
+        .scorer__actions
+          - if step.touched?
+            %span.field-hint Ya se ejecutó: sus criterios quedaron congelados.
+          - else
+            = link_to (set ? "Editar los criterios" : "Definir los criterios"),
+                      challenge_step_criteria_path(@challenge, step),
+                      class: "btn btn--#{set ? 'ghost' : 'primary'} btn--sm"
+
+- if @challenge.draft? && policy(@challenge).builder?
+  = render "shared/setup_nav", challenge: @challenge, current: :criteria
