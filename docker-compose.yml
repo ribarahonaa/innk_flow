@@ -79,12 +79,10 @@ services:
       DATABASE_PASSWORD: postgres
       REDIS_URL: redis://redis:6379
       RAILS_ENV: test
-      # `fixture` es el default a propósito: la maqueta corre sin red ni API
-      # key. Para usar el proveedor real, poné ANTHROPIC_API_KEY en un .env y
-      # arrancá con FLOW_AI_PROVIDER=anthropic — cada llamada cuesta plata.
-      FLOW_AI_PROVIDER: ${FLOW_AI_PROVIDER:-fixture}
-      FLOW_AI_MODEL: ${FLOW_AI_MODEL:-claude-opus-5}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Fijo, NO heredado del .env: una suite que llama al proveedor real
+      # costaría plata en cada corrida y dependería de la red. El contenedor de
+      # test tampoco recibe la credencial.
+      FLOW_AI_PROVIDER: fixture
     depends_on:
       - db
       - redis

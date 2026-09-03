@@ -65,4 +65,9 @@ Rails.application.configure do
 
   # Raise error when a before_action's only/except options reference missing actions
   config.action_controller.raise_on_missing_callback_actions = true
+
+  # Los specs NUNCA hablan con el proveedor real: costaría plata en cada
+  # corrida y los haría depender de la red. El `.env` de desarrollo no puede
+  # arrastrar la suite a producción por tener FLOW_AI_PROVIDER=anthropic.
+  ENV["FLOW_AI_PROVIDER"] = "fixture"
 end
