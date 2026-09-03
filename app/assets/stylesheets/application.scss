@@ -1427,3 +1427,43 @@ textarea:disabled {
     color: var(--muted);
   }
 }
+
+// ── Espera de la IA ─────────────────────────────────────────────────────────
+//
+// Turbo marca el `turbo-frame` con `aria-busy` mientras hay un pedido en
+// vuelo. Con un proveedor real la respuesta tarda de 10 a 70 segundos: sin
+// esto la pantalla se ve congelada y la gente vuelve a apretar el botón.
+.ai-waiting {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  border: 1px dashed #d8c9f5;
+  border-radius: var(--radius);
+  background: #faf7ff;
+  color: #7c3aed;
+  font-size: 13px;
+}
+
+turbo-frame[aria-busy="true"] .ai-waiting { display: flex; }
+
+// Lo que ya estaba se atenúa: sigue legible, pero se lee que está por cambiar.
+turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
+
+.ai-waiting__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 99px;
+  background: currentColor;
+  animation: ai-pulse 1s ease-in-out infinite;
+}
+
+@keyframes ai-pulse {
+  0%, 100% { opacity: .25; transform: scale(.8); }
+  50%      { opacity: 1;   transform: scale(1.15); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-waiting__dot { animation: none; opacity: .7; }
+}

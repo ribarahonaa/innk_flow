@@ -17,7 +17,11 @@
     %span.muted La propuesta pasa por tu revisión.
   - else
     %span.muted= t("flow.ai_modes.#{mode}")
+  -# El pedido apunta al marco de las propuestas: la respuesta reemplaza ese
+  -# marco y nada más. Sin esto la pantalla se recargaba entera y se perdía lo
+  -# que estuvieras editando.
   - actions.each do |action|
     = button_to action[:label],
                 challenge_ai_requests_path(challenge, purpose: action[:purpose], step_id: action[:step_id], idea_id: action[:idea_id], field_key: action[:field_key], count: action[:count]),
-                class: "btn btn--ghost btn--sm"
+                class: "btn btn--ghost btn--sm",
+                form: { data: { turbo_frame: "ai-suggestions" } }

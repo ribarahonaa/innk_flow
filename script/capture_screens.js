@@ -210,6 +210,21 @@ async function shot(page, name, url, prepare) {
 
   await shot(page, '09-10-form-vacio', '/challenges/onboarding-remoto/form');
 
+  // Pedirle algo a la IA no debe recargar la pantalla: el botón apunta al
+  // marco de las propuestas. No se dispara el pedido —cuesta plata con el
+  // proveedor real—, se verifica el contrato que lo hace posible.
+  if (!(await page.locator('turbo-frame#ai-suggestions').count())) {
+    failures++;
+    console.error('[IA] falta el turbo-frame de propuestas: el pedido recargaría la pantalla');
+  }
+  const destino = await page
+    .locator('form:has(button:has-text("Proponer campos con IA"))')
+    .getAttribute('data-turbo-frame');
+  if (destino !== 'ai-suggestions') {
+    failures++;
+    console.error(`[IA] el botón no apunta al marco de propuestas (data-turbo-frame=${destino})`);
+  }
+
   // Los criterios del módulo de evaluación, desde su panel en el builder.
   await page.goto(`${BASE}/challenges/onboarding-remoto/builder`, { waitUntil: 'networkidle' });
   await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
