@@ -184,7 +184,7 @@ olvidar scopear.
 
 **Las props son el estado INICIAL, no el estado.** Vue no hace reactivas las
 props de la raíz: mutarlas cambia los datos y **no redibuja nada**. Copiá a
-`data()` en el `data()` del componente y trabajá sobre la copia. El builder
+`data()` una vez y trabajá sobre la copia. El builder
 mutaba sus props (`steps.push`, `steps.splice`) y por eso agregar, quitar y
 reordenar módulos no se veían — y el segundo clic en una tarjeta fantasma
 reventaba con «Cannot read properties of undefined».
