@@ -70,4 +70,8 @@ Rails.application.configure do
   # corrida y los haría depender de la red. El `.env` de desarrollo no puede
   # arrastrar la suite a producción por tener FLOW_AI_PROVIDER=anthropic.
   ENV["FLOW_AI_PROVIDER"] = "fixture"
+  # Y tampoco hereda el MODELO: el .env de desarrollo puede apuntar a otro y
+  # los specs que verifican el pedido empezarían a fallar por una variable de
+  # entorno, no por el código.
+  ENV.delete("FLOW_AI_MODEL")
 end

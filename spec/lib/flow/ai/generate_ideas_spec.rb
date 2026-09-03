@@ -69,13 +69,34 @@ RSpec.describe Flow::AI::Tasks::GenerateIdeas do
     expect(task.messages.last[:content]).to include("Generá 2 ideas")
   end
 
+  # Cada idea son cientos de tokens de salida: pedir veinte de una es una
+  # factura sorpresa.
+  describe "cuántas se piden" do
+    it "respeta lo que pidió quien aprieta el botón" do
+      expect(task.messages.last[:content]).to include("Generá 2 ideas")
+    end
+
+    it "no pasa del tope, aunque se pida más" do
+      muchas = described_class.new(challenge: challenge, step: step, count: 50)
+      expect(muchas.messages.last[:content]).to include("Generá 5 ideas")
+      expect(muchas.schema.dig("properties", "ideas", "maxItems")).to eq(5)
+    end
+
+    it "ni baja de una" do
+      ninguna = described_class.new(challenge: challenge, step: step, count: 0)
+      expect(ninguna.messages.last[:content]).to include("Generá 1 ideas")
+    end
+  end
+
   describe "el schema" do
     subject(:payload_schema) { task.schema.dig("properties", "ideas", "items", "properties", "payload") }
 
     # Esto es lo que hace que la salida estructurada garantice el llenado.
     it "nombra las claves reales del formulario, no un objeto libre" do
       expect(payload_schema["properties"].keys).to eq(%w[titulo impacto_esperado area])
-      expect(payload_schema["required"]).to eq(%w[titulo impacto_esperado])
+      # TODOS, no solo los obligatorios del formulario: una persona puede dejar
+      # uno en blanco, pero una idea generada que los deja vacíos es media idea.
+      expect(payload_schema["required"]).to eq(%w[titulo impacto_esperado area])
     end
 
     it "traduce el tipo del campo: un select solo acepta sus opciones" do

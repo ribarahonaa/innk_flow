@@ -51,7 +51,7 @@ RSpec.describe "tareas de IA" do
 
     it "crea ideas marcadas origin: ai, ya postuladas" do
       expect { run_task(described_class.new(challenge: challenge, step: step)) }
-        .to change { challenge.ideas.count }.by(5)
+        .to change { challenge.ideas.count }.by(Flow::AI::Tasks::GenerateIdeas::DEFAULT_COUNT)
 
       idea = challenge.ideas.reload.first
       expect(idea.origin).to eq("ai")

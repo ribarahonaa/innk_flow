@@ -1617,3 +1617,23 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   &__origin { margin: 0 0 8px; font-size: 12.5px; }
   &__actions { margin-top: 12px; }
 }
+
+// Selector de cantidad dentro de una acción de IA.
+.ai-actions__form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-actions__label {
+  margin: 0;
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.ai-actions__count {
+  width: auto;
+  padding: 5px 8px;
+  font-size: 12.5px;
+}

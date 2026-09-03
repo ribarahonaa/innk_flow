@@ -212,6 +212,19 @@ async function shot(page, name, url, prepare) {
     (nodes) => nodes.map((n) => ({ href: n.getAttribute('href'), text: n.textContent.trim() }))
   );
 
+  // Generar ideas deja elegir cuántas, con un tope. Sin el tope, un clic
+  // distraído pide veinte ideas y eso es una factura sorpresa.
+  await page.goto(`${BASE}/challenges/${CHALLENGE}`, { waitUntil: 'networkidle' });
+  const ideacion = stepLinks.find((l) => l.text.match(/Postulaci/i));
+  if (ideacion) {
+    await page.goto(BASE + ideacion.href, { waitUntil: 'networkidle' });
+    const opciones = await page.locator('select[name="count"] option').allTextContents();
+    if (opciones.join(',') !== '1,2,3,4,5') {
+      failures++;
+      console.error(`[IA] el selector de cantidad no ofrece 1..5 (${opciones.join(',')})`);
+    }
+  }
+
   for (const [index, link] of stepLinks.entries()) {
     await shot(page, `09-${index + 1}-step-${link.text.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, link.href);
   }

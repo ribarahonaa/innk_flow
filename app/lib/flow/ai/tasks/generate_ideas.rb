@@ -6,7 +6,12 @@ module Flow
       # Genera ideas candidatas desde el brief. Entran al pipeline como
       # cualquier otra, marcadas origin: "ai".
       class GenerateIdeas < Base
-        DEFAULT_COUNT = 5
+        DEFAULT_COUNT = 3
+
+        # Un tope duro: cada idea son cientos de tokens de salida, y pedir
+        # veinte de una es una factura sorpresa. Quien quiera más, pide de
+        # nuevo.
+        MAX_COUNT = 5
 
         def messages
           [
@@ -63,6 +68,7 @@ module Flow
               "ideas" => {
                 "type" => "array",
                 "minItems" => 1,
+                "maxItems" => MAX_COUNT,
                 "items" => {
                   "type" => "object",
                   "required" => ["payload"],
@@ -79,7 +85,10 @@ module Flow
         def payload_schema
           {
             "type" => "object",
-            "required" => answerable_fields.select(&:required).map(&:key),
+            # TODOS los campos, no solo los obligatorios del formulario: una
+            # persona puede dejar uno en blanco, pero una idea generada que
+            # deja campos vacíos es media idea.
+            "required" => answerable_fields.map(&:key),
             "properties" => answerable_fields.to_h { |field| [field.key, property_for(field)] }
           }
         end
@@ -145,7 +154,7 @@ module Flow
 
         private
 
-        def count = context.fetch(:count, DEFAULT_COUNT)
+        def count = context.fetch(:count, DEFAULT_COUNT).to_i.clamp(1, MAX_COUNT)
 
         # Un adjunto no se puede generar: pedirlo es pedir algo imposible y
         # ensuciar el resto de la respuesta.

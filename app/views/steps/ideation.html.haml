@@ -39,5 +39,6 @@
     Ideas postuladas
     %span.muted= " (#{@handler.submitted_ideas.count})"
   = render "shared/ai_actions", challenge: @step.challenge, mode: @step.effective_ai_mode,
-           actions: [{ label: "Generar ideas candidatas", purpose: "generate_ideas", step_id: @step.id, count: 5 }]
+           actions: [{ label: "Generar ideas candidatas", purpose: "generate_ideas", step_id: @step.id,
+                       count: 3, count_options: (1..Flow::AI::Tasks::GenerateIdeas::MAX_COUNT).to_a }]
   = render "ideas/list", ideas: @handler.submitted_ideas.includes(:current_version, :author).recent, challenge: @step.challenge

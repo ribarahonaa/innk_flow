@@ -21,7 +21,17 @@
   -# marco y nada más. Sin esto la pantalla se recargaba entera y se perdía lo
   -# que estuvieras editando.
   - actions.each do |action|
-    = button_to action[:label],
-                challenge_ai_requests_path(challenge, purpose: action[:purpose], step_id: action[:step_id], idea_id: action[:idea_id], field_key: action[:field_key], count: action[:count]),
-                class: "btn btn--ghost btn--sm",
-                form: { data: { turbo_frame: "ai-suggestions" } }
+    -# Con `count_options` el pedido lleva un selector: cuántas quiere quien
+    -# pide, en vez de una cantidad fija escondida en la vista.
+    - if action[:count_options].present?
+      = form_with url: challenge_ai_requests_path(challenge, purpose: action[:purpose], step_id: action[:step_id]),
+                  method: :post, class: "ai-actions__form", data: { turbo_frame: "ai-suggestions" } do
+        = label_tag "count_#{action[:purpose]}", "Cuántas", class: "ai-actions__label"
+        = select_tag :count, options_for_select(action[:count_options], action[:count]),
+                     id: "count_#{action[:purpose]}", class: "ai-actions__count"
+        = submit_tag action[:label], class: "btn btn--ghost btn--sm"
+    - else
+      = button_to action[:label],
+                  challenge_ai_requests_path(challenge, purpose: action[:purpose], step_id: action[:step_id], idea_id: action[:idea_id], field_key: action[:field_key], count: action[:count]),
+                  class: "btn btn--ghost btn--sm",
+                  form: { data: { turbo_frame: "ai-suggestions" } }
