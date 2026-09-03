@@ -8,6 +8,8 @@
     = link_to "Previsualizar", challenge_preview_path(@challenge), class: "btn btn--ghost"
     = link_to "Ver desafío", challenge_path(@challenge), class: "btn btn--ghost"
 
+= render "shared/setup_progress", challenge: @challenge, current: :flow
+
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 
 -# Un desafío sin módulos puede haber nacido en blanco. Armar seis módulos a
@@ -48,3 +50,6 @@
     %p.muted Cargando el editor de flujo…
 
 = javascript_include_tag "packs/pipeline_builder", defer: true, nonce: content_security_policy_nonce
+
+- if @challenge.draft? && policy(@challenge).builder?
+  = render "shared/setup_nav", challenge: @challenge, current: :flow

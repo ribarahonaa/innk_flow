@@ -1,0 +1,29 @@
+-# El paso a paso de configurar un desafío, como el de un instalador.
+-#
+-# `current` es la clave del paso que se está mirando, para marcarlo. El estado
+-# de cada paso lo decide Flow::Setup: acá solo se dibuja.
+-# La tarjeta dice DÓNDE estás; avanzar es tarea de `shared/_setup_nav`, al
+-# pie. Dos botones «siguiente» en la misma pantalla decían cosas distintas.
+- setup = Flow::Setup.new(challenge)
+- current = local_assigns[:current]
+
+.card.setup
+  .setup__head
+    %h2.section-title
+      Configurar el desafío
+      %span.setup__count= "#{setup.done_count} de #{setup.total}"
+    - if setup.ready? && challenge.draft?
+      %span.setup__ready Listo para arrancar
+    - elsif challenge.draft?
+      %span.setup__missing= "Falta: #{setup.blockers.map(&:label).join(', ').downcase}"
+
+  %ol.setup__steps
+    - setup.steps.each_with_index do |step, index|
+      %li.setup__step{ class: ["setup__step--#{step.status}",
+                               ("setup__step--current" if step.key.to_s == current.to_s),
+                               ("setup__step--blocked" if step.blocked?)].compact }
+        = link_to step.path, class: "setup__link" do
+          %span.setup__mark= step.done? ? "✓" : index + 1
+          %span.setup__body
+            %span.setup__label= step.label
+            %span.setup__hint= step.hint

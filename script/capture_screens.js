@@ -66,6 +66,7 @@ async function shot(page, name, url, prepare) {
     await p.waitForSelector('[data-island-mounted="true"]', { timeout: 15000 });
   });
 
+
   // Los tres verbos del builder: agregar, quitar y que la pantalla lo muestre.
   //
   // Estuvo roto y nadie se enteró porque las capturas solo abrían el panel de
@@ -88,6 +89,20 @@ async function shot(page, name, url, prepare) {
     failures++;
     console.error('[BUILDER] quitar un módulo no se ve en pantalla');
   }
+
+  // El paso a paso tiene que estar en TODAS las pantallas de configuración: si
+  // falta en una, ahí es donde se pierde quien está configurando.
+  for (const url of ['/challenges/onboarding-remoto',
+                     '/challenges/onboarding-remoto/builder',
+                     '/challenges/onboarding-remoto/form',
+                     '/challenges/onboarding-remoto/preview']) {
+    await page.goto(BASE + url, { waitUntil: 'networkidle' });
+    if (await page.locator('.setup__step').count() !== 6) {
+      failures++;
+      console.error(`[SETUP] falta el paso a paso en ${url}`);
+    }
+  }
+  await shot(page, '03c-paso-a-paso', '/challenges/onboarding-remoto/form');
   await shot(page, '04-challenge', `/challenges/${CHALLENGE}`);
 
   // El builder es una isla Vue, y se llega NAVEGANDO POR EL LINK, no con un

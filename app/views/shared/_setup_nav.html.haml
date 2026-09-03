@@ -1,0 +1,32 @@
+-# La barra de navegación del paso a paso: dónde estás y a dónde seguís.
+-#
+-# Va al pie de cada pantalla de configuración. Sin esto el paso a paso era un
+-# indicador —te decía qué falta— y no un recorrido: había que volver al índice
+-# para pasar al siguiente.
+- setup = Flow::Setup.new(challenge)
+- actual = setup.find(current)
+- anterior = setup.before(current)
+- siguiente = setup.after(current)
+
+.setup-nav
+  - if anterior
+    = link_to "← #{anterior.label}", anterior.path, class: "btn btn--ghost"
+  - else
+    %span
+
+  %span.setup-nav__where
+    = "Paso #{setup.number_of(current)} de #{setup.total}"
+    - if actual&.blocked?
+      %span.setup-nav__blocked= "· #{actual.hint}"
+
+  - if challenge.draft? && setup.ready? && policy(challenge).start?
+    = button_to "Arrancar el desafío", start_challenge_path(challenge), class: "btn btn--primary"
+  - elsif siguiente&.key == :start
+    -# El último paso no se ofrece si algo bloquea: se dice qué falta y se
+    -# lleva ahí, en vez de un botón que va a rebotar.
+    - falta = setup.blockers.first
+    = link_to "Falta: #{falta.label.downcase} →", falta.path, class: "btn btn--primary"
+  - elsif siguiente
+    = link_to "#{siguiente.label} →", siguiente.path, class: "btn btn--primary"
+  - else
+    %span

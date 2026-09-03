@@ -16,6 +16,8 @@
 
 -# El panel va antes del if: pedir la propuesta con el formulario VACÍO es el
 -# caso más común, y ahí es donde antes no se mostraba.
+= render "shared/setup_progress", challenge: @challenge, current: :form
+
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 
 - if @fields.empty?
@@ -36,3 +38,6 @@
     %p.muted Cargando el editor…
 
 = javascript_include_tag "packs/form_editor", defer: true, nonce: content_security_policy_nonce
+
+- if @challenge.draft? && policy(@challenge).builder?
+  = render "shared/setup_nav", challenge: @challenge, current: :form

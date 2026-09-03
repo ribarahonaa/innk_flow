@@ -13,6 +13,8 @@
     - else
       %p.muted Con qué se puntúa cada idea en este módulo.
 
+= render "shared/setup_progress", challenge: @challenge, current: :criteria
+
 - if @set.nil?
   .card
     %h2.section-title Este módulo todavía no tiene criterios propios
@@ -48,3 +50,6 @@
       %p.muted Cargando el editor de criterios…
 
   = javascript_include_tag "packs/criteria_editor", defer: true, nonce: content_security_policy_nonce
+
+- if @challenge.draft? && policy(@challenge).builder?
+  = render "shared/setup_nav", challenge: @challenge, current: :criteria
