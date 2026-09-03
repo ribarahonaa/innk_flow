@@ -136,6 +136,10 @@ Dos reglas que no viven en el rol:
   Por eso el mínimo de evaluaciones baja por idea cuando su autor está entre
   quienes evalúan: esperar el mínimo entero trabaría el módulo esperando una
   evaluación imposible.
+- **El puntaje y el desglose son cosas distintas.** Quien participa de una idea
+  ve su resultado agregado cuando el módulo cierra; **quién puso qué** lo ven
+  solo quien administra y quien evaluó esa idea. Por eso hay dos predicados en
+  el handler (`score_visible_for?` y `breakdown_visible_for?`) y no uno.
 - **El gestor es interempresa**: una membresía con rol `gestor` por cada
   empresa, igual que cualquiera que esté en más de una. Lo nuevo es que tener
   membresía dejó de significar ver todo: un gestor solo ve los desafíos de

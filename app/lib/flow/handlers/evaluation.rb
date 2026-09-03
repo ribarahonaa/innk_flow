@@ -68,14 +68,29 @@ module Flow
         disponibles.clamp(1, min_assessments)
       end
 
-      # Evaluación A CIEGAS: ver los puntajes de los demás antes de poner el
-      # propio ancla el juicio, y con tres notas parecidas a la vista es difícil
-      # no acomodarse. Se revelan al enviar la propia. Quien administra las ve
-      # siempre: necesita saber cómo viene el módulo.
-      def revealed_for?(idea_id, user:, manager: false)
-        return true if manager || !step.active?
+      # QUIÉN PUSO QUÉ. Dos razones para reservarlo:
+      #
+      #   · a ciegas — ver las notas de los demás antes de poner la propia
+      #     ancla el juicio, y con tres números parecidos a la vista es difícil
+      #     no acomodarse;
+      #   · después del corte — que el autor lea el nombre de quien lo puntuó
+      #     bajo y su comentario convierte un resultado en una discusión
+      #     personal.
+      #
+      # Lo ve quien administra, y quien ya evaluó ESA idea.
+      def breakdown_visible_for?(idea_id, user:, manager: false)
+        return true if manager
 
         assessments_for(idea_id).any? { |a| a.evaluator_id == user&.id }
+      end
+
+      # EL PUNTAJE AGREGADO de una idea. Además de los anteriores, lo ve quien
+      # participa de ella una vez cerrado el módulo: es su resultado, y saber
+      # que salió 58 sin saber quién puso qué alcanza para entenderlo.
+      def score_visible_for?(idea, user:, manager: false)
+        return true if breakdown_visible_for?(idea.id, user: user, manager: manager)
+
+        !step.active? && idea.participates?(user)
       end
 
       def criteria_snapshot = settings["criteria"] || []

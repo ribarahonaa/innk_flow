@@ -73,7 +73,8 @@
   %h2.section-title Ideas a evaluar
   - unless manda
     %p.muted.field-hint
-      Los puntajes de cada idea se muestran cuando envíes tu evaluación: verlos antes ancla el juicio.
+      Los puntajes se muestran cuando envíes tu evaluación: verlos antes ancla el juicio. De las
+      ideas que no evalúes vas a ver el resultado, no quién puso qué.
   - if @step.step_entries.empty?
     %p.muted Todavía no hay ideas en este módulo.
   - else
@@ -89,16 +90,17 @@
         - @step.step_entries.includes(idea: %i[current_version author idea_contributors]).each do |entry|
           - result = entry.result
           - propia = entry.idea.participates?(current_user)
-          -# A ciegas: ver los puntajes de los demás antes de poner el propio
-          -# ancla el juicio. Se revelan al enviar la propia evaluación.
-          - visible = @handler.revealed_for?(entry.idea_id, user: current_user, manager: manda)
+          -# El puntaje agregado y el desglose por evaluador son dos cosas
+          -# distintas: el autor ve el suyo, pero no quién puso qué.
+          - visible = @handler.score_visible_for?(entry.idea, user: current_user, manager: manda)
+          - desglose = @handler.breakdown_visible_for?(entry.idea_id, user: current_user, manager: manda)
           %tr
             %td
               = link_to entry.idea.title, challenge_idea_path(@challenge, entry.idea), class: "step-table__link"
               %span.muted= " · #{entry.idea.author.name}"
             %td.muted
               = "#{result['assessments_count'] || 0} / #{@handler.min_assessments_for(entry.idea)}"
-              - evaluadores = visible ? @handler.assessments_for(entry.idea_id) : []
+              - evaluadores = desglose ? @handler.assessments_for(entry.idea_id) : []
               - if evaluadores.any?
                 %span.evaluators
                   - evaluadores.each do |assessment|
@@ -124,7 +126,7 @@
 
 - hechas = @step.assessments.current.submitted_ones.includes(:idea, :evaluator, :assessment_scores).to_a
 -# Idem: solo se ven las de las ideas que ya evaluaste.
-- hechas = hechas.select { |a| @handler.revealed_for?(a.idea_id, user: current_user, manager: manda) }
+- hechas = hechas.select { |a| @handler.breakdown_visible_for?(a.idea_id, user: current_user, manager: manda) }
 - if hechas.any?
   .card
     %h2.section-title

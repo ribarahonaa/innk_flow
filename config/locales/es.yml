@@ -87,6 +87,12 @@ es:
       idea_eliminated:
         title: "«%{idea}» no avanzó"
         body: "Quedó fuera en «%{step}». Sigue consultable y puede repescarse."
+    entry_statuses:
+      pending: "Pendiente"
+      in_progress: "En curso"
+      advanced: "Avanzó"
+      eliminated: "No avanzó"
+      skipped: "Salteado"
     contributor_roles:
       contributor: "colabora"
       sponsor: "patrocina"

@@ -1637,3 +1637,24 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   padding: 5px 8px;
   font-size: 12.5px;
 }
+
+// ── Cómo le fue a una idea, módulo por módulo ───────────────────────────────
+.result-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+
+.result {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 8px;
+  font-size: 13px;
+
+  &--advanced { border-left-color: var(--ok); }
+  &--eliminated { border-left-color: var(--danger); }
+
+  &__step { flex: 1; font-weight: 600; }
+  &__outcome { color: var(--muted); font-size: 12px; }
+  &__score { font-weight: 650; font-variant-numeric: tabular-nums; }
+}

@@ -51,6 +51,18 @@
             %dd{ class: ("is-empty" if value.blank?) }
               = value.is_a?(Array) ? value.join(", ") : (value.presence || "—")
 
+    - if @results.any?
+      .card
+        %h2.section-title Cómo le fue
+        %ul.result-list
+          - @results.each do |resultado|
+            - entry = resultado[:entry]
+            %li.result{ class: "result--#{entry.status}" }
+              %span.result__step= resultado[:step].name
+              %span.result__outcome= t("flow.entry_statuses.#{entry.status}", default: entry.status.humanize)
+              - if resultado[:score]
+                %span.result__score= "#{(resultado[:score].to_f * 100).round}%"
+
     = render "ideas/contributors", idea: @idea, challenge: @challenge,
              can_manage: policy(@idea).manage_contributors?, candidates: @contributor_candidates
 

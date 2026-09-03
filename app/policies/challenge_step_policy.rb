@@ -13,4 +13,8 @@ class ChallengeStepPolicy < ApplicationPolicy
   # Editar el formulario de postulación.
   def manage_form? = manager?
   def manage_criteria? = manager?
+
+  # El reporte incluye el ranking con los puntajes de todas las ideas: es
+  # justo lo que un participante no ve en pantalla.
+  def report? = manager?
 end

@@ -43,6 +43,7 @@ class IdeasController < ApplicationController
     @contributor_candidates = contributor_candidates
     @attachments = @idea.current_version&.attachments&.includes(file_attachment: :blob)
                         &.index_by(&:field_key) || {}
+    @results = idea_results
   end
 
   def edit
@@ -90,6 +91,24 @@ class IdeasController < ApplicationController
   end
 
   private
+
+  # El resultado de la idea, módulo por módulo: cómo le fue y qué puntaje sacó.
+  #
+  # Es lo único que ve de su evaluación quien participa de ella — el desglose
+  # por evaluador queda para quien administra y para quien la evaluó. Saber que
+  # salió 58 sin saber quién puso qué alcanza para entender el resultado.
+  def idea_results
+    @challenge.pipeline.steps.select(&:touched?).filter_map do |step|
+      entry = StepEntry.find_by(challenge_step_id: step.id, idea_id: @idea.id)
+      next if entry.nil?
+
+      visible = step.evaluation? &&
+                step.handler.score_visible_for?(@idea, user: current_user,
+                                                       manager: policy(@challenge).update_pipeline?)
+
+      { step: step, entry: entry, score: (entry.result["score"] if visible) }
+    end
+  end
 
   # Gente de la empresa que todavía no participa de esta idea. Se resuelve acá
   # y no en la vista: es una query, y la vista no hace queries.

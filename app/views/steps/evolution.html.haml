@@ -75,7 +75,10 @@
       - else
         %p.muted Todavía nadie dio feedback a esta idea.
 
-      - if @step.active?
+      -# Comentar la idea ajena es de quien acompaña o juzga; quien participa,
+      -# solo la suya. El botón no se ofrece si va a rebotar.
+      - puede_comentar = policy(FeedbackItem.new(idea: entry.idea, challenge_step: @step)).create?
+      - if @step.active? && puede_comentar
         = form_with url: challenge_step_feedback_items_path(@challenge, @step, idea_id: entry.idea_id), method: :post, class: "feedback-form" do
           = select_tag :kind, options_for_select(FeedbackItem::KINDS.map { |k| [t("flow.feedback_kinds.#{k}"), k] }), class: "feedback-form__kind"
           = text_field_tag :body, nil, placeholder: "Qué le falta o qué mejorarías", required: true

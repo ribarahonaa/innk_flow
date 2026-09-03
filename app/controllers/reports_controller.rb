@@ -4,7 +4,7 @@ class ReportsController < ApplicationController
   before_action :set_context
 
   def create
-    authorize @step, :show?
+    authorize @step, :report?
     report = Report.create!(
       challenge_step: @step, kind: params[:kind].presence || "snapshot",
       format: params[:format].presence || "xlsx",
@@ -18,7 +18,7 @@ class ReportsController < ApplicationController
 
   # Polling: el patrón de ExcelDocument de innk_r5, scopeado al tenant.
   def statuses
-    authorize @step, :show?
+    authorize @step, :report?
     reports = Report.where(challenge_step_id: @step.id, status: "ready").where.not(format: "dashboard")
 
     render json: {
