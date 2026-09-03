@@ -5,7 +5,9 @@
 class Membership < ApplicationRecord
   include TenantScoped
 
-  ROLES = %w[owner admin evaluator participant].freeze
+  # `owner` se eliminó: daba exactamente los mismos permisos que `admin` y no
+  # había una sola policy que los distinguiera.
+  ROLES = %w[admin evaluator participant].freeze
 
   belongs_to :user
 
@@ -15,5 +17,5 @@ class Membership < ApplicationRecord
   ROLES.each { |role| define_method("#{role}?") { self.role == role } }
 
   # Quien puede armar y correr desafíos.
-  def manages_challenges? = owner? || admin?
+  def manages_challenges? = admin?
 end

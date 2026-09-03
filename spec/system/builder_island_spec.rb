@@ -30,7 +30,7 @@ RSpec.describe "isla del builder", type: :system, js: true do
   let!(:owner) do
     Flow::Tenant.bypass! do
       user = User.create!(email: "owner@test.dev", name: "Olga Owner", password: "Test1234")
-      Membership.create!(company: company, user: user, role: "owner")
+      Membership.create!(company: company, user: user, role: "admin")
       user
     end
   end

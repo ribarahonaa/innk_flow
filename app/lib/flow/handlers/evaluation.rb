@@ -217,7 +217,7 @@ module Flow
       def assign_evaluators!
         return if step.step_assignments.reload.any?
 
-        Membership.where(role: %w[evaluator admin owner]).find_each do |membership|
+        Membership.where(role: %w[evaluator admin]).find_each do |membership|
           StepAssignment.find_or_create_by!(challenge_step_id: step.id, user_id: membership.user_id) do |assignment|
             assignment.role = "evaluator"
           end

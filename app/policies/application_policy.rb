@@ -28,7 +28,6 @@ class ApplicationPolicy
   private
 
   def manager? = membership.present? && membership.manages_challenges?
-  def evaluator? = membership.present? && (membership.evaluator? || manager?)
 
   class Scope
     attr_reader :membership, :scope

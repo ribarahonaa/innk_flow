@@ -1,4 +1,4 @@
-\restrict h4k9XLAstPSi72dbIkjsyg0dIHml2NwJ71IMaiexEFaoIiFSY034v4lG9kFRUiv
+\restrict BJhqUbWvJAnA6dtLVYoOUrPLaPPhbkbD4ywzPNq1SSDQ80zw8KfFGym838hfBq5
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -472,7 +472,7 @@ CREATE TABLE public.memberships (
     role character varying DEFAULT 'participant'::character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT memberships_role_check CHECK (((role)::text = ANY (ARRAY[('owner'::character varying)::text, ('admin'::character varying)::text, ('evaluator'::character varying)::text, ('participant'::character varying)::text])))
+    CONSTRAINT memberships_role_check CHECK (((role)::text = ANY ((ARRAY['admin'::character varying, 'evaluator'::character varying, 'participant'::character varying])::text[])))
 );
 
 
@@ -2442,11 +2442,12 @@ ALTER TABLE ONLY public.step_entries
 -- PostgreSQL database dump complete
 --
 
-\unrestrict h4k9XLAstPSi72dbIkjsyg0dIHml2NwJ71IMaiexEFaoIiFSY034v4lG9kFRUiv
+\unrestrict BJhqUbWvJAnA6dtLVYoOUrPLaPPhbkbD4ywzPNq1SSDQ80zw8KfFGym838hfBq5
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260903190000'),
 ('20260903170000'),
 ('20260902180000'),
 ('20260901150000'),

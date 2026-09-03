@@ -17,7 +17,9 @@ FactoryBot.define do
     user
     role { "participant" }
 
-    trait(:owner)       { role { "owner" } }
+    # `:owner` quedó como alias histórico de `:admin`: el rol se eliminó
+    # porque daba los mismos permisos.
+    trait(:owner)       { role { "admin" } }
     trait(:admin)       { role { "admin" } }
     trait(:evaluator)   { role { "evaluator" } }
   end

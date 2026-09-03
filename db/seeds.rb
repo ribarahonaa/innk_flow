@@ -34,7 +34,7 @@ Flow::Tenant.bypass! do
   end
 
   people = {
-    "admin@demo.test" => ["Ana Admin", "owner"],
+    "admin@demo.test" => ["Ana Admin", "admin"],
     "gestor@demo.test" => ["Gabriel Gestor", "admin"],
     "eval1@demo.test" => ["Elena Evaluadora", "evaluator"],
     "eval2@demo.test" => ["Emilio Evaluador", "evaluator"],
@@ -50,7 +50,7 @@ Flow::Tenant.bypass! do
   # Empresa espejo, con su propia gente. Ningún usuario cruza entre las dos:
   # así un 200 donde debería haber 404 salta a la vista.
   otra_admin = upsert_user!(email: "admin@otra.test", name: "Olga Otra")
-  Membership.find_or_create_by!(company: otra, user: otra_admin) { |m| m.role = "owner" }
+  Membership.find_or_create_by!(company: otra, user: otra_admin) { |m| m.role = "admin" }
 
   # Una persona con acceso a las dos empresas: ejercita el selector post-login.
   multi = upsert_user!(email: "multi@demo.test", name: "Marta Multiempresa")

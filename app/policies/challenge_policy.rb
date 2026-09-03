@@ -6,7 +6,7 @@ class ChallengePolicy < ApplicationPolicy
   # alcanza para heredar el scope.
   class Scope < ApplicationPolicy::Scope; end
 
-  # Cualquiera de la empresa ve los desafíos; solo owner/admin los arman.
+  # Cualquiera de la empresa ve los desafíos; solo quien administra los arma.
   def builder? = manager?
   def start?   = manager? && record.draft?
   def close?   = manager? && record.running?
