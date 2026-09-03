@@ -12,6 +12,11 @@ class Challenge < ApplicationRecord
 
   has_many :steps, -> { order(:position) },
            class_name: "ChallengeStep", dependent: :destroy, inverse_of: :challenge
+  # `class_name` explícito además de la inflexión: un proceso que arranque
+  # antes del initializer busca `ChallengeGestore` y revienta con 500. Es la
+  # misma lección que dejó `Criterion` con su `table_name`.
+  has_many :challenge_gestores, class_name: "ChallengeGestor", dependent: :destroy
+  has_many :gestores, through: :challenge_gestores, source: :user
   has_many :ideas, dependent: :destroy
 
   validates :name, presence: true

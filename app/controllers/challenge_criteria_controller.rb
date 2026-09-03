@@ -16,5 +16,5 @@ class ChallengeCriteriaController < ApplicationController
 
   private
 
-  def set_challenge = @challenge = Challenge.find_by!(slug: params[:challenge_id])
+  def set_challenge = @challenge = policy_scope(Challenge).find_by!(slug: params[:challenge_id])
 end

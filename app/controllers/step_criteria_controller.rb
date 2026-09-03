@@ -43,7 +43,7 @@ class StepCriteriaController < ApplicationController
   private
 
   def set_step
-    @challenge = Challenge.find_by!(slug: params[:challenge_id])
+    @challenge = policy_scope(Challenge).find_by!(slug: params[:challenge_id])
     @step = @challenge.steps.find(params[:step_id])
     raise ActiveRecord::RecordNotFound unless @step.evaluation? || @step.selection?
   end

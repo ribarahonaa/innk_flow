@@ -34,7 +34,7 @@ class IdeaContributorsController < ApplicationController
   private
 
   def set_idea
-    @challenge = Challenge.find_by!(slug: params[:challenge_id])
+    @challenge = policy_scope(Challenge).find_by!(slug: params[:challenge_id])
     @idea = @challenge.ideas.find(params[:idea_id])
   end
 end

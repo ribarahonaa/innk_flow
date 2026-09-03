@@ -123,6 +123,26 @@ Un `criteria_set` con `scope: "library"` se comparte entre desafíos; uno
 `inline` es de un módulo. Editar un set de biblioteca desde un módulo tocaría
 todos los desafíos que lo usan — por eso se copia (`StepCriteriaController`).
 
+### Los cuatro roles
+
+`admin` administra · `gestor` acompaña la evolución · `evaluator` evalúa lo que
+se le asigna · `participant` postula y comenta. `owner` **no existe**: daba los
+mismos permisos que `admin`.
+
+Dos reglas que no viven en el rol:
+
+- **Evaluar depende de la asignación**, no del rol (`step_assignments`). Y
+  **nadie evalúa una idea de la que participa**, ni siquiera quien administra.
+  Por eso el mínimo de evaluaciones baja por idea cuando su autor está entre
+  quienes evalúan: esperar el mínimo entero trabaría el módulo esperando una
+  evaluación imposible.
+- **El gestor es interempresa**: una membresía con rol `gestor` por cada
+  empresa, igual que cualquiera que esté en más de una. Lo nuevo es que tener
+  membresía dejó de significar ver todo: un gestor solo ve los desafíos de
+  `challenge_gestores`. Por eso **los controllers buscan el desafío con
+  `policy_scope(Challenge).find_by!`** y no con `Challenge.find_by!` — así lo
+  no asignado da 404 y no 403, que sería un oráculo de existencia.
+
 ### Multi-tenancy: cuatro capas
 
 1. `Flow::Tenant.with(company)` para entrar. `bypass!` es la única válvula de

@@ -4,7 +4,7 @@ class ChallengeStepPolicy < ApplicationPolicy
   class Scope < ApplicationPolicy::Scope; end
 
   # Ver la pantalla de un módulo: cualquiera de la empresa.
-  def show? = membership.present?
+  def show? = reaches_challenge?(record&.challenge)
 
   # Avanzar el flujo o saltear un módulo: solo quien lo administra.
   def advance? = manager?

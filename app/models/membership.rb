@@ -7,7 +7,10 @@ class Membership < ApplicationRecord
 
   # `owner` se eliminó: daba exactamente los mismos permisos que `admin` y no
   # había una sola policy que los distinguiera.
-  ROLES = %w[admin evaluator participant].freeze
+  # `gestor` acompaña la evolución de las ideas y trabaja para varias
+  # empresas: una membresía por cada una. A diferencia del resto, no ve todos
+  # los desafíos de la empresa — solo los que le asignan.
+  ROLES = %w[admin gestor evaluator participant].freeze
 
   belongs_to :user
 

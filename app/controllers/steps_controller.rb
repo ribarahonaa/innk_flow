@@ -49,7 +49,7 @@ class StepsController < ApplicationController
   private
 
   def set_step
-    @challenge = Challenge.find_by!(slug: params[:challenge_id])
+    @challenge = policy_scope(Challenge).find_by!(slug: params[:challenge_id])
     @step = @challenge.steps.find(params[:id])
   end
 

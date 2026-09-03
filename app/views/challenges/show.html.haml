@@ -21,6 +21,9 @@
 
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 
+- if policy(@challenge).update_pipeline?
+  = render "challenges/gestores", challenge: @challenge, candidatos: @gestor_candidates
+
 - if @challenge.brief.present?
   .card
     %h2.section-title Brief

@@ -36,7 +36,7 @@ module Api
       private
 
       def set_challenge
-        @challenge = Challenge.find_by!(slug: params[:challenge_slug])
+        @challenge = policy_scope(Challenge).find_by!(slug: params[:challenge_slug])
       end
 
       def presenter

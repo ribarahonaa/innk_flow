@@ -21,6 +21,6 @@ class PreviewsController < ApplicationController
   private
 
   def set_challenge
-    @challenge = Challenge.find_by!(slug: params[:challenge_id])
+    @challenge = policy_scope(Challenge).find_by!(slug: params[:challenge_id])
   end
 end

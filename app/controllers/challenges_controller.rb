@@ -40,12 +40,14 @@ class ChallengesController < ApplicationController
     @pipeline = @challenge.pipeline
     @report = @pipeline.validate
     @pending_suggestions = AiSuggestion.pending_review.where(challenge_id: @challenge.id).recent
+    @gestor_candidates = gestor_candidates
   end
 
   def builder
     authorize @challenge, :builder?
     @props = PipelinePresenter.new(@challenge, membership: current_membership).as_json
     @pending_suggestions = AiSuggestion.pending_review.where(challenge_id: @challenge.id).recent
+    @gestor_candidates = gestor_candidates
   end
 
   def start
@@ -67,6 +69,16 @@ class ChallengesController < ApplicationController
 
   private
 
+  # Gente con rol gestor en la empresa que todavía no acompaña este desafío.
+  def gestor_candidates
+    return User.none unless policy(@challenge).update_pipeline?
+
+    User.joins(:memberships)
+        .where(memberships: { company_id: Current.company.id, role: "gestor" })
+        .where.not(id: @challenge.challenge_gestores.select(:user_id))
+        .order(:name).distinct
+  end
+
   # El flujo inicial: una plantilla, la propuesta de la IA, o nada.
   def start_from(template)
     return "Desafío creado. Armá su flujo." if template.blank? || template == "blank"
@@ -85,7 +97,7 @@ class ChallengesController < ApplicationController
   def set_challenge
     # Scopeado por TenantScoped: un slug de otra empresa levanta
     # RecordNotFound, que TenantResolution traduce a 404 (nunca 403).
-    @challenge = Challenge.find_by!(slug: params[:id])
+    @challenge = policy_scope(Challenge).find_by!(slug: params[:id])
   end
 
   def challenge_params

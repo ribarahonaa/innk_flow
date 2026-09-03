@@ -24,7 +24,7 @@ module Api
       private
 
       def set_context
-        @challenge = Challenge.find_by!(slug: params[:challenge_slug])
+        @challenge = policy_scope(Challenge).find_by!(slug: params[:challenge_slug])
         @step = @challenge.pipeline.ideation_step
         raise ActiveRecord::RecordNotFound if @step.nil?
       end

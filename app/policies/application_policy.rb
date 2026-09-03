@@ -29,6 +29,20 @@ class ApplicationPolicy
 
   def manager? = membership.present? && membership.manages_challenges?
 
+  # Un gestor solo entra a los desafíos que le asignaron.
+  #
+  # Es la regla que rompe la equivalencia «tener membresía = ver todo lo de la
+  # empresa». Vale para el desafío y para todo lo que cuelga de él: si se
+  # chequeara solo en la pantalla del desafío, la URL de una idea seguiría
+  # abierta.
+  def reaches_challenge?(challenge)
+    return false if membership.nil?
+    return true unless membership.gestor?
+    return false if challenge.nil?
+
+    ChallengeGestor.exists?(challenge_id: challenge.id, user_id: membership.user_id)
+  end
+
   class Scope
     attr_reader :membership, :scope
 
@@ -39,5 +53,7 @@ class ApplicationPolicy
 
     # El scope de tenancy ya lo aplica TenantScoped; acá solo van reglas de rol.
     def resolve = scope.all
+
+    def gestor? = membership.present? && membership.gestor?
   end
 end

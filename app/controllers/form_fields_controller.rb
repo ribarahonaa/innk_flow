@@ -42,7 +42,7 @@ class FormFieldsController < ApplicationController
   private
 
   def set_context
-    @challenge = Challenge.find_by!(slug: params[:challenge_id])
+    @challenge = policy_scope(Challenge).find_by!(slug: params[:challenge_id])
     @step = @challenge.pipeline.ideation_step
     raise ActiveRecord::RecordNotFound if @step.nil?
   end

@@ -35,11 +35,12 @@ Flow::Tenant.bypass! do
 
   people = {
     "admin@demo.test" => ["Ana Admin", "admin"],
-    "gestor@demo.test" => ["Gabriel Gestor", "admin"],
+    "gestor@demo.test" => ["Gabriel Gómez", "admin"],
     "eval1@demo.test" => ["Elena Evaluadora", "evaluator"],
     "eval2@demo.test" => ["Emilio Evaluador", "evaluator"],
     "part1@demo.test" => ["Paula Participante", "participant"],
-    "part2@demo.test" => ["Pedro Participante", "participant"]
+    "part2@demo.test" => ["Pedro Participante", "participant"],
+    "guia@demo.test" => ["Gina Guía", "gestor"]
   }
 
   people.each do |email, (name, role)|
@@ -51,6 +52,12 @@ Flow::Tenant.bypass! do
   # así un 200 donde debería haber 404 salta a la vista.
   otra_admin = upsert_user!(email: "admin@otra.test", name: "Olga Otra")
   Membership.find_or_create_by!(company: otra, user: otra_admin) { |m| m.role = "admin" }
+
+  # Gina acompaña a las DOS empresas: es el caso que justifica el rol. Una
+  # membresía en cada una, y el aislamiento lo garantiza Current.company —
+  # nunca ve las dos a la vez, y las FKs compuestas hacen imposible mezclar.
+  gina = User.find_by!(email: "guia@demo.test")
+  Membership.find_or_create_by!(company: otra, user: gina) { |m| m.role = "gestor" }
 
   # Una persona con acceso a las dos empresas: ejercita el selector post-login.
   multi = upsert_user!(email: "multi@demo.test", name: "Marta Multiempresa")
@@ -181,6 +188,11 @@ Flow::Tenant.bypass! do
       io: StringIO.new("Costeo del piloto\nCeldas de carga (12 racks): 4.200.000 CLP\nInstalación: 900.000 CLP\n"),
       filename: "costeo-sensores.txt", content_type: "text/plain"
     )
+
+    # Gina acompaña ESTE desafío. No ve el otro de la misma empresa: tener
+    # membresía dejó de ser sinónimo de ver todo lo suyo.
+    ChallengeGestor.find_or_create_by!(challenge: challenge,
+                                       user: User.find_by!(email: "guia@demo.test"))
 
     pipeline.advance!  # → Ronda de feedback
     evolution = pipeline.active_step

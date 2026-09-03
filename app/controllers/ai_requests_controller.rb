@@ -5,7 +5,7 @@
 # Flow::AI::RunJob y la pantalla hace polling.
 class AiRequestsController < ApplicationController
   def create
-    @challenge = Challenge.find_by!(slug: params[:challenge_id])
+    @challenge = policy_scope(Challenge).find_by!(slug: params[:challenge_id])
     authorize @challenge, :update_pipeline?
 
     context = build_context

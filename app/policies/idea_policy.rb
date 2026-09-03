@@ -4,11 +4,12 @@ class IdeaPolicy < ApplicationPolicy
   class Scope < ApplicationPolicy::Scope; end
 
   # Cualquiera de la empresa ve las ideas del desafío.
-  def show? = membership.present?
+  def show? = reaches_challenge?(record&.challenge)
 
   # Postular: cualquiera con membresía, mientras el módulo de ideación esté
-  # abierto.
-  def create? = membership.present?
+  # abierto. El gestor no: acompaña la evolución de las ideas de otros, y
+  # proponer las propias lo pondría a guiar su competencia.
+  def create? = membership.present? && !membership.gestor?
 
   # Editar = publicar una versión nueva.
   #

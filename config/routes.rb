@@ -59,6 +59,9 @@ Rails.application.routes.draw do
     # Lo que van a ver las personas, antes de arrancar.
     resource :preview, only: %i[show], controller: "previews"
 
+    # Quiénes acompañan la evolución de las ideas de ESTE desafío.
+    resources :gestores, only: %i[create destroy], controller: "challenge_gestores"
+
     # Índice de los módulos que puntúan o filtran, con el estado de cada uno.
     resource :criteria, only: %i[show], controller: "challenge_criteria"
 

@@ -1,4 +1,4 @@
-\restrict BJhqUbWvJAnA6dtLVYoOUrPLaPPhbkbD4ywzPNq1SSDQ80zw8KfFGym838hfBq5
+\restrict 0Bi2bzwCUdbP4aQjzW0GS47ovnbh0HBL4DSvYFR2f0mVnwZohIEcm8SkbhtHWaL
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -212,6 +212,21 @@ CREATE TABLE public.assessments (
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT assessments_actor_type_check CHECK (((actor_type)::text = ANY (ARRAY[('human'::character varying)::text, ('ai'::character varying)::text]))),
     CONSTRAINT assessments_status_check CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('submitted'::character varying)::text])))
+);
+
+
+--
+-- Name: challenge_gestores; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.challenge_gestores (
+    id uuid DEFAULT public.uuid_generate_v7() NOT NULL,
+    company_id uuid NOT NULL,
+    challenge_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    assigned_at timestamp(6) without time zone DEFAULT now() NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
 );
 
 
@@ -472,7 +487,7 @@ CREATE TABLE public.memberships (
     role character varying DEFAULT 'participant'::character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT memberships_role_check CHECK (((role)::text = ANY ((ARRAY['admin'::character varying, 'evaluator'::character varying, 'participant'::character varying])::text[])))
+    CONSTRAINT memberships_role_check CHECK (((role)::text = ANY ((ARRAY['admin'::character varying, 'gestor'::character varying, 'evaluator'::character varying, 'participant'::character varying])::text[])))
 );
 
 
@@ -740,6 +755,22 @@ ALTER TABLE ONLY public.assessments
 
 ALTER TABLE ONLY public.assessments
     ADD CONSTRAINT assessments_tenant_uniq UNIQUE (id, company_id);
+
+
+--
+-- Name: challenge_gestores challenge_gestores_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.challenge_gestores
+    ADD CONSTRAINT challenge_gestores_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: challenge_gestores challenge_gestores_tenant_uniq; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.challenge_gestores
+    ADD CONSTRAINT challenge_gestores_tenant_uniq UNIQUE (id, company_id);
 
 
 --
@@ -1235,6 +1266,34 @@ CREATE UNIQUE INDEX index_assessments_unique_ai ON public.assessments USING btre
 --
 
 CREATE UNIQUE INDEX index_assessments_unique_human ON public.assessments USING btree (challenge_step_id, idea_id, evaluator_id) WHERE ((superseded_at IS NULL) AND (evaluator_id IS NOT NULL));
+
+
+--
+-- Name: index_challenge_gestores_on_challenge_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_challenge_gestores_on_challenge_id ON public.challenge_gestores USING btree (challenge_id);
+
+
+--
+-- Name: index_challenge_gestores_on_challenge_id_and_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_challenge_gestores_on_challenge_id_and_user_id ON public.challenge_gestores USING btree (challenge_id, user_id);
+
+
+--
+-- Name: index_challenge_gestores_on_company_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_challenge_gestores_on_company_id ON public.challenge_gestores USING btree (company_id);
+
+
+--
+-- Name: index_challenge_gestores_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_challenge_gestores_on_user_id ON public.challenge_gestores USING btree (user_id);
 
 
 --
@@ -1839,6 +1898,14 @@ ALTER TABLE ONLY public.assessments
 
 
 --
+-- Name: challenge_gestores challenge_gestores_challenge_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.challenge_gestores
+    ADD CONSTRAINT challenge_gestores_challenge_id_same_company FOREIGN KEY (challenge_id, company_id) REFERENCES public.challenges(id, company_id) ON DELETE CASCADE;
+
+
+--
 -- Name: challenge_steps challenge_steps_challenge_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2015,6 +2082,14 @@ ALTER TABLE ONLY public.criteria
 
 
 --
+-- Name: challenge_gestores fk_rails_7153b732e3; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.challenge_gestores
+    ADD CONSTRAINT fk_rails_7153b732e3 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: sessions fk_rails_758836b4f0; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2044,6 +2119,14 @@ ALTER TABLE ONLY public.ai_runs
 
 ALTER TABLE ONLY public.idea_attachments
     ADD CONSTRAINT fk_rails_8de34be649 FOREIGN KEY (company_id) REFERENCES public.companies(id);
+
+
+--
+-- Name: challenge_gestores fk_rails_96326bc47c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.challenge_gestores
+    ADD CONSTRAINT fk_rails_96326bc47c FOREIGN KEY (company_id) REFERENCES public.companies(id);
 
 
 --
@@ -2442,11 +2525,12 @@ ALTER TABLE ONLY public.step_entries
 -- PostgreSQL database dump complete
 --
 
-\unrestrict BJhqUbWvJAnA6dtLVYoOUrPLaPPhbkbD4ywzPNq1SSDQ80zw8KfFGym838hfBq5
+\unrestrict 0Bi2bzwCUdbP4aQjzW0GS47ovnbh0HBL4DSvYFR2f0mVnwZohIEcm8SkbhtHWaL
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260903200000'),
 ('20260903190000'),
 ('20260903170000'),
 ('20260902180000'),

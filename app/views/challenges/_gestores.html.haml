@@ -1,0 +1,35 @@
+-# Quiénes acompañan la evolución de las ideas de este desafío.
+-#
+-# Un gestor tiene membresía en la empresa pero NO ve sus desafíos: se lo asigna
+-# acá, uno por uno. Es lo que permite que la misma persona acompañe a varias
+-# empresas sin que se le mezcle nada.
+.card
+  .section-head
+    %div
+      %h2.section-title Quiénes acompañan
+      %p.muted Ven este desafío y sus ideas, y dan feedback durante la evolución. No evalúan ni configuran.
+  - asignados = challenge.challenge_gestores.includes(:user)
+
+  - if asignados.any?
+    %ul.people-list
+      - asignados.each do |asignacion|
+        %li.people-list__item
+          %span.people-list__name= asignacion.user.name
+          %span.people-list__role gestor
+          = button_to "×", challenge_gestor_path(challenge, asignacion), method: :delete,
+                      class: "people-list__remove",
+                      form: { data: { turbo_confirm: "¿Sacar a #{asignacion.user.name} de este desafío?" } }
+  - else
+    %p.field-hint Nadie asignado: las ideas de este desafío no las acompaña ningún gestor.
+
+  - if candidatos.any?
+    = form_with url: challenge_gestores_path(challenge), method: :post, class: "people-form" do
+      = select_tag :user_id, options_from_collection_for_select(candidatos, :id, :name),
+                   include_blank: "Elegí a quién sumar"
+      = submit_tag "Sumar", class: "btn btn--ghost btn--sm"
+  - else
+    %p.field-hint
+      - if asignados.any?
+        Ya está todo el equipo de gestores en este desafío.
+      - else
+        La empresa todavía no tiene a nadie con rol gestor.
