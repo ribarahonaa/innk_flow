@@ -278,6 +278,8 @@ async function shot(page, name, url, prepare) {
 
   await shot(page, '09-13-avisos', '/notifications');
 
+  await shot(page, '12-miembros', '/members');
+
   await shot(page, '10-criteria', '/criteria_sets');
 
   // El editor de criterios: la config que antes se escribía como JSON a mano.

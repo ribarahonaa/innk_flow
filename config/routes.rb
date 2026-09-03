@@ -71,6 +71,9 @@ Rails.application.routes.draw do
     end
   end
 
+  # Quiénes están en la empresa y con qué rol.
+  resources :members, only: %i[index create update destroy], controller: "memberships"
+
   # Mantenedor de criterios de la empresa.
   # Se escribe SOLO por la API que usa el editor: un set con nested attributes
   # por un lado y una isla por el otro serían dos caminos y una laguna.

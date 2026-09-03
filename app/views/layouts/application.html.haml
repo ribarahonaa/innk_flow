@@ -17,6 +17,7 @@
           - if current_membership&.manages_challenges?
             = link_to "Criterios", criteria_sets_path, class: "app-nav__link#{' is-active' if controller_name == 'criteria_sets'}"
             = link_to "IA", ai_runs_path, class: "app-nav__link#{' is-active' if controller_name.start_with?('ai_')}"
+            = link_to "Miembros", members_path, class: "app-nav__link#{' is-active' if controller_name == 'memberships'}"
       .app-header__spacer
       = yield :header_right
       - if signed_in?
