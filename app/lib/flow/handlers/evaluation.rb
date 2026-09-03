@@ -33,17 +33,49 @@ module Flow
       end
 
       def progress
-        entries = step.step_entries
-        done = entries.count { |entry| assessments_for(entry.idea_id).size >= min_assessments }
+        entries = step.step_entries.includes(:idea)
+        done = entries.count { |entry| complete?(entry) }
         Progress.new(done: done, total: entries.size, label: "ideas evaluadas")
       end
 
       def can_complete?
-        pending = step.step_entries.reject { |e| assessments_for(e.idea_id).size >= min_assessments }
+        pending = step.step_entries.includes(:idea).reject { |e| complete?(e) }
         return [true, []] if pending.empty?
 
         [false, ["Faltan evaluaciones: #{pending.size} #{'idea'.pluralize(pending.size)} " \
-                 "sin llegar a #{min_assessments} #{'evaluación'.pluralize(min_assessments)}."]]
+                 "sin llegar a su mínimo de evaluaciones."]]
+      end
+
+      def complete?(entry) = assessments_for(entry.idea_id).size >= min_assessments_for(entry.idea)
+
+      # El mínimo de una idea nunca puede pedir más evaluaciones de las que
+      # existen: quien participa de la idea no la evalúa, así que si el módulo
+      # pide 3 y hay 3 evaluadores y uno es el autor, esperar 3 dejaría el
+      # módulo trabado para siempre.
+      def min_assessments_for(idea)
+        asignados = step.step_assignments.includes(:user).map(&:user)
+        bloqueados = asignados.count { |u| idea.participates?(u) }
+
+        # Solo baja para las ideas cuyos autores están entre quienes evalúan.
+        # Sin nadie bloqueado no hay nada que descontar, y el módulo todavía
+        # sin asignar tampoco justifica aflojar el mínimo.
+        return min_assessments if bloqueados.zero?
+
+        disponibles = asignados.size - bloqueados
+        # La IA también evalúa, y no participa de ninguna idea.
+        disponibles += 1 unless effective_ai_mode == "human"
+
+        disponibles.clamp(1, min_assessments)
+      end
+
+      # Evaluación A CIEGAS: ver los puntajes de los demás antes de poner el
+      # propio ancla el juicio, y con tres notas parecidas a la vista es difícil
+      # no acomodarse. Se revelan al enviar la propia. Quien administra las ve
+      # siempre: necesita saber cómo viene el módulo.
+      def revealed_for?(idea_id, user:, manager: false)
+        return true if manager || !step.active?
+
+        assessments_for(idea_id).any? { |a| a.evaluator_id == user&.id }
       end
 
       def criteria_snapshot = settings["criteria"] || []

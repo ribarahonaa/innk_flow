@@ -44,6 +44,14 @@ class Idea < ApplicationRecord
   # menos N personas".
   def people_count = 1 + idea_contributors.size
 
+  # Quien creó la idea o colabora en ella. Se usa para no dejar que alguien
+  # evalúe algo propio: la nota valdría lo mismo que una autoevaluación.
+  def participates?(user)
+    return false if user.nil?
+
+    author_id == user.id || idea_contributors.any? { |c| c.user_id == user.id }
+  end
+
   # ¿Hay una versión posterior a la que juzgó este artefacto? Es cálculo de
   # display: una evaluación anclada a v2 no se invalida porque exista v3, pero
   # la UI tiene que decirlo.

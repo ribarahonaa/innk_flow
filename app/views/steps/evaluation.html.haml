@@ -56,7 +56,8 @@
 
 = render "steps/ai_mode", step: @step
 
-- pendientes = @step.step_entries.select { |e| @handler.assessments_for(e.idea_id).size < @handler.min_assessments }
+- manda = policy(@challenge).update_pipeline?
+- pendientes = @step.step_entries.reject { |e| @handler.complete?(e) }
 - if @step.active? && @step.effective_ai_mode != "human" && pendientes.any? && policy(@challenge).update_pipeline?
   .card
     %h2.section-title Pedirle una evaluación a la IA
@@ -70,6 +71,9 @@
 
 .card
   %h2.section-title Ideas a evaluar
+  - unless manda
+    %p.muted.field-hint
+      Los puntajes de cada idea se muestran cuando envíes tu evaluación: verlos antes ancla el juicio.
   - if @step.step_entries.empty?
     %p.muted Todavía no hay ideas en este módulo.
   - else
@@ -82,15 +86,19 @@
           %th Dispersión
           %th
       %tbody
-        - @step.step_entries.includes(idea: %i[current_version author]).each do |entry|
+        - @step.step_entries.includes(idea: %i[current_version author idea_contributors]).each do |entry|
           - result = entry.result
+          - propia = entry.idea.participates?(current_user)
+          -# A ciegas: ver los puntajes de los demás antes de poner el propio
+          -# ancla el juicio. Se revelan al enviar la propia evaluación.
+          - visible = @handler.revealed_for?(entry.idea_id, user: current_user, manager: manda)
           %tr
             %td
               = link_to entry.idea.title, challenge_idea_path(@challenge, entry.idea), class: "step-table__link"
               %span.muted= " · #{entry.idea.author.name}"
             %td.muted
-              = "#{result['assessments_count'] || 0} / #{@handler.min_assessments}"
-              - evaluadores = @handler.assessments_for(entry.idea_id)
+              = "#{result['assessments_count'] || 0} / #{@handler.min_assessments_for(entry.idea)}"
+              - evaluadores = visible ? @handler.assessments_for(entry.idea_id) : []
               - if evaluadores.any?
                 %span.evaluators
                   - evaluadores.each do |assessment|
@@ -98,25 +106,34 @@
                                           title: "#{assessment.evaluator_name}: #{assessment.overall_comment}" }
                       = assessment.by_ai? ? "IA" : assessment.evaluator_name.split.map(&:first).join
             %td
-              - if result["score"]
+              - if !visible
+                %span.muted{ title: "Se muestra cuando envíes la tuya" } oculto
+              - elsif result["score"]
                 %strong= "#{(result['score'].to_f * 100).round}%"
               - else
                 %span.muted —
-            %td.muted= result["dispersion"] ? result["dispersion"].to_f.round(3) : "—"
+            %td.muted= visible && result["dispersion"] ? result["dispersion"].to_f.round(3) : "—"
             %td.nowrap
-              - if @step.active?
+              - if @step.active? && propia
+                %span.field-hint Es tu idea
+              - elsif @step.active?
                 = link_to "Evaluar", new_challenge_step_assessment_path(@challenge, @step, idea_id: entry.idea_id), class: "btn btn--ghost btn--sm"
-                - if @step.effective_ai_mode != "human" && policy(@challenge).update_pipeline?
+                - if @step.effective_ai_mode != "human" && manda
                   = button_to "IA", challenge_ai_requests_path(@challenge, purpose: "evaluate_idea", step_id: @step.id, idea_id: entry.idea_id),
                               class: "btn btn--ghost btn--sm", title: "Que la IA evalúe esta idea"
 
 - hechas = @step.assessments.current.submitted_ones.includes(:idea, :evaluator, :assessment_scores).to_a
+-# Idem: solo se ven las de las ideas que ya evaluaste.
+- hechas = hechas.select { |a| @handler.revealed_for?(a.idea_id, user: current_user, manager: manda) }
 - if hechas.any?
   .card
     %h2.section-title
       Evaluaciones hechas
       %span.muted= " (#{hechas.size})"
-    %p.muted.field-hint Las de la IA cuentan igual que las de una persona: mismo peso en el promedio.
+    %p.muted.field-hint
+      Las de la IA cuentan igual que las de una persona: mismo peso en el promedio.
+      - unless manda
+        Solo ves las de las ideas que ya evaluaste.
     - hechas.group_by(&:idea).each do |idea, lista|
       .assessment-group
         %h3.assessment-group__title

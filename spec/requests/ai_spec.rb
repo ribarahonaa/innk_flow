@@ -233,10 +233,19 @@ RSpec.describe "la IA evaluando", type: :request do
   end
   let(:step) { as_company(company) { challenge.steps.find_by(kind: "evaluation") } }
 
+  # El autor NO es quien evalúa: nadie puntúa una idea de la que participa.
+  let!(:autora) do
+    without_tenant do
+      u = create(:user, email: "autora@test.dev")
+      create(:membership, company: company, user: u)
+      u
+    end
+  end
+
   let!(:idea) do
     as_company(company) do
-      i = create(:idea, challenge: challenge, author: owner, status: "active")
-      Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "Sensores" }, author: owner).call
+      i = create(:idea, challenge: challenge, author: autora, status: "active")
+      Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "Sensores" }, author: autora).call
       i.update!(submitted_at: Time.current)
       Flow::Handlers::Base.for(challenge.steps.find_by(kind: "evaluation")).activate!
       i

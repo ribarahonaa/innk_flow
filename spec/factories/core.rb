@@ -22,6 +22,7 @@ FactoryBot.define do
     trait(:owner)       { role { "admin" } }
     trait(:admin)       { role { "admin" } }
     trait(:evaluator)   { role { "evaluator" } }
+    trait(:participant) { role { "participant" } }
   end
 end
 
