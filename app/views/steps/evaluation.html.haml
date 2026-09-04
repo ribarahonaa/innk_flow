@@ -67,7 +67,7 @@
     .section-head
       %h2.section-title
         Quién evalúa
-        %span.muted= " · #{asignaciones.size} #{'persona'.pluralize(asignaciones.size)}"
+        %span.muted= " · #{Flow::Texto.contar(asignaciones.size, "persona")}"
       - if hay_pesos
         %span.status-chip.status-chip--active con pesos
     %p.muted.field-hint
@@ -91,7 +91,7 @@
             %span
               = asignacion.user.name
               - if notas.positive?
-                %span.muted= " · #{notas} #{'evaluación'.pluralize(notas)}"
+                %span.muted= " · #{Flow::Texto.contar(notas, "evaluación")}"
               - else
                 %span.muted · sin evaluar
             - unless cerrado

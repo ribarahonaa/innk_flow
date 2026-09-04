@@ -11,7 +11,7 @@ class SelectionsController < ApplicationController
     @step.handler.decide!(advancing, decided_by: current_user, reason: params[:reason])
 
     redirect_to challenge_step_path(@challenge, @step),
-                notice: "Corte confirmado: avanzan #{advancing.size} #{'idea'.pluralize(advancing.size)}."
+                notice: "Corte confirmado: avanzan #{Flow::Texto.contar(advancing.size, "idea")}."
   end
 
   # Un filtro de sí/no resuelto por una persona.

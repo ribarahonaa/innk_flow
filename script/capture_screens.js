@@ -26,10 +26,25 @@ function porTipo(page, label) {
   }).first();
 }
 
+// Rails pluraliza en inglés y la app habla español: «condición» salía
+// «condicións» a la vista de todos. Se revisa en CADA pantalla porque el bug
+// aparece donde alguien escriba un contador nuevo, no en un lugar fijo.
+const PLURAL_ROTO = /\b\w*(?:ións|óns|áns|éns)\b/i;
+
+async function revisarTexto(page, name) {
+  const texto = await page.locator('body').innerText().catch(() => '');
+  const roto = texto.match(PLURAL_ROTO);
+  if (roto) {
+    failures++;
+    console.error(`[TEXTO] plural en inglés sobre una palabra española en ${name}: «${roto[0]}»`);
+  }
+}
+
 async function shot(page, name, url, prepare) {
   await page.goto(BASE + url, { waitUntil: 'networkidle' });
   if (prepare) await prepare(page);
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
+  await revisarTexto(page, name);
   shots.push(name);
 }
 
@@ -256,9 +271,11 @@ async function shot(page, name, url, prepare) {
   const corte = stepLinks.find((l) => l.text.match(/Corte a top/i));
   if (corte) {
     await page.goto(BASE + corte.href, { waitUntil: 'networkidle' });
-    const pasan = await page.locator('.gate--pass, .gate--fail').count();
-    const porIA = await page.locator('.gate--by-ai').count();
-    const pendientes = await page.locator('.gate--pending').count();
+    // Acotado a la tabla: la leyenda de abajo usa los mismos símbolos y
+    // contarla daría un pendiente que no existe.
+    const pasan = await page.locator('.ranking-table .gate--pass, .ranking-table .gate--fail').count();
+    const porIA = await page.locator('.ranking-table .gate--by-ai').count();
+    const pendientes = await page.locator('.ranking-table .gate--pending').count();
 
     if (pasan === 0 || pendientes > 0) {
       failures++;

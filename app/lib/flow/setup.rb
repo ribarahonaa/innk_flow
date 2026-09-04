@@ -84,7 +84,7 @@ module Flow
       done = count.positive? && pipeline.steps.any?(&:ideation?)
 
       Step.new(key: :flow, label: "El flujo",
-               hint: done ? "#{count} #{'módulo'.pluralize(count)}" : "sin módulos",
+               hint: done ? "#{Flow::Texto.contar(count, "módulo")}" : "sin módulos",
                path: routes.builder_challenge_path(challenge),
                status: done ? :done : :pending, blocking: true)
     end
@@ -94,7 +94,7 @@ module Flow
       fields = ideation ? ideation.form_fields.size : 0
 
       Step.new(key: :form, label: "El formulario",
-               hint: fields.positive? ? "#{fields} #{'campo'.pluralize(fields)}" : "nadie puede postular",
+               hint: fields.positive? ? "#{Flow::Texto.contar(fields, "campo")}" : "nadie puede postular",
                path: ideation ? routes.challenge_form_path(challenge) : routes.builder_challenge_path(challenge),
                status: fields.positive? ? :done : :pending, blocking: ideation.present?)
     end
@@ -118,7 +118,7 @@ module Flow
       return "ningún módulo puntúa ni filtra" if scorers.empty?
       return "#{propios} de #{scorers.size} módulos definidos" if propios < scorers.size
 
-      "#{scorers.size} #{'módulo'.pluralize(scorers.size)} definidos"
+      "#{Flow::Texto.contar(scorers.size, "módulo")} definidos"
     end
 
     def review_step

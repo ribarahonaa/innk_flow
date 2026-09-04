@@ -42,7 +42,7 @@ module Flow
         pending = step.step_entries.includes(:idea).reject { |e| complete?(e) }
         return [true, []] if pending.empty?
 
-        [false, ["Faltan evaluaciones: #{pending.size} #{'idea'.pluralize(pending.size)} " \
+        [false, ["Faltan evaluaciones: #{Flow::Texto.contar(pending.size, "idea")} " \
                  "sin llegar a su mínimo de evaluaciones."]]
       end
 

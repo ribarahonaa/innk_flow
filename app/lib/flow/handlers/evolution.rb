@@ -24,7 +24,7 @@ module Flow
         pending = step.step_entries.reject { |entry| responded?(entry) }
         return [true, []] if pending.empty?
 
-        [false, ["#{pending.size} #{'idea'.pluralize(pending.size)} sin responder al feedback."]]
+        [false, ["#{Flow::Texto.contar(pending.size, "idea")} sin responder al feedback."]]
       end
 
       def feedback_for(idea_id)

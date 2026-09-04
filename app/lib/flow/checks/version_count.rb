@@ -12,7 +12,7 @@ module Flow
         fail("#{total} de #{minimum}")
       end
 
-      def description = "tiene al menos #{minimum} #{'versión'.pluralize(minimum)}"
+      def description = "tiene al menos #{Flow::Texto.contar(minimum, "versión")}"
 
       def config_errors
         return ["el mínimo debe ser al menos 1"] if minimum < 1

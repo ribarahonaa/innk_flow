@@ -22,7 +22,7 @@
           %span.status-chip{ class: "status-chip--#{set.status == 'valid' ? 'completed' : 'skipped'}" }
             = set.status == "valid" ? "válido" : "revisar"
         - usos = set.challenge_steps.count
-        %p.muted= "#{set.active_criteria.size} criterios · pesos suman #{(set.weight_total * 100).round}% · #{usos.zero? ? 'sin usar' : "lo usan #{usos} #{'módulo'.pluralize(usos)}"}"
+        %p.muted= "#{set.active_criteria.size} criterios · pesos suman #{(set.weight_total * 100).round}% · #{usos.zero? ? 'sin usar' : "lo usan #{Flow::Texto.contar(usos, "módulo")}"}"
         %ul.field-list
           - set.criteria.each do |criterion|
             %li.field-list__item

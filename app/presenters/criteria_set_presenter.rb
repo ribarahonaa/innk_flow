@@ -93,7 +93,7 @@ class CriteriaSetPresenter
   # editado no le llega solo a quien ya estaba usando la versión anterior.
   def version_notice
     usos = set.challenge_steps.count
-    "Lo usan #{usos} #{'módulo'.pluralize(usos)}. Al guardar se crea la v#{set.version + 1}: " \
+    "Lo usan #{Flow::Texto.contar(usos, "módulo")}. Al guardar se crea la v#{set.version + 1}: " \
       "los que ya usaban la v#{set.version} siguen con esa, y hay que asignarles la nueva " \
       "desde su módulo si querés que cambien."
   end

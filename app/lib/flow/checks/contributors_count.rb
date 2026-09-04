@@ -11,7 +11,7 @@ module Flow
         fail("#{total} de #{minimum}")
       end
 
-      def description = "participan al menos #{minimum} #{'persona'.pluralize(minimum)}"
+      def description = "participan al menos #{Flow::Texto.contar(minimum, "persona")}"
 
       def config_errors
         return ["el mínimo debe ser al menos 1"] if minimum < 1

@@ -11,7 +11,7 @@
     .section-head
       %h2.section-title
         Filtros
-        %span.muted= " · #{gates.size} #{'condición'.pluralize(gates.size)} para poder avanzar"
+        %span.muted= " · #{Flow::Texto.contar(gates.size, "condición")} para poder avanzar"
       - if @step.criteria_set && policy(@challenge).update_pipeline?
         = link_to "Editar el set", edit_criteria_set_path(@step.criteria_set), class: "btn btn--ghost btn--sm"
     %p.muted.field-hint Una idea avanza solo si los cumple todos. Después se aplica el corte por puntaje.
@@ -73,8 +73,10 @@
           %th #
           %th Idea
           %th Puntaje
+          -# Sin truncar: un encabezado cortado en «El problema est…» obliga a
+          -# pasar el mouse por encima para saber qué columna se está leyendo.
           - gates.each do |gate|
-            %th{ title: gate["name"] }= gate["name"].truncate(18)
+            %th.gate-col= gate["name"]
           - @handler.source_steps.each do |source|
             %th= source.name
       %tbody
@@ -91,6 +93,13 @@
             %td
               = link_to row.idea.title, challenge_idea_path(@challenge, row.idea), class: "step-table__link"
               %span.muted= " · #{row.idea.author.name}"
+              -# Una idea con mejor puntaje puede quedar debajo de otra peor
+              -# porque no pasó un filtro. Sin decirlo, el ranking parece roto.
+              - if row.failed_gates.any?
+                %span.out-chip{ title: row.failed_gates.map { |g| g[:name] }.join(", ") }
+                  = "no pasa #{Flow::Texto.contar(row.failed_gates.size, 'filtro')}"
+              - elsif row.pending_gates.any?
+                %span.out-chip.out-chip--pending= "#{Flow::Texto.contar(row.pending_gates.size, 'filtro')} sin responder"
             %td
               - if row.scored?
                 %strong= "#{(row.score * 100).round(1)}%"
@@ -128,6 +137,21 @@
               %td.muted
                 - value = row.sources[source.slug]
                 = value ? "#{(value * 100).round}%" : "—"
+
+    -# Sin esto hay que adivinar qué significa cada símbolo, y sobre todo qué
+    -# quiere decir el borde punteado.
+    - if gates.any?
+      %p.table-legend
+        %span.gate.gate--pass ✓
+        cumple
+        %span.gate.gate--fail ✗
+        no cumple
+        %span.gate.gate--pending —
+        sin responder
+        %span.gate.gate--pass.gate--by-ai
+          ✓
+          %span.gate__actor IA
+        lo respondió la IA
 
     - if @step.active? && policy(@step).advance?
       .field

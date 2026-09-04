@@ -36,7 +36,7 @@ module Flow
         count = submitted_ideas.count
         return [true, []] if count >= minimum
 
-        [false, ["Se necesitan al menos #{minimum} #{'idea'.pluralize(minimum)} postuladas (hay #{count})."]]
+        [false, ["Se necesitan al menos #{Flow::Texto.contar(minimum, "idea")} postuladas (hay #{count})."]]
       end
 
       def submitted_ideas = challenge.ideas.submitted

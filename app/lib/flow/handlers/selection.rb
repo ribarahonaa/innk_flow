@@ -77,12 +77,12 @@ module Flow
         # se sabe si pasa o no.
         pending_verdicts = ranking.sum { |row| row.pending_gates.size }
         if pending_verdicts.positive?
-          reasons << "Faltan #{pending_verdicts} #{'veredicto'.pluralize(pending_verdicts)} sobre los filtros."
+          reasons << "Faltan #{Flow::Texto.contar(pending_verdicts, "veredicto")} sobre los filtros."
         end
 
         if manual_cut?
           pending = step.step_entries.reject { |entry| decisions_by_idea.key?(entry.idea_id) }
-          reasons << "Falta decidir sobre #{pending.size} #{'idea'.pluralize(pending.size)}." if pending.any?
+          reasons << "Falta decidir sobre #{Flow::Texto.contar(pending.size, "idea")}." if pending.any?
         end
 
         [reasons.empty?, reasons]

@@ -37,7 +37,7 @@
         - else
           %p.scorer__origin
             = set.inline? ? "Criterios propios de este módulo" : "De la biblioteca: #{set.name}"
-            %span.muted= " · #{criterios.size} #{'criterio'.pluralize(criterios.size)}"
+            %span.muted= " · #{Flow::Texto.contar(criterios.size, "criterio")}"
           %ul.field-list
             - criterios.each do |criterion|
               %li.field-list__item

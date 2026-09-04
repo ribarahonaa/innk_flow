@@ -8,7 +8,11 @@
     = link_to "Previsualizar", challenge_preview_path(@challenge), class: "btn btn--ghost"
     = link_to "Ver desafío", challenge_path(@challenge), class: "btn btn--ghost"
 
-= render "shared/setup_progress", challenge: @challenge, current: :flow
+-# Solo en borrador: «Configurar el desafío · 5 de 6» sobre un desafío que
+-# lleva semanas corriendo no es una guía, es ruido — y marca como pendiente
+-# un paso que ya no se puede tocar.
+- if @challenge.draft? && policy(@challenge).builder?
+  = render "shared/setup_progress", challenge: @challenge, current: :flow
 
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 

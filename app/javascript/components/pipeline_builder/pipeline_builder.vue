@@ -1,5 +1,5 @@
 <template>
-  <div class="builder">
+  <div class="builder" :class="{ 'builder--dirty': dirty }">
     <!-- Paleta -->
     <aside class="builder__palette card">
       <h2 class="section-title">Módulos</h2>

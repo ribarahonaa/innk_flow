@@ -7,7 +7,9 @@
       %span.status-chip{ class: "status-chip--#{@challenge.status}" }= t("flow.challenge_statuses.#{@challenge.status}")
       %span= " · modo IA: #{t("flow.ai_modes.#{@challenge.ai_default_mode}")}"
   .page-head__actions
-    = link_to "Ideas", challenge_ideas_path(@challenge), class: "btn btn--ghost"
+    -# Con el desafío en curso, lo que se viene a hacer acá es mirar las ideas.
+    = link_to "Ideas", challenge_ideas_path(@challenge),
+              class: "btn #{@challenge.draft? ? 'btn--ghost' : 'btn--primary'}"
     - if policy(@challenge).builder?
       = link_to "Previsualizar", challenge_preview_path(@challenge), class: "btn btn--ghost"
       = link_to "Editar flujo", builder_challenge_path(@challenge), class: "btn btn--ghost"
@@ -21,16 +23,24 @@
 
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 
-- if policy(@challenge).update_pipeline?
-  = render "challenges/gestores", challenge: @challenge, candidatos: @gestor_candidates
-
 - if @challenge.brief.present?
   .card
     %h2.section-title Brief
     %p= simple_format(@challenge.brief)
 
+- hechos = @challenge.steps.count { |s| %w[completed skipped].include?(s.status) }
+- actual = @challenge.steps.find(&:active?)
 .card
-  %h2.section-title Flujo
+  .section-head
+    %h2.section-title Flujo
+    -# Dónde está el proceso, sin tener que leer la tabla fila por fila.
+    %span.muted
+      - if @challenge.draft?
+        = "#{Flow::Texto.contar(@challenge.steps.size, 'módulo')} · sin arrancar"
+      - elsif actual
+        = "#{hechos} de #{@challenge.steps.size} · ahora: #{actual.name}"
+      - else
+        = "#{hechos} de #{@challenge.steps.size} · flujo terminado"
   = render "challenges/flow_strip", challenge: @challenge
 
   - if @report.errors.any?
@@ -45,6 +55,9 @@
         - @report.warnings.each do |warning|
           %li= warning
 
+  -# La columna solo aparece si alguien la usa: siete guiones en fila no son
+  -# información, son ruido con encabezado.
+  - encadenados = @challenge.steps.any?(&:source_step)
   %table.step-table
     %thead
       %tr
@@ -52,16 +65,23 @@
         %th Módulo
         %th Estado
         %th Modo IA
-        %th Toma insumo de
+        - if encadenados
+          %th Toma insumo de
     %tbody
       - @challenge.steps.each_with_index do |step, index|
-        %tr{ class: ("is-touched" if step.touched?) }
+        %tr{ class: step.active? ? "is-active" : ("is-touched" if step.touched?) }
           %td.muted= index + 1
           %td
             = link_to challenge_step_path(@challenge, step), class: "step-table__link" do
               %strong= step.name
             %span.muted= " (#{t("flow.kinds.#{step.kind}")})"
+            - if step.active?
+              %span.here-chip acá está el flujo
           %td
             %span.status-chip{ class: "status-chip--#{step.status}" }= t("flow.statuses.#{step.status}")
           %td.muted= t("flow.ai_modes.#{step.effective_ai_mode}")
-          %td.muted= step.source_step&.name || "—"
+          - if encadenados
+            %td.muted= step.source_step&.name || "—"
+
+- if policy(@challenge).update_pipeline?
+  = render "challenges/gestores", challenge: @challenge, candidatos: @gestor_candidates
