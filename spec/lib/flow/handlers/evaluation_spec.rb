@@ -238,6 +238,82 @@ RSpec.describe Flow::Handlers::Evaluation do
       expect(assessment.normalized_score).to be_present
     end
   end
+
+  # `step_assignments.weight` existía desde el principio y no entraba en
+  # ninguna cuenta: el peso por evaluador era una columna decorativa.
+  describe "el peso de cada evaluador" do
+    def pesar!(user, weight)
+      StepAssignment.find_by!(challenge_step_id: step.id, user_id: user.id).update!(weight: weight)
+    end
+
+    def puntaje = step.step_entries.find_by(idea_id: idea.id).reload.result["score"]
+
+    # `evaluators` primero: activar asigna a quienes ya existen, y el let es
+    # perezoso — sin tocarlo, el módulo arranca sin nadie asignado.
+    before do
+      evaluators
+      activate!
+    end
+
+    it "sin pesos asignados, el promedio de siempre" do
+      evaluate!(evaluators[0], impacto: 10, esfuerzo: 1)
+      evaluate!(evaluators[1], impacto: 2, esfuerzo: 10)
+
+      # (1.0*0.6 + 1.0*0.4) y (0.111*0.6 + 0.0*0.4), promediados.
+      esperado = (1.0 + ((1.0 / 9) * 0.6)) / 2
+      expect(puntaje).to be_within(0.001).of(esperado)
+    end
+
+    it "con el doble de peso, esa nota cuenta el doble" do
+      evaluate!(evaluators[0], impacto: 10, esfuerzo: 1)
+      evaluate!(evaluators[1], impacto: 2, esfuerzo: 10)
+      pesar!(evaluators[0], 2)
+
+      alta = 1.0
+      baja = (1.0 / 9) * 0.6
+      esperado = ((alta * 2) + baja) / 3
+
+      described_class.new(step.reload).recompute_entry!(step.step_entries.find_by(idea_id: idea.id))
+      expect(puntaje).to be_within(0.001).of(esperado)
+    end
+
+    # Asignar gente sin tocar pesos no puede mover un puntaje ya calculado.
+    it "poner el mismo peso a todos no cambia nada" do
+      evaluate!(evaluators[0], impacto: 10, esfuerzo: 1)
+      evaluate!(evaluators[1], impacto: 2, esfuerzo: 10)
+      antes = puntaje
+
+      evaluators.each { |u| pesar!(u, 3) }
+      described_class.new(step.reload).recompute_entry!(step.step_entries.find_by(idea_id: idea.id))
+
+      expect(puntaje).to eq(antes)
+    end
+
+    # La dispersión acompaña al número que informa: calcularla sobre otra
+    # distribución que la del puntaje no describe nada.
+    it "la dispersión también se pondera" do
+      evaluate!(evaluators[0], impacto: 10, esfuerzo: 1)
+      evaluate!(evaluators[1], impacto: 2, esfuerzo: 10)
+      sin_pesos = step.step_entries.find_by(idea_id: idea.id).result["dispersion"]
+
+      pesar!(evaluators[0], 5)
+      described_class.new(step.reload).recompute_entry!(step.step_entries.find_by(idea_id: idea.id))
+
+      expect(step.step_entries.find_by(idea_id: idea.id).reload.result["dispersion"])
+        .not_to be_within(0.0001).of(sin_pesos)
+    end
+
+    # La IA no tiene asignación: no se le reparte el módulo, es una opinión
+    # más. Pesa 1 y no rompe la cuenta.
+    it "una evaluación de la IA pesa 1" do
+      evaluate!(evaluators[0], impacto: 10, esfuerzo: 1)
+      pesar!(evaluators[0], 4)
+
+      handler = described_class.new(step.reload)
+      expect(handler.send(:weight_of, step.assessments.first)).to eq(4)
+      expect(handler.send(:weight_of, Assessment.new(evaluator_id: nil))).to eq(1)
+    end
+  end
 end
 RSpec.describe "«Evaluación» con IA automática" do
   let(:company) { without_tenant { create(:company) } }
@@ -373,3 +449,4 @@ RSpec.describe "«Evaluación» con IA automática" do
     expect(AiSuggestion.find_by(ai_run_id: run.id)).to be_accepted
   end
 end
+

@@ -153,6 +153,15 @@ Dos reglas que no viven en el rol:
   Por eso el mínimo de evaluaciones baja por idea cuando su autor está entre
   quienes evalúan: esperar el mínimo entero trabaría el módulo esperando una
   evaluación imposible.
+- **No todas las voces pesan igual.** `step_assignments.weight` entra en el
+  agregado, en la dispersión y en el promedio por criterio. Dos reglas que no
+  se ven en el código si no se buscan: los pesos **solo** entran cuando alguien
+  puso pesos distintos (con todos iguales la mediana ponderada no devuelve lo
+  mismo que la mediana de siempre, y asignar gente sin tocar pesos no puede
+  mover un puntaje ya calculado); y **cambiar un peso recalcula todas las
+  entries del módulo**, porque si no la tabla sigue mostrando el número viejo.
+  Quien ya evaluó no se desasigna —su nota quedaría sin respaldo—, y con el
+  módulo cerrado no se toca nada.
 - **El puntaje y el desglose son cosas distintas.** Quien participa de una idea
   ve su resultado agregado cuando el módulo cierra; **quién puso qué** lo ven
   solo quien administra y quien evaluó esa idea. Por eso hay dos predicados en
@@ -286,10 +295,8 @@ la clave ausente.
 Maqueta funcional para validar modelo de datos e infraestructura, no un
 reemplazo listo para producción.
 
-Pendiente: la **asignación de evaluadores con peso** (`step_assignments.weight`
-existe en el modelo, no entra en el cálculo y no hay dónde configurarlo).
-
-**pgvector queda a la espera de un proveedor de embeddings.** Hoy no hace
+Pendiente: nada del backlog original. Lo que sigue son decisiones abiertas, no
+deuda: **pgvector queda a la espera de un proveedor de embeddings.** Hoy no hace
 falta: sin vectores los duplicados los juzga el modelo. Haría falta para
 escalar más allá de `DetectDuplicates::MAX_CANDIDATES`, cuando mandar la lista
 entera en el prompt deje de ser razonable — ahí el orden es proveedor de

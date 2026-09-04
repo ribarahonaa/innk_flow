@@ -229,6 +229,27 @@ async function shot(page, name, url, prepare) {
     await shot(page, `09-${index + 1}-step-${link.text.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, link.href);
   }
 
+  // Quién evalúa y cuánto pesa su voto. La tabla y la columna existían desde
+  // el principio sin ninguna pantalla que las tocara.
+  const comite = stepLinks.find((l) => l.text.match(/comit/i));
+  if (comite) {
+    await page.goto(BASE + comite.href, { waitUntil: 'networkidle' });
+    const filas = await page.locator('.assignment-row').count();
+    const conPesos = await page.locator('.status-chip--active', { hasText: 'con pesos' }).count();
+
+    if (filas === 0) {
+      failures++;
+      console.error('[EVALUADORES] el módulo de evaluación no lista quién evalúa');
+    }
+    if (conPesos === 0) {
+      failures++;
+      console.error('[EVALUADORES] no se avisa que el módulo tiene pesos distintos');
+    }
+  } else {
+    failures++;
+    console.error('[LINK] el desafío no tiene el módulo de evaluación de comité');
+  }
+
   // La selección con filtros: cada idea pasa o no pasa cada condición, y se
   // ve quién lo respondió. Un filtro sin responder traba el cierre del módulo,
   // así que la columna tiene que estar poblada.

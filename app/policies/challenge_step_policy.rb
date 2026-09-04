@@ -14,6 +14,10 @@ class ChallengeStepPolicy < ApplicationPolicy
   def manage_form? = manager?
   def manage_criteria? = manager?
 
+  # Quién evalúa y cuánto pesa su voto: es política del desafío, no del
+  # módulo. Un evaluador no se asigna solo ni se sube el peso.
+  def manage_assignments? = manager?
+
   # El reporte incluye el ranking con los puntajes de todas las ideas: es
   # justo lo que un participante no ve en pantalla.
   def report? = manager?

@@ -11,6 +11,7 @@ class StepsController < ApplicationController
     authorize @step, :show?
     @handler = @step.handler
     @pending_suggestions = AiSuggestion.pending_review.where(challenge_step_id: @step.id).recent
+    @assignable = @step.evaluation? ? assignable_users : []
     render "steps/#{@step.kind}"
   end
 
@@ -47,6 +48,19 @@ class StepsController < ApplicationController
   end
 
   private
+
+  # Quién puede sumarse a evaluar este módulo.
+  #
+  # Evaluar depende de la ASIGNACIÓN y no del rol, así que la lista es amplia:
+  # quien evalúa, quien administra, y los gestores asignados a este desafío —no
+  # todos los de la empresa, porque un gestor solo alcanza lo que se le asignó.
+  def assignable_users
+    roles = Membership.where(role: %w[evaluator admin]).pluck(:user_id)
+    gestores = ChallengeGestor.where(challenge_id: @step.challenge_id).pluck(:user_id)
+    ya_estan = @step.step_assignments.pluck(:user_id)
+
+    User.where(id: (roles + gestores).uniq - ya_estan).order(:name)
+  end
 
   def set_step
     @challenge = policy_scope(Challenge).find_by!(slug: params[:challenge_id])

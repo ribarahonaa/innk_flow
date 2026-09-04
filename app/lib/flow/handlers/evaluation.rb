@@ -130,14 +130,19 @@ module Flow
       # un número en [0,1], sin importar de qué escalas vino.
       def recompute_entry!(entry)
         list = step.assessments.current.submitted_ones.where(idea_id: entry.idea_id).to_a
-        scores = list.filter_map { |a| a.normalized_score&.to_d }
+        # Cada nota con el peso de quien la puso. Sin pesos asignados son todos
+        # 1 y la matemática es la de siempre.
+        pares = list.filter_map { |a| [a.normalized_score.to_d, weight_of(a)] if a.normalized_score }
 
         entry.update!(
-          status: scores.size >= min_assessments ? "done" : "in_progress",
+          # El mismo mínimo que usa `complete?`. Con el mínimo plano, la idea
+          # cuyo autor evalúa quedaba "in_progress" para siempre aunque el
+          # módulo la diera por completa.
+          status: pares.size >= min_assessments_for(entry.idea) ? "done" : "in_progress",
           result: {
-            "score" => aggregate(scores)&.to_f,
+            "score" => aggregate(pares)&.to_f,
             "assessments_count" => list.size,
-            "dispersion" => dispersion(scores)&.to_f,
+            "dispersion" => dispersion(pares)&.to_f,
             "per_criterion" => per_criterion(list),
             "recomputed_at" => Time.current.iso8601
           }
@@ -191,14 +196,80 @@ module Flow
 
       def aggregation = settings.fetch("evaluator_aggregation", "mean")
 
-      def aggregate(scores)
-        return nil if scores.empty?
+      # El peso de una evaluación es el de quien la puso.
+      #
+      # La IA pesa 1: no se le asigna el módulo, es una opinión más. Y quien
+      # evaluó sin estar asignado (se lo quitaron después, p.ej.) también: su
+      # nota ya está puesta y no se la descuenta por un cambio posterior.
+      def weight_of(assessment)
+        return StepAssignment::DEFAULT_WEIGHT.to_d if assessment.evaluator_id.nil?
 
+        assignment_weights.fetch(assessment.evaluator_id, StepAssignment::DEFAULT_WEIGHT.to_d)
+      end
+
+      def assignment_weights
+        @assignment_weights ||= step.step_assignments.to_h { |a| [a.user_id, a.effective_weight] }
+      end
+
+      # Los pesos entran SOLO cuando alguien puso pesos distintos.
+      #
+      # No es una optimización: con todos iguales la mediana ponderada no
+      # devuelve lo mismo que la mediana de siempre —con cantidad par, una
+      # promedia los dos del medio y la otra devuelve el de abajo—. Que asignar
+      # evaluadores sin tocar pesos cambie un puntaje ya calculado sería un
+      # efecto que nadie pidió.
+      def weighted?(pairs) = pairs.map(&:last).uniq.size > 1
+
+      def aggregate(pairs)
+        return nil if pairs.empty?
+
+        scores = pairs.map(&:first)
+        return plain_aggregate(scores) unless weighted?(pairs)
+
+        case aggregation
+        when "median" then weighted_median(pairs)
+        when "trimmed_mean" then weighted_mean(trim_extremes(pairs))
+        else weighted_mean(pairs)
+        end
+      end
+
+      def plain_aggregate(scores)
         case aggregation
         when "median" then median(scores)
         when "trimmed_mean" then trimmed_mean(scores)
         else scores.sum / scores.size
         end
+      end
+
+      def weighted_mean(pairs)
+        total = pairs.sum { |_score, weight| weight }
+        return nil if total.zero?
+
+        pairs.sum { |score, weight| score * weight } / total
+      end
+
+      # La nota donde el peso acumulado cruza la mitad: con pesos iguales es la
+      # mediana de toda la vida (salvo el empate de cantidad par, que por eso
+      # no pasa por acá).
+      def weighted_median(pairs)
+        sorted = pairs.sort_by(&:first)
+        mitad = sorted.sum { |_score, weight| weight } / 2
+        acumulado = 0
+
+        sorted.each do |score, weight|
+          acumulado += weight
+          return score if acumulado >= mitad
+        end
+
+        sorted.last.first
+      end
+
+      # Mismo criterio que sin pesos: se van el más alto y el más bajo, no los
+      # de más peso.
+      def trim_extremes(pairs)
+        return pairs if pairs.size < 3
+
+        pairs.sort_by(&:first)[1..-2]
       end
 
       def median(scores)
@@ -218,18 +289,36 @@ module Flow
 
       def aggregate_mean(scores) = scores.sum / scores.size
 
-      def dispersion(scores)
-        return nil if scores.size < 2
+      # Ponderada también cuando el puntaje lo es: una dispersión calculada
+      # sobre otra distribución que la del número que acompaña no describe
+      # nada.
+      def dispersion(pairs)
+        return nil if pairs.size < 2
 
+        scores = pairs.map(&:first)
+        return plain_dispersion(scores) unless weighted?(pairs)
+
+        mean = weighted_mean(pairs)
+        total = pairs.sum { |_score, weight| weight }
+        Math.sqrt(pairs.sum { |score, weight| weight * ((score - mean)**2) } / total).to_d
+      end
+
+      def plain_dispersion(scores)
         mean = scores.sum / scores.size
         Math.sqrt(scores.sum { |s| (s - mean)**2 } / scores.size).to_d
       end
 
       def per_criterion(assessments)
+        pesos = assessments.to_h { |a| [a.id, weight_of(a)] }
         rows = AssessmentScore.where(assessment_id: assessments.map(&:id)).to_a
+
         rows.group_by(&:criterion_key).transform_values do |group|
-          values = group.filter_map { |s| s.normalized_value&.to_d }
-          values.empty? ? nil : (values.sum / values.size).to_f.round(4)
+          pairs = group.filter_map do |s|
+            [s.normalized_value.to_d, pesos.fetch(s.assessment_id, 1.to_d)] if s.normalized_value
+          end
+          next nil if pairs.empty?
+
+          (weighted?(pairs) ? weighted_mean(pairs) : pairs.sum(&:first) / pairs.size).to_f.round(4)
         end.compact
       end
 

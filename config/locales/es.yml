@@ -23,6 +23,9 @@ es:
     invalid_credentials: "Correo o contraseña incorrectos."
     signed_out: "Cerraste sesión."
   activerecord:
+    attributes:
+      step_assignment:
+        weight: "El peso"
     errors:
       messages:
         record_invalid: "La validación falló: %{errors}"

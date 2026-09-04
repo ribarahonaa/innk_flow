@@ -315,7 +315,15 @@ Flow::Tenant.bypass! do
     )
     pipeline.advance!  # → Evaluación de comité
 
-    evaluar.call(pipeline.active_step, evaluadores, [[9, 8, 4], [7, 8, 3], [6, 7, 5]])
+    comite = pipeline.active_step
+
+    # En el comité no todas las voces pesan igual: quien lidera técnicamente
+    # cuenta doble. Es lo que la columna `weight` soportó siempre y no entraba
+    # en ninguna cuenta.
+    StepAssignment.find_by(challenge_step_id: comite.id, user_id: evaluadores.first.id)
+                  &.update!(weight: 2)
+
+    evaluar.call(comite, evaluadores, [[9, 8, 4], [7, 8, 3], [6, 7, 5]])
     pipeline.advance!  # → Finalistas
 
     finalistas = pipeline.active_step

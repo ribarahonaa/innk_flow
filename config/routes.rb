@@ -27,6 +27,8 @@ Rails.application.routes.draw do
       resource :criteria, only: %i[show create], controller: "step_criteria"
       # La ficha de evaluación de una idea dentro de un módulo.
       resources :assessments, only: %i[new create]
+      # Quién evalúa este módulo y cuánto pesa su voto.
+      resources :step_assignments, only: %i[create update destroy], path: "evaluadores"
       # Confirmar el corte y repescar ideas que quedaron fuera.
       resource :selection, only: %i[update] do
         post :reinstate
