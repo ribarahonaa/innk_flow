@@ -21,6 +21,7 @@ class CriteriaSetPresenter
       formFields: form_field_options,
       locked: locked?,
       lockedReason: locked_reason,
+      versionsOnSave: versions_on_save?,
       validation: { errors: set.validation_errors, weightTotal: set.weight_total.to_f },
       urls: urls
     )
@@ -30,7 +31,12 @@ class CriteriaSetPresenter
 
   def set_json
     { id: set.id, name: set.name, description: set.description,
-      scope: set.scope, status: set.status, persisted: set.persisted? }
+      scope: set.scope, status: set.status, persisted: set.persisted?,
+      version: set.version,
+      # Cuántos módulos lo usan: es lo que decide si guardar versiona, y lo que
+      # la pantalla tiene que avisar ANTES de que alguien apriete guardar.
+      usedBy: set.persisted? ? set.challenge_steps.count : 0,
+      library: set.library? }
   end
 
   def criterion_json(criterion)
@@ -69,13 +75,27 @@ class CriteriaSetPresenter
   # significado de lo ya puntuado. El set congelado en un módulo activo es
   # otra copia, así que editar acá no reescribe el pasado — pero sí lo haría
   # sobre las notas de este mismo set.
-  def locked? = scored_criteria.any?
+  # Guardar un set de biblioteca en uso no lo pisa: crea la versión siguiente.
+  # Por eso ahí no hay nada cerrado — lo que se edita es una copia nueva.
+  def versions_on_save? = set.persisted? && set.library? && set.in_use?
+
+  def locked? = !versions_on_save? && scored_criteria.any?
 
   def locked_reason
+    return version_notice if versions_on_save?
     return nil unless locked?
 
     "Ya hay evaluaciones hechas con este set. Podés cambiar nombres y " \
       "descripciones, pero no los pesos, la escala ni qué verifica cada criterio."
+  end
+
+  # Lo que hay que decir ANTES de guardar: qué se crea y, sobre todo, que lo
+  # editado no le llega solo a quien ya estaba usando la versión anterior.
+  def version_notice
+    usos = set.challenge_steps.count
+    "Lo usan #{usos} #{'módulo'.pluralize(usos)}. Al guardar se crea la v#{set.version + 1}: " \
+      "los que ya usaban la v#{set.version} siguen con esa, y hay que asignarles la nueva " \
+      "desde su módulo si querés que cambien."
   end
 
   def scored_criteria
@@ -86,6 +106,7 @@ class CriteriaSetPresenter
     helpers = Rails.application.routes.url_helpers
     {
       save: set.persisted? ? helpers.api_v1_criteria_set_path(set) : helpers.api_v1_criteria_sets_path,
+      edit: set.persisted? ? helpers.edit_criteria_set_path(set) : nil,
       index: @back_url || helpers.criteria_sets_path
     }
   end

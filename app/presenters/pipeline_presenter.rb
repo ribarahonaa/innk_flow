@@ -101,6 +101,10 @@ class PipelinePresenter
       labels: criteria.first(4).map(&:name),
       more: [criteria.size - 4, 0].max,
       valid: set.nil? || set.validation_errors.empty?,
+      # Quedó con una versión que ya fue reemplazada: no está roto —sigue
+      # significando lo que significaba— pero su dueño tiene que enterarse de
+      # que hay una más nueva y decidir.
+      newerVersion: newer_version_for(set),
       editUrl: Rails.application.routes.url_helpers.challenge_step_criteria_path(challenge, step)
     }
   end
@@ -173,17 +177,33 @@ class PipelinePresenter
   # Sets de la biblioteca de la empresa, para asignarlos a un módulo de
   # evaluación desde el builder. Sin esto, el aviso "no tiene criterios
   # asignados" no tiene dónde resolverse.
+  #
+  # Se ofrece la versión vigente de cada familia, más —si algún módulo quedó en
+  # una anterior— esa, para que el select no pierda lo que ya tiene puesto.
   def criteria_sets
-    CriteriaSet.library.includes(:criteria).order(:name).map do |set|
+    vigentes = CriteriaSet.library.current
+    asignados = CriteriaSet.library.where(id: pipeline.steps.map(&:criteria_set_id).compact)
+
+    vigentes.or(asignados).includes(:criteria).order(:name, :version).map do |set|
       {
         id: set.id,
-        name: set.name,
+        name: set.label,
         status: set.status,
         criteriaCount: set.active_criteria.size,
         summary: set.active_criteria.map { |c| "#{c.name} #{(c.weight.to_f * 100).round}%" }.join(" · "),
         editUrl: Rails.application.routes.url_helpers.edit_criteria_set_path(set)
       }
     end
+  end
+
+  # La vigente de la misma familia, si el set asignado ya no lo es.
+  def newer_version_for(set)
+    return nil if set.nil? || set.inline? || !set.superseded?
+
+    vigente = CriteriaSet.library.current.find_by(family_id: set.family_id)
+    return nil if vigente.nil?
+
+    { id: vigente.id, label: vigente.label }
   end
 
   def ai_modes

@@ -165,7 +165,10 @@ RSpec.describe "sets de criterios", type: :request do
     end
   end
 
-  describe "con evaluaciones ya hechas" do
+  # Un set de biblioteca es de la empresa, no del módulo que lo usa. Editarlo
+  # en el lugar le cambiaría la vara a todo desafío que todavía no arrancó, sin
+  # que nadie se entere. Por eso guardar crea la versión siguiente.
+  describe "un set de biblioteca en uso" do
     let!(:set) do
       as_company(company) do
         s = CriteriaSet.create!(name: "Técnica", scope: "library")
@@ -176,16 +179,152 @@ RSpec.describe "sets de criterios", type: :request do
       end
     end
 
-    def first_criterion = as_company(company) { CriteriaSet.find(set.id).criteria.ordered.first }
-
-    def reloaded_criteria = as_company(company) { CriteriaSet.find(set.id).criteria.ordered.to_a }
-
-    before do
-      sign_in(owner, company: company)
+    # Con notas ya puestas: es el caso que el candado viejo bloqueaba y que el
+    # versionado destraba, porque lo puntuado queda en la versión anterior.
+    let!(:step) do
       as_company(company) do
         challenge = create(:challenge)
         seed_form!(challenge.steps.create!(kind: "ideation", position: 1))
-        step = challenge.steps.create!(kind: "evaluation", position: 2, criteria_set: set)
+        paso = challenge.steps.create!(kind: "evaluation", position: 2, criteria_set: set)
+
+        author = Flow::Tenant.bypass! { create(:user) }
+        idea = create(:idea, challenge: challenge, author: author)
+        Flow::Ideas::PublishVersion.new(idea, payload: { "titulo" => "Una" }).call
+
+        assessment = Assessment.create!(challenge_step: paso, idea: idea,
+                                        idea_version_id: idea.current_version_id,
+                                        evaluator_id: owner.id, actor_type: "human")
+        AssessmentScore.create!(assessment: assessment, criterion: set.criteria.first,
+                                criterion_key: "impacto", weight_used: 1,
+                                raw_value: "8", numeric_value: 8, normalized_value: 0.777)
+        paso
+      end
+    end
+
+    def familia = as_company(company) { CriteriaSet.where(family_id: set.family_id).order(:version).to_a }
+
+    def v1 = as_company(company) { CriteriaSet.find(set.id) }
+
+    def first_criterion = as_company(company) { CriteriaSet.find(set.id).criteria.ordered.first }
+
+    before { sign_in(owner, company: company) }
+
+    it "avisa, antes de guardar, qué va a pasar" do
+      get edit_criteria_set_path(set)
+
+      expect(response.body).to include("Lo usan 1 módulo")
+      expect(response.body).to include("se crea la v2")
+      # Y no el mensaje de candado: acá no hay nada cerrado, hay una copia.
+      expect(response.body).not_to include("Ya hay evaluaciones hechas con este set")
+    end
+
+    it "guardar crea la versión siguiente y deja intacta la anterior" do
+      put api_v1_criteria_set_path(set), params: {
+        name: "Técnica", criteria: [criterion_params(id: first_criterion.id, name: "Impacto real", weight: 100)]
+      }, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(json["versioned"]).to be(true)
+      expect(json["set"]["version"]).to eq(2)
+
+      v1_criterios, v2_criterios = familia.map { |s| as_company(company) { s.criteria.ordered.map(&:name) } }
+      expect(v1_criterios).to eq(["Impacto"])
+      expect(v2_criterios).to eq(["Impacto real"])
+    end
+
+    it "el módulo que lo usaba sigue apuntando a la versión anterior" do
+      put api_v1_criteria_set_path(set), params: {
+        name: "Técnica", criteria: [criterion_params(id: first_criterion.id, name: "Otra cosa")]
+      }, as: :json
+
+      expect(as_company(company) { ChallengeStep.find(step.id).criteria_set_id }).to eq(set.id)
+    end
+
+    # Es lo que el candado viejo prohibía. Sobre una versión nueva se puede:
+    # nadie puntuó nada con ella todavía.
+    it "sobre la versión nueva se puede cambiar el peso y quitar criterios" do
+      as_company(company) do
+        s = CriteriaSet.find(set.id)
+        s.criteria.create!(name: "Costo", key: "costo", weight: 0, source: "manual",
+                           scale_type: "numeric", scale_config: { "min" => 1, "max" => 10 })
+      end
+
+      put api_v1_criteria_set_path(set), params: {
+        name: "Técnica",
+        criteria: [criterion_params(id: first_criterion.id, name: "Impacto", weight: 100,
+                                    scale_config: { min: 1, max: 100 })]
+      }, as: :json
+
+      expect(response).to have_http_status(:ok)
+      criterios = as_company(company) { familia.last.criteria.ordered.to_a }
+      expect(criterios.size).to eq(1)
+      expect(criterios.first.scale_config["max"]).to eq(100)
+
+      # Y la nota puesta sigue significando lo mismo: cuelga de la v1, que no
+      # se tocó.
+      original = as_company(company) { CriteriaSet.find(set.id).criteria.ordered.first }
+      expect(original.scale_config["max"]).to eq(10)
+      expect(as_company(company) { AssessmentScore.where(criterion_id: original.id).count }).to eq(1)
+    end
+
+    it "la versión reemplazada ya no se edita" do
+      put api_v1_criteria_set_path(set), params: {
+        name: "Técnica", criteria: [criterion_params(id: first_criterion.id)]
+      }, as: :json
+
+      put api_v1_criteria_set_path(set), params: {
+        name: "Otro nombre", criteria: [criterion_params(id: first_criterion.id)]
+      }, as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(json["errors"].join).to include("reemplazada")
+    end
+
+    it "la biblioteca lista la versión vigente, no las anteriores" do
+      put api_v1_criteria_set_path(set), params: {
+        name: "Técnica", criteria: [criterion_params(id: first_criterion.id)]
+      }, as: :json
+
+      get criteria_sets_path
+
+      expect(response.body).to include("v2")
+      expect(response.body.scan("Técnica").size).to eq(1)
+    end
+
+    it "un set que no usa nadie se edita en el lugar, sin versionar" do
+      suelto = as_company(company) do
+        s = CriteriaSet.create!(name: "Sin usar", scope: "library")
+        s.criteria.create!(name: "Uno", key: "uno", weight: 1, source: "manual", scale_type: "numeric",
+                           scale_config: { "min" => 1, "max" => 10 })
+        s
+      end
+      criterio = as_company(company) { CriteriaSet.find(suelto.id).criteria.first }
+
+      put api_v1_criteria_set_path(suelto), params: {
+        name: "Sin usar", criteria: [criterion_params(id: criterio.id, name: "Renombrado")]
+      }, as: :json
+
+      expect(json["versioned"]).to be(false)
+      expect(json["set"]["version"]).to eq(1)
+      expect(as_company(company) { CriteriaSet.find(suelto.id).criteria.first.name }).to eq("Renombrado")
+    end
+  end
+
+  # Un set inline es de un módulo: no se comparte, así que versionarlo no
+  # protegería a nadie. Ahí el candado sigue siendo la respuesta correcta.
+  describe "con evaluaciones ya hechas sobre el set propio de un módulo" do
+    let!(:set) do
+      as_company(company) do
+        challenge = create(:challenge)
+        seed_form!(challenge.steps.create!(kind: "ideation", position: 1))
+        step = challenge.steps.create!(kind: "evaluation", position: 2)
+
+        s = CriteriaSet.create!(name: "Técnica", scope: "inline", owner_step_id: step.id)
+        s.criteria.create!(name: "Impacto", key: "impacto", weight: 1, source: "manual",
+                           scale_type: "numeric", scale_config: { "min" => 1, "max" => 10 })
+        s.refresh_status!
+        step.update!(criteria_set: s)
+
         author = Flow::Tenant.bypass! { create(:user) }
         idea = create(:idea, challenge: challenge, author: author)
         Flow::Ideas::PublishVersion.new(idea, payload: { "titulo" => "Una" }).call
@@ -193,11 +332,18 @@ RSpec.describe "sets de criterios", type: :request do
         assessment = Assessment.create!(challenge_step: step, idea: idea,
                                         idea_version_id: idea.current_version_id,
                                         evaluator_id: owner.id, actor_type: "human")
-        AssessmentScore.create!(assessment: assessment, criterion: set.criteria.first,
+        AssessmentScore.create!(assessment: assessment, criterion: s.criteria.first,
                                 criterion_key: "impacto", weight_used: 1,
                                 raw_value: "8", numeric_value: 8, normalized_value: 0.777)
+        s
       end
     end
+
+    def first_criterion = as_company(company) { CriteriaSet.find(set.id).criteria.ordered.first }
+
+    def reloaded_criteria = as_company(company) { CriteriaSet.find(set.id).criteria.ordered.to_a }
+
+    before { sign_in(owner, company: company) }
 
     it "avisa que lo estructural quedó cerrado" do
       get edit_criteria_set_path(set)

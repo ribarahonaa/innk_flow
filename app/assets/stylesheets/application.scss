@@ -1686,3 +1686,27 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   &__form { display: flex; }
   &__role select { width: auto; padding: 5px 9px; font-size: 12.5px; }
 }
+
+/* La biblioteca no se pisa: se versiona. El chip aparece recién en la v2. */
+.version-chip {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  vertical-align: middle;
+}
+
+/* Una acción que va en medio de una frase, no un botón aparte. */
+.btn-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

@@ -15,10 +15,14 @@
     - @sets.each do |set|
       .card
         .challenge-card__head
-          %h2.challenge-card__name= set.name
+          %h2.challenge-card__name
+            = set.name
+            - if set.version > 1
+              %span.version-chip{ title: "Las versiones anteriores siguen sirviendo a quien las usaba" }= "v#{set.version}"
           %span.status-chip{ class: "status-chip--#{set.status == 'valid' ? 'completed' : 'skipped'}" }
             = set.status == "valid" ? "válido" : "revisar"
-        %p.muted= "#{set.active_criteria.size} criterios · pesos suman #{(set.weight_total * 100).round}%"
+        - usos = set.challenge_steps.count
+        %p.muted= "#{set.active_criteria.size} criterios · pesos suman #{(set.weight_total * 100).round}% · #{usos.zero? ? 'sin usar' : "lo usan #{usos} #{'módulo'.pluralize(usos)}"}"
         %ul.field-list
           - set.criteria.each do |criterion|
             %li.field-list__item

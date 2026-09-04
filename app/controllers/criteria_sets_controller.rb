@@ -5,7 +5,7 @@ class CriteriaSetsController < ApplicationController
   before_action :set_criteria_set, only: %i[show edit destroy promote]
 
   def index
-    @sets = policy_scope(CriteriaSet).library.includes(:criteria).order(:name)
+    @sets = policy_scope(CriteriaSet).library.current.includes(:criteria).order(:name)
   end
 
   # El set nace VACÍO. Antes traía dos criterios ya puestos, que la mitad de

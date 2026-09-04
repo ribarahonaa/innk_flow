@@ -71,6 +71,12 @@
           <p v-if="!step.criteria.valid" class="field-hint field-hint--warn">
             Los pesos no suman 100%: el módulo no va a poder arrancar.
           </p>
+          <p v-if="step.criteria.newerVersion && !step.locked" class="field-hint field-hint--warn">
+            Hay una versión más nueva ({{ step.criteria.newerVersion.label }}). Este módulo sigue con la que tiene.
+            <button type="button" class="btn-link" @click="step.criteriaSetId = step.criteria.newerVersion.id">
+              Pasarlo a la nueva
+            </button>
+          </p>
         </template>
 
         <a :href="step.criteria.editUrl" class="btn btn--ghost btn--sm">

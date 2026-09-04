@@ -15,6 +15,13 @@ module Api
 
       def update
         authorize @set
+        return render_error(["esta versión ya fue reemplazada por otra"]) if @set.superseded?
+
+        # Un set de biblioteca EN USO no se edita en el lugar: hay módulos sin
+        # arrancar apuntándole y les cambiaría la vara sin avisar. Se guarda
+        # sobre una versión nueva, y los que ya lo usaban siguen con la suya.
+        @versionado = @set.library? && @set.in_use?
+
         save_and_render
       end
 
@@ -28,6 +35,7 @@ module Api
 
         @set.refresh_status!
         render json: CriteriaSetPresenter.new(@set.reload, membership: current_membership).as_json
+                                         .merge(versioned: @versionado.present?)
       end
 
       def incoming = @incoming ||= Array(params[:criteria]).map { |c| c.permit!.to_h.with_indifferent_access }
@@ -45,6 +53,7 @@ module Api
         errors = []
 
         ActiveRecord::Base.transaction do
+          fork_version! if @versionado
           @set.assign_attributes(name: params[:name], description: params[:description])
           errors << @set.errors.full_messages.to_sentence unless @set.save
 
@@ -55,6 +64,20 @@ module Api
         end
 
         errors
+      end
+
+      # Los criterios que llegan traen los ids de la versión anterior. La copia
+      # los renueva pero conserva las claves, así que se traduce por clave y la
+      # reconciliación de siempre (quitar, actualizar, crear) sigue andando.
+      def fork_version!
+        previos = @set.criteria.ordered.index_by(&:id)
+        @set = @set.next_version!
+        copias = @set.criteria.index_by(&:key)
+
+        incoming.each do |attrs|
+          origen = previos[attrs[:id]]
+          attrs[:id] = origen ? copias[origen.key]&.id : nil
+        end
       end
 
       def destroy_removed

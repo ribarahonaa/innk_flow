@@ -297,6 +297,18 @@ async function shot(page, name, url, prepare) {
       failures++;
       console.error('[ISLA] el editor de criterios no montó');
     }
+
+    // Un set de biblioteca EN USO no se pisa: guardar crea la versión
+    // siguiente. El aviso tiene que decirlo ANTES, porque si no la edición
+    // parece no haber llegado a los desafíos que ya lo usaban.
+    //
+    // Acá no se aprieta guardar a propósito: cada corrida dejaría una versión
+    // nueva en la demo. El guardado en sí lo cubren los request specs.
+    const aviso = await page.locator('.flash--warn').first().textContent().catch(() => '');
+    if (!/Al guardar se crea la v\d/.test(aviso || '')) {
+      failures++;
+      console.error('[VERSIONADO] el editor no avisa que guardar crea una versión nueva:', aviso);
+    }
   } else {
     failures++;
     console.error('[LINK] la biblioteca de criterios no ofrece editar un set');

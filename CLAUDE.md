@@ -123,6 +123,23 @@ Un `criteria_set` con `scope: "library"` se comparte entre desafíos; uno
 `inline` es de un módulo. Editar un set de biblioteca desde un módulo tocaría
 todos los desafíos que lo usan — por eso se copia (`StepCriteriaController`).
 
+**La biblioteca no se pisa: se versiona.** Guardar un set de biblioteca que ya
+usa algún módulo crea la versión siguiente (`family_id`, `version`,
+`superseded_at`) y deja la anterior intacta; los módulos que la usaban siguen
+con ella hasta que alguien los pase a la nueva desde el builder. Un set que no
+usa nadie se edita en el lugar: versionar lo que nadie tiene asignado no
+protege a nadie.
+
+Esto reemplaza al candado por evaluaciones **solo en la biblioteca**: sobre una
+versión nueva nadie puntuó nada, así que peso y escala vuelven a ser editables.
+En un set `inline` no hay a quién proteger copiando, y el candado sigue siendo
+la respuesta (`locked?` en `Api::V1::CriteriaSetsController`).
+
+Dos trampas: el fork va **dentro** de la transacción del guardado (si falla, no
+queda una versión huérfana), y los criterios que llegan traen los ids de la
+versión anterior — `fork_version!` los traduce por `key` a los de la copia, o
+la reconciliación borraría todo y lo crearía de nuevo.
+
 ### Los cuatro roles
 
 `admin` administra · `gestor` acompaña la evolución · `evaluator` evalúa lo que

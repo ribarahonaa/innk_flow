@@ -1,4 +1,4 @@
-\restrict 0Bi2bzwCUdbP4aQjzW0GS47ovnbh0HBL4DSvYFR2f0mVnwZohIEcm8SkbhtHWaL
+\restrict KQMc1OLmuVgQMdKVKuaYCNk6GhCJqOir6Q0jbSyeFlzPsEvKQFOHOET1GYVbjqa
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -335,6 +335,9 @@ CREATE TABLE public.criteria_sets (
     lock_version integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    family_id uuid NOT NULL,
+    version integer DEFAULT 1 NOT NULL,
+    superseded_at timestamp(6) without time zone,
     CONSTRAINT criteria_sets_scope_check CHECK (((scope)::text = ANY (ARRAY[('library'::character varying)::text, ('inline'::character varying)::text]))),
     CONSTRAINT criteria_sets_status_check CHECK (((status)::text = ANY (ARRAY[('draft'::character varying)::text, ('valid'::character varying)::text, ('invalid'::character varying)::text])))
 );
@@ -1385,6 +1388,20 @@ CREATE UNIQUE INDEX index_criteria_on_criteria_set_id_and_key ON public.criteria
 --
 
 CREATE INDEX index_criteria_sets_on_company_id ON public.criteria_sets USING btree (company_id);
+
+
+--
+-- Name: index_criteria_sets_on_family_id_and_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_criteria_sets_on_family_id_and_version ON public.criteria_sets USING btree (family_id, version);
+
+
+--
+-- Name: index_criteria_sets_on_superseded_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_criteria_sets_on_superseded_at ON public.criteria_sets USING btree (superseded_at);
 
 
 --
@@ -2525,11 +2542,12 @@ ALTER TABLE ONLY public.step_entries
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 0Bi2bzwCUdbP4aQjzW0GS47ovnbh0HBL4DSvYFR2f0mVnwZohIEcm8SkbhtHWaL
+\unrestrict KQMc1OLmuVgQMdKVKuaYCNk6GhCJqOir6Q0jbSyeFlzPsEvKQFOHOET1GYVbjqa
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260904100000'),
 ('20260903200000'),
 ('20260903190000'),
 ('20260903170000'),

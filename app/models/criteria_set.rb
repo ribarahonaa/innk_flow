@@ -23,8 +23,45 @@ class CriteriaSet < ApplicationRecord
 
   scope :library, -> { where(scope: "library") }
   scope :usable, -> { where(status: "valid") }
+  # La versión vigente de cada familia: la que se ofrece para asignar.
+  scope :current, -> { where(superseded_at: nil) }
+
+  before_create :start_family
 
   SCOPES.each { |s| define_method("#{s}?") { self.scope == s } }
+
+  # Un set EN USO no se puede editar en el lugar: hay módulos que todavía no
+  # arrancaron apuntándole, y cambiarle los criterios les cambiaría la vara
+  # sin avisar. Los que ya arrancaron tienen su snapshot congelado y no corren
+  # riesgo, pero los pendientes sí.
+  def in_use? = challenge_steps.exists?
+
+  def superseded? = superseded_at.present?
+
+  def label = version > 1 ? "#{name} · v#{version}" : name
+
+  # La huella de lo que decide un puntaje. Cambiar el nombre del set no crea
+  # una versión; cambiar un criterio, un peso o una escala, sí.
+  def fingerprint
+    criteria.ordered.map do |c|
+      [c.key, c.name, c.weight.to_d.round(6), c.source, c.scale_type,
+       c.source_config, c.scale_config, c.active]
+    end
+  end
+
+  # Crea la versión siguiente, con una copia de los criterios. La anterior
+  # queda marcada y sigue sirviendo a quien ya la estaba usando.
+  def next_version!
+    copia = CriteriaSet.create!(
+      name: name, description: description, scope: scope, owner_step_id: owner_step_id,
+      family_id: family_id, version: CriteriaSet.where(family_id: family_id).maximum(:version).to_i + 1
+    )
+    criteria.ordered.each do |criterion|
+      copia.criteria.create!(criterion.attributes.except("id", "criteria_set_id", "created_at", "updated_at"))
+    end
+    update!(superseded_at: Time.current)
+    copia
+  end
 
   def active_criteria = criteria.select(&:active)
 
@@ -52,6 +89,12 @@ class CriteriaSet < ApplicationRecord
 
   def refresh_status!
     update_column(:status, validation_errors.empty? ? "valid" : "invalid")
+  end
+
+  # Cada set nace siendo su propia familia; las versiones siguientes heredan
+  # el family_id de la primera.
+  def start_family
+    self.family_id ||= id || SecureRandom.uuid
   end
 
   # Copia a la biblioteca de la empresa. Un set inline nace atado a un módulo;

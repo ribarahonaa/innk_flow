@@ -4,7 +4,9 @@
       <ul><li v-for="(e, i) in serverErrors" :key="i">{{ e }}</li></ul>
     </div>
 
-    <div v-if="locked" class="flash flash--warn">{{ lockedReason }}</div>
+    <div v-if="locked || versionsOnSave" class="flash flash--warn">{{ lockedReason }}</div>
+
+    <div v-if="versionCreated" class="flash flash--notice">{{ versionCreated }}</div>
 
     <div class="card">
       <div class="field">
@@ -110,6 +112,7 @@ export default {
     formFields: { type: Array, default: () => [] },
     locked: { type: Boolean, default: false },
     lockedReason: { type: String, default: '' },
+    versionsOnSave: { type: Boolean, default: false },
     urls: { type: Object, required: true }
   },
 
@@ -123,7 +126,8 @@ export default {
       serverErrors: [],
       nextTempId: 1,
       saveUrl: this.urls.save,
-      persisted: this.set.persisted
+      persisted: this.set.persisted,
+      versionCreated: ''
     };
   },
 
@@ -244,6 +248,14 @@ export default {
         this.rows = body.criteria.map((c) => ({ ...c }));
         this.persisted = true;
         this.saveUrl = body.urls.save;
+
+        // Se guardó sobre una versión nueva: de acá en adelante se edita esa,
+        // y la dirección tiene que acompañar para que recargar no traiga la
+        // anterior (que quedó intacta, que es justamente el punto).
+        if (body.versioned) {
+          this.versionCreated = `Se creó la v${body.set.version}. La anterior sigue en los módulos que ya la usaban.`;
+          if (body.urls.edit) window.history.replaceState({}, '', body.urls.show);
+        }
         this.$nextTick(() => { this.dirty = false; this.saved = true; });
       } catch (error) {
         this.serverErrors = [`Error de red: ${error.message}`];
