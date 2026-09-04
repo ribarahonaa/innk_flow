@@ -110,12 +110,26 @@ module Flow
         end
 
         def error_for(respuesta)
+          codigo = respuesta["__status"].to_s
           detalle = respuesta["detail"] || respuesta.dig("error", "message") ||
                     respuesta.except("__status").to_s.truncate(200)
 
           Flow::Errors::EmbeddingFailed.new(
-            "Voyage rechazó el pedido (HTTP #{respuesta['__status']}, modelo #{model_name}): #{detalle}"
+            "Voyage rechazó el pedido (HTTP #{codigo}, modelo #{model_name}): #{detalle}#{pista(codigo)}"
           )
+        end
+
+        # Un 500 en TODO pedido de inferencia, con la credencial autenticando
+        # bien (sin ella da 401) y la validación funcionando (cuerpo vacío da
+        # 400), no es un problema del pedido. Pasó de verdad y costó media hora
+        # de sondeos: la cuenta autentica pero no tiene inferencia habilitada, y
+        # Voyage contesta 500 en vez de un 402 que lo diga.
+        def pista(codigo)
+          return "" unless codigo.start_with?("5")
+
+          ". Si falla TODO pedido —incluso con un modelo inexistente, que debería dar 400— " \
+            "el problema no es este código: revisá que la cuenta de Voyage esté activada " \
+            "(medio de pago) en su dashboard."
         end
       end
     end

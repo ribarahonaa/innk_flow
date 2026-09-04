@@ -215,6 +215,14 @@ API rechaza con 400 (`minItems`, `pattern`, …) pero valida la respuesta contra
 el schema **original**; y trata `stop_reason: :refusal` y `:max_tokens` como
 fallas explicadas, porque llegan con HTTP 200 y no como excepción.
 
+**Un 500 de Voyage en TODO pedido no es el pedido.** Con la credencial
+autenticando (sin ella da 401), la validación funcionando (cuerpo vacío da 400)
+y el ruteo bien (GET da 405), que embeddings, rerank y contextual devuelvan los
+tres 500 —incluso con un modelo inexistente, que debería dar 400— significa que
+la cuenta autentica pero no tiene inferencia habilitada. Voyage contesta 500 en
+vez de un 402 que lo diga. La pista está en el mensaje del adapter para no
+volver a sondear.
+
 **Hay DOS proveedores, no uno.** `FLOW_AI_PROVIDER` (chat) y
 `FLOW_EMBEDDINGS_PROVIDER` (vectores) son capacidades distintas: Anthropic no
 expone embeddings, así que con una sola variable no se podía tener chat real y

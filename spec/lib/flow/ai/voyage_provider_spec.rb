@@ -98,5 +98,26 @@ RSpec.describe Flow::AI::Providers::Voyage do
       expect(provider.embedding_model).to eq("voyage-3.5")
     end
   end
+  # Diagnosticar esto a mano llevó media hora de sondeos: el mensaje tiene que
+  # llevar la conclusión, no obligar a repetirlos.
+  it "ante un 5xx apunta a la cuenta, no al pedido" do
+    allow(provider).to receive(:post).and_return({ "__status" => "500", "detail" => "Internal Server Error" })
+
+    expect { provider.embed(texts: ["uno"]) }
+      .to raise_error(Flow::Errors::EmbeddingFailed, /HTTP 500.*activada.*dashboard/m)
+  end
+
+  it "ante un 4xx no manda a mirar la cuenta: el pedido es el sospechoso" do
+    allow(provider).to receive(:post).and_return({ "__status" => "400", "detail" => "bad input" })
+
+    mensaje = begin
+      provider.embed(texts: ["uno"])
+    rescue Flow::Errors::EmbeddingFailed => e
+      e.message
+    end
+
+    expect(mensaje).to include("HTTP 400", "bad input")
+    expect(mensaje).not_to include("dashboard")
+  end
 end
 
