@@ -20,7 +20,17 @@
                       class: "people-list__remove",
                       form: { data: { turbo_confirm: "¿Sacar a #{asignacion.user.name} de este desafío?" } }
   - else
-    %p.field-hint Nadie asignado: las ideas de este desafío no las acompaña ningún gestor.
+    -# Sin nadie asignado, qué se dice depende del flujo: un gestor acompaña la
+    -# EVOLUCIÓN de las ideas, así que reclamarlo antes de que exista el flujo
+    -# es pedir algo que todavía no se sabe si hace falta.
+    - modulos = challenge.steps.to_a
+    %p.field-hint
+      - if modulos.empty?
+        Todavía no hay flujo. Un gestor acompaña la evolución de las ideas: tiene sentido sumarlo cuando sepas si el flujo va a tener ese módulo.
+      - elsif modulos.none?(&:evolution?)
+        Este flujo no tiene módulo de evolución, así que un gestor no tendría dónde acompañar. Podés sumarlo igual si querés que vea el desafío.
+      - else
+        Nadie asignado: las ideas de este desafío no las acompaña ningún gestor.
 
   - if candidatos.any?
     = form_with url: challenge_gestores_path(challenge), method: :post, class: "people-form" do

@@ -109,12 +109,23 @@ module Flow
       Step.new(key: :criteria, label: "Los criterios",
                hint: criteria_hint(scorers, propios),
                path: routes.challenge_criteria_path(challenge),
-               status: scorers.empty? || propios == scorers.size ? :done : :pending,
+               status: criteria_status(scorers, propios),
                blocking: false)
+    end
+
+    # Sin flujo este paso todavía no se puede contestar: los criterios son de
+    # los módulos que puntúan, y no hay módulos. Darlo por HECHO era aprobarlo
+    # por vacío —un tilde verde en algo que nadie decidió— y encima confundía:
+    # el paso a paso decía «2 de 6» con el 4 en verde y el 2 en rojo.
+    def criteria_status(scorers, propios)
+      return :pending if pipeline.steps.empty?
+
+      scorers.empty? || propios == scorers.size ? :done : :pending
     end
 
     # «3 de 4» a secas se lee como «3 de 4 criterios». Son MÓDULOS.
     def criteria_hint(scorers, propios)
+      return "cuando el flujo tenga módulos" if pipeline.steps.empty?
       return "ningún módulo puntúa ni filtra" if scorers.empty?
       return "#{propios} de #{scorers.size} módulos definidos" if propios < scorers.size
 

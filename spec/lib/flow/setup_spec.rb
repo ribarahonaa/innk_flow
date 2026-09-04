@@ -18,13 +18,26 @@ RSpec.describe Flow::Setup do
   def step(key) = setup.steps.find { |s| s.key == key }
 
   describe "un desafío recién creado" do
-    it "tiene el brief hecho y el flujo pendiente" do
+    it "tiene el brief hecho y todo lo demás pendiente" do
       expect(step(:brief)).to be_done
       expect(step(:flow)).not_to be_done
-      # Los criterios cuentan como hechos: todavía no hay módulos que puntúen,
-      # así que no hay nada que decidir.
-      expect(setup.done_count).to eq(2)
+      # Los criterios NO cuentan como hechos: sin flujo el paso ni siquiera se
+      # puede contestar —los criterios son de los módulos que puntúan— y darlo
+      # por hecho es aprobarlo por vacío. Se veía raro en pantalla: «2 de 6»
+      # con el paso 4 en verde y el 2 en rojo.
+      expect(step(:criteria)).not_to be_done
+      expect(step(:criteria).hint).to eq("cuando el flujo tenga módulos")
+      expect(setup.done_count).to eq(1)
       expect(setup.total).to eq(6)
+    end
+
+    # Con módulos SÍ es una decisión: este flujo no puntúa nada, y está bien.
+    it "con un flujo que no puntúa nada, los criterios sí quedan resueltos" do
+      seed_form!(challenge.steps.create!(kind: "ideation", position: 1))
+      challenge.steps.create!(kind: "reporting", position: 2)
+
+      expect(step(:criteria)).to be_done
+      expect(step(:criteria).hint).to eq("ningún módulo puntúa ni filtra")
     end
 
     it "no está listo para arrancar, y dice por qué" do

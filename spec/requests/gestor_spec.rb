@@ -170,4 +170,40 @@ RSpec.describe "el rol gestor", type: :request do
       expect(as_company(demo) { ChallengeGestor.where(challenge_id: acompanado.id) }.to_a).to be_empty
     end
   end
+
+  # Un gestor acompaña la EVOLUCIÓN de las ideas. Reclamar uno antes de que
+  # exista el flujo es pedir algo de lo que todavía no se sabe si hace falta:
+  # sin módulos no hay forma de saber si va a haber evolución.
+  describe "cuándo se pide un gestor" do
+    before { sign_in(admin, company: demo) }
+
+    def vacio = as_company(demo) { create(:challenge, name: "Sin armar") }
+
+    it "sin flujo no lo reclama: lo explica" do
+      get challenge_path(vacio)
+
+      expect(response.body).to include("Todavía no hay flujo")
+      expect(response.body).not_to include("Nadie asignado")
+    end
+
+    it "con un flujo sin evolución avisa que no tendría dónde acompañar" do
+      desafio = as_company(demo) do
+        c = create(:challenge, name: "Solo ideas")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
+        c.steps.create!(kind: "reporting", position: 2)
+        c
+      end
+
+      get challenge_path(desafio)
+
+      expect(response.body).to include("no tiene módulo de evolución")
+    end
+
+    it "con evolución y sin nadie asignado, ahí sí lo reclama" do
+      get challenge_path(otro_de_demo)
+
+      expect(response.body).to include("Nadie asignado")
+    end
+  end
 end
+
