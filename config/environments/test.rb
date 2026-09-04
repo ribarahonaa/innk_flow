@@ -79,4 +79,5 @@ Rails.application.configure do
   ENV["FLOW_EMBEDDINGS_PROVIDER"] = "fixture"
   ENV.delete("FLOW_EMBEDDINGS_MODEL")
   ENV.delete("VOYAGE_API_KEY")
+  ENV.delete("OPENAI_API_KEY")
 end

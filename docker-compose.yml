@@ -53,6 +53,7 @@ services:
       FLOW_EMBEDDINGS_PROVIDER: ${FLOW_EMBEDDINGS_PROVIDER:-}
       FLOW_EMBEDDINGS_MODEL: ${FLOW_EMBEDDINGS_MODEL:-}
       VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
       - db
       - redis
@@ -91,6 +92,7 @@ services:
       FLOW_AI_PROVIDER: fixture
       FLOW_EMBEDDINGS_PROVIDER: fixture
       VOYAGE_API_KEY: ""
+      OPENAI_API_KEY: ""
     depends_on:
       - db
       - redis

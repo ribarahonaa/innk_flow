@@ -227,8 +227,20 @@ volver a sondear.
 `FLOW_EMBEDDINGS_PROVIDER` (vectores) son capacidades distintas: Anthropic no
 expone embeddings, así que con una sola variable no se podía tener chat real y
 vectores reales a la vez. Sin declarar el segundo se usa el de chat si sabe
-hacerlos, y si no el fixture. `Providers::Voyage` es el adapter real de
-embeddings (`VOYAGE_API_KEY`); solo hace `embed` y su `complete` levanta.
+hacerlos, y si no el fixture.
+
+Los adapters de embeddings (`Providers::Openai`, `Providers::Voyage`) heredan
+de `HttpEmbeddings`, que trae lo que es fácil hacer mal —respetar el índice de
+cada fila, partir en lotes, validar la dimensión, llevar el código HTTP al
+error— y deja a cada uno su URL, su cuerpo y dónde pone el mensaje de error.
+Solo hacen `embed`: su `complete` levanta `ProviderUnsupported`.
+
+**Ojo con a quién se le piden los vectores.** El runner le pasa a la tarea el
+proveedor de CHAT. `DetectDuplicates` usa `Flow::AI.embeddings_provider`, que es
+otro objeto: preguntarle al de chat dejaba al de embeddings sin usarse nunca,
+con la credencial puesta y todo. Y si el de embeddings falla, `run_locally`
+devuelve `nil` y el runner cae a `#complete` — un proveedor caído no puede
+romper una tarea que sabe arreglárselas sin él.
 
 **Detectar duplicados tiene dos caminos, y elige el proveedor.**
 `Provider#embeddings?` decide: con vectores se compara por coseno local
