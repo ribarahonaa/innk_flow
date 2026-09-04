@@ -83,5 +83,9 @@
           - if encadenados
             %td.muted= step.source_step&.name || "—"
 
-- if policy(@challenge).update_pipeline?
+-# Los gestores se configuran en el módulo de evolución. Acá aparecen SOLO si
+-# quedaron sin módulo donde administrarlos —alguien lo borró después de
+-# asignarlos—, para que no queden inalcanzables.
+- huerfanos = @challenge.challenge_gestores.any? && @challenge.steps.none?(&:evolution?)
+- if huerfanos && policy(@challenge).update_pipeline?
   = render "challenges/gestores", challenge: @challenge, candidatos: @gestor_candidates

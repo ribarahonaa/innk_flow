@@ -148,7 +148,7 @@ RSpec.describe "el rol gestor", type: :request do
   describe "asignar gestores" do
     before { sign_in(admin, company: demo) }
 
-    it "quien administra los suma desde el desafío" do
+    it "quien administra los suma" do
       expect do
         post challenge_gestores_path(otro_de_demo, user_id: gina.id)
       end.to change { as_company(demo) { ChallengeGestor.count } }.by(1)
@@ -171,39 +171,49 @@ RSpec.describe "el rol gestor", type: :request do
     end
   end
 
-  # Un gestor acompaña la EVOLUCIÓN de las ideas. Reclamar uno antes de que
-  # exista el flujo es pedir algo de lo que todavía no se sabe si hace falta:
-  # sin módulos no hay forma de saber si va a haber evolución.
-  describe "cuándo se pide un gestor" do
+  # Un gestor acompaña la EVOLUCIÓN de las ideas, así que se lo asigna donde
+  # eso pasa. Antes se pedía desde la ficha del desafío, que reclamaba un
+  # gestor incluso sobre un flujo vacío en el que todavía no se sabía si iba a
+  # haber evolución.
+  describe "dónde se asigna un gestor" do
     before { sign_in(admin, company: demo) }
 
-    def vacio = as_company(demo) { create(:challenge, name: "Sin armar") }
+    def evolucion(challenge) = as_company(demo) { challenge.steps.find(&:evolution?) }
 
-    it "sin flujo no lo reclama: lo explica" do
-      get challenge_path(vacio)
+    it "en el módulo de evolución" do
+      get challenge_step_path(otro_de_demo, evolucion(otro_de_demo))
 
-      expect(response.body).to include("Todavía no hay flujo")
-      expect(response.body).not_to include("Nadie asignado")
+      expect(response.body).to include("Quiénes acompañan")
+      expect(response.body).to include("Nadie asignado todavía")
+      # El acceso es al desafío entero: sin decirlo, alguien asigna creyendo
+      # que solo va a ver este módulo.
+      expect(response.body).to include("Se asigna por desafío, no por módulo")
     end
 
-    it "con un flujo sin evolución avisa que no tendría dónde acompañar" do
-      desafio = as_company(demo) do
-        c = create(:challenge, name: "Solo ideas")
-        seed_form!(c.steps.create!(kind: "ideation", position: 1))
-        c.steps.create!(kind: "reporting", position: 2)
-        c
-      end
-
-      get challenge_path(desafio)
-
-      expect(response.body).to include("no tiene módulo de evolución")
-    end
-
-    it "con evolución y sin nadie asignado, ahí sí lo reclama" do
+    it "y ya no desde la ficha del desafío" do
       get challenge_path(otro_de_demo)
 
-      expect(response.body).to include("Nadie asignado")
+      expect(response.body).not_to include("Quiénes acompañan")
+    end
+
+    it "tampoco sobre un desafío sin flujo, que era el caso raro" do
+      vacio = as_company(demo) { create(:challenge, name: "Sin armar") }
+
+      get challenge_path(vacio)
+
+      expect(response.body).not_to include("Quiénes acompañan")
+    end
+
+    # Si alguien borra la evolución después de asignar, los gestores quedarían
+    # sin pantalla donde sacarlos. Ahí la ficha los muestra.
+    it "salvo que queden sin módulo donde administrarlos" do
+      as_company(demo) { evolucion(acompanado).destroy! }
+
+      get challenge_path(acompanado)
+
+      expect(response.body).to include("Quiénes acompañan", "Gina Guía")
     end
   end
+
 end
 

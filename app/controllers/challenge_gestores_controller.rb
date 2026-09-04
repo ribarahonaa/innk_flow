@@ -13,10 +13,13 @@ class ChallengeGestoresController < ApplicationController
 
     asignacion = @challenge.challenge_gestores.new(user_id: params[:user_id])
 
+    # `redirect_back`: esto se configura desde el módulo de evolución, que es
+    # donde un gestor tiene algo que hacer. Volver siempre a la ficha del
+    # desafío sacaba de la pantalla en la que estabas trabajando.
     if asignacion.save
-      redirect_to challenge_path(@challenge), notice: "#{asignacion.user.name} acompaña este desafío."
+      volver notice: "#{asignacion.user.name} acompaña este desafío."
     else
-      redirect_to challenge_path(@challenge), alert: asignacion.errors.full_messages.to_sentence
+      volver alert: asignacion.errors.full_messages.to_sentence
     end
   end
 
@@ -24,10 +27,14 @@ class ChallengeGestoresController < ApplicationController
     authorize @challenge, :update_pipeline?
 
     @challenge.challenge_gestores.find(params[:id]).destroy!
-    redirect_to challenge_path(@challenge), notice: "Ya no acompaña este desafío."
+    volver notice: "Ya no acompaña este desafío."
   end
 
   private
+
+  def volver(**flash)
+    redirect_back fallback_location: challenge_path(@challenge), **flash
+  end
 
   def set_challenge = @challenge = policy_scope(Challenge).find_by!(slug: params[:challenge_id])
 end

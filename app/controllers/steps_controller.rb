@@ -12,6 +12,8 @@ class StepsController < ApplicationController
     @handler = @step.handler
     @pending_suggestions = AiSuggestion.pending_review.where(challenge_step_id: @step.id).recent
     @assignable = @step.evaluation? ? assignable_users : []
+    # Un gestor acompaña la evolución: se lo asigna donde eso pasa.
+    @gestor_candidates = @step.evolution? ? gestor_candidates : []
     render "steps/#{@step.kind}"
   end
 
@@ -48,6 +50,19 @@ class StepsController < ApplicationController
   end
 
   private
+
+  # Gente con rol gestor en la empresa que todavía no acompaña este desafío.
+  #
+  # La membresía se busca explícita y no por `user.memberships`: esa asociación
+  # puede venir cacheada de otro contexto de tenencia.
+  def gestor_candidates
+    ya_estan = @challenge.challenge_gestores.select(:user_id)
+
+    User.joins(:memberships)
+        .where(memberships: { company_id: Current.company.id, role: "gestor" })
+        .where.not(id: ya_estan)
+        .distinct.order(:name)
+  end
 
   # Quién puede sumarse a evaluar este módulo.
   #

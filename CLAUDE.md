@@ -170,7 +170,11 @@ Dos reglas que no viven en el rol:
 - **El gestor es interempresa**: una membresía con rol `gestor` por cada
   empresa, igual que cualquiera que esté en más de una. Lo nuevo es que tener
   membresía dejó de significar ver todo: un gestor solo ve los desafíos de
-  `challenge_gestores`. Por eso **los controllers buscan el desafío con
+  `challenge_gestores`. Se **asigna desde el módulo de evolución**, que es donde
+  tiene algo que hacer —igual que los evaluadores se asignan desde el módulo de
+  evaluación—, aunque el acceso que otorga es al desafío entero y la pantalla lo
+  dice. La ficha del desafío solo lo ofrece si quedaron gestores sin módulo de
+  evolución donde administrarlos. Por eso **los controllers buscan el desafío con
   `policy_scope(Challenge).find_by!`** y no con `Challenge.find_by!` — así lo
   no asignado da 404 y no 403, que sería un oráculo de existencia.
 
