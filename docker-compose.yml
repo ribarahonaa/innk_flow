@@ -47,6 +47,12 @@ services:
       FLOW_AI_PROVIDER: ${FLOW_AI_PROVIDER:-fixture}
       FLOW_AI_MODEL: ${FLOW_AI_MODEL:-claude-opus-5}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Los EMBEDDINGS van por su propio proveedor: Anthropic no tiene
+      # endpoint, así que el de chat no sirve para esto. Sin declararlo se usa
+      # el fixture (vectores deterministas, sin semántica, sin red).
+      FLOW_EMBEDDINGS_PROVIDER: ${FLOW_EMBEDDINGS_PROVIDER:-}
+      FLOW_EMBEDDINGS_MODEL: ${FLOW_EMBEDDINGS_MODEL:-}
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
     depends_on:
       - db
       - redis
@@ -83,6 +89,8 @@ services:
       # costaría plata en cada corrida y dependería de la red. El contenedor de
       # test tampoco recibe la credencial.
       FLOW_AI_PROVIDER: fixture
+      FLOW_EMBEDDINGS_PROVIDER: fixture
+      VOYAGE_API_KEY: ""
     depends_on:
       - db
       - redis

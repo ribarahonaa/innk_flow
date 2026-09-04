@@ -74,4 +74,9 @@ Rails.application.configure do
   # los specs que verifican el pedido empezarían a fallar por una variable de
   # entorno, no por el código.
   ENV.delete("FLOW_AI_MODEL")
+  # Lo mismo con los embeddings, que ahora son otro proveedor y otra
+  # credencial: una corrida de specs no puede terminar pegándole a Voyage.
+  ENV["FLOW_EMBEDDINGS_PROVIDER"] = "fixture"
+  ENV.delete("FLOW_EMBEDDINGS_MODEL")
+  ENV.delete("VOYAGE_API_KEY")
 end
