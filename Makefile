@@ -115,6 +115,10 @@ seed:
 clean-challenges:
 	$(COMPOSE) exec $(APP_SERVICE) ./bin/rails flow:limpiar_desafios
 
+# Calcula los vectores que falten. FORCE=1 rehace los de otro modelo.
+embeddings:
+	$(COMPOSE) exec $(APP_SERVICE) ./bin/rails flow:embeddings FORCE=$(FORCE)
+
 psql:
 	$(COMPOSE) exec $(DB_SERVICE) psql -U postgres -d innk_flow_development
 

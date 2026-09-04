@@ -1,4 +1,4 @@
-\restrict cSrLNLaNA3LiyaBJ8ywYyM7U6gEcIjqfBtpjz3qVkrz1cHGeeheNbLMrdPhjyu1
+\restrict fIanXANQiGEgUhtva0IWdcipWcZd9eEEPNWTJ7mEf7EG96McqO0kqZBp8stAjZI
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -27,6 +27,20 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
 --
 
 COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
+
+
+--
+-- Name: vector; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION vector; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION vector IS 'vector data type and ivfflat and hnsw access methods';
 
 
 --
@@ -439,6 +453,9 @@ CREATE TABLE public.idea_versions (
     change_note text,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    embedding public.vector(1024),
+    embedding_model character varying,
+    embedded_at timestamp(6) without time zone,
     CONSTRAINT idea_versions_actor_type_check CHECK (((actor_type)::text = ANY (ARRAY[('human'::character varying)::text, ('ai'::character varying)::text])))
 );
 
@@ -1524,6 +1541,13 @@ CREATE INDEX index_idea_versions_on_created_by_id ON public.idea_versions USING 
 
 
 --
+-- Name: index_idea_versions_on_embedding; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_idea_versions_on_embedding ON public.idea_versions USING hnsw (embedding public.vector_cosine_ops);
+
+
+--
 -- Name: index_idea_versions_on_idea_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2542,11 +2566,12 @@ ALTER TABLE ONLY public.step_entries
 -- PostgreSQL database dump complete
 --
 
-\unrestrict cSrLNLaNA3LiyaBJ8ywYyM7U6gEcIjqfBtpjz3qVkrz1cHGeeheNbLMrdPhjyu1
+\unrestrict fIanXANQiGEgUhtva0IWdcipWcZd9eEEPNWTJ7mEf7EG96McqO0kqZBp8stAjZI
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260904160000'),
 ('20260904140000'),
 ('20260904100000'),
 ('20260903200000'),

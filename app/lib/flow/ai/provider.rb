@@ -35,6 +35,11 @@ module Flow
       end
 
       def name = self.class.name.demodulize.underscore
+
+      # Con qué modelo se calcularon los vectores. Se guarda junto al vector:
+      # dos modelos distintos no producen vectores comparables, y sin el dato
+      # no hay forma de saber cuáles hay que rehacer.
+      def embedding_model = name
     end
   end
 end

@@ -48,6 +48,11 @@ module Flow
           carry_attachments!(version)
         end
 
+        # Fuera de la transacción y del lock: calcular el vector llama a un
+        # servicio externo y publicar no puede quedar esperándolo ni fallar
+        # con él.
+        EmbedVersionJob.perform_later(version.company_id, version.id) if version
+
         Result.new(ok: true, version: version, errors: [])
       rescue ActiveRecord::RecordInvalid => e
         Result.new(ok: false, version: nil, errors: e.record.errors.full_messages)

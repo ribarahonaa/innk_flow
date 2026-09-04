@@ -22,5 +22,9 @@ module Flow
     # El proveedor de IA configurado no soporta esa operación. No es un bug:
     # es una capacidad que ese proveedor no tiene.
     class ProviderUnsupported < Error; end
+
+    # El proveedor de embeddings no pudo responder: falta credencial, la API
+    # rechazó el pedido, o devolvió vectores de otra dimensión que la columna.
+    class EmbeddingFailed < Error; end
   end
 end

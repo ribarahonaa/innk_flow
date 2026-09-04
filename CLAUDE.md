@@ -19,6 +19,7 @@ make spec                                   # suite completa
 make spec-file FILE=spec/requests/x_spec.rb
 make spec-line FILE=spec/requests/x_spec.rb LINE=42
 make screens                                # recorrido E2E con Playwright
+make embeddings                             # calcula los vectores que falten
 make yarn-build                             # recompilar JS/CSS
 make rails / psql / logs-app / logs-sidekiq
 ```
@@ -214,20 +215,53 @@ API rechaza con 400 (`minItems`, `pattern`, …) pero valida la respuesta contra
 el schema **original**; y trata `stop_reason: :refusal` y `:max_tokens` como
 fallas explicadas, porque llegan con HTTP 200 y no como excepción.
 
-**Detectar duplicados tiene dos caminos, y elige el proveedor.** Anthropic no
-expone embeddings, así que `Provider#embeddings?` decide: con vectores se
-compara por coseno local (determinista y barato, es lo que hace el fixture);
-sin ellos se le pregunta al modelo por `#complete`, que además **explica** el
-parecido —que es lo que una persona necesita para decidir si fusiona—. El
-runner no sabe de embeddings: pregunta `task.local?(provider)`. Dos detalles
-que se pagan si se olvidan: los ids posibles viajan como `enum` en el schema
-(el modelo no puede señalar una idea inexistente ni de otro desafío), y sin
-candidatas la tarea se resuelve local para no gastar una llamada preguntando
-por una lista vacía.
+**Hay DOS proveedores, no uno.** `FLOW_AI_PROVIDER` (chat) y
+`FLOW_EMBEDDINGS_PROVIDER` (vectores) son capacidades distintas: Anthropic no
+expone embeddings, así que con una sola variable no se podía tener chat real y
+vectores reales a la vez. Sin declarar el segundo se usa el de chat si sabe
+hacerlos, y si no el fixture. `Providers::Voyage` es el adapter real de
+embeddings (`VOYAGE_API_KEY`); solo hace `embed` y su `complete` levanta.
+
+**Detectar duplicados tiene dos caminos, y elige el proveedor.**
+`Provider#embeddings?` decide: con vectores se compara por coseno local
+(determinista y barato, es lo que hace el fixture); sin ellos se le pregunta al
+modelo por `#complete`, que además **explica** el parecido —que es lo que una
+persona necesita para decidir si fusiona—. El runner no sabe de embeddings:
+pregunta `task.local?(provider)`. Dos detalles que se pagan si se olvidan: los
+ids posibles viajan como `enum` en el schema (el modelo no puede señalar una
+idea inexistente ni de otro desafío), y sin candidatas la tarea se resuelve
+local para no gastar una llamada preguntando por una lista vacía.
 
 Se compara contra **todas** las ideas del desafío, borradores y eliminadas
 incluidas: «esto ya se propuso y no avanzó» es de las cosas más útiles que el
 chequeo puede decir. El estado lo pone la app en el preview, no el modelo.
+
+### pgvector
+
+Los vectores viven en `idea_versions.embedding vector(1024)` con índice HNSW
+(`vector_cosine_ops`). En la **versión** y no en la idea porque la versión es
+contenido inmutable: el vector se calcula una vez y nunca queda viejo. Junto al
+vector se guarda `embedding_model` — dos modelos distintos no producen vectores
+comparables, y sin ese dato no habría forma de saber cuáles rehacer.
+
+Cuatro trampas, las cuatro ya pagadas:
+
+- **`add_column … :vector, limit: N` no sirve.** Rails no conoce el tipo,
+  ignora el `limit` y deja una columna sin dimensión que después no se puede
+  indexar. Va en SQL: `ADD COLUMN embedding vector(1024)`.
+- El tipo desconocido hace que cada proceso escupa «unknown OID». Se registra
+  como string en `config/initializers/pgvector.rb`; nunca se lee como número
+  en Ruby.
+- **La dimensión ata el modelo.** 1024 deja abiertos Voyage (nativa) y OpenAI
+  (truncable por parámetro). Cambiarla es recrear la columna.
+- El atajo por vector entra **solo arriba de `DetectDuplicates::NEIGHBOURS`**.
+  Buscar entre diez no ahorra nada, y con vectores sin semántica real (el
+  fixture) podría dejar afuera justo la duplicada. Es un mecanismo de escala,
+  no de calidad.
+
+Publicar una versión encola `EmbedVersionJob`: calcular el vector llama a un
+servicio externo y publicar una idea no puede depender de que responda.
+`make embeddings` completa lo que falte (`FORCE=1` rehace lo de otro modelo).
 
 Qué se aplica al pedirlo y qué no lo decide `applies_on_request?`. Una
 evaluación de IA es **aditiva** —una opinión más en el promedio— así que pedirla

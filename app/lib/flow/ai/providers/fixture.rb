@@ -42,16 +42,30 @@ module Flow
         # Embedding determinista: no tiene semántica real, pero da similitudes
         # estables y reproducibles. Sirve para ejercitar el flujo de
         # duplicados; para que sea útil de verdad hace falta un proveedor real.
+        #
+        # Devuelve la MISMA dimensión que un proveedor de verdad: si no, no
+        # entra en la columna y el camino que ejercita no es el que va a correr.
         def embed(texts:)
-          Array(texts).map do |text|
-            digest = Digest::SHA256.digest(normalize(text))
-            Array.new(64) { |i| (digest.getbyte(i % digest.bytesize) - 128) / 128.0 }
-          end
+          Array(texts).map { |text| deterministic_vector(text) }
         end
+
+        def embedding_model = model_name
 
         private
 
         def model_name = "fixture-v1"
+
+        # Un SHA256 da 32 bytes; hacen falta 1024 números, así que se encadenan
+        # digests numerados en vez de repetir el mismo en círculo —que daría un
+        # vector periódico y similitudes falsas entre textos distintos.
+        def deterministic_vector(text)
+          base = normalize(text)
+          bytes = (0...(Flow::AI::EMBEDDING_DIMENSIONS / 32.0).ceil).flat_map do |i|
+            Digest::SHA256.digest("#{i}:#{base}").bytes
+          end
+
+          bytes.first(Flow::AI::EMBEDDING_DIMENSIONS).map { |b| (b - 128) / 128.0 }
+        end
 
         def load_fixture(messages:, purpose:)
           dir = ROOT.join(purpose.to_s)

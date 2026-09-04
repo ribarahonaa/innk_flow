@@ -19,10 +19,13 @@ module Flow
       class DetectDuplicates < Base
         THRESHOLD = 0.82
 
-        # Tope de lo que entra en la comparación. Más que esto no es un
-        # problema de prompt sino de búsqueda: ahí hace falta pgvector con un
-        # proveedor de embeddings, no una lista más larga.
+        # Tope de lo que entra en la comparación sin vectores: la lista más
+        # reciente, y nada más.
         MAX_CANDIDATES = 40
+
+        # Con vectores, cuántas vecinas se le pasan al modelo. Postgres hace la
+        # búsqueda con el índice HNSW y el prompt deja de crecer con el pool.
+        NEIGHBOURS = 10
 
         def messages
           [
@@ -95,7 +98,9 @@ module Flow
         end
 
         def context_snapshot
-          { "candidates" => candidates.size, "compared_by" => Flow::AI.provider.embeddings? ? "embeddings" : "modelo" }
+          { "candidates" => candidates.size,
+            "shortlist" => shortlist_source,
+            "compared_by" => Flow::AI.provider.embeddings? ? "embeddings" : "modelo" }
         end
 
         # Con embeddings la comparación es local: no hay nada que pedirle al
@@ -124,6 +129,19 @@ module Flow
 
         private
 
+        # Con qué se compara.
+        #
+        # Hasta NEIGHBOURS ideas se mandan todas: buscar por vector entre diez
+        # no ahorra nada y, si los vectores no tienen semántica real —el
+        # fixture—, podría dejar afuera justo la duplicada. Recién arriba de
+        # ese número entra pgvector, que es para lo que sirve: que el prompt no
+        # crezca con el pool.
+        def candidates
+          @candidates ||= todas.size > NEIGHBOURS ? (vecinas.presence || todas) : todas
+        end
+
+        def shortlist_source = candidates.equal?(@vecinas) ? "pgvector" : "recientes"
+
         # TODAS las demás ideas del desafío, las más recientes primero.
         #
         # Los borradores entran porque avisar sirve sobre todo mientras se
@@ -132,12 +150,42 @@ module Flow
         # avanzó» es de las cosas más útiles que este chequeo puede decir. Por
         # eso cada coincidencia viaja con el estado de la idea con la que se
         # parece, y no se filtra por él.
-        def candidates
-          @candidates ||= challenge.ideas.where.not(id: idea.id)
-                                   .includes(:current_version)
-                                   .order(created_at: :desc)
-                                   .limit(MAX_CANDIDATES).to_a
+        def todas
+          @todas ||= challenge.ideas.where.not(id: idea.id)
+                              .includes(:current_version)
+                              .order(created_at: :desc)
+                              .limit(MAX_CANDIDATES).to_a
         end
+
+        # Las más cercanas por coseno, resueltas por Postgres con el índice
+        # HNSW. Solo entre vectores del MISMO modelo: dos modelos distintos no
+        # producen vectores comparables y mezclarlos daría vecinas al azar.
+        def vecinas
+          return @vecinas = [] if mi_vector.blank?
+
+          literal = ActiveRecord::Base.connection.quote(mi_vector)
+          ids = IdeaVersion.where(id: challenge.ideas.where.not(id: idea.id).select(:current_version_id))
+                           .where.not(embedding: nil)
+                           .where(embedding_model: mi_modelo)
+                           .order(Arel.sql("embedding <=> #{literal}::vector"))
+                           .limit(NEIGHBOURS)
+                           .pluck(:idea_id)
+
+          return @vecinas = [] if ids.empty?
+
+          # `pluck` conserva el orden del SQL; `where(id:)` no, así que se
+          # reordena a mano para que la más parecida quede primera.
+          por_id = challenge.ideas.where(id: ids).includes(:current_version).index_by(&:id)
+          @vecinas = ids.filter_map { |id| por_id[id] }
+        end
+
+        def mi_version
+          @mi_version ||= IdeaVersion.where(id: idea.current_version_id)
+                                     .pick(:embedding, :embedding_model)
+        end
+
+        def mi_vector = mi_version&.first
+        def mi_modelo = mi_version&.last
 
         def describe(record)
           [record.title, record.payload.map { |k, v| "#{k}: #{v}" }.join("\n")].join("\n").truncate(600)
