@@ -3,6 +3,10 @@
 -# Va al pie de cada pantalla de configuración. Sin esto el paso a paso era un
 -# indicador —te decía qué falta— y no un recorrido: había que volver al índice
 -# para pasar al siguiente.
+-# Misma guarda que en `_setup_progress`, por el mismo motivo: que no dependa
+-# de que cada pantalla se acuerde.
+- return unless challenge.draft? && policy(challenge).builder?
+
 - setup = Flow::Setup.new(challenge)
 - actual = setup.find(current)
 - anterior = setup.before(current)

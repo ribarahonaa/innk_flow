@@ -143,6 +143,14 @@ async function shot(page, name, url, prepare) {
   await page.screenshot({ path: `${OUT}/05-builder.png`, fullPage: true });
   shots.push('05-builder');
 
+  // El paso a paso es para CONFIGURAR: sobre un desafío que ya arrancó marca
+  // como pendiente un paso que ya no se puede tocar. La guarda vive en el
+  // partial, pero cuatro de seis pantallas se la habían olvidado antes.
+  if (await page.locator('.setup').count()) {
+    failures++;
+    console.error('[SETUP] el paso a paso aparece en el builder de un desafío en curso');
+  }
+
   // Una isla que no montó deja el placeholder: es un fallo, no una captura.
   if (await page.locator('.island-placeholder').count()) {
     failures++;
@@ -157,6 +165,20 @@ async function shot(page, name, url, prepare) {
     await page.waitForSelector('[data-island-mounted="true"] .field-edit', { timeout: 15000 });
     await page.screenshot({ path: `${OUT}/05b-form.png`, fullPage: true });
     shots.push('05b-form');
+
+    if (await page.locator('.setup').count()) {
+      failures++;
+      console.error('[SETUP] el paso a paso aparece en el formulario de un desafío en curso');
+    }
+
+    // Todo campo tiene que decir qué es: sin etiqueta hay dos cajas de texto
+    // seguidas y hay que deducir cuál es la pregunta y cuál la ayuda.
+    const campos = await page.locator('.field-edit').count();
+    const etiquetas = await page.locator('.field-edit .captioned__text').count();
+    if (etiquetas < campos * 3) {
+      failures++;
+      console.error(`[ETIQUETAS] el editor del formulario tiene campos sin etiqueta (${etiquetas} para ${campos} campos)`);
+    }
 
     if (await page.locator('.island-placeholder').count()) {
       failures++;

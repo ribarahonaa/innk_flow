@@ -1121,7 +1121,7 @@ textarea:disabled {
 
   &--off { opacity: .55; }
 
-  &__head { display: flex; align-items: center; gap: 10px; }
+  &__head { display: flex; align-items: flex-end; gap: 10px; }
 
   &__name {
     flex: 1 1 auto;
@@ -1167,7 +1167,7 @@ textarea:disabled {
 
   &__foot {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: 12px;
     margin-top: 12px;
     padding-top: 10px;
@@ -1825,3 +1825,21 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
 /* Las propuestas con varios ítems traen saltos de línea: sin esto se leen
    como un párrafo corrido de claves y valores. */
 .ai-suggestion__body { white-space: pre-line; }
+
+/* Un campo con su etiqueta arriba. El label envuelve al control, así el clic
+   en el texto también enfoca. */
+.captioned {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  min-width: 0;
+  font-weight: 400;
+}
+.captioned--grow { flex: 1 1 auto; }
+.captioned__text {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: .02em;
+}
+.field-edit__line .captioned select { flex: none; width: 12rem; }

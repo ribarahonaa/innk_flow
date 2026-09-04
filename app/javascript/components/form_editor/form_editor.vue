@@ -24,33 +24,47 @@
         <span class="field-edit__handle" title="Arrastrar para reordenar">⠿</span>
 
         <div class="field-edit__body">
+          <!-- Etiquetados: sin esto hay dos cajas de texto seguidas y hay que
+               deducir cuál es la pregunta y cuál la ayuda. El `label` además
+               hace que el clic en el texto enfoque el campo. -->
           <div class="field-edit__line">
-            <input
-              v-model="field.label"
-              class="field-edit__label"
-              type="text"
-              placeholder="Qué se le pregunta a quien postula"
-            />
-            <select v-model="field.fieldType" :disabled="locked && !!field.id">
-              <option v-for="t in fieldTypes" :key="t.value" :value="t.value">{{ t.label }}</option>
-            </select>
+            <label class="captioned captioned--grow">
+              <span class="captioned__text">La pregunta</span>
+              <input
+                v-model="field.label"
+                class="field-edit__label"
+                type="text"
+                placeholder="Qué se le pregunta a quien postula"
+              />
+            </label>
+            <label class="captioned">
+              <span class="captioned__text">Tipo de respuesta</span>
+              <select v-model="field.fieldType" :disabled="locked && !!field.id">
+                <option v-for="t in fieldTypes" :key="t.value" :value="t.value">{{ t.label }}</option>
+              </select>
+            </label>
           </div>
 
-          <input
-            v-model="field.hint"
-            class="field-edit__hint"
-            type="text"
-            placeholder="Texto de ayuda (opcional)"
-          />
+          <label class="captioned">
+            <span class="captioned__text">Ayuda para quien responde (opcional)</span>
+            <input
+              v-model="field.hint"
+              class="field-edit__hint"
+              type="text"
+              placeholder="Una frase que aclare qué se espera"
+            />
+          </label>
 
-          <input
-            v-if="needsOptions(field)"
-            class="field-edit__hint"
-            type="text"
-            placeholder="Opciones separadas por coma"
-            :value="field.options.join(', ')"
-            @input="setOptions(field, $event.target.value)"
-          />
+          <label v-if="needsOptions(field)" class="captioned">
+            <span class="captioned__text">Opciones, separadas por coma</span>
+            <input
+              class="field-edit__hint"
+              type="text"
+              placeholder="Sí, No, No sé"
+              :value="field.options.join(', ')"
+              @input="setOptions(field, $event.target.value)"
+            />
+          </label>
 
           <div class="field-edit__flags">
             <label><input v-model="field.required" type="checkbox" /> Obligatorio</label>
@@ -58,7 +72,12 @@
               <input type="radio" :checked="field.isTitle" @change="setTitle(field)" />
               Es el título de la idea
             </label>
-            <code class="field-edit__key">{{ field.key || 'clave: se genera del nombre' }}</code>
+            <!-- La clave es el identificador con el que las fórmulas y los
+                 criterios automáticos referencian este campo: sin decirlo,
+                 parece texto suelto. -->
+            <code class="field-edit__key" title="Con esta clave lo referencian las fórmulas y los criterios automáticos">
+              clave: {{ field.key || 'se genera del nombre' }}
+            </code>
             <span v-if="field.answered" class="field-edit__answered">
               {{ field.answered }} {{ field.answered === 1 ? 'idea respondió' : 'ideas respondieron' }}
             </span>

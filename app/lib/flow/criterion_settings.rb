@@ -68,12 +68,12 @@ module Flow
         params: [
           { key: "min", type: "number", default: 1, label: "Desde" },
           { key: "max", type: "number", default: 10, label: "Hasta" },
-          { key: "step", type: "number", default: 1, min: 1, label: "De a" },
+          { key: "step", type: "number", default: 1, min: 1, label: "Saltos de" },
           { key: "direction", type: "select", default: "higher_better",
             label: "Qué es mejor",
             options: [
               { value: "higher_better", label: "Más alto es mejor" },
-              { value: "lower_better", label: "Más bajo es mejor (costo, esfuerzo, riesgo)" }
+              { value: "lower_better", label: "Más bajo es mejor" }
             ] }
         ]
       },

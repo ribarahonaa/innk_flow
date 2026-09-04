@@ -4,6 +4,12 @@
 -# de cada paso lo decide Flow::Setup: acá solo se dibuja.
 -# La tarjeta dice DÓNDE estás; avanzar es tarea de `shared/_setup_nav`, al
 -# pie. Dos botones «siguiente» en la misma pantalla decían cosas distintas.
+-# La guarda vive ACÁ y no en cada pantalla: son seis y cuatro se la habían
+-# olvidado, así que «Configurar el desafío · 5 de 6» aparecía sobre desafíos
+-# que llevan semanas corriendo, marcando como pendiente un paso que ya no se
+-# puede tocar.
+- return unless challenge.draft? && policy(challenge).builder?
+
 - setup = Flow::Setup.new(challenge)
 - current = local_assigns[:current]
 

@@ -1,9 +1,13 @@
 <template>
   <li class="criterion-edit" :class="{ 'criterion-edit--off': !criterion.active }">
     <div class="criterion-edit__head">
-      <input v-model="criterion.name" type="text" class="criterion-edit__name" placeholder="Nombre del criterio" />
+      <label class="captioned captioned--grow">
+        <span class="captioned__text">Criterio</span>
+        <input v-model="criterion.name" type="text" class="criterion-edit__name" placeholder="Nombre del criterio" />
+      </label>
 
       <div class="criterion-edit__weight">
+        <span class="captioned__text">Peso</span>
         <input
           type="number"
           min="0"
@@ -68,14 +72,25 @@
     </div>
 
     <div class="criterion-edit__foot">
-      <input v-model="criterion.description" type="text" class="criterion-edit__desc"
-             placeholder="Qué mirar al puntuarlo (lo lee quien evalúa)" />
+      <!-- Sin etiqueta, este campo solo se entendía mientras estuviera vacío:
+           con texto adentro no había forma de saber qué era ni quién lo lee. -->
+      <label class="captioned captioned--grow">
+        <span class="captioned__text">{{ descripcionCaption }}</span>
+        <input v-model="criterion.description" type="text" class="criterion-edit__desc"
+               :placeholder="descripcionPlaceholder" />
+      </label>
       <label class="criterion-edit__flag">
         <input v-model="criterion.active" type="checkbox" :disabled="locked && criterion.id" />
         Activo
       </label>
-      <code class="criterion-edit__key" :title="'Las fórmulas lo usan como variable'">{{ criterion.key || 'clave: del nombre' }}</code>
-      <span v-if="criterion.scored" class="criterion-edit__scored">ya tiene notas</span>
+      <code class="criterion-edit__key" title="Las fórmulas usan esta clave como variable">
+        clave: {{ criterion.key || 'se genera del nombre' }}
+      </code>
+      <!-- Por qué está bloqueado lo estructural de este criterio. -->
+      <span v-if="criterion.scored" class="criterion-edit__scored"
+            title="Cambiarle el peso o la escala reescribiría el sentido de lo ya puntuado">
+        ya se puntuó con él
+      </span>
     </div>
   </li>
 </template>
@@ -101,6 +116,20 @@ export default {
   emits: ['remove', 'weight'],
 
   computed: {
+    // Un criterio automático no lo puntúa nadie y uno de fórmula se deriva:
+    // decirles «qué mirar al puntuarlo» es pedir algo que no aplica.
+    descripcionCaption() {
+      if (this.criterion.source === 'automatic') return 'Qué comprueba · lo lee quien configura';
+      if (this.criterion.source === 'formula') return 'Qué significa el resultado';
+      return 'Qué mirar al puntuarlo · lo lee quien evalúa';
+    },
+
+    descripcionPlaceholder() {
+      if (this.criterion.source === 'automatic') return 'Que la idea llegue con el problema desarrollado';
+      if (this.criterion.source === 'formula') return 'Impacto sobre esfuerzo';
+      return 'Cuánto baja la merma si funciona';
+    },
+
     choosesScale() {
       return this.sources.find((s) => s.value === this.criterion.source)?.choosesScale;
     },
