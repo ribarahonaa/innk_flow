@@ -203,9 +203,22 @@ Los JSON Schema validan en los dos caminos, así que no hay drift.
 El adapter real tiene dos cosas no obvias: poda del schema las palabras que la
 API rechaza con 400 (`minItems`, `pattern`, …) pero valida la respuesta contra
 el schema **original**; y trata `stop_reason: :refusal` y `:max_tokens` como
-fallas explicadas, porque llegan con HTTP 200 y no como excepción. Anthropic no
-tiene embeddings: `embed` levanta `ProviderUnsupported` en vez de devolver los
-hashes del fixture disfrazados de semántica.
+fallas explicadas, porque llegan con HTTP 200 y no como excepción.
+
+**Detectar duplicados tiene dos caminos, y elige el proveedor.** Anthropic no
+expone embeddings, así que `Provider#embeddings?` decide: con vectores se
+compara por coseno local (determinista y barato, es lo que hace el fixture);
+sin ellos se le pregunta al modelo por `#complete`, que además **explica** el
+parecido —que es lo que una persona necesita para decidir si fusiona—. El
+runner no sabe de embeddings: pregunta `task.local?(provider)`. Dos detalles
+que se pagan si se olvidan: los ids posibles viajan como `enum` en el schema
+(el modelo no puede señalar una idea inexistente ni de otro desafío), y sin
+candidatas la tarea se resuelve local para no gastar una llamada preguntando
+por una lista vacía.
+
+Se compara contra **todas** las ideas del desafío, borradores y eliminadas
+incluidas: «esto ya se propuso y no avanzó» es de las cosas más útiles que el
+chequeo puede decir. El estado lo pone la app en el preview, no el modelo.
 
 Qué se aplica al pedirlo y qué no lo decide `applies_on_request?`. Una
 evaluación de IA es **aditiva** —una opinión más en el promedio— así que pedirla
@@ -271,10 +284,17 @@ la clave ausente.
 ## Estado y backlog
 
 Maqueta funcional para validar modelo de datos e infraestructura, no un
-reemplazo listo para producción. Pendiente: **pgvector** (hoy `detect_duplicates`
-compara hashes deterministas, no significados) y la **asignación de evaluadores
-con peso** (`step_assignments.weight` existe en el modelo y no entra en el
-cálculo, y no hay dónde configurarlo).
+reemplazo listo para producción.
+
+Pendiente: la **asignación de evaluadores con peso** (`step_assignments.weight`
+existe en el modelo, no entra en el cálculo y no hay dónde configurarlo).
+
+**pgvector queda a la espera de un proveedor de embeddings.** Hoy no hace
+falta: sin vectores los duplicados los juzga el modelo. Haría falta para
+escalar más allá de `DetectDuplicates::MAX_CANDIDATES`, cuando mandar la lista
+entera en el prompt deje de ser razonable — ahí el orden es proveedor de
+embeddings primero (Anthropic no tiene), columna `vector` después. Agregar la
+columna antes sería guardar algo que nada puede llenar.
 
 El plan vigente y el backlog completo están en
 `~/.claude/plans/tu-ya-sabes-como-dazzling-cat.md`.

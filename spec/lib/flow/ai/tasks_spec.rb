@@ -136,6 +136,99 @@ RSpec.describe "tareas de IA" do
       expect(matches.map { _1["idea_id"] }).to include(twin.id)
       expect(matches.first["similarity"]).to be > 0.82
     end
+
+    # Anthropic no tiene endpoint de embeddings: con el proveedor real este
+    # botón levantaba ProviderUnsupported en la cara de quien lo apretaba.
+    # Ahora ese caso tiene su propio camino, y encima explica el parecido.
+    context "con un proveedor sin embeddings" do
+      let!(:gemela) do
+        create(:idea, challenge: challenge).tap do |i|
+          Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "Celdas de carga en los racks" }).call
+        end
+      end
+
+      let(:proveedor) do
+        Class.new(Flow::AI::Provider) do
+          attr_accessor :respuesta
+          attr_reader :llamadas
+
+          def initialize = @llamadas = 0
+
+          def embeddings? = false
+
+          # La clase es anónima: sin esto Provider#name explota al derivarlo.
+          def name = "stub"
+
+          def complete(messages:, schema:, purpose:, temperature: 0.2)
+            @llamadas += 1
+            Flow::AI::Provider::Result.new(ok: true, data: respuesta, raw: respuesta, tokens_in: 120,
+                                           tokens_out: 30, model: "stub", latency_ms: 5, error: nil)
+          end
+        end.new
+      end
+
+      around do |example|
+        Flow::AI.provider = proveedor
+        example.run
+      ensure
+        Flow::AI.reset_provider!
+      end
+
+      def correr
+        Flow::AI::Runner.call(described_class.new(challenge: challenge, step: step, idea: idea),
+                              mode: "ai_assisted", challenge: challenge, idea: idea)
+      end
+
+      it "le pregunta al modelo, que además explica el parecido" do
+        proveedor.respuesta = {
+          "matches" => [{ "idea_id" => gemela.id, "title" => gemela.title, "similarity" => 0.93,
+                          "reason" => "Las dos miden peso por rack para detectar la diferencia." }]
+        }
+
+        result = correr
+
+        expect(result).to be_ok
+        expect(proveedor.llamadas).to eq(1)
+        expect(result.suggestion.payload["matches"].first["reason"]).to be_present
+        # Y los tokens de esa llamada quedan contados: el camino local los
+        # reportaba en cero porque no había llamada que contar.
+        expect(result.run.tokens_in).to eq(120)
+      end
+
+      # El modelo no puede señalar una idea que no existe ni una de otro
+      # desafío: los ids posibles viajan en el schema.
+      it "acota los ids posibles a las ideas de este desafío" do
+        task = described_class.new(challenge: challenge, step: step, idea: idea)
+        ids = task.schema.dig("properties", "matches", "items", "properties", "idea_id", "enum")
+
+        expect(ids).to eq([gemela.id])
+      end
+
+      # Una idea eliminada SÍ es candidata —«esto ya se propuso y no avanzó»
+      # es información útil— y la vista lo dice sin preguntarle al modelo.
+      it "marca el estado de la idea con la que se parece" do
+        gemela.update!(status: "eliminated")
+        proveedor.respuesta = {
+          "matches" => [{ "idea_id" => gemela.id, "title" => gemela.title, "similarity" => 0.9 }]
+        }
+
+        result = correr
+
+        expect(result.suggestion.payload["matches"].first["idea_id"]).to eq(gemela.id)
+        task = described_class.new(challenge: challenge, step: step, idea: idea)
+        expect(task.preview(result.suggestion.payload)).to include("no avanzó")
+      end
+
+      it "sin nada con qué comparar no gasta una llamada" do
+        gemela.destroy
+
+        result = correr
+
+        expect(result).to be_ok
+        expect(proveedor.llamadas).to be_zero
+        expect(result.suggestion.payload["matches"]).to be_empty
+      end
+    end
   end
 
   describe Flow::AI::Tasks::EvaluateIdea do

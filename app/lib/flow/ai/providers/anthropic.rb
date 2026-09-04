@@ -43,10 +43,17 @@ module Flow
         # Anthropic no expone un endpoint de embeddings. Devolver los del
         # fixture acá sería peor que fallar: la detección de duplicados diría
         # que compara significados cuando estaría comparando hashes.
+        #
+        # Que esto reviente ya no rompe ninguna pantalla: `embeddings?` es
+        # false y la detección de duplicados le pregunta al modelo en vez de
+        # pedir vectores. Sigue levantando —y no devolviendo vacío— para que
+        # quien agregue un camino nuevo se entere acá y no en producción.
+        def embeddings? = false
+
         def embed(texts:)
           raise Flow::Errors::ProviderUnsupported,
-                "Anthropic no tiene endpoint de embeddings. La detección de duplicados " \
-                "necesita un proveedor de embeddings aparte (y pgvector para buscarlos)."
+                "Anthropic no tiene endpoint de embeddings. Para comparar por vectores hace " \
+                "falta un proveedor de embeddings aparte (y pgvector para buscarlos a escala)."
         end
 
         def name = "anthropic"

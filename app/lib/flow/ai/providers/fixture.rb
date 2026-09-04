@@ -37,6 +37,8 @@ module Flow
                      model: model_name, latency_ms: elapsed, error: nil)
         end
 
+        def embeddings? = true
+
         # Embedding determinista: no tiene semántica real, pero da similitudes
         # estables y reproducibles. Sirve para ejercitar el flujo de
         # duplicados; para que sea útil de verdad hace falta un proveedor real.

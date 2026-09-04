@@ -21,6 +21,14 @@ module Flow
         raise NotImplementedError
       end
 
+      # ¿Este proveedor sabe hacer embeddings?
+      #
+      # No todos: Anthropic no expone el endpoint. Quien pregunta es la tarea
+      # de duplicados, que compara por vectores cuando puede y le pregunta al
+      # modelo cuando no. Sin este predicado la única forma de saberlo era
+      # llamar a #embed y atajar la excepción.
+      def embeddings? = false
+
       # Para detección de duplicados. Sin esto la similitud es una demo.
       def embed(texts:)
         raise NotImplementedError

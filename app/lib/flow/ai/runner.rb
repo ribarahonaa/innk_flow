@@ -111,9 +111,11 @@ module Flow
       end
 
       def invoke(run)
-        # DetectDuplicates no pasa por #complete: calcula similitud local sobre
-        # embeddings. Se le da su camino en vez de forzar la forma equivocada.
-        if @task.respond_to?(:run_locally)
+        # Algunas tareas resuelven sin llamar al modelo. DetectDuplicates
+        # compara con embeddings cuando el proveedor los tiene; cuando no,
+        # vuelve al camino de siempre. Quién decide es la tarea, mirando al
+        # proveedor: el runner no sabe de embeddings.
+        if @task.respond_to?(:local?) && @task.local?(provider)
           started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
           data = @task.run_locally(provider)
           elapsed = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round
