@@ -229,6 +229,29 @@ async function shot(page, name, url, prepare) {
     await shot(page, `09-${index + 1}-step-${link.text.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, link.href);
   }
 
+  // La selección con filtros: cada idea pasa o no pasa cada condición, y se
+  // ve quién lo respondió. Un filtro sin responder traba el cierre del módulo,
+  // así que la columna tiene que estar poblada.
+  const corte = stepLinks.find((l) => l.text.match(/Corte a top/i));
+  if (corte) {
+    await page.goto(BASE + corte.href, { waitUntil: 'networkidle' });
+    const pasan = await page.locator('.gate--pass, .gate--fail').count();
+    const porIA = await page.locator('.gate--by-ai').count();
+    const pendientes = await page.locator('.gate--pending').count();
+
+    if (pasan === 0 || pendientes > 0) {
+      failures++;
+      console.error(`[FILTROS] la tabla de la selección no muestra veredictos resueltos (${pasan} resueltos, ${pendientes} pendientes)`);
+    }
+    if (porIA === 0) {
+      failures++;
+      console.error('[FILTROS] ningún veredicto aparece atribuido a la IA');
+    }
+  } else {
+    failures++;
+    console.error('[LINK] el desafío no tiene el módulo de corte con filtros');
+  }
+
   // El desafío en borrador: «Idear» todavía no tiene formulario. El builder lo
   // marca como error y la pantalla ofrece las dos salidas.
   await page.goto(`${BASE}/challenges/onboarding-remoto/builder`, { waitUntil: 'networkidle' });

@@ -207,6 +207,19 @@ fallas explicadas, porque llegan con HTTP 200 y no como excepción. Anthropic no
 tiene embeddings: `embed` levanta `ProviderUnsupported` en vez de devolver los
 hashes del fixture disfrazados de semántica.
 
+Qué se aplica al pedirlo y qué no lo decide `applies_on_request?`. Una
+evaluación de IA es **aditiva** —una opinión más en el promedio— así que pedirla
+ya es aceptarla. Un **veredicto de selección no**: es LA respuesta del filtro y
+decide quién queda afuera, así que en `ai_assisted` se propone y alguien la
+acepta. Y la IA **nunca pisa un veredicto que puso una persona**, ni con el
+módulo en automático: quien lo puso ya miró la idea (`pending_gates` en
+`Tasks::DecideVerdicts`).
+
+Sumar una tarea es tocar **tres** lugares: la clase, `AiRun::PURPOSES` y el
+CHECK de Postgres sobre `ai_runs.purpose` (hace falta una migración; si no, el
+run revienta con `PG::CheckViolation` antes de crearse y el error llega
+truncado).
+
 Las tareas de **autoría** (armar el flujo, proponer los campos del formulario)
 se ofrecen aunque el módulo esté en «Solo personas»: ese modo define cómo se
 trabaja *dentro* del desafío, no si su dueño puede pedir una mano para
@@ -258,10 +271,10 @@ la clave ausente.
 ## Estado y backlog
 
 Maqueta funcional para validar modelo de datos e infraestructura, no un
-reemplazo listo para producción. Pendiente: colaboradores y adjuntos en una idea
-(las tablas y los criterios automáticos existen, falta dónde cargar el dato),
-notificaciones, proveedor de IA real + pgvector, veredictos de IA en la
-selección, y asignación de evaluadores con peso.
+reemplazo listo para producción. Pendiente: **pgvector** (hoy `detect_duplicates`
+compara hashes deterministas, no significados) y la **asignación de evaluadores
+con peso** (`step_assignments.weight` existe en el modelo y no entra en el
+cálculo, y no hay dónde configurarlo).
 
 El plan vigente y el backlog completo están en
 `~/.claude/plans/tu-ya-sabes-como-dazzling-cat.md`.

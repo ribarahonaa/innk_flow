@@ -104,6 +104,19 @@ Flow::Tenant.bypass! do
     ].each_with_index { |attrs, index| tecnicos.criteria.create!(**attrs, position: index) }
     tecnicos.refresh_status!
 
+    # Filtros del corte: condiciones de sí/no que la idea tiene que cumplir
+    # para seguir. No dan puntaje —eso lo trae la evaluación previa— sino que
+    # habilitan o dejan afuera.
+    filtros = CriteriaSet.create!(name: "Filtros de pase a comité", scope: "library",
+                                  description: "Lo mínimo para que valga la pena discutirla en comité.")
+    [
+      { name: "El problema está claro", key: "problema_claro", weight: 0.5, source: "manual",
+        scale_type: "boolean", description: "Se entiende qué se resuelve, para quién y con qué costo hoy." },
+      { name: "El piloto está acotado", key: "piloto_acotado", weight: 0.5, source: "ai",
+        scale_type: "boolean", description: "Define alcance y plazo, en vez de un despliegue completo." }
+    ].each_with_index { |attrs, index| filtros.criteria.create!(**attrs, position: index) }
+    filtros.refresh_status!
+
     pipeline = challenge.pipeline
     [
       ["ideation",   "Postulación de ideas",  { "min_ideas" => 3 },                          nil],
@@ -115,6 +128,7 @@ Flow::Tenant.bypass! do
       ["reporting",  "Reporte de cierre",     { "mode" => "by_version" },                    "ai_auto"]
     ].each do |kind, name, config, ai_mode|
       set = tecnicos if name == "Evaluación técnica"
+      set = filtros if name == "Corte a top 3"
       pipeline.insert(kind: kind, after: :end, name: name, config: config, ai_mode: ai_mode,
                       criteria_set: set)
     end
@@ -266,6 +280,34 @@ Flow::Tenant.bypass! do
     pipeline.advance!  # → Corte a top 3
 
     corte = pipeline.active_step
+
+    # Los filtros se responden idea por idea. Uno lo responde la IA —queda su
+    # ai_run y su justificación, igual que una evaluación automática— y el
+    # resto los responde el comité. Una idea queda afuera acá: el filtro es lo
+    # que la deja fuera, no el puntaje.
+    Flow::AI::Runner.call(
+      Flow::AI::Tasks::DecideVerdicts.new(challenge: challenge, step: corte, idea: ideas[0]),
+      mode: "ai_auto", challenge: challenge, step: corte, idea: ideas[0], requested_by: admin
+    )
+
+    veredictos_humanos = {
+      ideas[1] => [["problema_claro", true, "El 60% de las diferencias en picking está medido."],
+                   ["piloto_acotado", true, "Un centro, dos meses, con métrica de éxito definida."]],
+      ideas[2] => [["problema_claro", true, "El vencimiento por reposición adelante es un problema real."],
+                   ["piloto_acotado", false, "Cambia la asignación del WMS para toda la operación: no hay piloto."]],
+      ideas[3] => [["problema_claro", true, "La diferencia entre merma declarada y observada está documentada."],
+                   ["piloto_acotado", true, "Zona de descarte, revisión semanal por muestreo."]],
+      ideas[4] => [["problema_claro", true, "Reportar mensual impide actuar sobre la causa."],
+                   ["piloto_acotado", true, "Un tablero por turno, sin dependencias externas."]]
+    }
+
+    veredictos_humanos.each do |idea, filas|
+      filas.each do |key, passed, note|
+        corte.handler.record_verdict!(idea: idea, criterion_key: key, passed: passed,
+                                      decided_by: admin, note: note)
+      end
+    end
+
     corte.handler.decide!(
       corte.handler.ranking.select(&:above_cut?).map { |row| row.idea.id },
       decided_by: admin,

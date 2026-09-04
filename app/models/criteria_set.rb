@@ -12,7 +12,11 @@ class CriteriaSet < ApplicationRecord
   WEIGHT_TOLERANCE = 1e-6
 
   belongs_to :owner_step, class_name: "ChallengeStep", optional: true
-  has_many :criteria, -> { order(:position) }, dependent: :destroy, inverse_of: :criteria_set
+  # Mismo desempate que `Criterion.ordered`: sin `created_at` dos criterios con
+  # la misma posición salen en el orden que quiera Postgres, y ese orden termina
+  # congelado en el snapshot del módulo y en las columnas de la tabla.
+  has_many :criteria, -> { order(:position, :created_at) },
+           dependent: :destroy, inverse_of: :criteria_set
   has_many :challenge_steps, dependent: :nullify
 
   validates :name, presence: true

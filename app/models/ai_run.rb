@@ -8,7 +8,7 @@ class AiRun < ApplicationRecord
   PURPOSES = %w[
     suggest_criteria
     propose_pipeline suggest_form_fields generate_ideas coauthor_field
-    detect_duplicates suggest_feedback evaluate_idea summarize_challenge
+    detect_duplicates suggest_feedback evaluate_idea decide_verdicts summarize_challenge
   ].freeze
   MODES = %w[ai_assisted ai_auto].freeze
   STATUSES = %w[queued running succeeded failed].freeze

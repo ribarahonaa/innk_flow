@@ -212,4 +212,96 @@ RSpec.describe "tareas de IA" do
       expect(second.error_sentence).to match(/ya fue revisada/)
     end
   end
+  # Un filtro de sí/no sin responder deja a la idea en el limbo y traba el
+  # cierre del módulo. Antes solo lo podía responder una persona: una selección
+  # en «Solo IA» no tenía cómo cerrarse.
+  describe Flow::AI::Tasks::DecideVerdicts do
+    let(:idea) do
+      create(:idea, challenge: challenge).tap do |i|
+        Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "Sensores por rack" }).call
+        # Viva y postulada: es lo que hace que el cohorte de la selección la
+        # incluya, y sin entry no hay filtro pendiente que responder.
+        i.update!(submitted_at: Time.current, status: "active")
+      end
+    end
+
+    let(:filtros) do
+      set = CriteriaSet.create!(name: "Filtros de pase", scope: "library")
+      set.criteria.create!(name: "El problema está claro", key: "problema_claro", weight: 0.5,
+                           source: "manual", scale_type: "boolean",
+                           description: "Se entiende qué se resuelve y para quién.")
+      set.criteria.create!(name: "El piloto está acotado", key: "piloto_acotado", weight: 0.5,
+                           source: "ai", scale_type: "boolean",
+                           description: "Define alcance y plazo, no un despliegue completo.")
+      set.refresh_status!
+      set
+    end
+
+    let(:seleccion) do
+      idea
+      # Corte automático a propósito: así lo único que traba el cierre son los
+      # veredictos, que es lo que este bloque prueba.
+      paso = challenge.steps.create!(kind: "selection", position: 2, criteria_set: filtros,
+                                     config: { "score_source" => { "type" => "manual" },
+                                               "cut" => { "mode" => "top_n", "value" => 1 } })
+      paso.handler.activate!
+      paso
+    end
+
+    def decidir(mode: "ai_auto")
+      Flow::AI::Runner.call(
+        described_class.new(challenge: challenge, step: seleccion, idea: idea),
+        mode: mode, requested_by: user, challenge: challenge, step: seleccion, idea: idea
+      )
+    end
+
+    it "responde los filtros y queda el rastro de que los respondió la IA" do
+      decidir
+
+      veredictos = SelectionVerdict.where(challenge_step_id: seleccion.id, idea_id: idea.id)
+      expect(veredictos.map(&:criterion_key)).to match_array(%w[problema_claro piloto_acotado])
+      expect(veredictos.map(&:actor_type).uniq).to eq(["ai"])
+      expect(veredictos.map(&:ai_run_id).compact.uniq.size).to eq(1)
+      expect(veredictos.first.note).to be_present
+    end
+
+    it "así el módulo puede cerrar: sin veredictos no podía" do
+      listo, razones = seleccion.handler.can_complete?
+      expect(listo).to be(false)
+      expect(razones.join).to include("veredicto")
+
+      decidir
+
+      expect(seleccion.reload.handler.can_complete?.first).to be(true)
+    end
+
+    # Quien puso un veredicto ya miró la idea y decidió. La IA no le pisa la
+    # decisión ni siquiera cuando el módulo está en automático.
+    it "no pisa el veredicto que puso una persona" do
+      seleccion.handler.record_verdict!(idea: idea, criterion_key: "problema_claro",
+                                        passed: false, decided_by: user, note: "No se entiende el alcance.")
+
+      decidir
+
+      humano = SelectionVerdict.find_by(challenge_step_id: seleccion.id, idea_id: idea.id,
+                                        criterion_key: "problema_claro")
+      expect(humano.passed).to be(false)
+      expect(humano.actor_type).to eq("human")
+      expect(humano.note).to eq("No se entiende el alcance.")
+    end
+
+    # Un veredicto decide quién queda afuera: no es una opinión más como una
+    # evaluación, así que pedirlo no es aceptarlo.
+    it "en modo asistido propone y espera revisión" do
+      result = decidir(mode: "ai_assisted")
+
+      expect(result).to be_ok
+      expect(result.suggestion).to be_pending
+      expect(SelectionVerdict.where(challenge_step_id: seleccion.id)).to be_empty
+
+      expect(Flow::AI::ApplySuggestion.new(result.suggestion, user: user).call).to be_ok
+      expect(SelectionVerdict.where(challenge_step_id: seleccion.id).count).to eq(2)
+    end
+  end
 end
+

@@ -272,6 +272,53 @@ RSpec.describe Flow::Handlers::Selection do
     end
   end
 
+  # Un filtro de sí/no sin responder traba el cierre del módulo. Con la
+  # selección en «Solo IA» eso era un callejón sin salida: el módulo prometía
+  # correr solo y se quedaba esperando a una persona.
+  describe "en modo automático la IA responde los filtros" do
+    let(:con_veredictos) do
+      set = CriteriaSet.create!(name: "Filtros de pase")
+      set.criteria.create!(name: "¿Es viable?", key: "es_viable", weight: 1,
+                           source: "manual", scale_type: "boolean")
+      set.refresh_status!
+      set
+    end
+
+    let(:solo_automaticos) do
+      set = CriteriaSet.create!(name: "Filtros verificables")
+      set.criteria.create!(name: "Tiene costo", key: "tiene_costo", weight: 1, source: "automatic",
+                           source_config: { "check" => "field_present", "field_key" => "costo" })
+      set.refresh_status!
+      set
+    end
+
+    def activar(set:, mode:)
+      step = challenge.steps.create!(kind: "selection", position: 4, name: "Corte",
+                                     criteria_set: set, ai_mode: mode)
+      challenge.update!(status: "running")
+      tecnica.update!(status: "completed")
+      comite.update!(status: "completed")
+      -> { Flow::Handlers::Base.for(step).activate! }
+    end
+
+    it "encola una consulta por idea" do
+      expect(&activar(set: con_veredictos, mode: "ai_auto"))
+        .to have_enqueued_job(Flow::AI::RunJob).exactly(ideas.size).times
+    end
+
+    # Un veredicto decide quién queda afuera: no es una opinión más, así que
+    # en asistido se propone y alguien la acepta, no se dispara sola.
+    it "en asistido no dispara nada" do
+      expect(&activar(set: con_veredictos, mode: "ai_assisted"))
+        .not_to have_enqueued_job(Flow::AI::RunJob)
+    end
+
+    it "sin filtros de veredicto no hay nada que preguntar" do
+      expect(&activar(set: solo_automaticos, mode: "ai_auto"))
+        .not_to have_enqueued_job(Flow::AI::RunJob)
+    end
+  end
+
   describe "#complete! sin decisión manual" do
     it "aplica la regla de corte automáticamente" do
       handler = build_selection("cut" => { "mode" => "top_n", "value" => 3 })

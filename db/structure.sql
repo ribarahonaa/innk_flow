@@ -1,4 +1,4 @@
-\restrict KQMc1OLmuVgQMdKVKuaYCNk6GhCJqOir6Q0jbSyeFlzPsEvKQFOHOET1GYVbjqa
+\restrict cSrLNLaNA3LiyaBJ8ywYyM7U6gEcIjqfBtpjz3qVkrz1cHGeeheNbLMrdPhjyu1
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -126,7 +126,7 @@ CREATE TABLE public.ai_runs (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT ai_runs_mode_check CHECK (((mode)::text = ANY (ARRAY[('ai_assisted'::character varying)::text, ('ai_auto'::character varying)::text]))),
-    CONSTRAINT ai_runs_purpose_check CHECK (((purpose)::text = ANY ((ARRAY['propose_pipeline'::character varying, 'suggest_form_fields'::character varying, 'suggest_criteria'::character varying, 'generate_ideas'::character varying, 'coauthor_field'::character varying, 'detect_duplicates'::character varying, 'suggest_feedback'::character varying, 'evaluate_idea'::character varying, 'summarize_challenge'::character varying])::text[]))),
+    CONSTRAINT ai_runs_purpose_check CHECK (((purpose)::text = ANY ((ARRAY['propose_pipeline'::character varying, 'suggest_form_fields'::character varying, 'suggest_criteria'::character varying, 'generate_ideas'::character varying, 'coauthor_field'::character varying, 'detect_duplicates'::character varying, 'suggest_feedback'::character varying, 'evaluate_idea'::character varying, 'decide_verdicts'::character varying, 'summarize_challenge'::character varying])::text[]))),
     CONSTRAINT ai_runs_status_check CHECK (((status)::text = ANY (ARRAY[('queued'::character varying)::text, ('running'::character varying)::text, ('succeeded'::character varying)::text, ('failed'::character varying)::text])))
 );
 
@@ -2542,11 +2542,12 @@ ALTER TABLE ONLY public.step_entries
 -- PostgreSQL database dump complete
 --
 
-\unrestrict KQMc1OLmuVgQMdKVKuaYCNk6GhCJqOir6Q0jbSyeFlzPsEvKQFOHOET1GYVbjqa
+\unrestrict cSrLNLaNA3LiyaBJ8ywYyM7U6gEcIjqfBtpjz3qVkrz1cHGeeheNbLMrdPhjyu1
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260904140000'),
 ('20260904100000'),
 ('20260903200000'),
 ('20260903190000'),

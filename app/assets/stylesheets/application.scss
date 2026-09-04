@@ -1710,3 +1710,13 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* Un veredicto que respondió la IA se lee distinto que uno que miró alguien. */
+.gate--by-ai { border: 1px dashed currentColor; }
+.gate__actor {
+  margin-left: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  opacity: .75;
+}

@@ -1,5 +1,6 @@
 - content_for :title, @step.name
 = render "steps/header", step: @step, handler: @handler
+= render "shared/ai_suggestions", suggestions: @pending_suggestions
 
 - ranking = @handler.ranking
 - above = ranking.select(&:above_cut?)
@@ -26,6 +27,21 @@
               = criterion.check.description
             - else
               veredicto por idea
+
+-# Un filtro sin responder deja a la idea en el limbo y traba el cierre del
+-# módulo. Acá se le puede pedir a la IA que los responda, idea por idea.
+- sin_veredicto = ranking.select { |r| r.pending_gates.any? }
+- if @step.active? && @handler.verdict_gates.any? && sin_veredicto.any? && policy(@step).advance?
+  .card
+    %h2.section-title Pedirle los veredictos a la IA
+    %p.muted
+      La IA lee la idea y responde cada filtro con su justificación. A diferencia de una
+      evaluación, un veredicto decide quién queda afuera: lo que proponga pasa por tu revisión
+      antes de aplicarse.
+    = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode,
+             actions: sin_veredicto.first(1).map { |r| { label: "Responder los filtros de «#{r.idea.title.truncate(28)}»", purpose: "decide_verdicts", step_id: @step.id, idea_id: r.idea.id } }
+    - if sin_veredicto.size > 1
+      %p.field-hint= "Quedan #{sin_veredicto.size} ideas con filtros sin responder."
 
 .card
   %h2.section-title Corte
@@ -82,11 +98,21 @@
                 %span.muted sin puntaje
             - row.gates.each do |gate|
               %td.gate-cell
+                -# Quién respondió importa tanto como la respuesta: un filtro
+                -# que contestó la IA no es lo mismo que uno que miró alguien.
+                - por_ia = gate[:decided_by] == "IA"
+                - detalle = [gate[:decided_by], gate[:detail]].compact_blank.join(" · ")
                 - case gate[:passed]
                 - when true
-                  %span.gate.gate--pass{ title: gate[:detail] } ✓
+                  %span.gate.gate--pass{ title: detalle, class: ("gate--by-ai" if por_ia) }
+                    ✓
+                    - if por_ia
+                      %span.gate__actor IA
                 - when false
-                  %span.gate.gate--fail{ title: gate[:detail] } ✗
+                  %span.gate.gate--fail{ title: detalle, class: ("gate--by-ai" if por_ia) }
+                    ✗
+                    - if por_ia
+                      %span.gate__actor IA
                 - else
                   - if @step.active? && policy(@step).advance?
                     .gate-verdict

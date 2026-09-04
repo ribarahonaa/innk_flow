@@ -217,6 +217,28 @@ module Flow
 
       protected
 
+      def on_activate
+        request_ai_verdicts! if effective_ai_mode == "ai_auto"
+      end
+
+      # En modo automático la IA responde los filtros de sí/no, que si no
+      # quedan esperando a una persona y el módulo no cierra nunca. Una
+      # consulta por idea —todos sus filtros de una— y encolada: nunca un
+      # fan-out síncrono en el request.
+      #
+      # En `ai_assisted` no se dispara sola: un veredicto decide quién queda
+      # afuera, así que la propone y alguien la acepta.
+      def request_ai_verdicts!
+        return if verdict_gates.empty?
+
+        step.step_entries.each do |entry|
+          Flow::AI::RunJob.perform_later(
+            step.company_id, "decide_verdicts",
+            { "step_id" => step.id, "idea_id" => entry.idea_id }
+          )
+        end
+      end
+
       # Late binding: materializa `auto` a ids concretos, UNA sola vez.
       # Después de esto, reordenar el pipeline no puede cambiar de dónde sale
       # el puntaje de este módulo.

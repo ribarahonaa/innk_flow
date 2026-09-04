@@ -1,0 +1,8 @@
+{
+  "verdicts": [
+    { "criterion_key": "problema_claro", "passed": true,
+      "reason": "La idea nombra dónde se pierde el producto y con qué frecuencia, así que el problema queda acotado y es verificable." },
+    { "criterion_key": "piloto_acotado", "passed": true,
+      "reason": "Propone empezar por un solo centro y por un plazo definido, en vez de desplegar sobre toda la operación." }
+  ]
+}

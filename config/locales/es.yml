@@ -147,6 +147,7 @@ es:
       detect_duplicates: "Detectar duplicados"
       suggest_feedback: "Sugerir feedback"
       evaluate_idea: "Evaluar idea"
+      decide_verdicts: "Responder los filtros"
       summarize_challenge: "Resumen narrativo"
     idea_statuses:
       draft: "Borrador"
