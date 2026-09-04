@@ -120,6 +120,12 @@ module Flow
           data = @task.run_locally(provider)
           elapsed = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round
 
+          # `nil` significa «no pude resolverlo acá, seguí por el camino
+          # normal». Sin esto, un proveedor de embeddings configurado pero
+          # caído rompe una tarea que sabe arreglárselas sin él.
+          return provider.complete(messages: @task.messages, schema: @task.schema,
+                                   purpose: @task.purpose) if data.nil?
+
           errors = Flow::AI::SchemaValidator.errors_for(data, @task.schema)
           return Provider::Result.new(ok: false, data: nil, raw: data, tokens_in: 0, tokens_out: 0,
                                       model: provider.name, latency_ms: elapsed,

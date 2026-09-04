@@ -24,7 +24,17 @@ module Flow
 
         def name = "voyage"
 
-        def model_name = ENV.fetch("FLOW_EMBEDDINGS_MODEL", DEFAULT_MODEL)
+        # `presence` y no `ENV.fetch(..., DEFAULT)`: el compose declara la
+        # variable como string VACÍO cuando no está en el .env, y fetch solo
+        # usa el default si la clave está AUSENTE. Sin esto se le manda a la
+        # API un modelo vacío.
+        def model_name = ENV["FLOW_EMBEDDINGS_MODEL"].presence || DEFAULT_MODEL
+
+        # Lo que se guarda al lado de cada vector tiene que identificar el
+        # MODELO, no el proveedor: cambiar de voyage-3.5-lite a voyage-3.5
+        # produce vectores incomparables y con «voyage» en los dos casos se
+        # mezclarían sin que nadie se entere.
+        def embedding_model = model_name
 
         # Un modelo de chat no tiene nada que hacer acá: si alguien apunta
         # FLOW_AI_PROVIDER a voyage, que se entere de una.
@@ -66,7 +76,12 @@ module Flow
             output_dimension: Flow::AI::EMBEDDING_DIMENSIONS
           )
 
-          JSON.parse(http.request(pedido).body)
+          respuesta = http.request(pedido)
+          cuerpo = parse(respuesta.body)
+          # El código HTTP viaja con el error: sin él, «Internal Server Error»
+          # no distingue entre un modelo mal escrito (400), una credencial
+          # inválida (401) y una caída del proveedor (5xx).
+          cuerpo.is_a?(Hash) ? cuerpo.merge("__status" => respuesta.code) : { "__status" => respuesta.code, "detail" => cuerpo.to_s }
         rescue JSON::ParserError, Net::OpenTimeout, Net::ReadTimeout, SocketError, SystemCallError => e
           raise Flow::Errors::EmbeddingFailed, "Voyage no respondió: #{e.class} #{e.message}"
         end
@@ -88,9 +103,19 @@ module Flow
                 "columna espera #{esperado}. Revisá FLOW_EMBEDDINGS_MODEL."
         end
 
+        def parse(cuerpo)
+          JSON.parse(cuerpo.to_s)
+        rescue JSON::ParserError
+          cuerpo.to_s.truncate(200)
+        end
+
         def error_for(respuesta)
-          detalle = respuesta.dig("detail") || respuesta.dig("error", "message") || respuesta.to_s.truncate(200)
-          Flow::Errors::EmbeddingFailed.new("Voyage rechazó el pedido: #{detalle}")
+          detalle = respuesta["detail"] || respuesta.dig("error", "message") ||
+                    respuesta.except("__status").to_s.truncate(200)
+
+          Flow::Errors::EmbeddingFailed.new(
+            "Voyage rechazó el pedido (HTTP #{respuesta['__status']}, modelo #{model_name}): #{detalle}"
+          )
         end
       end
     end

@@ -65,4 +65,38 @@ RSpec.describe Flow::AI::Providers::Voyage do
     expect(provider).not_to receive(:post)
     expect(provider.embed(texts: [])).to eq([])
   end
+  describe "qué modelo declara" do
+    around do |example|
+      previo = ENV["FLOW_EMBEDDINGS_MODEL"]
+      example.run
+    ensure
+      previo.nil? ? ENV.delete("FLOW_EMBEDDINGS_MODEL") : ENV["FLOW_EMBEDDINGS_MODEL"] = previo
+    end
+
+    # Se guarda junto a cada vector: si dijera solo «voyage», cambiar de
+    # voyage-3.5-lite a voyage-3.5 mezclaría vectores incomparables sin que
+    # nadie se entere.
+    it "identifica el modelo, no el proveedor" do
+      ENV.delete("FLOW_EMBEDDINGS_MODEL")
+
+      expect(provider.embedding_model).to eq(described_class::DEFAULT_MODEL)
+      expect(provider.name).to eq("voyage")
+    end
+
+    # El compose declara la variable como string vacío cuando no está en el
+    # .env, y `ENV.fetch(clave, default)` solo usa el default si la clave está
+    # AUSENTE: con fetch se le mandaba a la API un modelo vacío.
+    it "una variable vacía no es un modelo" do
+      ENV["FLOW_EMBEDDINGS_MODEL"] = ""
+
+      expect(provider.embedding_model).to eq(described_class::DEFAULT_MODEL)
+    end
+
+    it "respeta el modelo declarado" do
+      ENV["FLOW_EMBEDDINGS_MODEL"] = "voyage-3.5"
+
+      expect(provider.embedding_model).to eq("voyage-3.5")
+    end
+  end
 end
+

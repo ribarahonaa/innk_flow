@@ -137,6 +137,41 @@ RSpec.describe "tareas de IA" do
       expect(matches.first["similarity"]).to be > 0.82
     end
 
+    # La configuración real: chat con un proveedor sin embeddings (Anthropic)
+    # y vectores con otro (Voyage). Preguntarle por vectores al de chat dejaba
+    # al de embeddings sin usarse jamás, con la key puesta y todo.
+    it "los vectores los pide el proveedor de EMBEDDINGS, no el de chat" do
+      gemela = create(:idea, challenge: challenge).tap do |i|
+        Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "Sensores en racks" }).call
+      end
+
+      chat = Class.new(Flow::AI::Provider) do
+        attr_reader :llamadas
+
+        def initialize = @llamadas = 0
+        def embeddings? = false
+        def name = "chat-sin-vectores"
+
+        def complete(messages:, schema:, purpose:, temperature: 0.2)
+          @llamadas += 1
+          Flow::AI::Provider::Result.new(ok: true, data: { "matches" => [] }, raw: nil, tokens_in: 0,
+                                         tokens_out: 0, model: "x", latency_ms: 1, error: nil)
+        end
+      end.new
+
+      Flow::AI.provider = chat
+      Flow::AI.embeddings_provider = Flow::AI::Providers::Fixture.new
+
+      result = Flow::AI::Runner.call(described_class.new(challenge: challenge, step: step, idea: idea),
+                                     mode: "ai_assisted", challenge: challenge, idea: idea)
+
+      expect(result).to be_ok
+      expect(chat.llamadas).to be_zero, "se comparó con el modelo teniendo vectores disponibles"
+      expect(result.suggestion.payload["matches"].map { _1["idea_id"] }).to include(gemela.id)
+    ensure
+      Flow::AI.reset_provider!
+    end
+
     # Anthropic no tiene endpoint de embeddings: con el proveedor real este
     # botón levantaba ProviderUnsupported en la cara de quien lo apretaba.
     # Ahora ese caso tiene su propio camino, y encima explica el parecido.
@@ -169,6 +204,9 @@ RSpec.describe "tareas de IA" do
 
       around do |example|
         Flow::AI.provider = proveedor
+        # También el de embeddings: el escenario es «no hay vectores por
+        # ningún lado», y en test el default es el fixture, que sí los hace.
+        Flow::AI.embeddings_provider = proveedor
         example.run
       ensure
         Flow::AI.reset_provider!
@@ -217,6 +255,26 @@ RSpec.describe "tareas de IA" do
         expect(result.suggestion.payload["matches"].first["idea_id"]).to eq(gemela.id)
         task = described_class.new(challenge: challenge, step: step, idea: idea)
         expect(task.preview(result.suggestion.payload)).to include("no avanzó")
+      end
+
+      # Un proveedor de embeddings caído no puede romper una tarea que sabe
+      # arreglárselas sin él: hay un camino que no los necesita.
+      it "si el proveedor de vectores se cae, le pregunta al modelo igual" do
+        roto = Class.new(Flow::AI::Provider) do
+          def embeddings? = true
+          def name = "roto"
+          def embed(texts:) = raise(Flow::Errors::EmbeddingFailed, "HTTP 500 del proveedor")
+        end.new
+        Flow::AI.embeddings_provider = roto
+        proveedor.respuesta = {
+          "matches" => [{ "idea_id" => gemela.id, "title" => gemela.title, "similarity" => 0.9 }]
+        }
+
+        result = correr
+
+        expect(result).to be_ok
+        expect(proveedor.llamadas).to eq(1)
+        expect(result.suggestion.payload["matches"].first["idea_id"]).to eq(gemela.id)
       end
 
       it "sin nada con qué comparar no gasta una llamada" do

@@ -100,7 +100,10 @@ module Flow
         def context_snapshot
           { "candidates" => candidates.size,
             "shortlist" => shortlist_source,
-            "compared_by" => Flow::AI.provider.embeddings? ? "embeddings" : "modelo" }
+            # Qué proveedor de vectores había disponible. Si falla, la tarea
+            # cae al modelo igual, así que esto es la intención y no el
+            # resultado: el resultado lo cuenta el propio run.
+            "vectores" => vectores.embeddings? ? vectores.name : "ninguno" }
         end
 
         # Con embeddings la comparación es local: no hay nada que pedirle al
@@ -109,12 +112,21 @@ module Flow
         # Y sin nada con qué comparar tampoco hay consulta que hacer: se
         # resuelve acá en vez de gastar una llamada preguntando por una lista
         # vacía.
-        def local?(provider) = candidates.empty? || provider.embeddings?
+        #
+        # Ojo con el argumento: el runner pasa el proveedor de CHAT, y quien
+        # sabe hacer vectores es el de embeddings, que es otro. Preguntarle al
+        # de chat dejaba a Voyage sin usarse nunca acá.
+        def local?(_chat) = candidates.empty? || vectores.embeddings?
 
-        def run_locally(provider)
+        # Devolver `nil` le dice al runner que siga por #complete.
+        #
+        # Un proveedor de embeddings configurado pero caído no puede romper la
+        # detección de duplicados: hay un camino que no lo necesita y que daba
+        # mejores respuestas hasta ayer. Se avisa en el log y se sigue.
+        def run_locally(_chat)
           return { "matches" => [] } if candidates.empty?
 
-          vectors = provider.embed(texts: [text_of(idea)] + candidates.map { |o| text_of(o) })
+          vectors = vectores.embed(texts: [text_of(idea)] + candidates.map { |o| text_of(o) })
           mine = vectors.first
 
           matches = candidates.each_with_index.filter_map do |other, index|
@@ -125,9 +137,14 @@ module Flow
           end
 
           { "matches" => matches.sort_by { |m| -m["similarity"] }.first(5) }
+        rescue Flow::Errors::EmbeddingFailed => e
+          Rails.logger.warn("[DetectDuplicates] sin vectores (#{e.message}); se compara con el modelo")
+          nil
         end
 
         private
+
+        def vectores = Flow::AI.embeddings_provider
 
         # Con qué se compara.
         #

@@ -29,6 +29,8 @@ namespace :flow do
 
     hechas = 0
     saltadas = 0
+    fallidas = 0
+    primer_error = nil
 
     # El bypass envuelve SOLO la lectura de empresas. Envolviendo todo, el
     # `with` de adentro no acota nada y cada empresa recorre las versiones de
@@ -49,12 +51,21 @@ namespace :flow do
             next
           end
 
-          hechas += 1 if Flow::Ideas::EmbedVersion.call(version)
+          # Un fallo no puede llevarse puesta la corrida entera: sobre cientos
+          # de versiones, morir en la primera pierde todo el trabajo hecho y
+          # muestra un stack trace en vez de un motivo.
+          begin
+            hechas += 1 if Flow::Ideas::EmbedVersion.call(version)
+          rescue Flow::Errors::EmbeddingFailed => e
+            fallidas += 1
+            primer_error ||= e.message
+          end
         end
       end
     end
 
-    puts "Vectores calculados: #{hechas} · sin tocar: #{saltadas}"
+    puts "Vectores calculados: #{hechas} · sin tocar: #{saltadas} · fallidos: #{fallidas}"
+    puts "Primer error: #{primer_error}" if primer_error
     desactualizadas = Flow::Tenant.bypass! do
       IdeaVersion.unscoped.where.not(embedded_at: nil).where.not(embedding_model: modelo).count
     end
