@@ -93,6 +93,7 @@ es:
     entry_statuses:
       pending: "Pendiente"
       in_progress: "En curso"
+      done: "Listo"
       advanced: "Avanzó"
       eliminated: "No avanzó"
       skipped: "Salteado"

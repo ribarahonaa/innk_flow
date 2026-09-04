@@ -209,4 +209,50 @@ RSpec.describe "ideas", type: :request do
       expect(response).to have_http_status(:not_found)
     end
   end
+
+  # Lo primero que su autor viene a saber es cómo le fue. Estaba, pero a seis
+  # filas de scroll de distancia.
+  describe "en qué quedó la idea" do
+    let!(:corte) do
+      as_company(company) { challenge.steps.create!(kind: "selection", position: 3, name: "Corte final") }
+    end
+
+    let!(:idea) do
+      as_company(company) do
+        i = create(:idea, challenge: challenge, author: participant)
+        Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "Sensores" }, author: participant).call
+        i.update!(submitted_at: Time.current, status: "eliminated", eliminated_at_step: corte)
+        i
+      end
+    end
+
+    before { sign_in(participant, company: company) }
+
+    it "la ficha lo dice arriba, con el módulo donde quedó afuera" do
+      get challenge_idea_path(challenge, idea)
+
+      encabezado = response.body[/<p class="muted">.*?<\/p>/m].to_s
+      expect(encabezado).to include("No avanzó")
+      expect(encabezado).to include("Corte final")
+    end
+
+    it "y la lista también, sin tener que entrar a cada una" do
+      get challenge_ideas_path(challenge)
+
+      expect(response.body).to include("No avanzó")
+      expect(response.body).to include("Corte final")
+    end
+
+    # Si no se puede postular hay que decir por qué: una pantalla sin botón no
+    # distingue entre «cerró la etapa» y «te falta permiso».
+    it "explica por qué no se puede postular cuando la etapa cerró" do
+      as_company(company) { ideation.update!(status: "completed", completed_at: Time.current) }
+
+      get challenge_ideas_path(challenge)
+
+      expect(response.body).to include("La postulación ya cerró")
+      expect(response.body).not_to include("Postular una idea")
+    end
+  end
 end
+

@@ -57,8 +57,14 @@ module Flow
           [true, []]
         end
 
+        # El tipo traducido y el texto entero de cada comentario: la lista
+        # cruda («question: … · suggestion: …») era un volcado del payload, no
+        # algo que alguien pudiera leer para decidir si lo aplica.
         def preview(payload)
-          payload["items"].map { |i| "#{i['kind']}: #{i['body'].to_s.truncate(80)}" }.join(" · ")
+          payload["items"].map do |item|
+            tipo = I18n.t("flow.feedback_kinds.#{item['kind']}", default: item["kind"].to_s.humanize)
+            "#{tipo}: #{item['body'].to_s.truncate(140)}"
+          end.join("\n")
         end
       end
     end

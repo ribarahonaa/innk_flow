@@ -1803,3 +1803,25 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
 }
 .table-legend .gate { margin-left: 6px; }
 .table-legend .gate:first-child { margin-left: 0; }
+
+/* En la lista, el resultado y dónde se produjo van juntos. */
+.idea-list__outcome {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.idea-list__where { font-size: 11px; }
+.page-head__note { margin: 0; font-size: 12px; max-width: 30ch; text-align: right; }
+
+/* La etiqueta del campo y su acción de IA comparten renglón. */
+.answer-list__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Las propuestas con varios ítems traen saltos de línea: sin esto se leen
+   como un párrafo corrido de claves y valores. */
+.ai-suggestion__body { white-space: pre-line; }

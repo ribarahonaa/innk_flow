@@ -7,7 +7,13 @@
       = link_to "Ideas", challenge_ideas_path(@challenge)
     %h1.page-title= @idea.title
     %p.muted
-      = @idea.author.name
+      -# Cómo le fue, arriba de todo. Antes había que bajar hasta la sexta fila
+      -# de «Cómo le fue» para enterarse de que la idea quedó afuera.
+      %span.status-chip{ class: "status-chip--#{@idea.eliminated? ? 'skipped' : 'active'}" }
+        = t("flow.idea_statuses.#{@idea.status}")
+      - if @idea.eliminated? && @idea.eliminated_at_step
+        %span= " en «#{@idea.eliminated_at_step.name}»"
+      %span= " · #{@idea.author.name}"
       %span.version-chip= @idea.current_version&.label
       - if @idea.submitted_at
         %span= " · postulada #{l(@idea.submitted_at, format: :short)}"
@@ -32,8 +38,10 @@
       %dl.answer-list
         - @fields.each do |field|
           - value = @idea.payload[field.key]
-          %dt
-            = field.label
+          -# La acción va al lado de la etiqueta, no debajo: un `button_to` es
+          -# un form y en bloque parecía el valor del campo.
+          %dt.answer-list__label
+            %span= field.label
             -# Un adjunto no se reescribe con IA: `coauthor_field` trabaja
             -# sobre texto y ahí no hay texto que mejorar.
             - if field.field_type != "file" && @ideation_step && @ideation_step.effective_ai_mode != "human" && policy(@idea).update?

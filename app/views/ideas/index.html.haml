@@ -4,8 +4,15 @@
     %p.breadcrumb= link_to @challenge.name, challenge_path(@challenge)
     %h1.page-title Ideas
     %p.muted= "#{@alive.size} en carrera · #{@eliminated.size} no avanzaron"
-  - if @challenge.pipeline.ideation_step&.active?
+  - ideacion = @challenge.pipeline.ideation_step
+  - if ideacion&.active?
     = link_to "Postular una idea", new_challenge_idea_path(@challenge), class: "btn btn--primary"
+  - elsif ideacion&.touched?
+    -# Sin esto la pantalla simplemente no ofrece postular y no se sabe si es
+    -# un permiso que falta, un error, o que la etapa ya cerró.
+    %p.muted.page-head__note La postulación ya cerró: el desafío está en otra etapa.
+  - elsif ideacion
+    %p.muted.page-head__note La postulación abre cuando arranque el desafío.
 
 .card
   %h2.section-title En carrera

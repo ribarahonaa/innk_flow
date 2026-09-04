@@ -11,5 +11,9 @@
             %span.version-chip= idea.current_version&.label
             - if idea.origin == "ai"
               %span.ai-chip IA
-        %span.status-chip{ class: "status-chip--#{{ 'active' => 'active', 'eliminated' => 'skipped' }.fetch(idea.status, 'pending')}" }
-          = t("flow.idea_statuses.#{idea.status}")
+        -# «No avanzó» sin decir dónde obliga a entrar a la idea para saberlo.
+        %span.idea-list__outcome
+          %span.status-chip{ class: "status-chip--#{{ 'active' => 'active', 'eliminated' => 'skipped' }.fetch(idea.status, 'pending')}" }
+            = t("flow.idea_statuses.#{idea.status}")
+          - if idea.eliminated? && idea.eliminated_at_step
+            %span.muted.idea-list__where= idea.eliminated_at_step.name
