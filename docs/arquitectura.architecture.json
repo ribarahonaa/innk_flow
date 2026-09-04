@@ -39,6 +39,18 @@
           "proveedor"
         ],
         "note": "Lo que sale del ciclo de pedido: jobs, llamadas al proveedor y su rastro."
+      },
+      {
+        "id": "capa-de-ia",
+        "label": "La capa de IA",
+        "focus": [
+          "rails",
+          "redis",
+          "sidekiq",
+          "runner",
+          "proveedor"
+        ],
+        "note": "Dos proveedores, no uno: el de chat no sabe hacer vectores."
       }
     ]
   },
@@ -129,7 +141,7 @@
         200,
         66
       ],
-      "tag": "45 FKs compuestas"
+      "tag": "49 FKs compuestas · pgvector"
     },
     {
       "id": "redis",
@@ -176,8 +188,8 @@
     {
       "id": "proveedor",
       "type": "external",
-      "label": "Proveedor de IA",
-      "sublabel": "fixtures deterministas",
+      "label": "Proveedores de IA",
+      "sublabel": "chat y embeddings, por separado",
       "pos": [
         1030,
         150
@@ -186,7 +198,7 @@
         200,
         66
       ],
-      "tag": "adapter abierto"
+      "tag": "adapters intercambiables"
     }
   ],
   "boundaries": [
@@ -309,8 +321,19 @@
       "items": [
         "Sin tenant las queries revientan, no devuelven todo",
         "Los controllers responden 404, nunca 403",
+        "Un gestor solo ve los desafíos que se le asignan",
         "Postgres rechaza atar una fila de una empresa a otra",
         "Toda llamada a la IA deja su rastro en ai_runs"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "La capa de IA",
+      "items": [
+        "Un solo camino para los tres modos: ai_auto auto-acepta, no saltea",
+        "Dos proveedores: el de chat no hace vectores y se declara aparte",
+        "Si los vectores fallan, la comparación la hace el modelo",
+        "Toda llamada deja su rastro en ai_runs, con fixtures también"
       ]
     }
   ]

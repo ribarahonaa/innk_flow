@@ -363,3 +363,16 @@ columna antes sería guardar algo que nada puede llenar.
 
 El plan vigente y el backlog completo están en
 `~/.claude/plans/tu-ya-sabes-como-dazzling-cat.md`.
+
+El diagrama de arquitectura vive en `docs/arquitectura.architecture.json` y se
+regenera con la skill `archify`:
+
+```bash
+node ~/.claude/skills/archify/bin/archify.mjs deliver architecture \
+  docs/arquitectura.architecture.json docs/arquitectura.html --quality showcase
+```
+
+Trampa: el ancho del lienzo está acotado por la legibilidad a 1440px. Sumar un
+componente a la derecha hace fallar `composition/desktop-readability` aunque el
+resto valide — es preferible ponerlo en una tarjeta antes que achicarle el texto
+a todos los nodos.
