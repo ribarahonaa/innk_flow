@@ -184,6 +184,25 @@ Dos reglas que no viven en el rol:
   `policy_scope(Challenge).find_by!`** y no con `Challenge.find_by!` — así lo
   no asignado da 404 y no 403, que sería un oráculo de existencia.
 
+### El feedback pertenece a su ronda
+
+`feedback_items.challenge_step_id` no es un dato de auditoría: es a qué
+conversación pertenece el comentario. Un desafío puede tener varias rondas de
+evolución, y mezclarlas hace que lo viejo se lea como lo que hay que atender
+ahora.
+
+- El tablero del módulo ya filtraba por su paso (`feedback_index`).
+- La **ficha de la idea** agrupa por ronda: la que está en curso, abierta; las
+  cerradas, en un `details` plegado —la historia no se esconde, pero plegada no
+  se confunde—. Solo la ronda abierta ofrece cerrar comentarios, porque
+  `puede_resolver` mira `step.active?`.
+- **`evolve_idea` toma solo el feedback abierto de SU ronda.** Arrastrar lo que
+  quedó sin atender en una ronda anterior mezcla dos conversaciones.
+
+Queda deliberadamente sin acotar el criterio automático `feedback_addressed`,
+que mira **todo** el feedback de la idea: «atendió todo el feedback recibido» es
+lo que dice y lo que significa.
+
 ### Multi-tenancy: cuatro capas
 
 1. `Flow::Tenant.with(company)` para entrar. `bypass!` es la única válvula de

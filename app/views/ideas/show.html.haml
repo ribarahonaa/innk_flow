@@ -101,9 +101,30 @@
             - else
               Solo quien participa de esta idea —o quien administra el desafío— puede atenderlos.
 
-        %ul.feedback-list
-          - @feedback.each do |item|
-            = render "shared/feedback_item", item: item, challenge: @challenge, con_origen: true
+        - @rondas.each do |paso, comentarios|
+          - abiertos = comentarios.count(&:open?)
+          - resumen = "#{comentarios.size - abiertos} de #{Flow::Texto.contar(comentarios.size, 'comentario')} atendidos"
+          -# La ronda en curso, abierta y arriba. Las cerradas se pueden abrir
+          -# —la historia no se esconde— pero plegadas no se confunden con lo
+          -# que hay que atender ahora.
+          - if paso.active?
+            .feedback-round
+              %p.feedback-round__head
+                %strong= paso.name
+                %span.status-chip.status-chip--active en curso
+                %span.muted= " · #{resumen}"
+              %ul.feedback-list
+                - comentarios.each do |item|
+                  = render "shared/feedback_item", item: item, challenge: @challenge
+          - else
+            %details.feedback-round.feedback-round--cerrada
+              %summary.feedback-round__head
+                %strong= paso.name
+                %span.status-chip.status-chip--skipped= t("flow.statuses.#{paso.status}").downcase
+                %span.muted= " · #{resumen}"
+              %ul.feedback-list
+                - comentarios.each do |item|
+                  = render "shared/feedback_item", item: item, challenge: @challenge
 
   %aside.idea-layout__side
     .card

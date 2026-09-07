@@ -40,6 +40,10 @@ class IdeasController < ApplicationController
     @ideation_step = ideation_step
     @pending_suggestions = AiSuggestion.pending_review.where(idea_id: @idea.id).recent
     @feedback = FeedbackItem.where(idea_id: @idea.id).chronological.includes(:author, :challenge_step)
+    # Cada comentario pertenece a SU ronda de evolución. Mezclarlas en una
+    # lista plana hace que el feedback de una ronda cerrada se lea como si
+    # fuera del que hay que atender ahora.
+    @rondas = @feedback.group_by(&:challenge_step).sort_by { |paso, _| -paso.position.to_d }
     @contributor_candidates = contributor_candidates
     @attachments = @idea.current_version&.attachments&.includes(file_attachment: :blob)
                         &.index_by(&:field_key) || {}

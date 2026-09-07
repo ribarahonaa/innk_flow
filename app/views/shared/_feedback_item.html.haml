@@ -14,7 +14,7 @@
     - if item.by_ai?
       %span.ai-chip IA
     - if local_assigns[:con_origen]
-      %span.muted= "· desde «#{step.name}» sobre #{item.idea_version.label}"
+      %span.muted= "· desde «#{step.name}»"
     - if item.open? && item.stale?
       %span.muted= "· sobre #{item.idea_version.label}, la idea ya cambió"
   %p.feedback-item__body= item.body

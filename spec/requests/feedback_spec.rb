@@ -264,4 +264,68 @@ RSpec.describe "resolver feedback", type: :request do
       expect(response.body).to include("No aplica", "Sistemas lo confirmó", "Reabrir")
     end
   end
+
+  # Un comentario pertenece a SU ronda de evolución. Con dos rondas, la ficha
+  # los mostraba en una lista plana: el feedback viejo se leía como si fuera el
+  # que hay que atender ahora.
+  describe "con más de una ronda de evolución" do
+    let!(:segunda) do
+      as_company(company) do
+        paso = challenge.steps.create!(kind: "evolution", position: 3, name: "Segunda ronda")
+        step.update!(status: "completed", completed_at: Time.current)
+        paso.handler.activate!
+        paso.reload
+      end
+    end
+
+    let!(:viejo) { feedback!(body: "Lo de la ronda anterior") }
+
+    let!(:nuevo) do
+      as_company(company) do
+        FeedbackItem.create!(challenge_step: segunda, idea: idea,
+                             idea_version_id: idea.reload.current_version_id,
+                             author: owner, kind: "suggestion", body: "Lo de la ronda de ahora")
+      end
+    end
+
+    before { sign_in(author, company: company) }
+
+    it "cada ronda se muestra por separado, con su nombre" do
+      get challenge_idea_path(challenge, idea)
+
+      expect(response.body).to include("Ronda de feedback", "Segunda ronda")
+      expect(response.body).to include("Lo de la ronda anterior", "Lo de la ronda de ahora")
+    end
+
+    # La ronda cerrada se pliega: la historia no se esconde, pero plegada no se
+    # confunde con lo que hay que atender ahora.
+    it "la cerrada va plegada y la que está en curso, abierta" do
+      get challenge_idea_path(challenge, idea)
+
+      expect(response.body).to match(/<details[^>]*feedback-round--cerrada/)
+      expect(response.body).to include("en curso")
+    end
+
+    # Solo la ronda abierta ofrece cerrar comentarios.
+    it "solo se pueden atender los de la ronda en curso" do
+      get challenge_idea_path(challenge, idea)
+
+      expect(response.body.scan(%(class="feedback-resolve")).size).to eq(1)
+    end
+
+    # Arrastrar lo que quedó abierto en una ronda anterior mezcla dos
+    # conversaciones distintas.
+    it "la IA reescribe con el feedback de SU ronda, no con el de la anterior" do
+      # Las lecturas de la tarea son del dominio: van dentro del tenant.
+      snapshot, prompt = as_company(company) do
+        tarea = Flow::AI::Tasks::EvolveIdea.new(challenge: challenge, step: segunda, idea: idea)
+        [tarea.context_snapshot, tarea.messages.last[:content]]
+      end
+
+      expect(snapshot["feedback_ids"]).to eq([nuevo.id])
+      expect(prompt).to include("Lo de la ronda de ahora")
+      expect(prompt).not_to include("Lo de la ronda anterior")
+    end
+  end
 end
+

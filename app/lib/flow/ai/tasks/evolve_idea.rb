@@ -92,10 +92,14 @@ module Flow
           @campos ||= challenge.pipeline.ideation_step&.form_fields&.ordered&.reject { |f| f.field_type == "file" } || []
         end
 
-        # Solo lo que está SIN atender: un comentario ya cerrado no es una
-        # instrucción pendiente, y volver a pedirlo reescribiría de más.
+        # Lo que está sin atender EN ESTA RONDA.
+        #
+        # Sin atender, porque un comentario ya cerrado no es una instrucción
+        # pendiente y volver a pedirlo reescribiría de más. Y de esta ronda,
+        # porque cada comentario pertenece a su módulo: arrastrar lo que quedó
+        # abierto en una ronda anterior mezcla dos conversaciones distintas.
         def abiertos
-          @abiertos ||= FeedbackItem.where(idea_id: idea.id, resolution: nil)
+          @abiertos ||= FeedbackItem.where(idea_id: idea.id, challenge_step_id: step&.id, resolution: nil)
                                     .chronological.includes(:author).to_a
         end
 
