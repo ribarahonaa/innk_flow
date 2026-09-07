@@ -322,6 +322,7 @@
         "Sin tenant las queries revientan, no devuelven todo",
         "Los controllers responden 404, nunca 403",
         "Un gestor solo ve los desafíos que se le asignan",
+        "Quien participa solo ve las ideas en las que participa",
         "Postgres rechaza atar una fila de una empresa a otra",
         "Toda llamada a la IA deja su rastro en ai_runs"
       ]
@@ -333,7 +334,8 @@
         "Un solo camino para los tres modos: ai_auto auto-acepta, no saltea",
         "Dos proveedores: el de chat no hace vectores y se declara aparte",
         "Si los vectores fallan, la comparación la hace el modelo",
-        "Toda llamada deja su rastro en ai_runs, con fixtures también"
+        "Toda llamada deja su rastro en ai_runs, con fixtures también",
+        "Quién puede pedirle algo depende de sobre qué actúa"
       ]
     }
   ]

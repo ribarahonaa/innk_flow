@@ -415,13 +415,24 @@ columna antes sería guardar algo que nada puede llenar.
 El plan vigente y el backlog completo están en
 `~/.claude/plans/tu-ya-sabes-como-dazzling-cat.md`.
 
-El diagrama de arquitectura vive en `docs/arquitectura.architecture.json` y se
-regenera con la skill `archify`:
+Dos diagramas, los dos con la skill `archify`:
+
+| Fuente | Qué muestra |
+|---|---|
+| `docs/arquitectura.architecture.json` | Las piezas y por dónde pasa un pedido |
+| `docs/proceso.workflow.json` | Cómo se arma y corre un desafío, con sus tres caminos |
 
 ```bash
 node ~/.claude/skills/archify/bin/archify.mjs deliver architecture \
   docs/arquitectura.architecture.json docs/arquitectura.html --quality showcase
+node ~/.claude/skills/archify/bin/archify.mjs deliver workflow \
+  docs/proceso.workflow.json docs/proceso.html --quality showcase
 ```
+
+Trampa del workflow: `mainPath` exige una espina CONTINUA de aristas
+consecutivas, y este proceso se bifurca en tres — se saca. Y tres alternativas
+no entran en un carril: comparten corredor y el validador las rechaza. Van en
+carriles propios, que además es lo que las hace leer como paralelas.
 
 Trampa: el ancho del lienzo está acotado por la legibilidad a 1440px. Sumar un
 componente a la derecha hace fallar `composition/desktop-readability` aunque el

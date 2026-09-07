@@ -1,0 +1,283 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Cómo se arma y corre un desafío",
+    "subtitle": "No hay un flujo: hay reglas para armar el tuyo",
+    "output": "proceso.html",
+    "visual_preset": "classic",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "armarlo",
+        "label": "Armarlo",
+        "focus": [
+          "crear",
+          "elegir",
+          "plantilla",
+          "con_ia",
+          "a_mano",
+          "flujo"
+        ],
+        "note": "Tres formas de llegar al mismo lugar: un flujo con exactamente un módulo de Idear."
+      },
+      {
+        "id": "correrlo",
+        "label": "Correrlo",
+        "focus": [
+          "arrancar",
+          "activa",
+          "trabajo",
+          "avanza"
+        ],
+        "note": "Cada módulo congela su configuración al activarse; el nombre y el modo de IA siguen ajustables."
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "borrador",
+      "label": "En borrador · se edita libre"
+    },
+    {
+      "id": "por_plantilla",
+      "label": "…desde una plantilla"
+    },
+    {
+      "id": "por_ia",
+      "label": "…con la IA"
+    },
+    {
+      "id": "a_pulso",
+      "label": "…a mano"
+    },
+    {
+      "id": "curso",
+      "label": "En curso · el pasado no se reescribe"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "crear",
+      "lane": "borrador",
+      "col": 0,
+      "type": "frontend",
+      "label": "Crear el desafío",
+      "sublabel": "nombre y brief",
+      "width": 148
+    },
+    {
+      "id": "elegir",
+      "lane": "borrador",
+      "col": 1,
+      "type": "backend",
+      "label": "¿Cómo lo armás?",
+      "sublabel": "los tres llegan al mismo lugar",
+      "width": 158
+    },
+    {
+      "id": "configurar",
+      "lane": "borrador",
+      "col": 4,
+      "type": "frontend",
+      "label": "Formulario y criterios",
+      "sublabel": "qué se pregunta, con qué se puntúa",
+      "width": 168
+    },
+    {
+      "id": "arrancar",
+      "lane": "borrador",
+      "col": 5,
+      "type": "backend",
+      "label": "Revisar y arrancar",
+      "sublabel": "sin un módulo de Idear no arranca",
+      "width": 158,
+      "tag": "punto sin retorno"
+    },
+    {
+      "id": "plantilla",
+      "lane": "por_plantilla",
+      "col": 2,
+      "type": "external",
+      "label": "Una plantilla",
+      "sublabel": "cuatro puntos de partida",
+      "width": 152
+    },
+    {
+      "id": "con_ia",
+      "lane": "por_ia",
+      "col": 2,
+      "type": "cloud",
+      "label": "Que lo proponga la IA",
+      "sublabel": "lee el brief y arma el flujo",
+      "width": 164
+    },
+    {
+      "id": "a_mano",
+      "lane": "a_pulso",
+      "col": 2,
+      "type": "frontend",
+      "label": "Módulo por módulo",
+      "sublabel": "cinco tipos, en cualquier orden",
+      "width": 164
+    },
+    {
+      "id": "activa",
+      "lane": "curso",
+      "col": 3,
+      "type": "backend",
+      "label": "Se activa un módulo",
+      "sublabel": "congela criterios y configuración",
+      "width": 168
+    },
+    {
+      "id": "trabajo",
+      "lane": "curso",
+      "col": 4,
+      "type": "cloud",
+      "label": "Se hace el trabajo",
+      "sublabel": "personas, IA, o IA con revisión",
+      "width": 164,
+      "tag": "el modo se cambia en curso"
+    },
+    {
+      "id": "avanza",
+      "lane": "curso",
+      "col": 5,
+      "type": "backend",
+      "label": "Cierra y sigue",
+      "sublabel": "solo se inserta después de acá",
+      "width": 158
+    },
+    {
+      "id": "flujo",
+      "lane": "borrador",
+      "col": 3,
+      "type": "backend",
+      "label": "El flujo armado",
+      "sublabel": "un Idear, y lo que elijas después",
+      "width": 168,
+      "tag": "se reordena libre"
+    }
+  ],
+  "edges": [
+    {
+      "id": "crear-elegir",
+      "from": "crear",
+      "to": "elegir",
+      "variant": "emphasis"
+    },
+    {
+      "id": "elegir-plantilla",
+      "from": "elegir",
+      "to": "plantilla",
+      "label": "empezar de algo",
+      "role": "branch",
+      "variant": "dashed"
+    },
+    {
+      "id": "elegir-ia",
+      "from": "elegir",
+      "to": "con_ia",
+      "label": "que lo escriba",
+      "role": "branch",
+      "variant": "dashed"
+    },
+    {
+      "id": "elegir-mano",
+      "from": "elegir",
+      "to": "a_mano",
+      "label": "armarlo yo",
+      "role": "branch",
+      "variant": "dashed"
+    },
+    {
+      "id": "plantilla-flujo",
+      "from": "plantilla",
+      "to": "flujo",
+      "role": "branch"
+    },
+    {
+      "id": "ia-flujo",
+      "from": "con_ia",
+      "to": "flujo",
+      "role": "branch"
+    },
+    {
+      "id": "mano-flujo",
+      "from": "a_mano",
+      "to": "flujo",
+      "role": "branch"
+    },
+    {
+      "id": "flujo-configurar",
+      "from": "flujo",
+      "to": "configurar",
+      "variant": "emphasis"
+    },
+    {
+      "id": "configurar-arrancar",
+      "from": "configurar",
+      "to": "arrancar",
+      "variant": "emphasis"
+    },
+    {
+      "id": "arrancar-activa",
+      "from": "arrancar",
+      "to": "activa",
+      "label": "queda en curso",
+      "role": "return",
+      "variant": "emphasis"
+    },
+    {
+      "id": "activa-trabajo",
+      "from": "activa",
+      "to": "trabajo",
+      "variant": "emphasis"
+    },
+    {
+      "id": "trabajo-avanza",
+      "from": "trabajo",
+      "to": "avanza",
+      "variant": "emphasis"
+    },
+    {
+      "id": "avanza-activa",
+      "from": "avanza",
+      "to": "activa",
+      "label": "mientras queden módulos",
+      "role": "return",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Lo único obligatorio",
+      "items": [
+        "Exactamente un módulo de Idear: sin él no hay ideas que recorran nada",
+        "Un formulario con al menos un campo, o nadie puede postular",
+        "Los otros cuatro tipos se repiten en cualquier orden, o no se usan"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Qué cambia al arrancar",
+      "items": [
+        "En borrador el flujo se agrega, reordena y borra libre",
+        "En curso solo se inserta DESPUÉS del último módulo tocado",
+        "Al activarse, un módulo congela sus criterios y su configuración",
+        "El nombre y el modo de IA se siguen ajustando: son política, no historia"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Quién hace el trabajo",
+      "items": [
+        "Se elige por módulo, no por desafío: uno puede ser IA y el siguiente no",
+        "Solo personas · IA asistida · IA automática",
+        "En automático la IA no saltea la revisión: la auto-acepta y deja rastro"
+      ]
+    }
+  ]
+}
