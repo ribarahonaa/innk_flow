@@ -3,11 +3,33 @@
 = form_with url: login_path, method: :post, class: "auth-form" do |f|
   .field
     = f.label :email, "Correo"
-    = f.email_field :email, autofocus: true, autocomplete: "username", required: true
+    -# `params[:email]` lo pone la lista de cuentas de demo de más abajo: un
+    -# link precarga el correo sin necesitar JS en esta pantalla, que no carga
+    -# ningún bundle.
+    = f.email_field :email, value: params[:email], autofocus: true, autocomplete: "username", required: true
   .field
     = f.label :password, "Contraseña"
     = f.password_field :password, autocomplete: "current-password", required: true
   = f.submit "Entrar", class: "btn btn--primary btn--block"
-.auth-hint
-  %strong Demo:
-  admin@demo.test / Test1234
+- cuentas = Flow::Demo.accounts
+- if cuentas.any?
+  .auth-hint
+    %p.auth-hint__lead
+      Todas con la contraseña
+      %code= Flow::Demo::PASSWORD
+    %ul.demo-accounts
+      - cuentas.each do |cuenta|
+        %li.demo-account{ class: ("is-current" if params[:email] == cuenta[:email]) }
+          = link_to login_path(email: cuenta[:email]), class: "demo-account__fill" do
+            %span.demo-account__email= cuenta[:email]
+            %span.demo-account__name= cuenta[:name]
+          %span.demo-account__roles
+            -# Con una sola empresa el nombre sobra; con dos, dos chips iguales
+            -# no distinguen nada.
+            - varias = cuenta[:roles].size > 1
+            - cuenta[:roles].each do |m|
+              %span.demo-account__role{ title: m[:nombre] }
+                - if varias
+                  %span.demo-account__company= "#{m[:empresa]} · "
+                = t("flow.roles.#{m[:rol]}")
+    %p.auth-hint__note Un clic completa el correo; la contraseña es la misma para todas.

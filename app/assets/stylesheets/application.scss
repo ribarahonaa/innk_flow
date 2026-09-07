@@ -1883,3 +1883,43 @@ turbo-frame#ai-suggestions { display: contents; }
 
 /* La regla del corte, en una línea al pie de la tarjeta que la explica. */
 .rule-line { margin: 14px 0 0; font-size: 13px; }
+
+/* Las cuentas sembradas, en el login. Solo fuera de producción. */
+.auth-hint__lead { margin: 0 0 10px; }
+.demo-accounts { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.demo-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.demo-account__fill {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  text-decoration: none;
+  color: inherit;
+
+  &:hover { border-color: var(--border); background: var(--bg); }
+}
+.demo-account.is-current .demo-account__fill { border-color: var(--accent); background: var(--accent-soft); }
+.demo-account__email { font-size: 12.5px; color: var(--text); }
+.demo-account__name { font-size: 11px; color: var(--muted); }
+.demo-account__roles { display: flex; flex-wrap: wrap; gap: 4px; flex-shrink: 0; }
+.demo-account__role {
+  padding: 1px 7px;
+  border-radius: 99px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.auth-hint__note { margin: 10px 0 0; font-size: 11.5px; }
+.demo-account__company { opacity: .7; font-weight: 400; }

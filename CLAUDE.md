@@ -374,6 +374,19 @@ Un `turbo-frame` que siempre se renderiza pero casi siempre está vacío —el d
 sugerencias de IA— necesita `display: contents`, o como hijo flex se lleva dos
 gaps y abre un hueco de la nada.
 
+### Las cuentas de demo
+
+`Flow::Demo` es la fuente única: la contraseña que usa el seed y la lista que
+muestra el login. Sale de la base y no de una lista escrita a mano, así no se
+desactualiza cuando el seed cambia. Se identifica lo sembrado por el sufijo
+`.test`, que RFC 2606 reserva y ninguna cuenta real puede tener.
+
+`available?` es `!Rails.env.production?` — con una base real esto sería un
+tablón con las llaves puestas. Hay spec de eso.
+
+Un clic precarga el correo por `?email=`, del lado del servidor: la pantalla de
+login no carga ningún bundle de JS y no hace falta que empiece a cargarlo.
+
 ## Convenciones que se rompen fácil
 
 - **`button_to` es un `<form>`.** Uno dentro de otro es HTML inválido y el

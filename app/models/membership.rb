@@ -12,6 +12,7 @@ class Membership < ApplicationRecord
   # los desafíos de la empresa — solo los que le asignan.
   ROLES = %w[admin gestor evaluator participant].freeze
 
+  belongs_to :company
   belongs_to :user
 
   validates :role, inclusion: { in: ROLES }

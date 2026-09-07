@@ -24,7 +24,7 @@ Flow::Tenant.bypass! do
   demo = Company.find_or_create_by!(slug: "demo") { |c| c.name = "Empresa Demo" }
   otra = Company.find_or_create_by!(slug: "otra") { |c| c.name = "Otra Empresa" }
 
-  def upsert_user!(email:, name:, password: "Test1234")
+  def upsert_user!(email:, name:, password: Flow::Demo::PASSWORD)
     user = User.find_or_initialize_by(email: email)
     user.name = name
     user.password = password
@@ -403,6 +403,6 @@ Flow::Tenant.bypass! do
   puts "Usuarios:    #{User.count}"
   puts "Membresías:  #{Membership.count}"
   puts ""
-  puts "  Login demo:  admin@demo.test / Test1234"
-  puts "  Multiempresa: multi@demo.test / Test1234"
+  puts "  Login demo:  admin@demo.test / #{Flow::Demo::PASSWORD}"
+  puts "  Multiempresa: multi@demo.test / #{Flow::Demo::PASSWORD}"
 end

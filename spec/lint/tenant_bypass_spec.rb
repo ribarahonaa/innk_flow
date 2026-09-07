@@ -16,6 +16,7 @@ RSpec.describe "lint: uso de bypass de tenancy" do
     "app/models/concerns/tenant_scoped.rb" => "lo consulta para decidir el scope",
     "app/jobs/" => "los jobs entran sin request: reciben company_id y abren el tenant a mano",
     "app/controllers/sessions_controller.rb" => "login y selector de empresa ocurren ANTES de que exista un tenant",
+    "app/lib/flow/demo.rb" => "lista las cuentas sembradas en la pantalla de login, donde tampoco hay tenant todavía",
     "app/models/user.rb" => "User es global: \"¿en qué empresas está esta persona?\" es cross-tenant por definición",
     "spec/" => "los specs necesitan montar datos de varias empresas"
   }.freeze
