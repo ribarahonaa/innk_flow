@@ -210,6 +210,28 @@ RSpec.describe "resolver feedback", type: :request do
       expect(response.body).not_to include("Reescribir la idea con el feedback")
     end
 
+    # Quien colabora en la idea también la trabaja: la regla de visibilidad
+    # dice «participa ⇒ la ve», y no poder tocarla la dejaba a medias.
+    it "quien colabora también puede cerrarlos" do
+      as_company(company) { IdeaContributor.create!(idea: idea, user: ajeno, role: "contributor") }
+      sign_in(ajeno, company: company)
+
+      get challenge_idea_path(challenge, idea)
+
+      expect(response.body).to include("Tomado en cuenta")
+    end
+
+    # Verlos sin ninguna acción y sin explicación no distingue entre «cerró la
+    # ronda» y «no soy quien puede».
+    it "y si la ronda cerró, lo dice en vez de no mostrar nada" do
+      as_company(company) { step.update!(status: "completed", completed_at: Time.current) }
+
+      get challenge_idea_path(challenge, idea)
+
+      expect(response.body).to include("ya cerró: los comentarios quedan como están")
+      expect(response.body).not_to include("Tomado en cuenta")
+    end
+
     # Y quien no participa de esa idea no llega a su ficha.
     it "a un tercero no le muestra nada: la ficha ajena no se abre" do
       sign_in(ajeno, company: company)

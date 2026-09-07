@@ -24,6 +24,6 @@ class FeedbackItemPolicy < ApplicationPolicy
     return true if manager?
     return reaches_challenge?(record.idea.challenge) if membership.gestor?
 
-    record.idea.author_id == membership.user_id
+    record.idea.participates?(membership.user)
   end
 end

@@ -41,7 +41,10 @@ class IdeaPolicy < ApplicationPolicy
   def update?
     return false if record.nil?
     return true if manager?
-    return false unless record.author_id == membership.user_id
+    # Participar es haberla creado o colaborar en ella, y son las dos formas
+    # de trabajarla: quien colabora la ve —esa es la regla de visibilidad— y
+    # no poder tocarla la dejaba a medias.
+    return false unless record.participates?(membership&.user)
 
     record.draft? || evolution_open?
   end
