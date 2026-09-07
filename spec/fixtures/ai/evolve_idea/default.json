@@ -1,0 +1,6 @@
+{
+  "change_note": "Agregué el costo estimado y acoté el piloto a un centro, que es lo que pedía el comité.",
+  "titulo": "Sensores de peso por rack (piloto acotado)",
+  "problema": "Nadie sabe en qué punto de la bodega se pierde producto: el inventario cuadra al ingreso y no al despacho, y hoy la diferencia se detecta recién en el conteo mensual.",
+  "solucion": "Instalar celdas de carga en los racks críticos y comparar el peso esperado contra el real cada turno. Se acota el piloto a un solo centro durante dos meses. Costo estimado: 8 celdas de carga más dos semanas de integración con el WMS; se recupera evitando el 15% de la merma actual."
+}

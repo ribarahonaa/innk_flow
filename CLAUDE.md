@@ -295,6 +295,13 @@ acepta. Y la IA **nunca pisa un veredicto que puso una persona**, ni con el
 módulo en automático: quien lo puso ya miró la idea (`pending_gates` en
 `Tasks::DecideVerdicts`).
 
+**Quién puede pedirle algo a la IA depende de sobre qué actúa.** Las tareas de
+`AiRequestsController::SOBRE_LA_IDEA` (`coauthor_field`, `evolve_idea`,
+`detect_duplicates`) las autoriza `IdeaPolicy#update?` — su autor, además de
+quien administra—; el resto sigue pidiendo `update_pipeline?`. Antes era todo
+`update_pipeline?`, así que quien participa no podía usar **ninguna** función de
+IA, ni sobre su propia idea, con el botón ahí ofreciéndoselo.
+
 Sumar una tarea es tocar **tres** lugares: la clase, `AiRun::PURPOSES` y el
 CHECK de Postgres sobre `ai_runs.purpose` (hace falta una migración; si no, el
 run revienta con `PG::CheckViolation` antes de crearse y el error llega

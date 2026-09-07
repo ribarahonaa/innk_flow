@@ -79,20 +79,20 @@
         %h2.section-title
           Feedback recibido
           %span.muted= " (#{@feedback.count { |i| !i.open? }}/#{@feedback.size} atendidos)"
+        -# Del otro lado del módulo: la IA sabía proponer feedback y no sabía
+        -# ayudar a responderlo. La propuesta pasa por su autor —es su idea—,
+        -# así que cae en el panel de revisión como cualquier otra.
+        - abierto = @feedback.find(&:open?)
+        - paso_evolucion = abierto&.challenge_step
+        - if paso_evolucion&.active? && policy(@idea).update?
+          %p.field-hint Podés cerrarlos uno por uno, o publicar una versión que los responda.
+          = render "shared/ai_actions", challenge: @challenge, mode: paso_evolucion.effective_ai_mode,
+                   actions: [{ label: "Reescribir la idea con el feedback", purpose: "evolve_idea",
+                               idea_id: @idea.id, step_id: paso_evolucion.id }]
+
         %ul.feedback-list
           - @feedback.each do |item|
-            %li.feedback-item{ class: ("is-addressed" if item.addressed) }
-              .feedback-item__head
-                %span.feedback-kind{ class: "feedback-kind--#{item.kind}" }= item.kind_label
-                %span.muted= item.author_name
-                - if item.by_ai?
-                  %span.ai-chip IA
-                %span.muted= "· desde «#{item.challenge_step.name}» sobre #{item.idea_version.label}"
-                - unless item.open?
-                  %span.status-chip.status-chip--completed= item.resolution_label
-                  - if item.addressed_by_version
-                    %span.muted= "en #{item.addressed_by_version.label}"
-              %p.feedback-item__body= item.body
+            = render "shared/feedback_item", item: item, challenge: @challenge, con_origen: true
 
   %aside.idea-layout__side
     .card

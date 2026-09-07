@@ -454,5 +454,92 @@ RSpec.describe "tareas de IA" do
       expect(SelectionVerdict.where(challenge_step_id: seleccion.id).count).to eq(2)
     end
   end
+
+  # El otro lado del módulo de evolución: la IA sabía PROPONER feedback y no
+  # sabía ayudar a responderlo. Quien postula veía los comentarios y la única
+  # salida era reescribir la idea a mano.
+  describe Flow::AI::Tasks::EvolveIdea do
+    let(:autor) { without_tenant { create(:user, email: "autora@test.dev") } }
+
+    # Los campos del formulario son los que la tarea reescribe: sin ellos no
+    # hay nada que pedirle al modelo.
+    before do
+      step.form_fields.create!(key: "titulo", label: "Título", field_type: "text", config: { "is_title" => true })
+      step.form_fields.create!(key: "problema", label: "Problema", field_type: "textarea")
+      step.form_fields.create!(key: "solucion", label: "Solución", field_type: "textarea")
+    end
+
+    let(:idea) do
+      create(:idea, challenge: challenge, author: autor, status: "active").tap do |i|
+        Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "Sensores", "problema" => "Se pierde producto",
+                                                      "solucion" => "Poner sensores" }, author: autor).call
+        i.update!(submitted_at: Time.current)
+      end
+    end
+
+    let(:evolucion) do
+      idea
+      paso = challenge.steps.create!(kind: "evolution", position: 2)
+      paso.handler.activate!
+      paso.reload
+    end
+
+    let!(:comentario) do
+      FeedbackItem.create!(challenge_step: evolucion, idea: idea,
+                           idea_version_id: idea.reload.current_version_id,
+                           author: user, kind: "question", body: "¿Cuánto cuesta y en cuánto se recupera?")
+    end
+
+    def evolucionar(mode: "ai_auto")
+      Flow::AI::Runner.call(
+        described_class.new(challenge: challenge, step: evolucion, idea: idea),
+        mode: mode, requested_by: autor, challenge: challenge, step: evolucion, idea: idea
+      )
+    end
+
+    it "publica una versión nueva con la nota de qué cambió" do
+      expect { evolucionar }.to change { idea.reload.versions.count }.by(1)
+
+      version = idea.reload.current_version
+      expect(version).to be_by_ai
+      expect(version.change_note).to be_present
+      expect(version.payload["solucion"]).to include("Costo estimado")
+    end
+
+    # Publicar una versión responde el feedback abierto del módulo: es el mismo
+    # camino que cuando su autora lo reescribe a mano.
+    it "y con eso el feedback queda atendido" do
+      expect(comentario).to be_open
+
+      evolucionar
+
+      expect(comentario.reload).not_to be_open
+      expect(comentario.resolution).to eq("answered")
+    end
+
+    # Es SU idea: la IA propone y ella acepta.
+    it "en asistido no la publica sola" do
+      result = evolucionar(mode: "ai_assisted")
+
+      expect(result).to be_ok
+      expect(result.suggestion).to be_pending
+      expect(idea.reload.versions.count).to eq(1)
+    end
+
+    # Un comentario ya cerrado no es una instrucción pendiente: volver a
+    # mandarlo haría reescribir de más.
+    it "solo trabaja con los comentarios sin atender" do
+      comentario.resolve!(resolution: "dismissed", user: user, note: "No aplica")
+      otro = FeedbackItem.create!(challenge_step: evolucion, idea: idea,
+                                  idea_version_id: idea.reload.current_version_id,
+                                  author: user, kind: "suggestion", body: "Acotá el piloto a un centro")
+
+      tarea = described_class.new(challenge: challenge, step: evolucion, idea: idea)
+
+      expect(tarea.context_snapshot["feedback_ids"]).to eq([otro.id])
+      expect(tarea.messages.last[:content]).to include("Acotá el piloto")
+      expect(tarea.messages.last[:content]).not_to include("¿Cuánto cuesta")
+    end
+  end
 end
 

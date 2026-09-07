@@ -177,6 +177,50 @@ RSpec.describe "resolver feedback", type: :request do
     end
   end
 
+  # La ficha de la idea mostraba el feedback de SOLO LECTURA: su autora veía
+  # que le pidieron algo y no tenía dónde decir que lo atendió. Las acciones
+  # estaban, pero solo en la pantalla del módulo — la vista de quien acompaña,
+  # no la de quien postuló.
+  describe "la ficha de la idea, que es donde entra su autora" do
+    before do
+      feedback!
+      sign_in(author, company: company)
+    end
+
+    it "ofrece las mismas salidas que el tablero" do
+      get challenge_idea_path(challenge, idea)
+
+      expect(response.body).to include("Tomado en cuenta")
+      expect(response.body).to include("No aplica")
+    end
+
+    it "y ofrece que la IA la reescriba con ese feedback" do
+      # El módulo nace en «Solo personas», donde la IA no interviene: es la
+      # regla del modo, no un olvido.
+      as_company(company) { step.update!(ai_mode: "ai_assisted") }
+
+      get challenge_idea_path(challenge, idea)
+
+      expect(response.body).to include("Reescribir la idea con el feedback")
+    end
+
+    it "y no la ofrece con el módulo en «Solo personas»" do
+      get challenge_idea_path(challenge, idea)
+
+      expect(response.body).not_to include("Reescribir la idea con el feedback")
+    end
+
+    # Quien no es su autora ni administra ve el comentario, no las salidas.
+    it "a un tercero le muestra el comentario, no los botones" do
+      sign_in(ajeno, company: company)
+
+      get challenge_idea_path(challenge, idea)
+
+      expect(response.body).to include("¿Y el costo?")
+      expect(response.body).not_to include("Tomado en cuenta")
+    end
+  end
+
   describe "el tablero ofrece las salidas" do
     it "muestra cómo cerrar cada comentario y cómo responder editando" do
       feedback!

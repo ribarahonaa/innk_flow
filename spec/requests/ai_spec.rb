@@ -197,6 +197,71 @@ RSpec.describe "capa de IA", type: :request do
       expect(response).to have_http_status(:not_found)
     end
   end
+
+  # Todo pedido a la IA exigía `update_pipeline?`, que es solo administración:
+  # quien participa no podía usar ninguna función de IA, ni siquiera sobre su
+  # propia idea, con el botón ahí ofreciéndoselo.
+  describe "quién puede pedirle algo a la IA" do
+    let!(:ideation) do
+      as_company(company) do
+        paso = seed_form!(challenge.steps.create!(kind: "ideation", position: 1))
+        challenge.steps.create!(kind: "evolution", position: 2)
+        challenge.pipeline.start!
+        paso
+      end
+    end
+
+    let!(:propia) do
+      as_company(company) do
+        i = create(:idea, challenge: challenge, author: participant, status: "active")
+        Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "Sensores" }, author: participant).call
+        i.update!(submitted_at: Time.current)
+        i
+      end
+    end
+
+    let!(:ajena) do
+      as_company(company) do
+        otro = Flow::Tenant.bypass! { create(:user, email: "otro@test.dev") }
+        i = create(:idea, challenge: challenge, author: otro, status: "active")
+        Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "Cámaras" }, author: otro).call
+        i.update!(submitted_at: Time.current)
+        i
+      end
+    end
+
+    before do
+      # Su autora puede editar la idea en borrador o con una ronda de evolución
+      # abierta. Fuera de esas dos ventanas no se edita en caliente, y pedirle
+      # a la IA que la reescriba tampoco.
+      as_company(company) { challenge.pipeline.advance! }
+      sign_in(participant, company: company)
+    end
+
+    it "sobre su propia idea, quien participa sí" do
+      post challenge_ai_requests_path(challenge, purpose: "coauthor_field", idea_id: propia.id,
+                                      step_id: ideation.id, field_key: "titulo")
+
+      expect(response).to have_http_status(:found)
+      expect(flash[:alert]).to be_nil
+    end
+
+    it "sobre la idea de otra persona, no" do
+      post challenge_ai_requests_path(challenge, purpose: "coauthor_field", idea_id: ajena.id,
+                                      step_id: ideation.id, field_key: "titulo")
+
+      expect(response).to have_http_status(:forbidden).or have_http_status(:found)
+      expect(as_company(company) { AiRun.where(idea_id: ajena.id).count }).to be_zero
+    end
+
+    # Lo que configura el DESAFÍO sigue siendo de quien administra.
+    it "y armar el flujo tampoco" do
+      post challenge_ai_requests_path(challenge, purpose: "propose_pipeline")
+
+      expect(response).to have_http_status(:forbidden).or have_http_status(:found)
+      expect(as_company(company) { AiRun.where(purpose: "propose_pipeline").count }).to be_zero
+    end
+  end
 end
 RSpec.describe "la IA evaluando", type: :request do
   let!(:company) { without_tenant { create(:company, slug: "acme") } }
@@ -421,3 +486,4 @@ RSpec.describe "cambiar el modo de IA de un módulo en curso", type: :request do
     expect(as_company(company) { step.reload.ai_mode }).to eq("human")
   end
 end
+

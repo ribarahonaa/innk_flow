@@ -1,0 +1,44 @@
+-# Un comentario y qué se puede hacer con él.
+-#
+-# Vive acá porque lo usan DOS pantallas: la del módulo de evolución —la vista
+-# de quien acompaña— y la ficha de la idea, que es donde entra su autor. La
+-# ficha lo mostraba de solo lectura: veías que te pidieron algo y no tenías
+-# dónde decir que lo atendiste.
+- step = item.challenge_step
+- puede_resolver = step&.active? && policy(item).resolve?
+
+%li.feedback-item{ class: ("is-addressed" unless item.open?) }
+  .feedback-item__head
+    %span.feedback-kind{ class: "feedback-kind--#{item.kind}" }= item.kind_label
+    %span.muted= item.author_name
+    - if item.by_ai?
+      %span.ai-chip IA
+    - if local_assigns[:con_origen]
+      %span.muted= "· desde «#{step.name}» sobre #{item.idea_version.label}"
+    - if item.open? && item.stale?
+      %span.muted= "· sobre #{item.idea_version.label}, la idea ya cambió"
+  %p.feedback-item__body= item.body
+
+  - if item.open?
+    - if puede_resolver
+      = form_with url: resolve_challenge_step_feedback_item_path(challenge, step, item), method: :post, class: "feedback-resolve" do
+        = text_field_tag :note, nil, placeholder: "Nota de cierre (opcional)", class: "feedback-resolve__note"
+        -# button_tag y no submit_tag: en un <input type="submit"> el texto
+        -# visible ES el value, así que no se puede mandar "acknowledged" y
+        -# mostrar "Tomado en cuenta".
+        = button_tag "Tomado en cuenta", type: "submit", name: "resolution",
+                     value: "acknowledged", class: "btn btn--ghost btn--sm"
+        = button_tag "No aplica", type: "submit", name: "resolution",
+                     value: "dismissed", class: "btn btn--ghost btn--sm"
+  - else
+    .feedback-item__resolution
+      %span.status-chip.status-chip--completed= item.resolution_label
+      - if item.addressed_by_version
+        %span.muted= "en #{item.addressed_by_version.label}"
+      - if item.resolved_by
+        %span.muted= "· #{item.resolved_by_name}"
+      - if item.resolution_note.present?
+        %span.muted= "· #{item.resolution_note}"
+      - if puede_resolver
+        = button_to "Reabrir", reopen_challenge_step_feedback_item_path(challenge, step, item),
+                    class: "link-button"
