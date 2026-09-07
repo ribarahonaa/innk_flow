@@ -331,6 +331,28 @@ Cuidado con `.compact` sobre el hash de un step en el presenter: se lleva puesto
 `aiMode: nil`, que significa «heredá el modo del desafío» y no es lo mismo que
 la clave ausente.
 
+### El sistema visual
+
+Tres piezas cargan casi toda la jerarquía, y las tres estaban mal calibradas:
+
+- **El ritmo lo pone `.app-main`**, que es `flex` en columna con `gap`. Las
+  tarjetas tienen `margin: 0` a propósito: un margen por tarjeta rompería las
+  grillas, donde son hermanas con su propio `gap`. Antes no había ninguno de
+  los dos y las tarjetas se **tocaban** — la página era una columna blanca
+  continua partida por hairlines. No se ve mirando (el borde doble parece una
+  separación): se ve midiendo, y hay guarda en las capturas.
+- **`.section-title` es un encabezado, no una etiqueta.** Era 13px en
+  mayúsculas y gris, o sea estilo de etiqueta usado en 54 lugares como título
+  de sección: nada anunciaba nada. Las mayúsculas chiquitas quedan donde
+  corresponden —encabezados de columna, chips—.
+- **`--muted` se usa 178 veces**, así que casi todo el texto de la app es gris.
+  Subir el contraste del token una vez lo levanta en todos lados; es más
+  barato y más parejo que discutir usos.
+
+Un `turbo-frame` que siempre se renderiza pero casi siempre está vacío —el de
+sugerencias de IA— necesita `display: contents`, o como hijo flex se lleva dos
+gaps y abre un hueco de la nada.
+
 ## Convenciones que se rompen fácil
 
 - **`button_to` es un `<form>`.** Uno dentro de otro es HTML inválido y el

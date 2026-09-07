@@ -6,15 +6,16 @@
 - above = ranking.select(&:above_cut?)
 
 - gates = @handler.gate_criteria
-- if gates.any?
-  .card
-    .section-head
-      %h2.section-title
-        Filtros
-        %span.muted= " · #{Flow::Texto.contar(gates.size, "condición")} para poder avanzar"
-      - if @step.criteria_set && policy(@challenge).update_pipeline?
-        = link_to "Editar el set", edit_criteria_set_path(@step.criteria_set), class: "btn btn--ghost btn--sm"
-    %p.muted.field-hint Una idea avanza solo si los cumple todos. Después se aplica el corte por puntaje.
+.card
+  .section-head
+    %h2.section-title Cómo se decide
+    - if @step.criteria_set && policy(@challenge).update_pipeline?
+      = link_to "Editar el set", edit_criteria_set_path(@step.criteria_set), class: "btn btn--ghost btn--sm"
+
+  - if gates.any?
+    %p.field-hint
+      = "#{Flow::Texto.contar(gates.size, "condición")} para poder avanzar."
+      Una idea avanza solo si las cumple todas.
     %ul.field-list
       - gates.each do |gate|
         - criterion = Criterion.find_by(id: gate["id"])
@@ -27,6 +28,24 @@
               = criterion.check.description
             - else
               veredicto por idea
+
+  %p.rule-line
+    - if gates.any?
+      %strong Después, el corte:
+    - else
+      %strong El corte:
+    = t("flow.cut_modes.#{@handler.cut_mode}")
+    - unless @handler.manual_cut?
+      = "· #{@handler.cut_value.to_i}"
+    - if @handler.source_steps.any?
+      %span.muted
+        = " · por puntaje de #{@handler.source_steps.map(&:name).join(" + ")}"
+        - if @handler.source_steps.size > 1
+          - weights = @step.settings.dig("score_source", "weights") || {}
+          - if weights.present?
+            = "(#{@handler.source_steps.map { |s| "#{s.name} #{(weights[s.slug].to_f * 100).round}%" }.join(', ')})"
+    - else
+      %span.muted · sin fuente de puntaje: el orden es manual
 
 -# Un filtro sin responder deja a la idea en el limbo y traba el cierre del
 -# módulo. Acá se le puede pedir a la IA que los responda, idea por idea.
@@ -42,24 +61,6 @@
              actions: sin_veredicto.first(1).map { |r| { label: "Responder los filtros de «#{r.idea.title.truncate(28)}»", purpose: "decide_verdicts", step_id: @step.id, idea_id: r.idea.id } }
     - if sin_veredicto.size > 1
       %p.field-hint= "Quedan #{sin_veredicto.size} ideas con filtros sin responder."
-
-.card
-  %h2.section-title Corte
-  %p.muted
-    - if @handler.source_steps.any?
-      Puntajes de
-      %strong= @handler.source_steps.map(&:name).join(" + ")
-      - if @handler.source_steps.size > 1
-        - weights = @step.settings.dig("score_source", "weights") || {}
-        - if weights.present?
-          = "(#{@handler.source_steps.map { |s| "#{s.name} #{(weights[s.slug].to_f * 100).round}%" }.join(', ')})"
-    - else
-      Sin fuente de puntaje: el orden es manual.
-  %p.muted
-    Regla:
-    %strong= t("flow.cut_modes.#{@handler.cut_mode}")
-    - unless @handler.manual_cut?
-      = "· #{@handler.cut_value.to_i}"
 
 -# La tabla va FUERA del formulario del corte.
 -#

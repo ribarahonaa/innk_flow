@@ -5,7 +5,7 @@
   --surface: #ffffff;
   --border: #e3e6ea;
   --text: #1c2024;
-  --muted: #667085;
+  --muted: #58627a;
   --accent: #2563eb;
   --accent-soft: #eef4ff;
   --danger: #d92d20;
@@ -39,7 +39,16 @@ a { color: var(--accent); }
 .app-header__brand { font-weight: 650; letter-spacing: -.01em; }
 .app-header__spacer { flex: 1; }
 
-.app-main { max-width: 1180px; margin: 0 auto; padding: 24px; }
+.app-main {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px;
+  // Las tarjetas tenían margin 0: la página era una sola columna blanca
+  // continua partida por hairlines, sin agrupar nada.
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 
 .card {
   background: var(--surface);
@@ -52,7 +61,6 @@ a { color: var(--accent); }
 .flash {
   padding: 10px 14px;
   border-radius: var(--radius);
-  margin-bottom: 16px;
   border: 1px solid var(--border);
   background: var(--surface);
 }
@@ -162,11 +170,18 @@ input:focus, textarea:focus, select:focus {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
+  // El ritmo lo pone el `gap` del main: un margen acá se sumaría.
+  margin-bottom: 0;
 }
 .page-head__actions { display: flex; gap: 8px; }
 .page-title { margin: 0 0 4px; font-size: 22px; letter-spacing: -.02em; }
-.section-title { margin: 0 0 14px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.section-title {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -.01em;
+  color: var(--text);
+}
 .breadcrumb { margin: 0 0 6px; font-size: 12px; }
 .breadcrumb a { color: var(--muted); text-decoration: none; }
 .breadcrumb a:hover { color: var(--accent); }
@@ -1859,3 +1874,12 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
 .btn--xs { padding: 1px 8px; font-size: 11px; }
 .ranking-table__reinstate { display: inline-block; margin-left: 8px; vertical-align: middle; }
 .ranking-table__reinstate form { display: inline; }
+
+// El marco de sugerencias vive siempre en el DOM porque es el destino de los
+// pedidos a la IA, pero casi siempre está vacío. `display: contents` lo saca
+// del flujo flex sin sacarlo del documento: sus hijos —cuando los tenga— son
+// los que toman el gap.
+turbo-frame#ai-suggestions { display: contents; }
+
+/* La regla del corte, en una línea al pie de la tarjeta que la explica. */
+.rule-line { margin: 14px 0 0; font-size: 13px; }

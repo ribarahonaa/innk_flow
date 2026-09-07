@@ -59,12 +59,34 @@ async function revisarFormsAnidados(page, name, url) {
   }
 }
 
+// Las tarjetas tenían `margin: 0` y se tocaban: la página era una sola columna
+// blanca continua partida por hairlines, sin agrupar nada. Se ve midiendo, no
+// mirando —a simple vista el borde doble parece una separación—.
+async function revisarRitmo(page, name) {
+  const pegadas = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll('.app-main > .card')];
+    let juntas = 0;
+    for (let i = 1; i < cards.length; i++) {
+      const anterior = cards[i - 1].getBoundingClientRect();
+      const actual = cards[i].getBoundingClientRect();
+      if (actual.top - anterior.bottom < 8) juntas++;
+    }
+    return juntas;
+  });
+
+  if (pegadas > 0) {
+    failures++;
+    console.error(`[RITMO] ${name}: ${pegadas} tarjetas pegadas a la anterior, sin separación`);
+  }
+}
+
 async function shot(page, name, url, prepare) {
   await page.goto(BASE + url, { waitUntil: 'networkidle' });
   if (prepare) await prepare(page);
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
   await revisarTexto(page, name);
   await revisarFormsAnidados(page, name, url);
+  await revisarRitmo(page, name);
   shots.push(name);
 }
 
