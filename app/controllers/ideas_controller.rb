@@ -128,7 +128,7 @@ class IdeasController < ApplicationController
   end
 
   def set_idea
-    @idea = @challenge.ideas.find(params[:id])
+    @idea = policy_scope(Idea).where(challenge_id: @challenge.id).find(params[:id])
   end
 
   def ideation_step

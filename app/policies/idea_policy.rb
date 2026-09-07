@@ -1,10 +1,31 @@
 # frozen_string_literal: true
 
 class IdeaPolicy < ApplicationPolicy
-  class Scope < ApplicationPolicy::Scope; end
+  # Quien participa ve SOLO las ideas en las que participa —las que creó y
+  # aquellas en las que colabora—. El resto del desafío no es asunto suyo:
+  # compite por el mismo corte.
+  #
+  # Quien administra, acompaña o evalúa ve todas: las tres cosas se hacen sobre
+  # el pool entero.
+  class Scope < ApplicationPolicy::Scope
+    def resolve
+      return scope.none if membership.nil?
+      return scope.all unless membership.participant?
 
-  # Cualquiera de la empresa ve las ideas del desafío.
-  def show? = reaches_challenge?(record&.challenge)
+      # Las dos formas de participar, que son las mismas que mira
+      # `Idea#participates?`: haberla creado, o colaborar en ella.
+      colabora = IdeaContributor.where(user_id: membership.user_id).select(:idea_id)
+
+      scope.where(author_id: membership.user_id).or(scope.where(id: colabora))
+    end
+  end
+
+  def show?
+    return false unless reaches_challenge?(record&.challenge)
+    return true unless membership.participant?
+
+    record.participates?(membership.user)
+  end
 
   # Postular: cualquiera con membresía, mientras el módulo de ideación esté
   # abierto. El gestor no: acompaña la evolución de las ideas de otros, y

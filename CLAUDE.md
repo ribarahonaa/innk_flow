@@ -163,6 +163,12 @@ Dos reglas que no viven en el rol:
   entries del módulo**, porque si no la tabla sigue mostrando el número viejo.
   Quien ya evaluó no se desasigna —su nota quedaría sin respaldo—, y con el
   módulo cerrado no se toca nada.
+- **Quien participa ve solo las ideas en las que participa** —las que creó y
+  aquellas en las que colabora—: compite por el mismo corte que las demás. La
+  regla vive UNA vez, en `IdeaPolicy::Scope`, y las pantallas la aplican:
+  `StepsController#show` publica `@ideas_visibles` y los módulos filtran con
+  eso lo que listan. Lo que no se ve da **404**, no 403. Quien administra,
+  acompaña o evalúa las ve todas: las tres cosas se hacen sobre el pool entero.
 - **El puntaje y el desglose son cosas distintas.** Quien participa de una idea
   ve su resultado agregado cuando el módulo cierra; **quién puso qué** lo ven
   solo quien administra y quien evaluó esa idea. Por eso hay dos predicados en

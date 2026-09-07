@@ -210,14 +210,13 @@ RSpec.describe "resolver feedback", type: :request do
       expect(response.body).not_to include("Reescribir la idea con el feedback")
     end
 
-    # Quien no es su autora ni administra ve el comentario, no las salidas.
-    it "a un tercero le muestra el comentario, no los botones" do
+    # Y quien no participa de esa idea no llega a su ficha.
+    it "a un tercero no le muestra nada: la ficha ajena no se abre" do
       sign_in(ajeno, company: company)
 
       get challenge_idea_path(challenge, idea)
 
-      expect(response.body).to include("¿Y el costo?")
-      expect(response.body).not_to include("Tomado en cuenta")
+      expect(response).to have_http_status(:not_found)
     end
   end
 

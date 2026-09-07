@@ -119,7 +119,7 @@ RSpec.describe "ideas", type: :request do
       end
     end
 
-    it "otro participante NO puede editar una idea ajena" do
+    it "otro participante NO llega a una idea ajena" do
       otro = without_tenant do
         u = create(:user, email: "otro@test.dev")
         create(:membership, company: company, user: u, role: "participant")
@@ -128,7 +128,9 @@ RSpec.describe "ideas", type: :request do
       sign_in(otro, company: company)
 
       get edit_challenge_idea_path(challenge, idea)
-      expect(response).to have_http_status(:forbidden)
+      # 404 y no 403: quien participa ve solo las ideas en las que participa,
+      # y un 403 confirmaría que la ajena existe.
+      expect(response).to have_http_status(:not_found)
     end
 
     it "el autor SÍ puede editar durante una ronda de evolución" do
@@ -150,6 +152,8 @@ RSpec.describe "ideas", type: :request do
       sign_in(participant, company: company)
 
       get edit_challenge_idea_path(challenge, idea)
+      # Acá 403 y no 404 a propósito: la ve —es suya—, lo que no puede es
+      # editarla fuera de la ventana.
       expect(response).to have_http_status(:forbidden)
     end
 

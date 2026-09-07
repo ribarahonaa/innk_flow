@@ -149,7 +149,8 @@
           %th Dispersión
           %th
       %tbody
-        - @step.step_entries.includes(idea: %i[current_version author idea_contributors]).each do |entry|
+        - entries = @step.step_entries.includes(idea: %i[current_version author idea_contributors])
+        - entries.select { |e| @ideas_visibles.include?(e.idea_id) }.each do |entry|
           - result = entry.result
           - propia = entry.idea.participates?(current_user)
           -# El puntaje agregado y el desglose por evaluador son dos cosas

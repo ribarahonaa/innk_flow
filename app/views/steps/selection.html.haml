@@ -2,8 +2,14 @@
 = render "steps/header", step: @step, handler: @handler
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 
-- ranking = @handler.ranking
-- above = ranking.select(&:above_cut?)
+- completo = @handler.ranking
+- above = completo.select(&:above_cut?)
+-# Quien participa ve solo las filas de sus ideas. La línea de corte y el
+-# contador siguen siendo del pool entero —son agregados, no dicen de quién es
+-# cada idea— pero la línea solo se dibuja si se ve la tabla completa: entre
+-# filas salteadas no marca nada.
+- ranking = completo.select { |row| @ideas_visibles.include?(row.idea.id) }
+- ve_todo = ranking.size == completo.size
 
 - gates = @handler.gate_criteria
 .card
@@ -80,7 +86,7 @@
 .card
   %h2.section-title
     Ranking
-    %span.muted= " · #{above.size} de #{ranking.size} avanzan"
+    %span.muted= " · #{above.size} de #{completo.size} avanzan"
   %table.step-table.ranking-table
     %thead
       %tr
@@ -96,7 +102,7 @@
           %th= source.name
     %tbody
       - ranking.each_with_index do |row, index|
-        - if index == above.size && above.size < ranking.size
+        - if ve_todo && index == above.size && above.size < ranking.size
           %tr.cut-line
             %td{ colspan: 4 + gates.size + @handler.source_steps.size }
               %span.cut-line__label= "línea de corte · #{t("flow.cut_modes.#{@handler.cut_mode}")}"

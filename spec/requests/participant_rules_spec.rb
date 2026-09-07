@@ -65,11 +65,14 @@ RSpec.describe "reglas de quien participa", type: :request do
       end.not_to change { as_company(company) { FeedbackItem.count } }
     end
 
-    it "y la pantalla no le ofrece la caja donde no puede" do
+    # Antes el tablero le mostraba las dos ideas y le ofrecía la caja de
+    # comentar solo en la suya. Ahora directamente no ve la ajena: el tablero
+    # de la evolución es la vista de quien acompaña.
+    it "y el tablero solo le muestra la suya" do
       get challenge_step_path(challenge, step_named("Ronda"))
 
-      expect(response.body).to include("La idea de Paula", "La idea de Pedro")
-      # Una sola caja de comentar: la de su propia idea.
+      expect(response.body).to include("La idea de Paula")
+      expect(response.body).not_to include("La idea de Pedro")
       expect(response.body.scan(%(class="feedback-form")).size).to eq(1)
     end
 
@@ -115,11 +118,13 @@ RSpec.describe "reglas de quien participa", type: :request do
       expect(response.body).to include("Cómo le fue", "Técnica", "58%")
     end
 
-    it "y no el de la ajena" do
+    # Antes veía la ficha ajena sin el puntaje. Ahora no la ve: quien participa
+    # ve solo las ideas en las que participa, y lo que no ve da 404 —no 403—
+    # para no confirmar que existe.
+    it "y la ajena no la abre" do
       get challenge_idea_path(challenge, ajena)
 
-      expect(response.body).to include("Cómo le fue")
-      expect(response.body).not_to include("58%")
+      expect(response).to have_http_status(:not_found)
     end
 
     # El reporte trae el ranking entero: es justo lo que no ve en pantalla.
@@ -129,4 +134,46 @@ RSpec.describe "reglas de quien participa", type: :request do
       expect(response).to have_http_status(:forbidden).or have_http_status(:found)
     end
   end
+
+  # La regla nueva, en los cuatro lugares donde se listan ideas. Vive una sola
+  # vez —en `IdeaPolicy::Scope`— y las pantallas la aplican; sin eso habría que
+  # acordarse en cada una.
+  describe "solo ve las ideas en las que participa" do
+    before do
+      # El módulo de evaluación tiene que existir para poder mirarlo.
+      as_company(company) { challenge.pipeline.advance! }
+      sign_in(paula, company: company)
+    end
+
+    it "el índice de ideas lista la suya y nada más" do
+      get challenge_ideas_path(challenge)
+
+      expect(response.body).to include("La idea de Paula")
+      expect(response.body).not_to include("La idea de Pedro")
+    end
+
+    it "la ficha de la ajena da 404, no 403" do
+      get challenge_idea_path(challenge, ajena)
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "el módulo de evaluación tampoco la lista" do
+      get challenge_step_path(challenge, step_named("Técnica"))
+
+      expect(response.body).to include("La idea de Paula")
+      expect(response.body).not_to include("La idea de Pedro")
+    end
+
+    # Quien acompaña o evalúa las ve todas: las dos cosas se hacen sobre el
+    # pool entero.
+    it "quien evalúa sigue viéndolas todas" do
+      sign_in(elena, company: company)
+
+      get challenge_ideas_path(challenge)
+
+      expect(response.body).to include("La idea de Paula", "La idea de Pedro")
+    end
+  end
 end
+

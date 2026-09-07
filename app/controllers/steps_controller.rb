@@ -14,6 +14,9 @@ class StepsController < ApplicationController
     @assignable = @step.evaluation? ? assignable_users : []
     # Un gestor acompaña la evolución: se lo asigna donde eso pasa.
     @gestor_candidates = @step.evolution? ? gestor_candidates : []
+    # Qué ideas puede ver esta persona en este módulo. La regla es una sola y
+    # vive en `IdeaPolicy::Scope`: quien participa ve solo las suyas.
+    @ideas_visibles = policy_scope(Idea).where(challenge_id: @challenge.id).pluck(:id).to_set
     render "steps/#{@step.kind}"
   end
 
