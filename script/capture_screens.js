@@ -149,19 +149,19 @@ async function shot(page, name, url, prepare) {
 
   // El paso a paso tiene que estar en TODAS las pantallas de configuración: si
   // falta en una, ahí es donde se pierde quien está configurando.
-  for (const url of ['/challenges/onboarding-remoto',
-                     '/challenges/onboarding-remoto/builder',
-                     '/challenges/onboarding-remoto/form',
-                     '/challenges/onboarding-remoto/criteria',
-                     '/challenges/onboarding-remoto/preview']) {
+  for (const url of ['/challenges/sin-formulario',
+                     '/challenges/sin-formulario/builder',
+                     '/challenges/sin-formulario/form',
+                     '/challenges/sin-formulario/criteria',
+                     '/challenges/sin-formulario/preview']) {
     await page.goto(BASE + url, { waitUntil: 'networkidle' });
     if (await page.locator('.setup__step').count() !== 6) {
       failures++;
       console.error(`[SETUP] falta el paso a paso en ${url}`);
     }
   }
-  await shot(page, '03c-paso-a-paso', '/challenges/onboarding-remoto/form');
-  await shot(page, '03d-criterios-indice', '/challenges/onboarding-remoto/criteria');
+  await shot(page, '03c-paso-a-paso', '/challenges/sin-formulario/form');
+  await shot(page, '03d-criterios-indice', '/challenges/sin-formulario/criteria');
   await shot(page, '04-challenge', `/challenges/${CHALLENGE}`);
 
   // El builder es una isla Vue, y se llega NAVEGANDO POR EL LINK, no con un
@@ -232,7 +232,7 @@ async function shot(page, name, url, prepare) {
   }
 
   // La previsualización: se llega por link desde el builder.
-  await page.goto(`${BASE}/challenges/onboarding-remoto/builder`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/challenges/sin-formulario/builder`, { waitUntil: 'networkidle' });
   const previewLink = page.locator('a:has-text("Previsualizar")');
   if (await previewLink.count()) {
     await Promise.all([
@@ -365,14 +365,14 @@ async function shot(page, name, url, prepare) {
 
   // El desafío en borrador: «Idear» todavía no tiene formulario. El builder lo
   // marca como error y la pantalla ofrece las dos salidas.
-  await page.goto(`${BASE}/challenges/onboarding-remoto/builder`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/challenges/sin-formulario/builder`, { waitUntil: 'networkidle' });
   await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
   await porTipo(page, 'Idear').click();
   await page.waitForTimeout(200);
   await page.screenshot({ path: `${OUT}/09-9-builder-sin-formulario.png`, fullPage: true });
   shots.push('09-9-builder-sin-formulario');
 
-  await shot(page, '09-10-form-vacio', '/challenges/onboarding-remoto/form');
+  await shot(page, '09-10-form-vacio', '/challenges/sin-formulario/form');
 
   // Pedirle algo a la IA no debe recargar la pantalla: el botón apunta al
   // marco de las propuestas. No se dispara el pedido —cuesta plata con el
@@ -390,7 +390,7 @@ async function shot(page, name, url, prepare) {
   }
 
   // Los criterios del módulo de evaluación, desde su panel en el builder.
-  await page.goto(`${BASE}/challenges/onboarding-remoto/builder`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/challenges/sin-formulario/builder`, { waitUntil: 'networkidle' });
   await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
   await porTipo(page, 'Evaluación').click();
   await page.waitForTimeout(200);

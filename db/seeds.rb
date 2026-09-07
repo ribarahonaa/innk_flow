@@ -357,6 +357,25 @@ Flow::Tenant.bypass! do
       borrador.pipeline.insert(kind: kind, after: :end, name: name)
     end
 
+    # Un desafío en BORRADOR y sin formulario, para las capturas que verifican
+    # ese estado.
+    #
+    # Tiene el suyo propio y no comparte el de arriba a propósito: cuando las
+    # capturas dependían de un desafío que además se usa para probar a mano,
+    # bastaba con que alguien le aplicara una propuesta de IA para que la
+    # corrida fallara por datos y no por código. Pasó dos veces.
+    Challenge.where(slug: "sin-formulario").destroy_all
+    sin_formulario = Challenge.create!(
+      slug: "sin-formulario",
+      name: "Ideas para el comedor",
+      brief: "El comedor se llena entre las 13 y las 14 y la fila desalienta a media planta. " \
+             "Buscamos ideas para repartir la demanda sin ampliar el espacio.",
+      ai_default_mode: "ai_assisted"
+    )
+    [["ideation", "Postulación"], ["evaluation", "Primera revisión"]].each do |kind, name|
+      sin_formulario.pipeline.insert(kind: kind, after: :end, name: name)
+    end
+
     # Un desafío SIN módulos, para la captura del selector de plantillas.
     # Antes el script de capturas creaba uno en cada corrida y no lo borraba:
     # la base de desarrollo terminó con dieciséis «desafio-de-prueba-N».
