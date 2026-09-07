@@ -333,6 +333,14 @@ la clave ausente.
 
 ## Convenciones que se rompen fácil
 
+- **`button_to` es un `<form>`.** Uno dentro de otro es HTML inválido y el
+  navegador no lo deja pasar: descarta el interno y sus botones pasan a
+  pertenecer al externo. Pasó en la pantalla del corte —los ✓/✗ de veredicto
+  vivían dentro del formulario del ranking, así que apretarlos enviaba el
+  corte—. No se ve en el DOM (el parser ya lo aplanó) ni en un request spec que
+  postea directo: se mira el HTML **servido**. Hay guarda en las capturas y en
+  `spec/requests/selection_screen_spec.rb`. Para atar un control a un
+  formulario que no lo envuelve, `form: "id-del-form"`.
 - **Pundit, no CanCanCan.** Cada policy declara su `Scope` explícitamente
   (`class Scope < ApplicationPolicy::Scope; end`): Pundit usa
   `const_get(:Scope, false)` y no la hereda.

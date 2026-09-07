@@ -40,11 +40,31 @@ async function revisarTexto(page, name) {
   }
 }
 
+// Un <form> dentro de otro es HTML inválido y el navegador NO lo deja pasar:
+// descarta el interno y sus botones pasan a pertenecer al externo. Pasó de
+// verdad — los ✓/✗ de veredicto vivían dentro del formulario del corte, así
+// que apretarlos enviaba el corte. En el DOM no se ve, porque el parser ya lo
+// aplanó: hay que mirar el HTML SERVIDO.
+async function revisarFormsAnidados(page, name, url) {
+  const html = await (await page.request.get(BASE + url)).text().catch(() => '');
+  let profundidad = 0;
+  let maxima = 0;
+  for (const etiqueta of html.match(/<form\b|<\/form>/g) || []) {
+    profundidad += etiqueta === '</form>' ? -1 : 1;
+    maxima = Math.max(maxima, profundidad);
+  }
+  if (maxima > 1) {
+    failures++;
+    console.error(`[FORMS] ${name} sirve un formulario dentro de otro: el navegador se come el interno`);
+  }
+}
+
 async function shot(page, name, url, prepare) {
   await page.goto(BASE + url, { waitUntil: 'networkidle' });
   if (prepare) await prepare(page);
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
   await revisarTexto(page, name);
+  await revisarFormsAnidados(page, name, url);
   shots.push(name);
 }
 

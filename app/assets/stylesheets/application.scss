@@ -1843,3 +1843,19 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   letter-spacing: .02em;
 }
 .field-edit__line .captioned select { flex: none; width: 12rem; }
+
+/* Una tanda de decisiones: quién, cuándo y por qué se dicen una vez. */
+.decision-batch + .decision-batch {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.decision-batch__head { margin: 0 0 4px; font-size: 13px; }
+.decision-batch__reason { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
+.decision-batch__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.decision-batch__list li { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+
+/* Repescar vive en la fila de su idea. */
+.btn--xs { padding: 1px 8px; font-size: 11px; }
+.ranking-table__reinstate { display: inline-block; margin-left: 8px; vertical-align: middle; }
+.ranking-table__reinstate form { display: inline; }

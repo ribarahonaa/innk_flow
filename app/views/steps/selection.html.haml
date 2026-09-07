@@ -61,145 +61,157 @@
     - unless @handler.manual_cut?
       = "· #{@handler.cut_value.to_i}"
 
-= form_with url: challenge_step_selection_path(@challenge, @step), method: :patch do
-  .card
-    %h2.section-title
-      Ranking
-      %span.muted= " · #{above.size} de #{ranking.size} avanzan"
-    %table.step-table.ranking-table
-      %thead
-        %tr
-          %th.ranking-table__check Avanza
-          %th #
-          %th Idea
-          %th Puntaje
-          -# Sin truncar: un encabezado cortado en «El problema est…» obliga a
-          -# pasar el mouse por encima para saber qué columna se está leyendo.
-          - gates.each do |gate|
-            %th.gate-col= gate["name"]
-          - @handler.source_steps.each do |source|
-            %th= source.name
-      %tbody
-        - ranking.each_with_index do |row, index|
-          - if index == above.size && above.size < ranking.size
-            %tr.cut-line
-              %td{ colspan: 4 + gates.size + @handler.source_steps.size }
-                %span.cut-line__label= "línea de corte · #{t("flow.cut_modes.#{@handler.cut_mode}")}"
-          %tr{ class: ("is-below" unless row.above_cut?) }
-            %td.ranking-table__check
+-# La tabla va FUERA del formulario del corte.
+-#
+-# Estaba adentro, y los botones ✓/✗ de veredicto son `button_to` —o sea, un
+-# form— así que quedaban anidados. El navegador descarta el form interno y sus
+-# botones pasan a pertenecer al externo: apretar un veredicto enviaba el
+-# corte. Los checkboxes se atan al formulario por `form=`, que para eso existe.
+- decidible = @step.active? && policy(@step).advance?
+- corte_id = "corte-#{@step.id}"
+- fuera_aca = @handler.eliminated_ideas.index_by(&:id)
+
+.card
+  %h2.section-title
+    Ranking
+    %span.muted= " · #{above.size} de #{ranking.size} avanzan"
+  %table.step-table.ranking-table
+    %thead
+      %tr
+        %th.ranking-table__check= decidible ? "Avanza" : "Resultado"
+        %th #
+        %th Idea
+        %th Puntaje
+        -# Sin truncar: un encabezado cortado en «El problema est…» obliga a
+        -# pasar el mouse por encima para saber qué columna se está leyendo.
+        - gates.each do |gate|
+          %th.gate-col= gate["name"]
+        - @handler.source_steps.each do |source|
+          %th= source.name
+    %tbody
+      - ranking.each_with_index do |row, index|
+        - if index == above.size && above.size < ranking.size
+          %tr.cut-line
+            %td{ colspan: 4 + gates.size + @handler.source_steps.size }
+              %span.cut-line__label= "línea de corte · #{t("flow.cut_modes.#{@handler.cut_mode}")}"
+        %tr{ class: ("is-below" unless row.above_cut?) }
+          %td.ranking-table__check
+            -# Con el módulo cerrado la casilla se podía tildar y no hacía
+            -# nada: no hay formulario que enviar. Se muestra lo que pasó.
+            - if decidible
               = check_box_tag "advancing_idea_ids[]", row.idea.id, row.above_cut?, id: "advance_#{row.idea.id}",
-                              disabled: !row.passes_gates?
-            %td.muted= row.rank
-            %td
-              = link_to row.idea.title, challenge_idea_path(@challenge, row.idea), class: "step-table__link"
-              %span.muted= " · #{row.idea.author.name}"
-              -# Una idea con mejor puntaje puede quedar debajo de otra peor
-              -# porque no pasó un filtro. Sin decirlo, el ranking parece roto.
-              - if row.failed_gates.any?
-                %span.out-chip{ title: row.failed_gates.map { |g| g[:name] }.join(", ") }
-                  = "no pasa #{Flow::Texto.contar(row.failed_gates.size, 'filtro')}"
-              - elsif row.pending_gates.any?
-                %span.out-chip.out-chip--pending= "#{Flow::Texto.contar(row.pending_gates.size, 'filtro')} sin responder"
-            %td
-              - if row.scored?
-                %strong= "#{(row.score * 100).round(1)}%"
+                              disabled: !row.passes_gates?, form: corte_id
+            - elsif fuera_aca.key?(row.idea.id)
+              %span.gate.gate--fail{ title: "No avanzó en este módulo" } ✗
+            - else
+              %span.gate.gate--pass{ title: "Avanzó" } ✓
+          %td.muted= row.rank
+          %td
+            = link_to row.idea.title, challenge_idea_path(@challenge, row.idea), class: "step-table__link"
+            %span.muted= " · #{row.idea.author.name}"
+            -# Una idea con mejor puntaje puede quedar debajo de otra peor
+            -# porque no pasó un filtro. Sin decirlo, el ranking parece roto.
+            - if row.failed_gates.any?
+              %span.out-chip{ title: row.failed_gates.map { |g| g[:name] }.join(", ") }
+                = "no pasa #{Flow::Texto.contar(row.failed_gates.size, 'filtro')}"
+            - elsif row.pending_gates.any?
+              %span.out-chip.out-chip--pending= "#{Flow::Texto.contar(row.pending_gates.size, 'filtro')} sin responder"
+            -# La acción va donde está la idea. Antes había una tarjeta aparte
+            -# que repetía estas mismas filas solo para colgarle el botón.
+            - if fuera_aca.key?(row.idea.id) && policy(@step).advance?
+              = button_to "Repescar", reinstate_challenge_step_selection_path(@challenge, @step, idea_id: row.idea.id),
+                          class: "btn btn--ghost btn--xs ranking-table__reinstate",
+                          form: { data: { turbo_confirm: "¿Devolver «#{row.idea.title.truncate(40)}» al módulo activo?" } }
+          %td
+            - if row.scored?
+              %strong= "#{(row.score * 100).round(1)}%"
+            - else
+              %span.muted sin puntaje
+          - row.gates.each do |gate|
+            %td.gate-cell
+              -# Quién respondió importa tanto como la respuesta: un filtro
+              -# que contestó la IA no es lo mismo que uno que miró alguien.
+              - por_ia = gate[:decided_by] == "IA"
+              - detalle = [gate[:decided_by], gate[:detail]].compact_blank.join(" · ")
+              - case gate[:passed]
+              - when true
+                %span.gate.gate--pass{ title: detalle, class: ("gate--by-ai" if por_ia) }
+                  ✓
+                  - if por_ia
+                    %span.gate__actor IA
+              - when false
+                %span.gate.gate--fail{ title: detalle, class: ("gate--by-ai" if por_ia) }
+                  ✗
+                  - if por_ia
+                    %span.gate__actor IA
               - else
-                %span.muted sin puntaje
-            - row.gates.each do |gate|
-              %td.gate-cell
-                -# Quién respondió importa tanto como la respuesta: un filtro
-                -# que contestó la IA no es lo mismo que uno que miró alguien.
-                - por_ia = gate[:decided_by] == "IA"
-                - detalle = [gate[:decided_by], gate[:detail]].compact_blank.join(" · ")
-                - case gate[:passed]
-                - when true
-                  %span.gate.gate--pass{ title: detalle, class: ("gate--by-ai" if por_ia) }
-                    ✓
-                    - if por_ia
-                      %span.gate__actor IA
-                - when false
-                  %span.gate.gate--fail{ title: detalle, class: ("gate--by-ai" if por_ia) }
-                    ✗
-                    - if por_ia
-                      %span.gate__actor IA
+                - if @step.active? && policy(@step).advance?
+                  .gate-verdict
+                    = button_to "✓", verdict_challenge_step_selection_path(@challenge, @step),
+                                params: { idea_id: row.idea.id, criterion_key: gate[:key], passed: true },
+                                class: "gate-verdict__btn gate-verdict__btn--yes", title: "Cumple"
+                    = button_to "✗", verdict_challenge_step_selection_path(@challenge, @step),
+                                params: { idea_id: row.idea.id, criterion_key: gate[:key], passed: false },
+                                class: "gate-verdict__btn gate-verdict__btn--no", title: "No cumple"
                 - else
-                  - if @step.active? && policy(@step).advance?
-                    .gate-verdict
-                      = button_to "✓", verdict_challenge_step_selection_path(@challenge, @step),
-                                  params: { idea_id: row.idea.id, criterion_key: gate[:key], passed: true },
-                                  class: "gate-verdict__btn gate-verdict__btn--yes", title: "Cumple"
-                      = button_to "✗", verdict_challenge_step_selection_path(@challenge, @step),
-                                  params: { idea_id: row.idea.id, criterion_key: gate[:key], passed: false },
-                                  class: "gate-verdict__btn gate-verdict__btn--no", title: "No cumple"
-                  - else
-                    %span.gate.gate--pending —
-            - @handler.source_steps.each do |source|
-              %td.muted
-                - value = row.sources[source.slug]
-                = value ? "#{(value * 100).round}%" : "—"
+                  %span.gate.gate--pending —
+          - @handler.source_steps.each do |source|
+            %td.muted
+              - value = row.sources[source.slug]
+              = value ? "#{(value * 100).round}%" : "—"
 
-    -# Sin esto hay que adivinar qué significa cada símbolo, y sobre todo qué
-    -# quiere decir el borde punteado.
-    - if gates.any?
-      %p.table-legend
-        %span.gate.gate--pass ✓
-        cumple
-        %span.gate.gate--fail ✗
-        no cumple
-        %span.gate.gate--pending —
-        sin responder
-        %span.gate.gate--pass.gate--by-ai
-          ✓
-          %span.gate__actor IA
-        lo respondió la IA
+  -# Sin esto hay que adivinar qué significa cada símbolo, y sobre todo qué
+  -# quiere decir el borde punteado.
+  - if gates.any?
+    %p.table-legend
+      %span.gate.gate--pass ✓
+      cumple
+      %span.gate.gate--fail ✗
+      no cumple
+      %span.gate.gate--pending —
+      sin responder
+      %span.gate.gate--pass.gate--by-ai
+        ✓
+        %span.gate__actor IA
+      lo respondió la IA
 
-    - if @step.active? && policy(@step).advance?
+-# El formulario queda solo con lo que se envía. Los checkboxes de la tabla se
+-# le atan por `form=`, así el botón de veredicto de una fila no vive adentro.
+- if decidible
+  = form_with url: challenge_step_selection_path(@challenge, @step), method: :patch, id: corte_id do
+    .card
+      %h2.section-title Confirmar el corte
+      %p.muted Avanzan las ideas tildadas arriba. Las que no pasan un filtro no se pueden tildar.
       .field
         = label_tag :reason, "Motivo del corte (queda en el registro)"
         = text_field_tag :reason, nil, placeholder: "El comité priorizó impacto sobre esfuerzo"
       .form-actions
         = submit_tag "Confirmar corte", class: "btn btn--primary"
 
-- eliminated = @handler.eliminated_ideas
-- if eliminated.any?
-  .card
-    %h2.section-title
-      No avanzaron
-      %span.muted= " (#{eliminated.size})"
-    %p.muted Siguen consultables. Se pueden repescar al módulo activo.
-    %ul.idea-list
-      - eliminated.each do |idea|
-        %li.idea-list__item
-          = link_to challenge_idea_path(@challenge, idea), class: "idea-list__link" do
-            %span.idea-list__title= idea.title
-            %span.idea-list__meta
-              = idea.author.name
-              %span.version-chip= idea.current_version&.label
-          - if policy(@step).advance?
-            = button_to "Repescar", reinstate_challenge_step_selection_path(@challenge, @step, idea_id: idea.id),
-                        class: "btn btn--ghost btn--sm"
-
 - decisions = SelectionDecision.where(challenge_step_id: @step.id).latest_first.includes(:idea, :decided_by).limit(30)
 - if decisions.any?
   .card
     %h2.section-title Registro de decisiones
-    %table.step-table
-      %thead
-        %tr
-          %th Idea
-          %th Decisión
-          %th Puesto
-          %th Quién
-          %th Motivo
-          %th Cuándo
-      %tbody
-        - decisions.each do |decision|
-          %tr
-            %td= decision.idea.title.truncate(40)
-            %td
+    -# Una llamada a `decide!` escribe una fila por idea, con el mismo quién,
+    -# el mismo motivo y el mismo momento. La tabla los repetía en cada fila:
+    -# tres de seis columnas idénticas de arriba abajo. Se dicen una vez por
+    -# tanda y queda lo que sí cambia.
+    -#
+    -# `decided_at` se toma por fila dentro de la transacción, así que se
+    -# redondea al minuto para que una tanda no se parta por microsegundos.
+    - tandas = decisions.group_by { |d| [d.decided_by_id, d.reason, d.decided_at.change(sec: 0)] }
+    - tandas.each do |(_, motivo, cuando), tanda|
+      .decision-batch
+        %p.decision-batch__head
+          %strong= tanda.first.decided_by_name
+          %span.muted= " · #{l(cuando, format: :short)} · #{Flow::Texto.contar(tanda.size, 'idea')}"
+        - if motivo.present?
+          %p.decision-batch__reason= motivo
+        %ul.decision-batch__list
+          - tanda.sort_by { |d| [d.rank || 99, d.idea.title] }.each do |decision|
+            %li
               %span.status-chip{ class: "status-chip--#{decision.advance? ? 'completed' : (decision.reinstate? ? 'active' : 'skipped')}" }
                 = decision.label
-            %td.muted= decision.rank || "—"
-            %td.muted= decision.decided_by_name
-            %td.muted= decision.reason
-            %td.muted= l(decision.decided_at, format: :short)
+              = decision.idea.title.truncate(48)
+              - if decision.rank
+                %span.muted= " · puesto #{decision.rank}"
