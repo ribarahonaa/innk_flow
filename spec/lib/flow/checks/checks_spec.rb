@@ -90,20 +90,49 @@ RSpec.describe Flow::Checks do
   end
 
   describe "feedback_addressed" do
-    let(:evolution) { challenge.steps.create!(kind: "evolution", position: 2) }
+    let(:evolution) { challenge.steps.create!(kind: "evolution", position: 2, name: "Primera ronda") }
+
+    def comentario!(paso, body:)
+      FeedbackItem.create!(challenge_step: paso, idea: idea,
+                           idea_version_id: idea.reload.current_version_id,
+                           author: author, kind: "question", body: body)
+    end
 
     it "pasa si no recibió feedback" do
       expect(check("feedback_addressed").verify(idea)).to be_passed
     end
 
-    it "falla mientras quede feedback sin atender" do
-      FeedbackItem.create!(challenge_step: evolution, idea: idea,
-                           idea_version_id: idea.current_version_id,
-                           author: author, kind: "question", body: "¿Y el costo?")
+    it "falla mientras quede feedback sin atender, y dice de qué ronda" do
+      comentario!(evolution, body: "¿Y el costo?")
 
       result = check("feedback_addressed").verify(idea.reload)
       expect(result).not_to be_passed
-      expect(result.detail).to eq("1 sin atender")
+      expect(result.detail).to eq("1 sin atender en «Primera ronda»")
+    end
+
+    # Cada comentario pertenece a su ronda. Mirando todas, lo que quedó abierto
+    # en una vieja bloqueaba la idea para siempre —nadie vuelve a cerrar
+    # comentarios de una conversación que ya terminó—.
+    it "mira la última ronda, no las anteriores" do
+      comentario!(evolution, body: "Lo de la ronda vieja, sin responder")
+      segunda = challenge.steps.create!(kind: "evolution", position: 3, name: "Segunda ronda")
+      cerrado = comentario!(segunda, body: "Lo de ahora")
+      cerrado.resolve!(resolution: "acknowledged", user: author)
+
+      result = check("feedback_addressed").verify(idea.reload)
+      expect(result).to be_passed
+      expect(result.detail).to eq("1 atendidos en «Segunda ronda»")
+    end
+
+    # No se puede tener sin atender lo que nadie comentó: si la última ronda no
+    # le dijo nada, la última que le dijo algo es la que cuenta.
+    it "si la ronda nueva no la comentó, sigue mirando la que sí" do
+      comentario!(evolution, body: "Sin responder")
+      challenge.steps.create!(kind: "evolution", position: 3, name: "Segunda ronda")
+
+      result = check("feedback_addressed").verify(idea.reload)
+      expect(result).not_to be_passed
+      expect(result.detail).to include("Primera ronda")
     end
   end
 

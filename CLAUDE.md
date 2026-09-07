@@ -199,9 +199,12 @@ ahora.
 - **`evolve_idea` toma solo el feedback abierto de SU ronda.** Arrastrar lo que
   quedó sin atender en una ronda anterior mezcla dos conversaciones.
 
-Queda deliberadamente sin acotar el criterio automático `feedback_addressed`,
-que mira **todo** el feedback de la idea: «atendió todo el feedback recibido» es
-lo que dice y lo que significa.
+- El criterio automático **`feedback_addressed` mira solo la última ronda**. Un
+  check no sabe en qué módulo lo están corriendo —solo tiene su `criterion`—,
+  así que «la última» es la ronda más reciente que LE DIO feedback a esa idea:
+  no se puede tener sin atender lo que nadie comentó. Mirando todas, lo que
+  quedó abierto en una ronda vieja bloqueaba a la idea para siempre, porque
+  nadie vuelve a cerrar comentarios de una conversación que ya terminó.
 
 ### Multi-tenancy: cuatro capas
 
