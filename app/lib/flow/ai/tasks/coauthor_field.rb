@@ -8,6 +8,8 @@ module Flow
       # No escribe sobre la idea: produce texto que la persona acepta, edita o
       # descarta. Aceptar publica una versión nueva, como cualquier edición.
       class CoauthorField < Base
+        def self.actua_sobre = :idea
+
         def messages
           [
             { role: "system", content: <<~TXT.squish },

@@ -14,6 +14,8 @@ module Flow
       # feedback: acá el material de trabajo son los comentarios abiertos, y la
       # respuesta es una versión nueva de la idea entera.
       class EvolveIdea < Base
+        def self.actua_sobre = :idea
+
         def messages
           [
             { role: "system", content: <<~TXT.squish },

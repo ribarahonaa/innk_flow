@@ -4,14 +4,6 @@
 # sienta inmediata; en producción con un proveedor real esto encola
 # Flow::AI::RunJob y la pantalla hace polling.
 class AiRequestsController < ApplicationController
-  # Qué tareas actúan sobre UNA IDEA y no sobre el desafío. Quien puede editar
-  # esa idea puede pedirlas: su autor, además de quien administra.
-  #
-  # Antes todo pedido exigía `update_pipeline?`, que es solo administración, así
-  # que quien participa no podía usar ninguna función de IA — ni siquiera sobre
-  # su propia idea, con el botón ahí ofreciéndoselo.
-  SOBRE_LA_IDEA = %w[coauthor_field evolve_idea detect_duplicates].freeze
-
   def create
     @challenge = policy_scope(Challenge).find_by!(slug: params[:challenge_id])
     context = build_context
@@ -35,9 +27,18 @@ class AiRequestsController < ApplicationController
 
   private
 
+  # Quién puede pedir cada tarea depende de sobre qué actúa, y eso lo declara
+  # la tarea. Antes todo exigía `update_pipeline?` —solo administración—, así
+  # que quien participa no podía usar ninguna función de IA sobre su propia
+  # idea, y quien acompaña no podía pedir el feedback que es su trabajo.
   def autorizar!(context)
     idea = context[:idea]
-    return authorize(idea, :update?) if SOBRE_LA_IDEA.include?(params[:purpose]) && idea
+    alcance = Flow::AI::Tasks::Base.scope_of(params[:purpose])
+
+    return authorize(idea, :update?) if alcance == :idea && idea
+    if alcance == :feedback && idea
+      return authorize(FeedbackItem.new(idea: idea, challenge_step: context[:step]), :create?)
+    end
 
     authorize @challenge, :update_pipeline?
   end

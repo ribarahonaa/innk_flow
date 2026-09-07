@@ -19,10 +19,12 @@
       %span.muted= " de #{progress.total} #{progress.label}"
     .progress-bar
       .progress-bar__fill{ style: "width: #{[progress.pct, 100].min}%" }
-  -# Proponer feedback es sobre el pool entero: lo pide quien administra.
-  - if policy(@challenge).update_pipeline?
+  -# Pedirle feedback a la IA es lo mismo que escribirlo: lo puede hacer quien
+  -# podría comentar esa idea. Para quien acompaña la evolución, es su trabajo.
+  - primera = @step.step_entries.first
+  - if primera && policy(FeedbackItem.new(idea: primera.idea, challenge_step: @step)).create?
     = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode,
-             actions: @step.step_entries.first(1).map { |e| { label: "Sugerir feedback con IA", purpose: "suggest_feedback", step_id: @step.id, idea_id: e.idea_id } }
+             actions: [{ label: "Sugerir feedback con IA", purpose: "suggest_feedback", step_id: @step.id, idea_id: primera.idea_id }]
 
 .feedback-board
   -# Quien participa ve solo las ideas en las que participa: el tablero de la

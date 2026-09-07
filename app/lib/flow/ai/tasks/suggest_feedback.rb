@@ -5,6 +5,8 @@ module Flow
     module Tasks
       # Feedback estructurado sobre una versión de la idea.
       class SuggestFeedback < Base
+        def self.actua_sobre = :feedback
+
         def messages
           [
             { role: "system", content: <<~TXT.squish },

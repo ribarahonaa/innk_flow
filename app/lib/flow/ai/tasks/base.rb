@@ -13,6 +13,21 @@ module Flow
         class << self
           def purpose = name.demodulize.underscore
 
+          # Sobre QUÉ actúa la tarea. Es lo único que necesitan el controller
+          # y la política para saber quién puede pedirla y quién puede aceptar
+          # lo que proponga, sin que ninguno de los dos lleve su propia lista
+          # de propósitos —que era como quedaban desincronizados—.
+          #
+          #   :challenge  configura el desafío         → quien administra
+          #   :idea       trabaja sobre una idea       → quien puede editarla
+          #   :feedback   comenta una idea             → quien puede comentarla
+          def actua_sobre = :challenge
+
+          def scope_of(purpose)
+            klass = "Flow::AI::Tasks::#{purpose.to_s.camelize}".safe_constantize
+            klass.respond_to?(:actua_sobre) ? klass.actua_sobre : :challenge
+          end
+
           def for(purpose, **context)
             klass = "Flow::AI::Tasks::#{purpose.to_s.camelize}".safe_constantize
             raise ArgumentError, "propósito desconocido: #{purpose}" if klass.nil?

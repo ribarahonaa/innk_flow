@@ -27,6 +27,8 @@ module Flow
         # búsqueda con el índice HNSW y el prompt deja de crecer con el pool.
         NEIGHBOURS = 10
 
+        def self.actua_sobre = :idea
+
         def messages
           [
             { role: "system", content: <<~TXT.squish },

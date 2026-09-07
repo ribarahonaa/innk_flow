@@ -215,5 +215,62 @@ RSpec.describe "el rol gestor", type: :request do
     end
   end
 
+
+  # Acompañar la evolución es pedirle feedback a la IA y aplicar el que ya
+  # propuso. Con la regla anterior —«quien administra, o el autor de la idea»—
+  # el gestor no podía ninguna de las dos, que es literalmente su trabajo.
+  describe "el gestor y la IA de la evolución" do
+    let(:evolucion) { as_company(demo) { acompanado.steps.find(&:evolution?) } }
+
+    let!(:idea) do
+      as_company(demo) do
+        autor = Flow::Tenant.bypass! { create(:user, email: "autora@test.dev") }
+        i = create(:idea, challenge: acompanado, author: autor, status: "active")
+        Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "Sensores" }, author: autor).call
+        i.update!(submitted_at: Time.current)
+        i
+      end
+    end
+
+    before do
+      as_company(demo) do
+        acompanado.pipeline.start!
+        acompanado.pipeline.advance!
+        evolucion.reload.update!(ai_mode: "ai_assisted")
+      end
+      sign_in(gina, company: demo)
+    end
+
+    it "puede pedirle a la IA que proponga el feedback" do
+      expect do
+        post challenge_ai_requests_path(acompanado, purpose: "suggest_feedback",
+                                        step_id: evolucion.id, idea_id: idea.id)
+      end.to change { as_company(demo) { AiRun.count } }.by(1)
+
+      expect(flash[:alert]).to be_nil
+    end
+
+    it "y puede aplicar lo que la IA propuso" do
+      sugerencia = as_company(demo) do
+        Flow::AI::Runner.call(
+          Flow::AI::Tasks::SuggestFeedback.new(challenge: acompanado, step: evolucion, idea: idea),
+          mode: "ai_assisted", challenge: acompanado, step: evolucion, idea: idea
+        ).suggestion
+      end
+
+      expect do
+        post accept_ai_suggestion_path(sugerencia)
+      end.to change { as_company(demo) { FeedbackItem.count } }
+
+      expect(as_company(demo) { sugerencia.reload }).to be_accepted
+    end
+
+    # Lo que configura el desafío sigue siendo de quien administra.
+    it "pero no puede pedirle que arme el flujo" do
+      expect do
+        post challenge_ai_requests_path(acompanado, purpose: "propose_pipeline")
+      end.not_to change { as_company(demo) { AiRun.count } }
+    end
+  end
 end
 
