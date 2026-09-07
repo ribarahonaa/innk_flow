@@ -39,6 +39,11 @@ class AiRequestsController < ApplicationController
     if alcance == :feedback && idea
       return authorize(FeedbackItem.new(idea: idea, challenge_step: context[:step]), :create?)
     end
+    # Sin la idea a propósito: alcanza con evaluar en este módulo. Ver el
+    # comentario en AiSuggestionPolicy#evaluacion.
+    if alcance == :assessment && context[:step]
+      return authorize(Assessment.new(challenge_step: context[:step]), :create?)
+    end
 
     authorize @challenge, :update_pipeline?
   end

@@ -150,6 +150,34 @@ module Flow
         entry
       end
 
+      # En modo automático la IA cubre el mínimo del módulo: si pide 3
+      # evaluaciones por idea, hace 3. Cada pasada es una consulta
+      # independiente al proveedor —su propio ai_run— así que el promedio y la
+      # dispersión significan algo, igual que con tres evaluadores humanos.
+      #
+      # Una llamada por pasada, encolada: nunca fan-out síncrono en el request.
+      #
+      # En `ai_assisted` no se dispara sola — la IA queda disponible como una
+      # opinión más que alguien puede pedir, no como el evaluador por defecto.
+      # Público porque es lo mismo que pedir «evaluá todo lo que falta» desde
+      # la pantalla: el modo automático lo dispara al activar, y una persona
+      # que puede evaluar lo dispara cuando quiere. Devuelve cuántas ideas
+      # quedaron en cola, que es lo que hay para contarle a quien lo pidió.
+      def request_ai_assessments!
+        step.step_entries.count do |entry|
+          faltan = min_assessments - assessments_for(entry.idea_id).size
+          next false if faltan <= 0
+
+          faltan.times do |pass|
+            Flow::AI::RunJob.perform_later(
+              step.company_id, "evaluate_idea",
+              { "step_id" => step.id, "idea_id" => entry.idea_id, "pass" => pass + 1 }
+            )
+          end
+          true
+        end
+      end
+
       protected
 
       # Congela los criterios en el módulo. Editar el set después NO puede
@@ -320,29 +348,6 @@ module Flow
 
           (weighted?(pairs) ? weighted_mean(pairs) : pairs.sum(&:first) / pairs.size).to_f.round(4)
         end.compact
-      end
-
-      # En modo automático la IA cubre el mínimo del módulo: si pide 3
-      # evaluaciones por idea, hace 3. Cada pasada es una consulta
-      # independiente al proveedor —su propio ai_run— así que el promedio y la
-      # dispersión significan algo, igual que con tres evaluadores humanos.
-      #
-      # Una llamada por pasada, encolada: nunca fan-out síncrono en el request.
-      #
-      # En `ai_assisted` no se dispara sola — la IA queda disponible como una
-      # opinión más que alguien puede pedir, no como el evaluador por defecto.
-      def request_ai_assessments!
-        step.step_entries.each do |entry|
-          faltan = min_assessments - assessments_for(entry.idea_id).size
-          next if faltan <= 0
-
-          faltan.times do |pass|
-            Flow::AI::RunJob.perform_later(
-              step.company_id, "evaluate_idea",
-              { "step_id" => step.id, "idea_id" => entry.idea_id, "pass" => pass + 1 }
-            )
-          end
-        end
       end
 
       # Todos los que pueden evaluar en la empresa, salvo que ya haya

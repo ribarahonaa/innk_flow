@@ -51,6 +51,14 @@ export function mountIsland(name, component) {
   document.addEventListener('DOMContentLoaded', mountAll);
   document.addEventListener('turbo:load', mountAll);
   document.addEventListener('turbo:before-cache', unmountAll);
+  // Y antes de cualquier render, que NO es lo mismo: con morphing Turbo llega
+  // acá sin haber cacheado nada —después de un POST no cachea
+  // (`shouldCacheSnapshot = formSubmission.isSafe`), y ese es justo el caso:
+  // pedirle algo a la IA y volver a la misma pantalla—. La pantalla se ve
+  // bien igual sin esto, medido: el morph reemplaza el contenedor entero y
+  // `turbo:load` vuelve a montar. Lo que se perdía era el `unmount()` de la
+  // app anterior, que queda viva con sus efectos colgando de nodos sueltos.
+  document.addEventListener('turbo:before-render', unmountAll);
 
   // El script puede haberse ejecutado con el DOM ya listo (Turbo re-ejecuta
   // los <script> del body que reemplaza, y para entonces DOMContentLoaded ya

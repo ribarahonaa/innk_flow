@@ -151,4 +151,57 @@ RSpec.describe "reglas de quien evalúa", type: :request do
       expect(response.body).not_to include("ancla el juicio")
     end
   end
+
+  # Pedirle a la IA que evalúe todo lo que falta.
+  #
+  # Dos cosas que se rompen fácil y por eso están acá: que el botón sea de
+  # quien EVALÚA y no solo de quien administra, y que alcance también a las
+  # ideas de quien pide —pedirle a la IA no es evaluar, y si no el módulo se
+  # traba esperando una evaluación que nadie puede hacer—.
+  describe "evaluar todas con IA" do
+    before do
+      as_company(company) { step.update!(ai_mode: "ai_assisted") }
+    end
+
+    it "se lo ofrece a quien evalúa, no solo a quien administra" do
+      sign_in(elena, company: company)
+      get challenge_step_path(challenge, step)
+
+      expect(response.body).to include("Evaluar 2 ideas con IA")
+    end
+
+    it "no se lo ofrece a quien ni evalúa ni administra" do
+      sign_in(paula, company: company)
+      get challenge_step_path(challenge, step)
+
+      expect(response.body).not_to include("Evaluar 2 ideas con IA")
+    end
+
+    it "encola una corrida por idea y por pasada, sin llamar al proveedor" do
+      sign_in(elena, company: company)
+
+      expect do
+        post evaluate_all_challenge_step_path(challenge, step)
+      end.to change { enqueued_jobs.count { |j| j[:job] == Flow::AI::RunJob } }.by(6)
+
+      expect(flash[:notice]).to include("2 ideas")
+    end
+
+    # La suya entre ellas: el mínimo por idea ya cuenta a la IA justamente
+    # para eso, así que dejarla afuera trabaría el módulo.
+    it "incluye la idea de quien pide" do
+      sign_in(elena, company: company)
+      post evaluate_all_challenge_step_path(challenge, step)
+
+      corridas = enqueued_jobs.select { |j| j[:job] == Flow::AI::RunJob }
+      expect(corridas.map { |j| j[:args].last["idea_id"] }).to include(propia.id)
+    end
+
+    it "a quien no evalúa el módulo le rebota" do
+      sign_in(paula, company: company)
+      post evaluate_all_challenge_step_path(challenge, step)
+
+      expect(response).to have_http_status(:forbidden)
+    end
+  end
 end

@@ -12,6 +12,8 @@ module Flow
       # Solo se le piden los criterios que alguien podría responder: los
       # automáticos los verifica el sistema y las fórmulas se derivan.
       class EvaluateIdea < Base
+        def self.actua_sobre = :assessment
+
         def messages
           [
             { role: "system", content: <<~TXT.squish },

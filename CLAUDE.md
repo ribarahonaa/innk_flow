@@ -169,6 +169,15 @@ Dos reglas que no viven en el rol:
   `StepsController#show` publica `@ideas_visibles` y los módulos filtran con
   eso lo que listan. Lo que no se ve da **404**, no 403. Quien administra,
   acompaña o evalúa las ve todas: las tres cosas se hacen sobre el pool entero.
+- **Pedirle a la IA que evalúe no es evaluar.** El botón —y el lote «evaluar
+  todas con IA»— es de quien evalúa en el módulo, por asignación o por
+  administrarlo, no de `update_pipeline?`. Y va **sin idea**: quien participa
+  de una idea no la puntúa, pero sí puede pedir que la IA la evalúe, porque la
+  nota es de la IA. Bloquearlo trabaría el módulo, ya que `min_assessments_for`
+  baja el mínimo contando a la IA justamente como quien evalúa lo que su autor
+  no puede. La regla está en un solo lugar y las tres puertas la consultan
+  (`AiSuggestionPolicy#evaluacion`, `AiRequestsController#autorizar!`,
+  `StepsController#evaluate_all`).
 - **El puntaje y el desglose son cosas distintas.** Quien participa de una idea
   ve su resultado agregado cuando el módulo cierra; **quién puso qué** lo ven
   solo quien administra y quien evaluó esa idea. Por eso hay dos predicados en
@@ -355,6 +364,33 @@ Las tareas de **autoría** (armar el flujo, proponer los campos del formulario)
 se ofrecen aunque el módulo esté en «Solo personas»: ese modo define cómo se
 trabaja *dentro* del desafío, no si su dueño puede pedir una mano para
 diseñarlo. Es el `always: true` del partial `shared/_ai_actions`.
+
+### Las pantallas se actualizan, no se recargan
+
+El layout declara `turbo-refresh-method: morph`. Turbo 8 trata como *page
+refresh* cualquier POST que redirija a la misma URL —que es lo que hace casi
+todo acá, empezando por los pedidos a la IA— y con esa meta morfea el DOM en
+vez de repintar la página. No hace falta `data-turbo-action` en los
+formularios: Turbo ya elige `replace` solo cuando el redirect vuelve a donde
+estabas.
+
+Tres cosas que no son obvias:
+
+- **`turbo-refresh-scroll: preserve` no conserva el scroll.** Solo le dice a
+  Turbo que no scrollee él. El scroll se pierde *durante* el morph: mientras
+  idiomorph tiene nodos afuera la página se acorta y el navegador recorta
+  `scrollY`. Lo devuelve el bloque de `app/javascript/application.js`, que lo
+  guarda en `turbo:before-render` y lo repone en `turbo:render` **solo si hubo
+  `turbo:morph`**.
+- **Después de un POST, Turbo NO cachea la página**
+  (`shouldCacheSnapshot = formSubmission.isSafe`), así que `turbo:before-cache`
+  no se dispara y no sirve para desmontar nada en el camino que importa.
+  `islands.js` también escucha `turbo:before-render`.
+- **El morph no rompe las islas**, medido en las dos pantallas donde una
+  sugerencia de IA vuelve a la misma URL (`/challenges/:id/form` y los
+  criterios del módulo): reemplaza el contenedor entero y `turbo:load` vuelve a
+  montar con las props nuevas. `make screens` lo verifica sin gastar una
+  llamada al proveedor, pidiendo a mano la misma navegación.
 
 ### Islas Vue
 

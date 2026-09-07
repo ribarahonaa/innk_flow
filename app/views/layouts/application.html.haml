@@ -3,6 +3,16 @@
   %head
     %title= content_for(:title) || "innk flow"
     %meta{ name: "viewport", content: "width=device-width,initial-scale=1" }
+    -# Turbo 8: cuando un POST redirige a la MISMA pantalla —que es lo que hace
+    -# casi todo acá, empezando por los pedidos a la IA— el resultado se morfea
+    -# sobre el DOM que ya está en vez de repintar la página entera. Se ve como
+    -# que el dato se actualizó, no como que la pantalla se recargó.
+    -#
+    -# `refresh-scroll: preserve` le dice a Turbo que no scrollee al tope. No
+    -# alcanza para conservar el scroll —el morph lo pierde antes, ver
+    -# app/javascript/application.js—, pero sin esto no hay nada que conservar.
+    %meta{ name: "turbo-refresh-method", content: "morph" }
+    %meta{ name: "turbo-refresh-scroll", content: "preserve" }
     = csrf_meta_tags
     = csp_meta_tag
     = stylesheet_link_tag "application-build-css", "data-turbo-track": "reload", nonce: content_security_policy_nonce

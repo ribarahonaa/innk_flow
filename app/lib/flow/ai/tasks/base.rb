@@ -21,6 +21,7 @@ module Flow
           #   :challenge  configura el desafío         → quien administra
           #   :idea       trabaja sobre una idea       → quien puede editarla
           #   :feedback   comenta una idea             → quien puede comentarla
+          #   :assessment evalúa una idea              → quien puede evaluarla
           def actua_sobre = :challenge
 
           def scope_of(purpose)

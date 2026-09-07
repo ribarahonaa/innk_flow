@@ -120,16 +120,29 @@
 
 - manda = policy(@challenge).update_pipeline?
 - pendientes = @step.step_entries.reject { |e| @handler.complete?(e) }
-- if @step.active? && @step.effective_ai_mode != "human" && pendientes.any? && policy(@challenge).update_pipeline?
+-# Quién ve esto no es quién administra: evaluar depende de la ASIGNACIÓN, así
+-# que un evaluador asignado también le pide una mano a la IA. Va sin idea a
+-# propósito —pedirle a la IA que evalúe no es evaluar—; el porqué largo está
+-# en AiSuggestionPolicy#evaluacion.
+- puede_pedir = policy(Assessment.new(challenge_step: @step)).create?
+- if @step.active? && @step.effective_ai_mode != "human" && pendientes.any? && puede_pedir
   .card
     %h2.section-title Pedirle una evaluación a la IA
     %p.muted
       La IA evalúa con los mismos criterios y su nota entra al promedio como una más, con su
       justificación por criterio.
-    = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode,
-             actions: pendientes.first(1).map { |e| { label: "Evaluar «#{e.idea.title.truncate(28)}»", purpose: "evaluate_idea", step_id: @step.id, idea_id: e.idea_id } }
+    -# Con más de una pendiente el lote va primero: es lo que casi siempre se
+    -# quiere, y pedirlas de a una es el camino largo al mismo lugar. Va por
+    -# jobs, así que los puntajes llegan de a poco y no todos juntos.
     - if pendientes.size > 1
-      %p.field-hint= "Quedan #{pendientes.size} ideas sin la cantidad mínima de evaluaciones."
+      .ai-actions
+        %span.ai-chip IA
+        = button_to "Evaluar #{Flow::Texto.contar(pendientes.size, "idea")} con IA",
+                    evaluate_all_challenge_step_path(@challenge, @step),
+                    class: "btn btn--primary btn--sm"
+        %span.muted Todas las que faltan, de una.
+    = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode,
+             actions: pendientes.first(1).map { |e| { label: "Evaluar solo «#{e.idea.title.truncate(28)}»", purpose: "evaluate_idea", step_id: @step.id, idea_id: e.idea_id } }
 
 .card
   %h2.section-title Ideas a evaluar

@@ -45,6 +45,33 @@ class StepsController < ApplicationController
     end
   end
 
+  # Pedirle a la IA que evalúe de una todo lo que le falta al módulo, en vez
+  # de idea por idea.
+  #
+  # Va por jobs y no síncrono como el botón de una sola: son N llamadas al
+  # proveedor y el request no puede quedarse esperándolas. Es el mismo camino
+  # que corre el módulo en automático al activarse.
+  #
+  # Quién puede pedirlo: quien evalúa en este módulo —por asignación o por
+  # administrarlo—, que es más gente que `update_pipeline?`. Va sin idea: pedir
+  # que la IA evalúe no es evaluar, así que la regla de «nadie puntúa una idea
+  # de la que participa» no aplica acá (ver AiSuggestionPolicy#evaluacion).
+  def evaluate_all
+    authorize Assessment.new(challenge_step: @step), :create?
+    handler = @step.handler
+    pendientes = @step.step_entries.reject { |entry| handler.complete?(entry) }
+
+    if pendientes.empty?
+      return redirect_to challenge_step_path(@challenge, @step),
+                         alert: "Todas las ideas ya tienen las evaluaciones que pide el módulo."
+    end
+
+    encoladas = handler.request_ai_assessments!
+    redirect_to challenge_step_path(@challenge, @step),
+                notice: "La IA está evaluando #{Flow::Texto.contar(encoladas, "idea")}. " \
+                        "Los puntajes aparecen a medida que responde."
+  end
+
   def skip
     authorize @step, :skip?
     @step.handler.skip!(reason: params[:reason])

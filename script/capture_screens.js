@@ -40,6 +40,46 @@ async function revisarTexto(page, name) {
   }
 }
 
+// Una acción que vuelve a la MISMA pantalla se tiene que morfear, no
+// recargar: es la diferencia entre «el dato se actualizó» y «la pantalla
+// parpadeó». Depende de una meta del layout y de que Turbo trate la vuelta
+// como page refresh, y las dos se rompen sin que ninguna otra prueba se entere.
+//
+// No cuesta una llamada al proveedor: se pide a mano la misma navegación que
+// produce un POST que redirige a donde ya estabas.
+//
+// Lo que esto NO cubre es el scroll. Conservarlo importa cuando el contenido
+// cambia —ahí idiomorph saca nodos, la página se acorta y el navegador recorta
+// scrollY—, y una visita a la misma pantalla sin cambios no mueve un solo
+// nodo. Verificarlo acá daría siempre verde; se midió a mano contra el pedido
+// de evaluación real (1083 -> 1083).
+async function revisarMorphing(page, name) {
+  const metodo = await page.evaluate(
+    () => document.querySelector('meta[name="turbo-refresh-method"]')?.content
+  );
+  if (metodo !== 'morph') {
+    failures++;
+    console.error(`[MORPH] ${name} no declara el refresh por morphing (turbo-refresh-method=${metodo})`);
+    return;
+  }
+
+  const resultado = await page.evaluate(async () => {
+    const cuerpo = document.body;
+    let morphs = 0;
+    const contar = () => { morphs++; };
+    addEventListener('turbo:morph', contar);
+    window.Turbo.visit(window.location.href, { action: 'replace' });
+    await new Promise((r) => setTimeout(r, 1500));
+    removeEventListener('turbo:morph', contar);
+    return { morphs, mismoCuerpo: document.body === cuerpo };
+  });
+
+  if (!resultado.morphs || !resultado.mismoCuerpo) {
+    failures++;
+    console.error(`[MORPH] ${name} se repinta en vez de morfearse (${JSON.stringify(resultado)})`);
+  }
+}
+
 // Un <form> dentro de otro es HTML inválido y el navegador NO lo deja pasar:
 // descarta el interno y sus botones pasan a pertenecer al externo. Pasó de
 // verdad — los ✓/✗ de veredicto vivían dentro del formulario del corte, así
@@ -388,6 +428,10 @@ async function shot(page, name, url, prepare) {
     failures++;
     console.error(`[IA] el botón no apunta al marco de propuestas (data-turbo-frame=${destino})`);
   }
+
+  // Sobre la pantalla del formulario a propósito: tiene isla de Vue, así que
+  // si el morph la dejara sin montar la revisión del placeholder lo canta.
+  await revisarMorphing(page, '09-10-form-vacio');
 
   // Los criterios del módulo de evaluación, desde su panel en el builder.
   await page.goto(`${BASE}/challenges/sin-formulario/builder`, { waitUntil: 'networkidle' });

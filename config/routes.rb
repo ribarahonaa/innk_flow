@@ -22,6 +22,8 @@ Rails.application.routes.draw do
       member do
         post :advance
         post :skip
+        # Pedirle a la IA que evalúe de una todo lo que le falta al módulo.
+        post :evaluate_all
       end
       # Los criterios PROPIOS de este módulo, sin pasar por la biblioteca.
       resource :criteria, only: %i[show create], controller: "step_criteria"
