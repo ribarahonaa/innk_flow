@@ -14,6 +14,10 @@ make setup          # build + up + db:prepare + seed + assets
 ```
 → **http://localhost:3001** · `admin@demo.test` / `Test1234`
 
+La pantalla de login **lista todas las cuentas sembradas** con su empresa y su
+rol: tener nueve cuentas de demo y no saber cuál es cuál es lo mismo que no
+tenerlas. Un clic precarga el correo. Fuera de producción, obviamente.
+
 Los puertos van corridos (3001 / 5434 / 6381) para poder tener `innk_r5` arriba
 al mismo tiempo.
 
@@ -65,14 +69,51 @@ El default sigue siendo `fixture`: sin red, sin credenciales y determinista,
 porque cada llamada real cuesta plata. El mismo JSON Schema valida los dos
 caminos, así que el adapter real no descubre drift en producción.
 
-**Una limitación honesta:** Anthropic no expone embeddings, así que
-«detectar duplicados» falla con ese proveedor en vez de fingir. Comparar
-significados necesita un proveedor de embeddings aparte y `pgvector`.
+**Chat y vectores son dos proveedores, no uno.** Anthropic no expone
+embeddings, así que con una sola variable no se podía tener chat real y vectores
+reales a la vez:
+
+```bash
+echo "FLOW_EMBEDDINGS_PROVIDER=openai" >> .env    # o voyage
+echo "OPENAI_API_KEY=sk-..."           >> .env
+```
+
+Sin declararlo se usa el de chat si sabe hacer vectores, y si no el fixture.
+«Detectar duplicados» funciona igual con cualquiera de los dos: con vectores
+compara por coseno, y sin ellos le pregunta al modelo —que además **explica** el
+parecido, que es lo que una persona necesita para decidir si fusiona—.
 
 **4. Toda escala aterriza en [0,1].** Una nota 1-10, una letra A-F y una fórmula
 ICE terminan siendo comparables, así que la selección ordena sin saber de dónde
 vino cada puntaje. Las fórmulas las escribe el usuario y **nunca** llegan a
 `eval`. → [`docs/criteria.md`](docs/criteria.md)
+
+---
+
+## Los cuatro roles
+
+`admin` administra · `gestor` acompaña la evolución · `evaluator` evalúa lo que
+se le asigna · `participant` postula y comenta.
+
+Dos reglas **no viven en el rol**, y son las que más se rompen si se olvidan:
+
+- **Evaluar depende de la asignación**, no del rol. Y nadie evalúa una idea de
+  la que participa, ni siquiera quien administra.
+- **Quien participa ve solo las ideas en las que participa** —las que creó y
+  aquellas en las que colabora—. Lo que no se ve da 404, no 403: un 403 es un
+  oráculo de existencia.
+
+---
+
+## Dos diagramas
+
+| Archivo | Qué muestra |
+|---|---|
+| [`docs/arquitectura.html`](docs/arquitectura.html) | Las piezas y por dónde pasa un pedido |
+| [`docs/proceso.html`](docs/proceso.html) | Cómo se arma y corre un desafío, con sus tres caminos posibles |
+
+Se regeneran desde su `.json` con la skill `archify`; el comando exacto está en
+`CLAUDE.md`.
 
 ---
 
@@ -92,8 +133,8 @@ vino cada puntaje. Las fórmulas las escribe el usuario y **nunca** llegan a
 ### Verificación
 
 ```
-make spec       # 238 ejemplos
-make screens    # 16 capturas; falla si alguna pantalla tira error JS o HTTP >= 400
+make spec       # 650 ejemplos
+make screens    # 30 capturas; falla si alguna pantalla tira error JS o HTTP >= 400
 ```
 
 `make screens` es la verificación end-to-end real: recorre la app corriendo con
@@ -112,10 +153,16 @@ Rails 7.1.3.4 · Ruby 3.3.0 · Postgres 17 · Redis · Sidekiq 7.2 · esbuild + 
 Mismas versiones que `innk_r5` a propósito: el equipo no cambia de terreno entre
 repos, y mover código de uno a otro es trivial.
 
-**Vue solo donde el estado es del cliente.** Casi todo es server-rendered; la
-única isla real es el builder del pipeline (drag & drop, validación en vivo,
-panel de configuración). Sus props las serializa el server —el fetch queda solo
-para lo interactivo, y la tenencia la garantiza el scope de Ruby.
+**Vue solo donde el estado es del cliente.** Casi todo es server-rendered. Hay
+tres islas, y las tres son editores de listas que se reordenan y validan en
+vivo: el builder del pipeline, el del formulario de postulación y el de
+criterios. Sus props las serializa el server —el fetch queda solo para lo
+interactivo, y la tenencia la garantiza el scope de Ruby.
+
+**Y las pantallas se actualizan sin recargarse.** Turbo 8 con
+`turbo-refresh-method: morph`: un POST que vuelve a la misma pantalla —que es lo
+que hace casi todo, empezando por los pedidos a la IA— morfea el DOM en vez de
+repintar la página, conservando el scroll.
 
 ### Decisiones de infraestructura no obvias
 
@@ -135,6 +182,11 @@ para lo interactivo, y la tenencia la garantiza el scope de Ruby.
 Maqueta funcional para validar el modelo de datos y la infraestructura. **No** es
 un reemplazo listo para producción.
 
-Fuera de alcance: migración de datos desde `innk_r5`, SSO (la costura está —
-tabla `identities` desde el día 1), y el proveedor de IA real (la interfaz está;
-el adapter concreto es una decisión abierta).
+Fuera de alcance: migración de datos desde `innk_r5` y SSO real (la costura
+está — tabla `identities` desde el día 1).
+
+Lo único que queda abierto no es deuda: **`pgvector` espera un proveedor de
+embeddings con crédito**. Hoy no hace falta —sin vectores los duplicados los
+juzga el modelo—; haría falta para escalar más allá de
+`DetectDuplicates::MAX_CANDIDATES`, cuando mandar la lista entera en el prompt
+deje de ser razonable.

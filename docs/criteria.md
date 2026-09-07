@@ -25,6 +25,47 @@ módulo: un set puede volverse inválido después de asignarse.
 
 ---
 
+## La biblioteca no se pisa: se versiona
+
+El snapshot protege los puntajes **ya calculados**. Falta la otra mitad: un set
+de biblioteca lo usan varios desafíos a la vez, y editarlo cambiaba en silencio
+lo que iban a evaluar todos los que todavía no arrancaron.
+
+Guardar un set de biblioteca que **ya usa algún módulo** no lo modifica: crea la
+versión siguiente y deja la anterior intacta.
+
+| Columna | Qué guarda |
+|---|---|
+| `family_id` | La identidad a través de las versiones. Cada set nace siendo su propia familia |
+| `version` | 1, 2, 3… `label` muestra «Nombre · v2» a partir de la segunda |
+| `superseded_at` | Cuándo dejó de ser la vigente. `scope :current` filtra por esto |
+
+Los módulos que usaban la versión anterior **siguen con ella** hasta que alguien
+los pase a la nueva desde el builder. Nadie se entera de un cambio que no pidió.
+
+Un set que **no usa nadie** se edita en el lugar: versionar lo que ningún módulo
+tiene asignado no protege a nadie y llenaría la biblioteca de versiones muertas.
+
+### Esto reemplaza al candado, pero solo en la biblioteca
+
+Antes, un set con evaluaciones encima quedaba con peso y escala bloqueados. Al
+versionar ya no hace falta: **sobre una versión nueva nadie puntuó nada**, así
+que todo vuelve a ser editable.
+
+En un set `inline` no hay a quién proteger copiando —es de un módulo y de nadie
+más—, así que ahí el candado sigue siendo la respuesta (`locked?` en
+`Api::V1::CriteriaSetsController`).
+
+### Dos trampas que ya se pagaron
+
+- El fork va **dentro** de la transacción del guardado. Afuera, un guardado que
+  falla deja una versión huérfana que nadie pidió.
+- Los criterios que llegan del editor traen los ids de la versión **anterior**.
+  `fork_version!` los traduce por `key` a los de la copia; sin eso la
+  reconciliación no reconoce ninguno, los borra todos y los crea de nuevo.
+
+---
+
 ## Un criterio tiene DOS ejes
 
 Antes estaban colapsados en `scale_type`, y `formula` figuraba como si fuera una
@@ -57,7 +98,7 @@ peso que cualquier otro criterio del set.
 | `field_present` | El campo tiene contenido | `field_key`, `min_length` |
 | `contributors_count` | Participan al menos N personas | `minimum` |
 | `version_count` | La idea evolucionó | `minimum` |
-| `feedback_addressed` | No quedó feedback sin atender | — |
+| `feedback_addressed` | No quedó feedback sin atender **en la última ronda** | — |
 | `has_attachment` | Adjuntó un archivo | `field_key` |
 
 ```jsonc
@@ -65,6 +106,14 @@ peso que cualquier otro criterio del set.
 ```
 
 Un `check` desconocido o mal configurado **no deja guardar el criterio**.
+
+**`feedback_addressed` mira una sola ronda.** Un desafío puede tener varias
+evoluciones, y un check no sabe en cuál lo están corriendo: solo tiene su
+`criterion`. Así que «la última» es la ronda más reciente que le dio feedback a
+**esa** idea — no se puede tener sin atender lo que nadie comentó. Mirando
+todas, un comentario que quedó abierto en una ronda vieja bloqueaba a la idea
+para siempre: nadie vuelve a cerrar comentarios de una conversación que ya
+terminó.
 
 ---
 
@@ -116,7 +165,27 @@ excelente y un 10 es pésimo.
    de pesos respondidos**. Una evaluación parcial no se castiga por los
    criterios que faltan.
 2. **Por idea**: `step_entries.result["score"]`, combinando las evaluaciones de
-   todos los evaluadores (`mean`, `median` o `trimmed_mean`).
+   todos los evaluadores (`mean`, `median` o `trimmed_mean`) **con el peso de
+   quien puso cada una** (`step_assignments.weight`).
+
+### No todas las voces pesan igual
+
+El peso por evaluador entra en el agregado, en la dispersión y en el promedio
+por criterio. Dos reglas que no se ven leyendo el código si no se buscan:
+
+- **Los pesos solo entran cuando alguien puso pesos distintos.** Con todos
+  iguales la mediana ponderada no devuelve lo mismo que la mediana de siempre
+  —con cantidad par, una promedia los dos del medio y la otra devuelve el de
+  abajo—, así que asignar gente sin tocar pesos movería un puntaje ya
+  calculado. Nadie pidió eso.
+- **Cambiar un peso recalcula todas las entries del módulo.** Si no, la tabla
+  sigue mostrando el número viejo y solo se actualiza cuando alguien más evalúa.
+
+La dispersión se calcula ponderada **cuando el puntaje lo es**: una dispersión
+sobre otra distribución que la del número que acompaña no describe nada.
+
+Quien ya evaluó no se desasigna —su nota quedaría sin respaldo— y con el módulo
+cerrado no se toca nada.
 
 `raw_score` solo se guarda si **todas** las escalas comparten rango. Si el set
 mezcla una nota 1-10 con una letra A-F, el número crudo no significa nada: se

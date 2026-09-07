@@ -137,6 +137,28 @@ Tanto `Ideation` como `Evaluation` **siembran configuración por defecto** si
 nadie la definió (campos de formulario, criterios inline). La maqueta corre de
 punta a punta sin obligar a configurar todo primero.
 
+### Qué se congela al arrancar, y qué no
+
+El bloqueo original congelaba **todo** al activar un módulo, y eso dejaba un
+callejón sin salida: un módulo en «Solo personas» no podía pasar a usar IA
+nunca.
+
+| Congelado (`FROZEN_ATTRIBUTES`) | Ajustable en curso (`ADJUSTABLE_ATTRIBUTES`) |
+|---|---|
+| `kind` · `slug` · `position` · `config` · `source_step_id` · los criterios | `name` · `ai_mode` |
+
+Cambiar el modo de IA de un módulo en curso **no reescribe nada de lo hecho**:
+es una política operativa, no una edición del pasado. Lo mismo con el reparto de
+evaluadores y sus pesos —salvo con el módulo ya cerrado, donde tocar un peso
+reescribiría un resultado—.
+
+### Late binding
+
+`config` guarda la **intención** (puede decir `auto`); `resolved_config` se
+escribe **una sola vez** en `activate!`, con ids concretos. Leé siempre
+`step.settings`: es el único accesor público, y devuelve el resuelto si el
+módulo ya arrancó.
+
 ---
 
 ## Síncrono vs. Sidekiq

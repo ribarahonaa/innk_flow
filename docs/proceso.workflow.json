@@ -276,7 +276,8 @@
       "items": [
         "Se elige por módulo, no por desafío: uno puede ser IA y el siguiente no",
         "Solo personas · IA asistida · IA automática",
-        "En automático la IA no saltea la revisión: la auto-acepta y deja rastro"
+        "En automático la IA no saltea la revisión: la auto-acepta y deja rastro",
+        "En asistida la IA espera a que se la pida: una idea, o todas las que falten"
       ]
     }
   ]

@@ -82,7 +82,8 @@
       "size": [
         170,
         66
-      ]
+      ],
+      "tag": "se morfea, no recarga"
     },
     {
       "id": "pundit",
@@ -335,7 +336,8 @@
         "Dos proveedores: el de chat no hace vectores y se declara aparte",
         "Si los vectores fallan, la comparación la hace el modelo",
         "Toda llamada deja su rastro en ai_runs, con fixtures también",
-        "Quién puede pedirle algo depende de sobre qué actúa"
+        "Quién puede pedirle algo depende de sobre qué actúa",
+        "La respuesta se morfea sobre la pantalla: no recarga ni pierde el scroll"
       ]
     }
   ]
