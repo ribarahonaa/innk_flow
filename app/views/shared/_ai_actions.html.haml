@@ -17,15 +17,16 @@
     %span.muted La propuesta pasa por tu revisión.
   - else
     %span.muted= t("flow.ai_modes.#{mode}")
-  -# El pedido apunta al marco de las propuestas: la respuesta reemplaza ese
-  -# marco y nada más. Sin esto la pantalla se recargaba entera y se perdía lo
-  -# que estuvieras editando.
+  -# A dónde responde cada pedido lo decide `marco_para_pedido_de_ia`: al marco
+  -# de las propuestas cuando la respuesta es una sugerencia por revisar, y a
+  -# la pantalla entera cuando el pedido ya aplicó el cambio.
   - actions.each do |action|
+    - marco = marco_para_pedido_de_ia(action[:purpose], mode)
     -# Con `count_options` el pedido lleva un selector: cuántas quiere quien
     -# pide, en vez de una cantidad fija escondida en la vista.
     - if action[:count_options].present?
       = form_with url: challenge_ai_requests_path(challenge, purpose: action[:purpose], step_id: action[:step_id]),
-                  method: :post, class: "ai-actions__form", data: { turbo_frame: "ai-suggestions" } do
+                  method: :post, class: "ai-actions__form", data: { turbo_frame: marco } do
         = label_tag "count_#{action[:purpose]}", "Cuántas", class: "ai-actions__label"
         = select_tag :count, options_for_select(action[:count_options], action[:count]),
                      id: "count_#{action[:purpose]}", class: "ai-actions__count"
@@ -34,4 +35,4 @@
       = button_to action[:label],
                   challenge_ai_requests_path(challenge, purpose: action[:purpose], step_id: action[:step_id], idea_id: action[:idea_id], field_key: action[:field_key], count: action[:count]),
                   class: "btn btn--ghost btn--sm",
-                  form: { data: { turbo_frame: "ai-suggestions" } }
+                  form: { data: { turbo_frame: marco } }

@@ -313,6 +313,14 @@ CHECK de Postgres sobre `ai_runs.purpose` (hace falta una migración; si no, el
 run revienta con `PG::CheckViolation` antes de crearse y el error llega
 truncado).
 
+**A dónde responde un pedido a la IA depende de si ya cambió algo.** Por
+defecto al `turbo-frame` de las propuestas: así pedir no recarga la pantalla ni
+pierde lo que estuvieras editando. Pero en **`ai_auto`** la sugerencia se
+auto-acepta, y las tareas **aditivas** se aplican al pedirlas: ahí refrescar
+solo el marco deja el resto de la pantalla mostrando lo viejo —una idea
+reescrita se seguía viendo como estaba hasta recargar a mano—. Lo decide
+`marco_para_pedido_de_ia` en `ApplicationHelper`.
+
 Las tareas de **autoría** (armar el flujo, proponer los campos del formulario)
 se ofrecen aunque el módulo esté en «Solo personas»: ese modo define cómo se
 trabaja *dentro* del desafío, no si su dueño puede pedir una mano para

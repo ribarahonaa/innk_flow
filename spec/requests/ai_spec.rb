@@ -198,6 +198,40 @@ RSpec.describe "capa de IA", type: :request do
     end
   end
 
+  # Pedir algo a la IA no recarga la pantalla: la respuesta reemplaza el marco
+  # de las propuestas. Salvo cuando el pedido YA cambió el dominio —en «IA
+  # automática» la sugerencia se auto-acepta— porque ahí el resto de la
+  # pantalla queda mostrando lo viejo, y hay que recargar a mano para ver la
+  # idea reescrita.
+  describe "a dónde responde el pedido" do
+    let!(:ideation) do
+      as_company(company) do
+        paso = seed_form!(challenge.steps.create!(kind: "ideation", position: 1))
+        challenge.pipeline.start!
+        paso
+      end
+    end
+
+    before { sign_in(owner, company: company) }
+
+    it "con revisión humana, solo al marco de las propuestas" do
+      as_company(company) { ideation.reload.update!(ai_mode: "ai_assisted") }
+
+      get challenge_step_path(challenge, ideation)
+
+      expect(response.body).to include('data-turbo-frame="ai-suggestions"')
+      expect(response.body).not_to include('data-turbo-frame="_top"')
+    end
+
+    it "en automático, a la pantalla entera: el cambio ya está hecho" do
+      as_company(company) { ideation.reload.update!(ai_mode: "ai_auto") }
+
+      get challenge_step_path(challenge, ideation)
+
+      expect(response.body).to include('data-turbo-frame="_top"')
+    end
+  end
+
   # Todo pedido a la IA exigía `update_pipeline?`, que es solo administración:
   # quien participa no podía usar ninguna función de IA, ni siquiera sobre su
   # propia idea, con el botón ahí ofreciéndoselo.
