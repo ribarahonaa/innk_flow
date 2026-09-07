@@ -47,6 +47,11 @@
     - else
       %span.muted · sin fuente de puntaje: el orden es manual
 
+-# El modo de IA es una política operativa y se ajusta desde el módulo, como en
+-# los otros cuatro. Acá importa más que en ninguno: con «Solo personas» los
+-# veredictos los tiene que responder alguien uno por uno.
+= render "steps/ai_mode", step: @step
+
 -# Un filtro sin responder deja a la idea en el limbo y traba el cierre del
 -# módulo. Acá se le puede pedir a la IA que los responda, idea por idea.
 - sin_veredicto = ranking.select { |r| r.pending_gates.any? }

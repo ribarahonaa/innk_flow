@@ -46,6 +46,12 @@ es:
       human: "Solo personas"
       ai_assisted: "IA asistida"
       ai_auto: "IA automática"
+    ai_mode_invites:
+      ideation: "que genere ideas candidatas a partir del brief"
+      evolution: "que proponga el feedback de cada idea"
+      evaluation: "que te guíe en cada evaluación"
+      selection: "que responda los filtros de sí/no de cada idea"
+      reporting: "que escriba el resumen de cierre"
     ai_mode_descriptions:
       human: "Sin IA. Todo el trabajo lo hacen las personas."
       ai_assisted: "La IA propone y una persona acepta, edita o rechaza cada sugerencia."

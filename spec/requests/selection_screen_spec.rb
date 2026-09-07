@@ -131,4 +131,25 @@ RSpec.describe "la pantalla de una selección", type: :request do
       expect(response.body).to include("2 ideas")
     end
   end
+
+  # Era el único de los cinco módulos sin la tarjeta, y es donde más importa:
+  # con «Solo personas» los veredictos los responde alguien uno por uno.
+  describe "el modo de IA" do
+    it "se puede cambiar desde el módulo, como en los otros cuatro" do
+      get challenge_step_path(challenge, paso)
+
+      expect(response.body).to include("Modo de IA")
+      expect(response.body).to match(/name="challenge_step\[ai_mode\]"/)
+    end
+
+    # El texto decía «para pedirle que te guíe en cada evaluación» en las
+    # cuatro pantallas donde se renderiza. Solo era cierto en una.
+    it "dice qué se le puede pedir a la IA en ESTE módulo" do
+      get challenge_step_path(challenge, paso)
+
+      expect(response.body).to include("responda los filtros de sí/no")
+      expect(response.body).not_to include("te guíe en cada evaluación")
+    end
+  end
 end
+

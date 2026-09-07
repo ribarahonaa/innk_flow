@@ -18,7 +18,9 @@
       = f.submit "Cambiar", class: "btn btn--ghost btn--sm"
   %p.muted.field-hint= t("flow.ai_mode_descriptions.#{step.effective_ai_mode}")
   - if step.effective_ai_mode == "human"
+    -# Qué se le puede pedir depende del módulo. Decía «en cada evaluación» en
+    -# las cuatro pantallas donde se renderiza, y solo era cierto en una.
     %p.field-hint
       Con «Solo personas» la IA no interviene en este módulo. Pasalo a
       %strong «IA asistida»
-      para poder pedirle que te guíe en cada evaluación.
+      = "para poder pedirle #{t("flow.ai_mode_invites.#{step.kind}")}."

@@ -306,6 +306,15 @@ async function shot(page, name, url, prepare) {
 
   for (const [index, link] of stepLinks.entries()) {
     await shot(page, `09-${index + 1}-step-${link.text.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, link.href);
+
+    // El modo de IA se ajusta desde el módulo, sin volver al builder. La
+    // selección era el único de los cinco que no lo ofrecía, y es donde más
+    // importa: con «Solo personas» los veredictos los responde alguien uno
+    // por uno.
+    if (!(await page.locator('.ai-mode-card').count())) {
+      failures++;
+      console.error(`[MODO IA] «${link.text}» no ofrece cambiar el modo de IA del módulo`);
+    }
   }
 
   // Quién evalúa y cuánto pesa su voto. La tabla y la columna existían desde
