@@ -265,6 +265,58 @@ RSpec.describe "el rol gestor", type: :request do
       expect(as_company(demo) { sugerencia.reload }).to be_accepted
     end
 
+    # Ayudar a que la idea evolucione es para lo que existe el rol, y
+    # responder el feedback editando es la forma de hacerlo.
+    it "puede pedirle a la IA que reescriba la idea con el feedback" do
+      as_company(demo) do
+        FeedbackItem.create!(challenge_step: evolucion, idea: idea,
+                             idea_version_id: idea.reload.current_version_id,
+                             author: admin, kind: "question", body: "¿Y el costo?")
+      end
+
+      expect do
+        post challenge_ai_requests_path(acompanado, purpose: "evolve_idea",
+                                        step_id: evolucion.id, idea_id: idea.id)
+      end.to change { as_company(demo) { AiRun.where(purpose: "evolve_idea").count } }.by(1)
+    end
+
+    it "y la pantalla se lo ofrece" do
+      as_company(demo) do
+        FeedbackItem.create!(challenge_step: evolucion, idea: idea,
+                             idea_version_id: idea.reload.current_version_id,
+                             author: admin, kind: "question", body: "¿Y el costo?")
+      end
+
+      get challenge_idea_path(acompanado, idea)
+
+      expect(response.body).to include("Reescribir la idea con el feedback")
+    end
+
+    # Fuera de la ronda, no: acompañar tiene su ventana.
+    it "pero no con la ronda cerrada" do
+      as_company(demo) { evolucion.reload.update!(status: "completed", completed_at: Time.current) }
+
+      expect do
+        post challenge_ai_requests_path(acompanado, purpose: "evolve_idea",
+                                        step_id: evolucion.id, idea_id: idea.id)
+      end.not_to change { as_company(demo) { AiRun.count } }
+    end
+
+    # Presentar la idea es de su autor: quien acompaña la trabaja, no la
+    # postula por él.
+    it "y no postula la idea de otro" do
+      borrador = as_company(demo) do
+        i = create(:idea, challenge: acompanado, author: idea.author, status: "draft")
+        Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "Sin postular" }).call
+        i
+      end
+
+      post submit_challenge_idea_path(acompanado, borrador)
+
+      expect(response).to have_http_status(:forbidden)
+      expect(as_company(demo) { borrador.reload.submitted_at }).to be_nil
+    end
+
     # Lo que configura el desafío sigue siendo de quien administra.
     it "pero no puede pedirle que arme el flujo" do
       expect do

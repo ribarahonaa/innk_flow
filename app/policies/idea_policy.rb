@@ -41,6 +41,13 @@ class IdeaPolicy < ApplicationPolicy
   def update?
     return false if record.nil?
     return true if manager?
+    # Quien acompaña trabaja la idea MIENTRAS la ronda esté abierta: ayudar a
+    # que evolucione es para lo que existe el rol, y responder el feedback
+    # editando es la forma de hacerlo. Fuera de esa ventana no, y sobre un
+    # borrador tampoco: una idea que su autor todavía no postuló no está en
+    # ninguna ronda.
+    return evolution_open? && !record.draft? if acompana?
+
     # Participar es haberla creado o colaborar en ella, y son las dos formas
     # de trabajarla: quien colabora la ve —esa es la regla de visibilidad— y
     # no poder tocarla la dejaba a medias.
@@ -49,7 +56,9 @@ class IdeaPolicy < ApplicationPolicy
     record.draft? || evolution_open?
   end
 
-  def submit? = update?
+  # Postular la idea es del autor: quien acompaña la trabaja, no la presenta
+  # por él.
+  def submit? = update? && !acompana?
 
   # Sumar o sacar a alguien sigue la misma ventana que editar el contenido: en
   # borrador, o con una ronda de evolución abierta. Un colaborador no es
@@ -59,6 +68,10 @@ class IdeaPolicy < ApplicationPolicy
   def destroy? = manager? || (record.author_id == membership.user_id && record.draft?)
 
   private
+
+  def acompana?
+    membership.present? && membership.gestor? && reaches_challenge?(record.challenge)
+  end
 
   # ¿El desafío está en una ronda de evolución ahora mismo?
   def evolution_open?
