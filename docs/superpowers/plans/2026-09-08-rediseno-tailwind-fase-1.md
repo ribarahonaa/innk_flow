@@ -897,6 +897,38 @@ computado, y está probada por mutación."
 
 Recién acá cambia algo en pantalla, y cambia todo junto: es lo que hace que el resultado sea coherente en lugar de un rejunte.
 
+**ENMENDADA con lo que aprendieron las tareas 1-3.** Siete cosas que el texto
+original de esta tarea no sabía:
+
+1. **El token del color de borde se llama `--borde`,** no `--border`. La tarea 3
+   lo renombró porque `--border` es un token que DaisyUI usa como **ancho** en
+   25 componentes. Escribir `var(--border)` acá lee un ancho, no un color.
+2. **Cada regla nueva declara en qué capa va.** Defaults de elemento (`h1`, `p`,
+   `a`, `input`) en `@layer base`; componentes propios (`.page-title`,
+   `.section-title`) sin capa, que es donde ya viven. **Nunca sin capa algo que
+   deba poder pisarse con una utilidad**: una regla sin capa le gana a todas las
+   utilidades de Tailwind y a DaisyUI, y ese fue el defecto crítico de la
+   tarea 3.
+3. **`::placeholder` y `::file-selector-button` se autoexcluyen del tema.** La
+   tarea 3 los resolvió con `revert`, que los clava en los valores del
+   navegador: hoy replican el estado previo, pero **no siguen al tema ni al modo
+   oscuro**, que es lo contrario de por qué aliasamos los tokens. Acá pasan a
+   valores del tema. **Medir el contraste del placeholder después: hoy está en
+   4.6:1 y no puede bajar.**
+4. **`exclude: card` está activo:** no existen `card-body`, `card-title` ni
+   `card-actions`. Lo levanta el plan 2.
+5. **Un color con alfa se compone sobre el fondo antes de medir su contraste.**
+   Es el error que infló un 1.49:1 a 13.56:1 en la tarea 3, y esta tarea tiene
+   varios `color-mix` con transparencia. El fondo puede ser a su vez
+   semitransparente: la composición es una cadena hasta el primer ancestro
+   opaco.
+6. **Una lectura tomada dentro de los 200ms de `transition` de `.btn` devuelve
+   el valor viejo**, serializado en `oklab`. Esperar antes de medir.
+7. **El modo oscuro necesita su propia pasada de contraste.** Los `*-content`
+   que la tarea 3 eligió midiendo valen para el tema claro; el oscuro invierte
+   las superficies y no hay razón para suponer que se mantienen. Cada par
+   color/contenido del tema `flow-oscuro` se mide, no se hereda.
+
 **Files:**
 - Modify: `app/assets/stylesheets/application.css`
 - Modify: `app/views/layouts/application.html.haml`, `app/views/layouts/auth.html.haml` (las fuentes)
@@ -990,6 +1022,20 @@ En el `:root`, cerrar los dos alias que la tarea 3 dejó literales a propósito
   --muted: color-mix(in oklch, var(--color-base-content) 62%, transparent);
   --accent-soft: color-mix(in oklch, var(--color-primary) 12%, var(--color-base-100));
 ```
+
+Y traer al tema los dos pseudo-elementos que la tarea 3 dejó en `revert`, que
+hoy no siguen ni al tema ni al modo oscuro:
+
+```css
+@layer base {
+  /* En capa base y no sin capa: tiene que poder pisarse con una utilidad. */
+  ::placeholder { color: color-mix(in oklch, var(--color-base-content) 55%, transparent); }
+}
+```
+
+El botón del campo de archivo, igual: su chrome pasa a declararse con tokens en
+vez de `revert`. **Medir el contraste del placeholder después de cambiarlo:**
+hoy está en 4.6:1 sobre campo blanco y no puede bajar.
 
 Y la regla de `body`, que hoy fija `font: 14px/1.5 system-ui, …`:
 
