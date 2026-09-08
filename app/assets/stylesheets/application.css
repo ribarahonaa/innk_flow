@@ -16,66 +16,129 @@
   exclude: card;
 }
 
-/* El tema arranca replicando la paleta actual, en oklch. El objetivo de esta
-   tarea sigue siendo que nada cambie en pantalla: el carácter nuevo entra en
-   la tarea 4, y entonces solo cambian estos valores. */
+/* ── Las dos familias ───────────────────────────────────────────────────── */
+/* La display SOLO en títulos —abajo, en `@layer base`—: en texto corrido a
+   14px la Bricolage se lee peor que la Inter, que es lo que la Inter sabe
+   hacer. Las dos pilas terminan en la fuente del sistema: si Google Fonts no
+   responde, la app se ve con otra letra y no se rompe. */
+@theme {
+  --font-display: "Bricolage Grotesque", "Helvetica Neue", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ── El tema claro ──────────────────────────────────────────────────────── */
+/* Los 20 colores + los tres escalares. Un tema propio de DaisyUI emite SOLO
+   lo declarado —no hereda nada de los temas que trae la librería—, así que la
+   lista tiene que estar completa: sin `--depth` el `color-mix()` del borde de
+   `.btn` queda inválido y `border-color` cae en `currentColor`, o sea un
+   borde blanco de 3px alrededor del botón primario. Está medido en la tarea 3
+   y sigue valiendo.
+
+   Los valores oklch NO son los del plan: `oklch(52.8% 0.253 288.1)` no es
+   `#5b3df5` sino `#6f37f0`, y `success`/`warning` estaban fuera del gamut
+   sRGB —el navegador los recorta, así que lo declarado no es lo que pinta—.
+   Acá van la conversión exacta del hex y el croma máximo que entra. */
 @plugin "daisyui/theme" {
   name: "flow";
   default: true;
   color-scheme: light;
 
-  --color-base-100: oklch(100% 0 0);          /* era --surface #ffffff */
-  --color-base-200: oklch(97.594% 0.0029 264.54); /* era --bg      #f6f7f9 */
-  --color-base-300: oklch(92.379% 0.0063 255.48); /* era --border  #e3e6ea */
-  --color-base-content: oklch(24.113% 0.0097 248.23); /* era --text #1c2024 */
+  --color-base-100: oklch(100% 0 0);
+  --color-base-200: oklch(96.5% 0.004 286.3);
+  --color-base-300: oklch(92.4% 0.006 286.3);
+  --color-base-content: oklch(21.5% 0.028 285.9);
 
-  --color-primary: oklch(54.615% 0.2152 262.88); /* era --accent  #2563eb */
-  --color-primary-content: oklch(100% 0 0);
+  /* #5b3df5 exacto. Provisorio hasta saber si innk tiene marca propia: es UNA
+     línea, y nada más de la hoja lo escribe literal. */
+  --color-primary: oklch(52.249% 0.2549 280.33);
+  --color-primary-content: oklch(100% 0 0);          /* 6.12:1 */
 
-  --color-error: oklch(57.583% 0.2088 29.48);  /* era --danger  #d92d20 */
-  --color-success: oklch(62.205% 0.1627 151.05); /* era --ok    #12a150 */
-  --color-warning: oklch(72.851% 0.1503 79.09);  /* era --warn  #d99a06 */
+  /* El hilo de IA. Era violeta (#7c3aed) y ahora el primario TAMBIÉN es
+     violeta: dos violetas a 8° de distancia no distinguen «acción» de
+     «lo propuso la máquina», y la capa de IA pinta 14 componentes. Se corre a
+     un azul acero, que es el hueco que dejan el violeta (280°), el verde
+     (156°) y el ámbar (82°). Cambiarlo es una línea. */
+  --color-secondary: oklch(50% 0.125 230);
+  --color-secondary-content: oklch(100% 0 0);        /* 5.57:1 */
 
-  /* Los 11 que faltaban. Es el mismo agujero que `--border`: un tema propio
-     emite SOLO lo declarado, y estos DaisyUI los lee sin fallback. Hoy no
-     rompe porque la app solo usa `btn`, `btn-primary` y `btn-ghost`, pero en
-     cuanto alguien escriba `badge-neutral` o `alert-info` se rompe callado.
-     Los valores salen de la paleta de hoy: el gris oscuro del texto para
-     `neutral`, el violeta del hilo de IA —el único segundo color que esta app
-     tiene— para `secondary`, y el azul para `info`, que es con lo que la app
-     ya pinta lo informativo (`.status-chip`). `accent` no tiene equivalente:
-     apunta al azul para no inventar un tercer color de marca, y la tarea 4 le
-     da el suyo si lo quiere.
+  /* El shell oscuro que arma la tarea 5. */
+  --color-neutral: oklch(21.5% 0.028 285.9);
+  --color-neutral-content: oklch(78.5% 0.024 286.3); /* 8.90:1 */
 
-     Los `*-content` se eligieron por contraste medido, no por simetría: sobre
-     verde el blanco da 3.37:1 y el texto oscuro 4.87:1; sobre ámbar, 2.45:1
-     contra 6.69:1. Por eso esos dos van oscuros y el resto en blanco. */
-  --color-neutral: oklch(24.113% 0.0097 248.23);   /* el #1c2024 del texto */
-  --color-neutral-content: oklch(100% 0 0);
-  --color-secondary: oklch(54.134% 0.2466 293.01); /* el #7c3aed de la IA */
-  --color-secondary-content: oklch(100% 0 0);
-  --color-accent: oklch(54.615% 0.2152 262.88);    /* sin equivalente: el azul */
+  /* DaisyUI no acepta que falten. `accent` no tiene un tercer color de marca
+     detrás: apunta al primario en vez de inventar uno. `info` es el mismo
+     azul acero de la IA. */
+  --color-accent: oklch(52.249% 0.2549 280.33);
   --color-accent-content: oklch(100% 0 0);
-  --color-info: oklch(54.615% 0.2152 262.88);      /* lo informativo es azul */
+  --color-info: oklch(50% 0.125 230);
   --color-info-content: oklch(100% 0 0);
-  --color-error-content: oklch(100% 0 0);
-  --color-success-content: oklch(24.113% 0.0097 248.23);
-  --color-warning-content: oklch(24.113% 0.0097 248.23);
 
-  --radius-box: 0.625rem;   /* era --radius 10px */
-  --radius-field: 0.5rem;   /* era el 8px de los campos y de .btn */
-  --radius-selector: 0.375rem;
+  --color-error: oklch(58.4% 0.201 27.3);
+  --color-error-content: oklch(100% 0 0);            /* 4.65:1 */
+  --color-success: oklch(62.6% 0.1507 156.4);
+  --color-success-content: oklch(15% 0.03 285.9);    /* 5.94:1 — blanco da 3.32 */
+  --color-warning: oklch(72.9% 0.1501 82.4);
+  --color-warning-content: oklch(15% 0.03 285.9);    /* 8.10:1 — blanco da 2.43 */
 
-  /* Los tres escalares de DaisyUI. Un tema propio NO hereda los valores por
-     default de los temas que trae la librería: si no se declaran acá, no
-     existen, y los componentes que los leen SIN fallback se rompen callados.
-     Medido: sin `--border`, `border-width: var(--border)` queda inválido y
-     cae en `medium`, o sea 3px en todos los botones; sin `--depth`, el
-     `color-mix()` del borde queda inválido y `border-color` cae en
-     `currentColor`, o sea un borde blanco de 3px alrededor del botón
-     primario. `--depth: 0` y `--noise: 0` son el aspecto plano de hoy. */
+  --radius-box: 0.8125rem;   /* 13px: las tarjetas */
+  --radius-field: 0.5625rem; /*  9px: campos y botones */
+  --radius-selector: 0.5rem;
+
   --border: 1px;
-  --depth: 0;
+  --depth: 1;
+  --noise: 0;
+}
+
+/* ── El mismo tema, del otro lado ───────────────────────────────────────── */
+/* No es una reescritura de componentes: es la MISMA lista de tokens con las
+   superficies invertidas. Todo lo de abajo cuelga de ellos, así que alcanza.
+
+   Cada par color/contenido se midió acá de nuevo. Los del tema claro no valen:
+   el oscuro invierte las superficies y los `*-content` se dan vuelta —blanco
+   sobre el primario da 6.12 en claro y 3.21 en oscuro—.
+
+   Hoy este tema NO se activa solo: los layouts fijan `data-theme="flow"` y
+   DaisyUI engancha `prefersdark` a `:root:not([data-theme])`. Está completo y
+   medido para el día que se saque ese atributo. */
+@plugin "daisyui/theme" {
+  name: "flow-oscuro";
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: oklch(21.5% 0.028 285.9);
+  --color-base-200: oklch(18.2% 0.026 285.9);
+  --color-base-300: oklch(26.4% 0.030 285.9);
+  --color-base-content: oklch(92.8% 0.012 286.3);
+
+  --color-primary: oklch(66.5% 0.1821 280.33);       /* croma recortado al gamut */
+  --color-primary-content: oklch(15% 0.03 285.9);    /* 6.15:1 — blanco da 3.21 */
+
+  --color-secondary: oklch(70% 0.115 230);
+  --color-secondary-content: oklch(15% 0.03 285.9);  /* 7.58:1 */
+
+  --color-neutral: oklch(15.5% 0.024 285.9);
+  --color-neutral-content: oklch(78.5% 0.024 286.3); /* 9.91:1 */
+
+  --color-accent: oklch(66.5% 0.1821 280.33);
+  --color-accent-content: oklch(15% 0.03 285.9);
+  --color-info: oklch(70% 0.115 230);
+  --color-info-content: oklch(15% 0.03 285.9);
+
+  --color-error: oklch(66% 0.19 25);
+  --color-error-content: oklch(15% 0.03 285.9);      /* 5.80:1 — blanco da 3.40 */
+  --color-success: oklch(70% 0.15 156);
+  --color-success-content: oklch(15% 0.03 285.9);    /* 7.88:1 */
+  --color-warning: oklch(78% 0.15 82);
+  --color-warning-content: oklch(15% 0.03 285.9);    /* 9.72:1 */
+
+  --radius-box: 0.8125rem;
+  --radius-field: 0.5625rem;
+  --radius-selector: 0.5rem;
+
+  /* Los tres escalares van en los DOS temas: el plan solo los declaraba en el
+     claro, y un tema sin `--depth` rompe el borde de todos los botones. */
+  --border: 1px;
+  --depth: 1;
   --noise: 0;
 }
 
@@ -87,11 +150,11 @@
    (base-200). Sin esto, todo lo que quede debajo del contenido en una
    pantalla corta se ve blanco.
 
-   La barra de scroll la sigue dibujando el sistema: la de DaisyUI es más
-   fina y teñida, y eso es carácter nuevo, que es la tarea 4. */
+   La barra de scroll de DaisyUI —más fina y teñida con el tema— ahora SÍ la
+   queremos: es parte del carácter, y en el tema oscuro una barra clara del
+   sistema sería lo único blanco de la pantalla. Por eso ya no se pisa. */
 :root {
   --root-bg: var(--color-base-200);
-  scrollbar-color: auto;
 }
 
 /* Dónde buscar clases. Tailwind 4 descubre fuentes solo, saltando lo que
@@ -143,6 +206,11 @@
      margen propio. */
   input[type="radio"] { margin: 3px 3px 0 5px; }
 
+  /* La casilla y el radio los dibuja el navegador, y sin esto se quedan con
+     el azul de Chrome: el único azul que quedaría en la app. `accent-color`
+     es una línea y no reemplaza el control por un div. */
+  input[type="checkbox"], input[type="radio"] { accent-color: var(--color-primary); }
+
   /* Chrome atenúa con `opacity: .7` un <select> deshabilitado, y el Preflight
      se lo lleva puesto con su `opacity: 1`. Más abajo esta hoja declara que
      «lo bloqueado tiene que PARECER bloqueado»: esto es la otra mitad de eso.
@@ -160,17 +228,30 @@
      contraste bajaba de 4.6:1 a 3.0:1 en los 7 campos con `placeholder`.
 
      Y al botón del campo de archivo le saca fondo, borde y padding —queda un
-     texto suelto que ya no parece un botón—. `revert` devuelve el valor de la
-     hoja del navegador, que es exactamente lo que la app mostraba. */
-  ::placeholder { color: revert; }
+     texto suelto que ya no parece un botón—.
+
+     La tarea 3 los resolvió con `revert`, que devuelve el valor de la hoja del
+     NAVEGADOR: replicaba lo de antes, pero se quedaba afuera del tema y del
+     modo oscuro —un gris de Chrome sobre un campo negro—, que es exactamente
+     lo contrario de por qué los tokens se aliasan. Acá pasan a valores del
+     tema.
+
+     El placeholder va al 60% del texto y no al 55%: medido, 55% da 3.93:1
+     sobre el campo y el piso era 4.6:1. Con 60% da 4.6:1 en claro y 5.8:1 en
+     oscuro. */
+  ::placeholder { color: color-mix(in oklab, var(--color-base-content) 60%, transparent); }
   ::file-selector-button {
-    appearance: revert;
-    background-color: revert;
-    border: revert;
-    border-radius: revert;
-    padding: revert;
-    font: revert;
-    color: revert;
+    appearance: none;
+    margin-right: 10px;
+    padding: 4px 11px;
+    border: 1px solid var(--borde);
+    border-radius: var(--radius-selector);
+    background: var(--color-base-200);
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
   }
 
   /* La única lista de la app que dependía de la viñeta del navegador: todas
@@ -184,6 +265,16 @@
      texto. Un `<a class="btn">` queda afuera, que es lo que hay que evitar. */
   a:not([class]) { text-decoration: underline; }
 
+  /* Los títulos son lo que le da carácter, y la display va SOLO acá: en texto
+     corrido a 14px la Bricolage se lee peor. Va en `@layer base` porque es un
+     default de elemento —tiene que poder pisarse con `font-sans`—; la variante
+     con clase propia está más abajo, sin capa, que es donde viven las clases
+     de esta hoja. */
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
   /* El color de los enlaces también va acá, y no suelto como estaba. Sin capa
      le ganaba al `.btn` de DaisyUI —que vive en `@layer utilities`— sin
      importar la especificidad, y un `<a class="btn btn-primary">` quedaba con
@@ -193,11 +284,11 @@
   a { color: var(--accent); }
 }
 
-/* Los tokens heredados dejan de tener valor propio y pasan a ser alias de los
-   de DaisyUI. Es lo que hace que un cambio de tema alcance a las 1.939 líneas
-   que todavía no se migraron —y que el modo oscuro las alcance también—.
-   Acá tiene que ser invisible: el tema replica la paleta de hoy, así que si
-   algo cambia de color, el alias está mal. */
+/* Los tokens heredados no tienen valor propio: son alias de los de DaisyUI.
+   Es lo que hace que cambiar el tema alcance a las 1.939 líneas que todavía no
+   se migraron —y que el modo oscuro las alcance también—. En la tarea 3 esto
+   tenía que ser invisible; acá es al revés: es por donde entra el carácter
+   nuevo sin tocar ninguna de esas líneas. */
 :root {
   --bg: var(--color-base-200);
   --surface: var(--color-base-100);
@@ -209,18 +300,74 @@
   --borde: var(--color-base-300);
   --text: var(--color-base-content);
   --accent: var(--color-primary);
-  --danger: var(--color-error);
-  --ok: var(--color-success);
-  --warn: var(--color-warning);
   --radius: var(--radius-box);
 
-  /* Estos dos NO se aliasan acá. `--muted` es un gris azulado sin equivalente
-     exacto en la paleta de DaisyUI, y `--accent-soft` es un tinte del acento
-     sobre blanco: derivarlos ahora movería el color y rompería el «diff
-     vacío», que es justo la prueba que este paso necesita. Se resuelven en la
-     tarea 4, donde cambiar de color es el objetivo. */
-  --muted: #58627a;
-  --accent-soft: #eef4ff;
+  /* `--muted` es alfa sobre el texto, no un gris propio: así sigue al tema en
+     los dos modos sin una segunda lista. 70% mide 6.57:1 sobre la superficie
+     y 6.27:1 sobre el fondo de página en claro, 7.43 y 7.76 en oscuro. Se usa 178
+     veces: subirlo acá lo sube en toda la app, que es más barato y más parejo
+     que discutir usos. */
+  --muted: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+
+  /* ── La escalera de cada familia de color ──────────────────────────────
+     Tres peldaños, los mismos para las cinco familias, y ninguno escrito
+     literal: la hoja tenía 93 colores a mano —tintes celestes, verdes y
+     violetas, 28 distintos— que NO se movían al cambiar el tema. Con el acento
+     en violeta eso dejaba media pantalla en el azul anterior, y en el tema
+     oscuro dejaba texto claro sobre tinte claro.
+
+       --X-soft   fondo de chip o de panel  (10-12% sobre la superficie)
+       --X-borde  contorno                  (40% sobre la superficie)
+       --X        el color LEGIBLE como texto sobre lo anterior
+
+     Las mezclas van `in oklab` y no `in oklch`: en oklch el tono interpola
+     por el arco corto, y mezclar el ámbar (82°) con el texto (286°) da la
+     vuelta por el rojo —el «amarillo oscuro» salía marrón anaranjado—. En
+     oklab no hay tono que rotar.
+
+     `--X` mezcla hacia `--color-base-content`, y esa dirección se da vuelta
+     sola: en claro oscurece el color hasta que se lee sobre el tinte, en
+     oscuro lo aclara. Una sola fórmula sirve para los dos temas. Los
+     porcentajes salen de medir: el verde y el ámbar crudos dan 2.9:1 y 2.2:1
+     sobre su propio tinte —los chips de hoy—, y así quedan arriba de 4.5:1. */
+  --ok: color-mix(in oklab, var(--color-success) 70%, var(--color-base-content));
+  --warn: color-mix(in oklab, var(--color-warning) 60%, var(--color-base-content));
+  --danger: color-mix(in oklab, var(--color-error) 85%, var(--color-base-content));
+  /* El acento y la IA ya se leen crudos (6.12:1 y 5.66:1 sobre blanco, 5.46
+     y 6.72 en oscuro): no se mezclan, así el violeta de un enlace es EL
+     violeta de la marca. */
+  --ia: var(--color-secondary);
+
+  --accent-soft: color-mix(in oklab, var(--color-primary) 10%, var(--color-base-100));
+  --ia-soft: color-mix(in oklab, var(--color-secondary) 12%, var(--color-base-100));
+  --ok-soft: color-mix(in oklab, var(--color-success) 12%, var(--color-base-100));
+  --warn-soft: color-mix(in oklab, var(--color-warning) 12%, var(--color-base-100));
+  --danger-soft: color-mix(in oklab, var(--color-error) 12%, var(--color-base-100));
+  /* El gris de «todavía nada» / «ya terminó»: un tinte del propio texto, para
+     que se despegue de la superficie en los dos modos. */
+  --neutro-soft: color-mix(in oklab, var(--color-base-content) 8%, var(--color-base-100));
+
+  --accent-borde: color-mix(in oklab, var(--color-primary) 40%, var(--color-base-100));
+  --ia-borde: color-mix(in oklab, var(--color-secondary) 40%, var(--color-base-100));
+  --ok-borde: color-mix(in oklab, var(--color-success) 40%, var(--color-base-100));
+  --warn-borde: color-mix(in oklab, var(--color-warning) 40%, var(--color-base-100));
+  --danger-borde: color-mix(in oklab, var(--color-error) 40%, var(--color-base-100));
+
+  /* Un panel entero teñido al 12% es demasiado: la IA ocupa tarjetas
+     completas, no solo chips. */
+  --ia-panel: color-mix(in oklab, var(--color-secondary) 6%, var(--color-base-100));
+  /* El otro extremo de un degradado del acento. */
+  --accent-claro: color-mix(in oklab, var(--color-primary) 55%, var(--color-base-100));
+
+  /* Los glifos que no son texto —la flecha entre módulos, el asa de arrastre,
+     el guion de «todavía no se decidió»— estaban pintados con `--borde`, que
+     mide 1.26:1 contra la superficie: se veía la línea de una tabla, no un
+     símbolo. Con esto quedan en 3.38:1 en claro y 4.43:1 en oscuro, arriba del
+     3:1 que pide un control. */
+  --tenue: color-mix(in oklab, var(--color-base-content) 50%, transparent);
+
+  /* La sombra es negro con alfa, no un color del tema: teñirla con el texto
+     la volvería un halo BLANCO en el tema oscuro. */
   --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
 }
 
@@ -230,8 +377,23 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
 }
+
+/* Los títulos con clase propia. Van sin capa —es donde viven las clases de
+   esta hoja— y repiten la display porque `.page-title` cuelga de un `%h1`
+   pero `.section-title` y `.auth-title` no siempre: la clase es lo que dice
+   «esto es un encabezado», no la etiqueta. */
+.page-title, .section-title, .auth-title, .stat-card__value {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* Una columna de números con ancho por dígito baila al actualizarse y no se
+   puede comparar de un vistazo. Las tablas de esta app son de puntajes. */
+.step-table td, .step-table th { font-variant-numeric: tabular-nums; }
 
 .app-header {
   display: flex;
@@ -271,8 +433,8 @@ body {
   border: 1px solid var(--borde);
   background: var(--surface);
 }
-.flash--alert { border-color: #f2b8b5; background: #fef3f2; color: var(--danger); }
-.flash--notice { border-color: #a6e3bf; background: #edfbf3; color: var(--ok); }
+.flash--alert { border-color: var(--danger-borde); background: var(--danger-soft); color: var(--danger); }
+.flash--notice { border-color: var(--ok-borde); background: var(--ok-soft); color: var(--ok); }
 
 /* ── Auth ───────────────────────────────────────────────────────────────── */
 .auth-body {
@@ -311,7 +473,9 @@ input[type="number"], input[type="date"], textarea, select {
   width: 100%;
   padding: 9px 11px;
   border: 1px solid var(--borde);
-  border-radius: 8px;
+  /* El mismo radio que `.btn`: un campo de 8px al lado de un botón de 9px se
+     ve como un error de alineación, no como una jerarquía. */
+  border-radius: var(--radius-field);
   background: var(--surface);
   color: var(--text);
   font: inherit;
@@ -351,7 +515,12 @@ input:focus, textarea:focus, select:focus {
   --btn-fg: var(--color-base-content);
   --btn-border: var(--color-base-300);
 }
-.btn-ghost:hover {
+/* El `:not()` va repetido acá A PROPÓSITO. Sin él las dos reglas empatan en
+   0-2-0 y ésta gana solo por venir después: mover el bloque apagaba el hover
+   en silencio. Con el `:not()` gana por especificidad (0-3-0) y además deja
+   de pintarle un hover al botón deshabilitado, que es lo que la regla de
+   arriba ya se cuida de no hacer. */
+.btn-ghost:hover:not(:disabled, [disabled], [aria-disabled="true"], .btn-disabled) {
   --btn-bg: var(--accent-soft);
   --btn-border: var(--color-primary);
 }
@@ -449,26 +618,26 @@ input:focus, textarea:focus, select:focus {
   white-space: nowrap;
 }
 .status-chip--draft,
-.status-chip--pending    { background: #eef0f3; color: #5b6472; }
+.status-chip--pending    { background: var(--neutro-soft); color: var(--muted); }
 .status-chip--running,
 .status-chip--active,
 .status-chip--activating { background: var(--accent-soft); color: var(--accent); }
-.status-chip--completed  { background: #e7f7ee; color: var(--ok); }
-.status-chip--skipped    { background: #fdf3e2; color: var(--warn); }
+.status-chip--completed  { background: var(--ok-soft); color: var(--ok); }
+.status-chip--skipped    { background: var(--warn-soft); color: var(--warn); }
 .status-chip--closed,
-.status-chip--archived   { background: #eef0f3; color: #5b6472; }
+.status-chip--archived   { background: var(--neutro-soft); color: var(--muted); }
 
 /* ── Índice de desafíos ─────────────────────────────────────────────────── */
 .challenge-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
 .challenge-card { text-decoration: none; color: inherit; display: block; transition: border-color .12s, box-shadow .12s; }
-.challenge-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(37, 99, 235, .10); }
+.challenge-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px color-mix(in oklab, var(--color-primary) 14%, transparent); }
 .challenge-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .challenge-card__name { margin: 0 0 8px; font-size: 16px; }
 .challenge-card__brief { margin: 0 0 14px; font-size: 13px; }
 
 /* Mapa compacto del pipeline */
 .flow-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
-.flow-strip__arrow { color: var(--borde); }
+.flow-strip__arrow { color: var(--tenue); }
 .flow-strip__node {
   padding: 3px 9px;
   border-radius: 6px;
@@ -478,7 +647,7 @@ input:focus, textarea:focus, select:focus {
   color: var(--muted);
 }
 .flow-strip__node--active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-.flow-strip__node--completed { border-color: #a6e3bf; background: #edfbf3; color: var(--ok); }
+.flow-strip__node--completed { border-color: var(--ok-borde); background: var(--ok-soft); color: var(--ok); }
 .flow-strip__node--skipped { border-style: dashed; }
 
 /* ── Radio cards ────────────────────────────────────────────────────────── */
@@ -626,7 +795,7 @@ input:focus, textarea:focus, select:focus {
 .step-card--locked { background: var(--bg); color: var(--muted); cursor: default; }
 .step-card--locked:hover { border-color: var(--borde); }
 
-.step-card__handle { color: var(--borde); cursor: grab; user-select: none; }
+.step-card__handle { color: var(--tenue); cursor: grab; user-select: none; }
 .step-card__handle.is-hidden { visibility: hidden; cursor: default; }
 .step-card__index { width: 20px; color: var(--muted); font-size: 12px; text-align: center; }
 .step-card__body { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -663,7 +832,7 @@ input:focus, textarea:focus, select:focus {
   background: repeating-linear-gradient(90deg, var(--warn) 0 6px, transparent 6px 12px);
 }
 
-.flash--warn { border-color: #f3d9a4; background: #fdf6e9; color: #8a6100; }
+.flash--warn { border-color: var(--warn-borde); background: var(--warn-soft); color: var(--warn); }
 .flash ul { margin: 0; padding-left: 18px; }
 .island-placeholder { text-align: center; padding: 40px; }
 
@@ -720,8 +889,8 @@ input:focus, textarea:focus, select:focus {
 .ai-chip {
   padding: 1px 7px;
   border-radius: 99px;
-  background: #f3ecfd;
-  color: #7c3aed;
+  background: var(--ia-soft);
+  color: var(--ia);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: .03em;
@@ -760,15 +929,15 @@ input:focus, textarea:focus, select:focus {
 .diff-row:last-child { border-bottom: 0; }
 .diff-row__label { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 14px; }
 .diff-kind { padding: 1px 8px; border-radius: 99px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
-.diff-kind--added { background: #e7f7ee; color: var(--ok); }
-.diff-kind--removed { background: #fef3f2; color: var(--danger); }
+.diff-kind--added { background: var(--ok-soft); color: var(--ok); }
+.diff-kind--removed { background: var(--danger-soft); color: var(--danger); }
 .diff-kind--changed { background: var(--accent-soft); color: var(--accent); }
 .diff-row__panes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .diff-pane { padding: 11px 13px; border: 1px solid var(--borde); border-radius: 8px; background: var(--bg); }
 .diff-pane__tag { font-size: 10px; font-family: ui-monospace, monospace; color: var(--muted); }
 .diff-pane p { margin: 5px 0 0; white-space: pre-line; }
-.diff-pane--from { border-left: 3px solid #f2b8b5; }
-.diff-pane--to { border-left: 3px solid #a6e3bf; }
+.diff-pane--from { border-left: 3px solid var(--danger-borde); }
+.diff-pane--to { border-left: 3px solid var(--ok-borde); }
 
 @media (max-width: 900px) {
   .idea-layout { grid-template-columns: 1fr; }
@@ -786,16 +955,16 @@ input:focus, textarea:focus, select:focus {
   flex-wrap: wrap;
   padding: 10px 12px;
   margin-bottom: 14px;
-  border: 1px dashed #d8c9f5;
+  border: 1px dashed var(--ia-borde);
   border-radius: 8px;
-  background: #faf7ff;
+  background: var(--ia-panel);
 }
 .link-button {
   background: none;
   border: 0;
   padding: 0;
   margin-left: 8px;
-  color: #7c3aed;
+  color: var(--ia);
   font: inherit;
   font-size: 10px;
   text-transform: none;
@@ -804,10 +973,10 @@ input:focus, textarea:focus, select:focus {
 }
 .link-button:hover { text-decoration: underline; }
 
-.ai-panel { border-color: #d8c9f5; background: #faf7ff; }
+.ai-panel { border-color: var(--ia-borde); background: var(--ia-panel); }
 .ai-suggestion {
   padding: 12px 0;
-  border-bottom: 1px solid #ece3fb;
+  border-bottom: 1px solid var(--ia-borde);
 }
 .ai-suggestion:last-child { border-bottom: 0; padding-bottom: 0; }
 .ai-suggestion__head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
@@ -834,8 +1003,8 @@ input:focus, textarea:focus, select:focus {
 .code-block {
   margin: 0;
   padding: 14px;
-  background: #0f172a;
-  color: #e2e8f0;
+  background: var(--color-neutral);
+  color: var(--color-neutral-content);
   border-radius: 8px;
   font-size: 11.5px;
   line-height: 1.5;
@@ -848,7 +1017,7 @@ input:focus, textarea:focus, select:focus {
   padding: 1px 7px;
   margin-left: 6px;
   border-radius: 99px;
-  background: #eef4ff;
+  background: var(--accent-soft);
   color: var(--accent);
   font-size: 10px;
   font-weight: 700;
@@ -897,7 +1066,7 @@ input:focus, textarea:focus, select:focus {
   color: var(--muted);
 }
 .scale-radio:hover span { border-color: var(--accent); }
-.scale-radio input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; }
+.scale-radio input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--color-primary-content); }
 
 .scale-options { display: grid; gap: 6px; margin-top: 10px; }
 .scale-option {
@@ -938,7 +1107,7 @@ input:focus, textarea:focus, select:focus {
 
 /* ── Tabla de ranking con línea de corte ────────────────────────────────── */
 .ranking-table__check { width: 60px; text-align: center; }
-.ranking-table tr.is-below td { color: var(--muted); background: #fbfbfc; }
+.ranking-table tr.is-below td { color: var(--muted); background: var(--bg); }
 
 .cut-line td {
   padding: 0 !important;
@@ -990,11 +1159,11 @@ input:focus, textarea:focus, select:focus {
 
 .feedback-kind { padding: 1px 8px; border-radius: 99px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
 .feedback-kind--suggestion { background: var(--accent-soft); color: var(--accent); }
-.feedback-kind--question { background: #fdf3e2; color: var(--warn); }
-.feedback-kind--issue { background: #fef3f2; color: var(--danger); }
-.feedback-item:has(.feedback-kind--issue) { border-left-color: #f2b8b5; }
-.feedback-item:has(.feedback-kind--question) { border-left-color: #f3d9a4; }
-.feedback-item:has(.feedback-kind--suggestion) { border-left-color: #bfd4fd; }
+.feedback-kind--question { background: var(--warn-soft); color: var(--warn); }
+.feedback-kind--issue { background: var(--danger-soft); color: var(--danger); }
+.feedback-item:has(.feedback-kind--issue) { border-left-color: var(--danger-borde); }
+.feedback-item:has(.feedback-kind--question) { border-left-color: var(--warn-borde); }
+.feedback-item:has(.feedback-kind--suggestion) { border-left-color: var(--accent-borde); }
 
 .feedback-form { display: flex; gap: 8px; align-items: center; }
 .feedback-form__kind { width: 150px; flex: none; }
@@ -1008,7 +1177,7 @@ input:focus, textarea:focus, select:focus {
   margin-left: 4px;
   padding: 1px 6px;
   border-radius: 99px;
-  background: #fdf3e2;
+  background: var(--warn-soft);
   color: var(--warn);
   font-size: 10px;
   font-weight: 600;
@@ -1018,7 +1187,7 @@ input:focus, textarea:focus, select:focus {
 .funnel__stage { position: relative; }
 .funnel__bar {
   height: 30px;
-  background: linear-gradient(90deg, var(--accent) 0%, #60a5fa 100%);
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-claro) 100%);
   border-radius: 6px;
   min-width: 4px;
   transition: width .2s;
@@ -1034,11 +1203,14 @@ input:focus, textarea:focus, select:focus {
   height: 180px;
 }
 .histogram__col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
-.histogram__bar { width: 100%; min-height: 2px; background: var(--accent-soft); border: 1px solid #bfd4fd; border-radius: 4px 4px 0 0; }
+/* Las barras eran el tinte más suave del acento sobre blanco: se leía la
+   grilla y no el dato. Con el contorno como relleno y el acento como borde
+   la barra se ve, y sigue siendo más liviana que un botón. */
+.histogram__bar { width: 100%; min-height: 2px; background: var(--accent-borde); border: 1px solid var(--accent); border-radius: 4px 4px 0 0; }
 .histogram__label, .histogram__count { font-size: 10px; color: var(--muted); }
 .histogram__count { font-weight: 600; }
 
-.narrative-card { border-color: #d8c9f5; background: #faf7ff; }
+.narrative-card { border-color: var(--ia-borde); background: var(--ia-panel); }
 .narrative-card__summary { font-size: 14px; line-height: 1.65; margin: 0 0 18px; }
 .narrative-card__left { margin: 18px 0 0; font-size: 13px; line-height: 1.6; }
 .theme-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
@@ -1048,11 +1220,11 @@ input:focus, textarea:focus, select:focus {
   gap: 3px;
   padding: 12px 14px;
   background: var(--surface);
-  border: 1px solid #ece3fb;
+  border: 1px solid var(--ia-borde);
   border-radius: 8px;
   font-size: 12px;
 }
-.theme-card__count { font-size: 20px; font-weight: 650; color: #7c3aed; }
+.theme-card__count { font-size: 20px; font-weight: 650; color: var(--ia); }
 
 /* ── Navegación principal ───────────────────────────────────────────────── */
 .app-header__brand-link { color: inherit; text-decoration: none; }
@@ -1083,9 +1255,9 @@ input:focus, textarea:focus, select:focus {
   white-space: nowrap;
 }
 .source-chip--manual { background: var(--accent-soft); color: var(--accent); }
-.source-chip--automatic { background: #e7f7ee; color: var(--ok); }
-.source-chip--ai { background: #f3ecfd; color: #7c3aed; }
-.source-chip--formula { background: #fdf3e2; color: var(--warn); }
+.source-chip--automatic { background: var(--ok-soft); color: var(--ok); }
+.source-chip--ai { background: var(--ia-soft); color: var(--ia); }
+.source-chip--formula { background: var(--warn-soft); color: var(--warn); }
 
 .criterion-row__main { grid-template-columns: 1.6fr 1fr 80px 1.3fr 1.2fr; }
 .criterion-row__jsons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -1102,7 +1274,7 @@ input:focus, textarea:focus, select:focus {
 .gate { display: inline-block; font-weight: 700; font-size: 14px; }
 .gate--pass { color: var(--ok); }
 .gate--fail { color: var(--danger); }
-.gate--pending { color: var(--borde); }
+.gate--pending { color: var(--tenue); }
 
 .gate-verdict { display: inline-flex; gap: 3px; }
 .gate-verdict__btn {
@@ -1118,9 +1290,9 @@ input:focus, textarea:focus, select:focus {
   cursor: pointer;
 }
 .gate-verdict__btn--yes { color: var(--ok); }
-.gate-verdict__btn--yes:hover { background: #edfbf3; border-color: #a6e3bf; }
+.gate-verdict__btn--yes:hover { background: var(--ok-soft); border-color: var(--ok-borde); }
 .gate-verdict__btn--no { color: var(--danger); }
-.gate-verdict__btn--no:hover { background: #fef3f2; border-color: #f2b8b5; }
+.gate-verdict__btn--no:hover { background: var(--danger-soft); border-color: var(--danger-borde); }
 .ranking-table input[type="checkbox"]:disabled { opacity: .35; }
 
 /* ── Cierre de un comentario ────────────────────────────────────────────── */
@@ -1146,7 +1318,7 @@ input:focus, textarea:focus, select:focus {
   color: var(--muted);
   cursor: help;
 }
-.evaluator-chip--ai { background: #f3ecfd; border-color: #ddd0f7; color: #7c3aed; }
+.evaluator-chip--ai { background: var(--ia-soft); border-color: var(--ia-borde); color: var(--ia); }
 
 .assessment-group { padding: 14px 0; border-bottom: 1px solid var(--borde); }
 .assessment-group:last-child { border-bottom: 0; }
@@ -1160,7 +1332,7 @@ input:focus, textarea:focus, select:focus {
   border-radius: 8px;
   background: var(--surface);
 }
-.assessment-detail--ai { border-left-color: #ddd0f7; background: #faf7ff; }
+.assessment-detail--ai { border-left-color: var(--ia-borde); background: var(--ia-panel); }
 .assessment-detail__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; }
 .assessment-detail__score { margin-left: auto; font-weight: 650; font-size: 14px; }
 .assessment-detail__comment { margin: 7px 0 0; font-size: 13px; line-height: 1.55; }
@@ -1174,26 +1346,26 @@ input:focus, textarea:focus, select:focus {
 }
 
 /* ── La IA como guía dentro del formulario ──────────────────────────────── */
-.ai-guide-banner { border-color: #d8c9f5; background: #faf7ff; }
+.ai-guide-banner { border-color: var(--ia-borde); background: var(--ia-panel); }
 
 .scale-radio--suggested span {
-  border-color: #c4b5fd;
+  border-color: var(--ia-borde);
   border-style: dashed;
-  color: #7c3aed;
+  color: var(--ia);
 }
 .scale-radio--suggested input:checked + span {
   background: var(--accent);
   border-color: var(--accent);
   border-style: solid;
-  color: #fff;
+  color: var(--color-primary-content);
 }
-.scale-option--suggested { border-color: #ddd0f7; }
+.scale-option--suggested { border-color: var(--ia-borde); }
 .ai-mark {
   margin-left: auto;
   padding: 1px 6px;
   border-radius: 99px;
-  background: #f3ecfd;
-  color: #7c3aed;
+  background: var(--ia-soft);
+  color: var(--ia);
   font-size: 9.5px;
   font-weight: 700;
 }
@@ -1204,21 +1376,21 @@ input:focus, textarea:focus, select:focus {
   gap: 8px;
   margin-top: 9px;
   padding: 8px 11px;
-  border-left: 3px solid #ddd0f7;
+  border-left: 3px solid var(--ia-borde);
   border-radius: 0 6px 6px 0;
-  background: #faf7ff;
+  background: var(--ia-panel);
   font-size: 12px;
   line-height: 1.5;
 }
 .ai-hint__value {
   font-size: 14px;
-  color: #7c3aed;
+  color: var(--ia);
   min-width: 18px;
 }
 .ai-hint__reason { color: var(--muted); }
 
 /* ── Modo de IA de un módulo ────────────────────────────────────────────── */
-.ai-mode-card { border-style: dashed; border-color: #d8c9f5; background: #faf7ff; }
+.ai-mode-card { border-style: dashed; border-color: var(--ia-borde); background: var(--ia-panel); }
 .ai-mode-form { display: flex; align-items: center; gap: 8px; }
 .ai-mode-form__select { width: auto; min-width: 210px; font-size: 12.5px; padding: 6px 9px; }
 
@@ -1226,8 +1398,8 @@ input:focus, textarea:focus, select:focus {
 .config-rule { border: 0; border-top: 1px solid var(--borde); margin: 18px 0; }
 .config-locked {
   padding: 9px 11px;
-  background: #fdf6e9;
-  border: 1px solid #f3d9a4;
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-borde);
   border-radius: 7px;
   margin: 0 0 16px;
 }
@@ -1290,7 +1462,7 @@ textarea:disabled {
 }
 
 .field-edit--dragging { opacity: .4; }
-.field-edit--over { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(37, 99, 235, .12); }
+.field-edit--over { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-primary) 16%, transparent); }
 
 .field-edit__handle {
   cursor: grab;
@@ -1341,7 +1513,7 @@ textarea:disabled {
   cursor: pointer;
   padding: 0 .2rem;
 
-  &:hover { color: #b91c1c; }
+  &:hover { color: var(--danger); }
 }
 
 .field-editor__actions {
@@ -1380,7 +1552,19 @@ textarea:disabled {
   background: var(--bg);
 }
 
-.criterion-edit--off { opacity: .55; }
+/* Bajarle la opacidad al contenedor entero es la forma más cara de decir
+   «inactivo»: con `opacity: .55` el texto de esta fila —que sigue siendo
+   EDITABLE, nada se deshabilita al desmarcar «Activo»— quedaba en 3.6:1 y el
+   botón fantasma deshabilitado de al lado en 2.39:1. Lo que hace falta es que
+   la tarjeta pese menos, no que su contenido se lea peor: se le saca la
+   superficie —queda vacía entre las llenas—, el contorno pasa a punteado y el
+   rótulo a gris. */
+.criterion-edit--off {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--tenue);
+}
+.criterion-edit--off .criterion-edit__name { color: var(--muted); }
 
 .criterion-edit__head { display: flex; align-items: flex-end; gap: 10px; }
 
@@ -1507,15 +1691,15 @@ textarea:disabled {
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  border: 1px solid #f3d9a4;
+  border: 1px solid var(--warn-borde);
   border-radius: 99px;
-  background: #fdf6e9;
+  background: var(--warn-soft);
   font-size: 12px;
-  color: #8a6100;
+  color: var(--warn);
   white-space: nowrap;
 }
 
-.weight-meter--ok { border-color: #a6e3bf; background: #edfbf3; color: var(--ok); }
+.weight-meter--ok { border-color: var(--ok-borde); background: var(--ok-soft); color: var(--ok); }
 
 .criteria-edit-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
@@ -1660,8 +1844,8 @@ textarea:disabled {
   min-width: 16px;
   padding: 0 4px;
   border-radius: 99px;
-  background: var(--danger);
-  color: #fff;
+  background: var(--color-error);
+  color: var(--color-error-content);
   font-size: 10px;
   font-weight: 700;
   line-height: 16px;
@@ -1717,10 +1901,10 @@ textarea:disabled {
   gap: 10px;
   padding: 14px 16px;
   margin-bottom: 16px;
-  border: 1px dashed #d8c9f5;
+  border: 1px dashed var(--ia-borde);
   border-radius: var(--radius);
-  background: #faf7ff;
-  color: #7c3aed;
+  background: var(--ia-panel);
+  color: var(--ia);
   font-size: 13px;
 }
 
@@ -1828,14 +2012,14 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
 }
 
 /* Hecho: el número se reemplaza por un tilde y el paso pierde peso visual. */
-.setup__step--done .setup__mark { background: #e7f7ee; border-color: #a6e3bf; color: var(--ok); }
+.setup__step--done .setup__mark { background: var(--ok-soft); border-color: var(--ok-borde); color: var(--ok); }
 
 /* El que estás mirando ahora. */
 .setup__step--current .setup__link { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 /* Bloqueante sin resolver: sin esto el desafío no arranca. */
-.setup__step--blocked .setup__mark { background: #fef3f2; border-color: #f2b8b5; color: var(--danger); }
-.setup__step--blocked .setup__link { border-color: #f2b8b5; }
+.setup__step--blocked .setup__mark { background: var(--danger-soft); border-color: var(--danger-borde); color: var(--danger); }
+.setup__step--blocked .setup__link { border-color: var(--danger-borde); }
 
 .setup__next { display: flex; justify-content: flex-end; margin-top: 12px; }
 
@@ -1856,11 +2040,14 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
 .setup-nav__where { font-size: 12px; color: var(--muted); }
 .setup-nav__blocked { color: var(--warn); }
 
-/* En la pantalla de creación el camino todavía no tiene estado: se dibuja */
-/* para que se vea qué viene, sin links a lo que no existe. */
+/* En la pantalla de creación el camino todavía no tiene estado: se dibuja
+   para que se vea qué viene, sin links a lo que no existe. Mismo caso que el
+   criterio apagado: `opacity: .55` dejaba el rótulo en 3.6:1, y lo que estos
+   pasos dicen —«todavía no existen»— lo dice el contorno punteado. */
 .setup__step--outline .setup__link {
   cursor: default;
-  opacity: .55;
+  border-style: dashed;
+  color: var(--muted);
 
   &:hover { border-color: var(--borde); }
 }
@@ -2026,7 +2213,7 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   padding: 1px 8px;
   border-radius: 99px;
   background: var(--accent);
-  color: #fff;
+  color: var(--color-primary-content);
   font-size: 10px;
   font-weight: 600;
   white-space: nowrap;
@@ -2045,13 +2232,13 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   margin-left: 8px;
   padding: 1px 8px;
   border-radius: 99px;
-  background: #fef3f2;
+  background: var(--danger-soft);
   color: var(--danger);
   font-size: 10px;
   font-weight: 600;
   white-space: nowrap;
 }
-.out-chip--pending { background: #fdf6e9; color: #8a6100; }
+.out-chip--pending { background: var(--warn-soft); color: var(--warn); }
 
 .table-legend {
   display: flex;
