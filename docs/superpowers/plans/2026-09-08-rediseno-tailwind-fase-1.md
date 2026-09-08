@@ -230,9 +230,36 @@ que ninguna prueba lo dijera."
 
 ---
 
-## Task 2: Las 48 clases interpoladas se mudan a helpers
+## Task 2: Las clases interpoladas se mudan a helpers
 
-**La app se sigue viendo idéntica.** Tailwind escanea texto: `class: "status-chip--#{step.status}"` no la ve y la descartaría en cuanto la clase deje de estar escrita a mano en la hoja. Hay 48 casos en 24 archivos.
+**La app se sigue viendo idéntica.** Tailwind escanea texto: `class: "status-chip--#{step.status}"` no la ve y la descartaría en cuanto la clase deje de estar escrita a mano en la hoja.
+
+**ENMENDADA: son 24 casos, no 48.** El conteo original incluía ids y nombres de
+campo —`payload_`, `peso_`, `count_`, `scores_`, `corte-`, `advance_`,
+`report-`— que Tailwind nunca escanea como clases. El inventario real:
+
+| Prefijo | Casos |
+|---|---|
+| `status-chip--` | 14 |
+| `source-chip--` | 3 |
+| `flash--` | 2 |
+| `setup__step--` | 1 |
+| `result--` | 1 |
+| `flow-strip__node--` | 1 |
+| `feedback-kind--` | 1 |
+| `diff-kind--` | 1 |
+
+Aparte, los 4 `class: "app-nav__link#{' is-active' if …}"` de
+`layouts/application.html.haml` **no son un defecto** —`is-active` está escrito
+literal y Tailwind lo ve— pero darían falso positivo en el lint. Se convierten a
+forma de arreglo, que es la que ya usa `_setup_progress.html.haml` en este repo:
+
+```haml
+= link_to "Desafíos", challenges_path,
+          class: ["app-nav__link", ("is-active" if controller_name.in?(%w[challenges steps ideas assessments]))]
+```
+
+Así el lint nace estricto en vez de con excepciones.
 
 Se resuelve con helpers, no con un safelist, porque además mata duplicación: hoy el ternario `run.succeeded? ? 'completed' : (run.failed? ? 'skipped' : 'pending')` está repetido en cinco vistas.
 
@@ -346,6 +373,28 @@ module EstilosHelper
     "changed" => "diff-kind diff-kind--changed"
   }.freeze
 
+  # El paso a paso de configuración y el mapa compacto del flujo pintan el
+  # MISMO conjunto de estados que los chips, con otra forma. Comparten la clave
+  # y no el nombre de clase.
+  CLASE_DE_PASO_DE_SETUP = {
+    "pending" => "setup__step setup__step--pending",
+    "active" => "setup__step setup__step--active",
+    "completed" => "setup__step setup__step--completed",
+    "skipped" => "setup__step setup__step--skipped",
+    "blocked" => "setup__step setup__step--blocked",
+    "done" => "setup__step setup__step--done",
+    "current" => "setup__step setup__step--current",
+    "outline" => "setup__step setup__step--outline"
+  }.freeze
+
+  CLASE_DE_NODO_DE_FLUJO = {
+    "pending" => "flow-strip__node flow-strip__node--pending",
+    "active" => "flow-strip__node flow-strip__node--active",
+    "activating" => "flow-strip__node flow-strip__node--activating",
+    "completed" => "flow-strip__node flow-strip__node--completed",
+    "skipped" => "flow-strip__node flow-strip__node--skipped"
+  }.freeze
+
   CLASE_DE_RESULTADO = {
     "pending" => "result result--pending",
     "in_progress" => "result result--in_progress",
@@ -361,6 +410,12 @@ module EstilosHelper
   def clase_de_feedback(kind) = CLASE_DE_FEEDBACK.fetch(kind.to_s, CLASE_DE_FEEDBACK.fetch("comment"))
   def clase_de_diff(kind) = CLASE_DE_DIFF.fetch(kind.to_s, CLASE_DE_DIFF.fetch("changed"))
   def clase_de_resultado(status) = CLASE_DE_RESULTADO.fetch(status.to_s, CLASE_DE_RESULTADO.fetch("pending"))
+  def clase_de_nodo_de_flujo(estado) = CLASE_DE_NODO_DE_FLUJO.fetch(estado.to_s, CLASE_DE_NODO_DE_FLUJO.fetch("pending"))
+
+  # `_setup_progress.html.haml` ya arma su clase como ARREGLO y le suma otras
+  # condicionales. Este helper devuelve solo la de estado; el arreglo se
+  # conserva tal como está.
+  def clase_de_paso_de_setup(estado) = CLASE_DE_PASO_DE_SETUP.fetch(estado.to_s, CLASE_DE_PASO_DE_SETUP.fetch("pending"))
 
   # Los ternarios que estaban repartidos por las vistas, en un solo lugar.
   def chip_de_corrida_de_ia(run)
@@ -424,7 +479,7 @@ make spec-file FILE=spec/helpers/estilos_helper_spec.rb
 ```
 Esperado: PASS.
 
-- [ ] **Step 6: Reemplazar los 48 sitios**
+- [ ] **Step 6: Reemplazar los sitios**
 
 Listarlos primero:
 
@@ -432,7 +487,8 @@ Listarlos primero:
 grep -rn 'class[:=][^,)]*"[^"]*#{' app/views --include=*.haml
 ```
 
-Reemplazar cada uno. Ejemplos textuales de las formas que aparecen:
+Esperado: 24 de clase real, más los 4 de `app-nav__link` que van a forma de
+arreglo. Reemplazar cada uno. Ejemplos textuales de las formas que aparecen:
 
 ```haml
 -# app/views/steps/_header.html.haml:10
@@ -478,7 +534,7 @@ git add -A
 git commit -m "Las clases de estado salen de las vistas y entran a un helper
 
 Tailwind escanea texto: \`class: \"status-chip--#{'#'}{step.status}\"\` no existe para
-el escáner. Eran 48 casos en 24 archivos, y se resuelven con helpers en vez de
+el escáner. Eran 24 casos, y se resuelven con helpers en vez de
 un safelist porque además matan duplicación: el ternario
 \`run.succeeded? ? 'completed' : ...\` estaba repetido en cinco vistas.
 
