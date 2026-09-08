@@ -20,12 +20,12 @@
     %meta{ name: "turbo-refresh-scroll", content: "preserve" }
     = csrf_meta_tags
     = csp_meta_tag
-    -# Las dos familias del carácter. `display=swap` y pila de respaldo en el
-    -# tema: si Google Fonts no responde, la app se ve con la fuente del
-    -# sistema y no se rompe ni se queda en blanco.
-    %link{ rel: "preconnect", href: "https://fonts.googleapis.com" }
-    %link{ rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "anonymous" }
-    %link{ rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Inter:wght@400;500;600&display=swap" }
+    -# Las dos familias del carácter NO vienen de acá: se auto-hospedan en
+    -# `public/fonts` y las declara la hoja con `@font-face`. Un
+    -# <link rel="stylesheet"> a un tercero bloquea el render, y medido: con la
+    -# petición colgada 20s —proxy corporativo, portal cautivo—
+    -# `DOMContentLoaded` no llega nunca y la pantalla queda EN BLANCO. Abortada
+    -# rendía bien; colgada, no. `preconnect` no ayuda contra un agujero negro.
     = stylesheet_link_tag "application-build-css", "data-turbo-track": "reload", nonce: content_security_policy_nonce
     = javascript_include_tag "application-build", "data-turbo-track": "reload", defer: true, nonce: content_security_policy_nonce
     = yield :head

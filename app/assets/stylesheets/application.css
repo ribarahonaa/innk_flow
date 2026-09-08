@@ -17,10 +17,53 @@
 }
 
 /* ── Las dos familias ───────────────────────────────────────────────────── */
-/* La display SOLO en títulos —abajo, en `@layer base`—: en texto corrido a
+/* AUTO-HOSPEDADAS, no de Google Fonts.
+   Entraban por un <link rel="stylesheet"> a fonts.googleapis.com, que es una
+   hoja de un TERCERO y por lo tanto bloquea el render. La promesa del spec era
+   «si no cargan, la app no se rompe», y medido eso era falso a medias:
+   - con la petición ABORTADA la app rinde bien con la pila de respaldo (67ms);
+   - con la petición COLGADA 20s, `DOMContentLoaded` no llega nunca y la
+     pantalla queda EN BLANCO. Es el proxy corporativo o el portal cautivo, y
+     `preconnect` no ayuda contra un agujero negro.
+   Sirviéndolas desde el mismo origen no hay nada de afuera en el camino
+   crítico, y no cuesta un byte de más: son los mismos dos archivos que el
+   navegador ya bajaba —el subconjunto «latin», que es el único que las
+   unicode-range de abajo dejaban entrar— sin la vuelta extra por la hoja de
+   Google. 125 KB entre los dos.
+
+   Las dos son fuentes VARIABLES (tienen `fvar`/`gvar`: verificado leyendo el
+   directorio de tablas del .woff2), así que un archivo por familia cubre todos
+   los pesos y `font-weight: 600 700` es un rango, no una lista.
+
+   El `unicode-range` es el del subconjunto latin tal cual lo declaraba Google:
+   el español entra entero ahí. Lo de afuera —un emoji, el ⠿ del asa de
+   arrastre— cae a la pila de respaldo, exactamente como antes.
+
+   Licencia: las dos son OFL 1.1 y el texto acompaña a los archivos en
+   `public/fonts/OFL.txt`, que es lo que la licencia pide.
+
+   La display SOLO en títulos —abajo, en `@layer base`—: en texto corrido a
    14px la Bricolage se lee peor que la Inter, que es lo que la Inter sabe
-   hacer. Las dos pilas terminan en la fuente del sistema: si Google Fonts no
-   responde, la app se ve con otra letra y no se rompe. */
+   hacer. Las dos pilas siguen terminando en la fuente del sistema. */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  font-style: normal;
+  font-weight: 600 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("/fonts/bricolage-grotesque-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("/fonts/inter-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 @theme {
   --font-display: "Bricolage Grotesque", "Helvetica Neue", system-ui, sans-serif;
   --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
