@@ -31,7 +31,7 @@ help:
 	@echo "  task TASK='<t>'    Cualquier task de rails"
 	@echo ""
 	@echo "Frontend:"
-	@echo "  yarn-build         Recompilar bundles JS/CSS (tras tocar app/javascript o scss)"
+	@echo "  yarn-build         Recompilar bundles JS/CSS (tras tocar app/javascript o la hoja de Tailwind)"
 	@echo "  yarn-install       Instalar deps JS"
 	@echo ""
 	@echo "Tests (servicio app_test):"

@@ -1,10 +1,14 @@
 // Build de assets. Espeja innk_r5: esbuild directo (no jsbundling-rails), un
 // `build()` por bucket, salida a app/assets/builds/ que Sprockets sirve.
 //
-// Dos buckets:
+// Dos buckets, los dos de JAVASCRIPT:
 //   1. packs/*  -> una isla Vue por archivo. El glob las toma automáticamente:
 //                  agregar app/javascript/packs/foo.js alcanza, no hay registro.
-//   2. application.js / application.scss -> el chrome compartido.
+//   2. application.js -> el chrome compartido.
+//
+// La CSS no pasa por acá. Sass se jubiló con la migración a Tailwind 4 y la
+// hoja la compila el CLI de Tailwind (`yarn build:css` en package.json), que
+// escribe al mismo app/assets/builds/. `yarn build` corre los dos.
 const esBuild = require('esbuild');
 const vuePlugin = require('esbuild-plugin-vue-next');
 
