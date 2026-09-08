@@ -548,7 +548,27 @@ Sin cambio visual."
 
 ## Task 3: DaisyUI entra; `btn` y `card` dejan de colisionar
 
-DaisyUI trae 615 clases. Contra el vocabulario de esta app **colisionan exactamente dos**: `card` y `btn` (`btn-link` también, pero la app no lo usa en ninguna vista). Verificado por intersección de conjuntos, no por inspección.
+DaisyUI trae 722 clases. Contra las 406 de esta app **colisionan tres**: `btn`,
+`card` y `btn-link`. Verificado por intersección de conjuntos sobre el paquete
+entero de DaisyUI y la hoja entera de la app —no solo `components/` ni solo los
+selectores a inicio de línea, que fue el error de la primera medición y dejó
+`btn-link` afuera—.
+
+| Clase | Qué se hace | Por qué |
+|---|---|---|
+| `btn` | **Migrar** | Autocontenida, mapeo directo. 223 usos |
+| `card` | **Conservar** | El `card` de DaisyUI deja el padding en `card-body`: borrarla dejaría 101 usos sin relleno |
+| `btn-link` | **Conservar** | El de la app es «una acción en medio de una frase» —sin padding ni borde, hereda la fuente—; el de DaisyUI es una variante de botón con la altura de `btn`. Se usa en `step_config.vue:76` |
+
+Las dos que se conservan ganan por **orden de fuente**: van después del
+`@plugin`, con la misma especificidad. No hace falta `!important` ni renombrar.
+
+Un cuarto caso, `is-hidden`, aparece en la intersección pero **no es colisión**:
+la app la usa siempre compuesta (`.step-card__handle.is-hidden`, especificidad
+0-2-0), que le gana a la de DaisyUI. Se deja como está.
+
+Y `css` en la intersección es un falso positivo: sale de
+`@import "tailwindcss/theme.css"`, no es una clase.
 
 **ENMENDADA tras el escaneo previo y la tarea 1.** Tres cambios respecto de lo
 que decía antes, cada uno con su razón:
@@ -768,16 +788,22 @@ En `app/assets/stylesheets/application.css`, borrar el bloque `.btn { … }` con
 sus modificadores `.btn--*` (líneas ~119-138 del original). Las de DaisyUI toman
 su lugar.
 
-**El bloque `.card { … }` se queda.** Dejar en su lugar este comentario:
+**Los bloques `.card { … }` y `.btn-link { … }` se quedan.** Dejar en su lugar este comentario:
 
 ```css
-/* `card` y `btn` eran las DOS únicas clases de esta app que colisionaban con
-   DaisyUI —medido por intersección de conjuntos, no por inspección—.
-   `btn` se migró: es autocontenido y el mapeo es directo.
-   `card` NO, y es deliberado: el `card` de DaisyUI es un contenedor flex y el
-   padding lo pone `card-body`, así que borrar esta regla dejaría 101 usos sin
-   relleno de golpe. Esta definición va DESPUÉS del @plugin, así que gana por
-   orden de fuente. Se migra en el plan 2, pantalla por pantalla, que es donde
+/* Tres clases de esta app colisionan con DaisyUI —medido por intersección de
+   conjuntos sobre el paquete entero—: `btn`, `card` y `btn-link`.
+
+   `btn` se migró: es autocontenida y el mapeo es directo.
+
+   `card` y `btn-link` NO, y es deliberado. El `card` de DaisyUI es un
+   contenedor flex y el padding lo pone `card-body`: borrar esta regla dejaría
+   101 usos sin relleno de golpe. Y su `btn-link` es una variante de botón con
+   la altura de `btn`, mientras que el de acá es una acción en medio de una
+   frase, sin padding ni borde.
+
+   Las dos ganan por orden de fuente: van DESPUÉS del @plugin, con la misma
+   especificidad. Se migran en el plan 2, pantalla por pantalla, que es donde
    se puede envolver el contenido en un card-body. */
 ```
 
