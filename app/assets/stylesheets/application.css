@@ -346,7 +346,7 @@ input:focus, textarea:focus, select:focus {
    sin fondo ni contorno: el cambio visual más grande que esta tarea podía
    introducir, y justo lo que no puede hacer. Se re-declara con las variables
    del propio componente, así que sigue al tema como cualquier otro botón. */
-.btn-ghost {
+.btn-ghost:not(:disabled, [disabled], [aria-disabled="true"], .btn-disabled) {
   --btn-bg: var(--color-base-100);
   --btn-fg: var(--color-base-content);
   --btn-border: var(--color-base-300);
@@ -354,6 +354,33 @@ input:focus, textarea:focus, select:focus {
 .btn-ghost:hover {
   --btn-bg: var(--accent-soft);
   --btn-border: var(--color-primary);
+}
+
+/* El rótulo de un botón deshabilitado tiene que LEERSE. DaisyUI lo baja al 20%
+   de opacidad sobre el fondo que él mismo aclara: compuesto da 1.49:1 en el
+   primario y 1.51:1 en el fantasma —el texto desaparece—. Y los dos botones
+   que esto toca están deshabilitados de forma permanente, no de paso: el
+   «Guardar» del editor del formulario lo está en reposo, al entrar a la
+   pantalla, y el «+ Agregar nivel» lo está siempre que el set está bloqueado.
+   Con la mezcla opaca al 70% quedan en 5.3:1 y 6.8:1, y la señal de
+   deshabilitado la siguen dando el fondo aclarado, el borde apagado y el
+   `pointer-events: none` que pone DaisyUI.
+
+   Va SIN capa, y acá sí corresponde: el selector ES el estado deshabilitado
+   —el mismo que usa DaisyUI—, así que no puede pisar ningún otro. Lo que
+   estaba mal en la ronda anterior era declarar el color sobre `.btn` a secas,
+   que se llevaba puesto el estado deshabilitado como daño colateral. Por la
+   misma razón la regla del fantasma de arriba ahora se excluye a sí misma
+   cuando el botón está deshabilitado: su superficie y su borde describen el
+   reposo, no tienen que tapar la señal.
+
+   Ojo con medir esto: `color` acá tiene alfa, y un color con alfa no se
+   compara contra su propio valor —hay que componerlo sobre el fondo real
+   primero—. Medirlo sólido fue lo que hizo declarar 13.56:1 donde había
+   1.49:1. */
+.btn-disabled,
+.btn:is(:disabled, [disabled], [aria-disabled="true"]) {
+  color: color-mix(in oklch, var(--color-base-content) 70%, var(--color-base-100));
 }
 
 .company-list { list-style: none; padding: 0; display: grid; gap: 10px; }
