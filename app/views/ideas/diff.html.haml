@@ -23,7 +23,7 @@
       .diff-row
         %h3.diff-row__label
           = change.label
-          %span.diff-kind{ class: "diff-kind--#{change.kind}" }
+          %span{ class: clase_de_diff(change.kind) }
             = { added: "agregado", removed: "vaciado", changed: "modificado" }[change.kind]
         .diff-row__panes
           .diff-pane.diff-pane--from

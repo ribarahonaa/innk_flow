@@ -28,7 +28,7 @@
         %li.field-list__item
           %span
             = gate["name"]
-            %span.source-chip{ class: "source-chip--#{gate['source']}" }= t("flow.criterion_sources.#{gate['source']}")
+            %span{ class: chip_de_origen(gate["source"]) }= t("flow.criterion_sources.#{gate['source']}")
           %span.field-list__type
             - if gate["source"] == "automatic" && criterion&.check
               = criterion.check.description
@@ -222,7 +222,7 @@
         %ul.decision-batch__list
           - tanda.sort_by { |d| [d.rank || 99, d.idea.title] }.each do |decision|
             %li
-              %span.status-chip{ class: "status-chip--#{decision.advance? ? 'completed' : (decision.reinstate? ? 'active' : 'skipped')}" }
+              %span{ class: chip_de_decision(decision) }
                 = decision.label
               = decision.idea.title.truncate(48)
               - if decision.rank

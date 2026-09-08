@@ -7,7 +7,7 @@
       = link_to step.challenge.name, challenge_path(step.challenge)
     %h1.page-title= step.name
     %p.muted
-      %span.status-chip{ class: "status-chip--#{step.status}" }= t("flow.statuses.#{step.status}")
+      %span{ class: chip_de_estado(step.status) }= t("flow.statuses.#{step.status}")
       %span= " · #{t("flow.kinds.#{step.kind}")} · IA: #{t("flow.ai_modes.#{step.effective_ai_mode}")}"
   .page-head__actions
     - ready, reasons = handler.can_complete?

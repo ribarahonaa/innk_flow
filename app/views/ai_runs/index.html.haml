@@ -40,7 +40,7 @@
             %td.muted= [run.challenge&.name, run.challenge_step&.name, run.idea&.title].compact.join(" · ").truncate(48)
             %td.muted= t("flow.ai_modes.#{run.mode}")
             %td
-              %span.status-chip{ class: "status-chip--#{run.succeeded? ? 'completed' : (run.failed? ? 'skipped' : 'pending')}" }
+              %span{ class: chip_de_corrida_de_ia(run) }
                 = run.status
             %td.muted= run.tokens_total
             %td.muted= "#{run.latency_ms} ms"

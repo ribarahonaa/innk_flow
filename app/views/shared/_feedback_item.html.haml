@@ -9,7 +9,7 @@
 
 %li.feedback-item{ class: ("is-addressed" unless item.open?) }
   .feedback-item__head
-    %span.feedback-kind{ class: "feedback-kind--#{item.kind}" }= item.kind_label
+    %span{ class: clase_de_feedback(item.kind) }= item.kind_label
     %span.muted= item.author_name
     - if item.by_ai?
       %span.ai-chip IA

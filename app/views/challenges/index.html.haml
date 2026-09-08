@@ -18,7 +18,7 @@
       = link_to challenge_path(challenge), class: "card challenge-card" do
         .challenge-card__head
           %h2.challenge-card__name= challenge.name
-          %span.status-chip{ class: "status-chip--#{challenge.status}" }
+          %span{ class: chip_de_estado(challenge.status) }
             = t("flow.challenge_statuses.#{challenge.status}")
         - if challenge.brief.present?
           %p.muted.challenge-card__brief= truncate(challenge.brief, length: 120)

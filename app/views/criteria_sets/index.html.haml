@@ -19,7 +19,7 @@
             = set.name
             - if set.version > 1
               %span.version-chip{ title: "Las versiones anteriores siguen sirviendo a quien las usaba" }= "v#{set.version}"
-          %span.status-chip{ class: "status-chip--#{set.status == 'valid' ? 'completed' : 'skipped'}" }
+          %span{ class: chip_de_validez(set.status == "valid") }
             = set.status == "valid" ? "válido" : "revisar"
         - usos = set.challenge_steps.count
         %p.muted= "#{set.active_criteria.size} criterios · pesos suman #{(set.weight_total * 100).round}% · #{usos.zero? ? 'sin usar' : "lo usan #{Flow::Texto.contar(usos, "módulo")}"}"
@@ -28,6 +28,6 @@
             %li.field-list__item
               %span
                 = criterion.name
-                %span.source-chip{ class: "source-chip--#{criterion.source}" }= t("flow.criterion_sources.#{criterion.source}")
+                %span{ class: chip_de_origen(criterion.source) }= t("flow.criterion_sources.#{criterion.source}")
               %span.field-list__type= "#{(criterion.weight.to_f * 100).round}%"
         = link_to "Editar", edit_criteria_set_path(set), class: "btn btn--ghost btn--block"

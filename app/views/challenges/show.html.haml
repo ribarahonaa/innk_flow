@@ -4,12 +4,12 @@
     %p.breadcrumb= link_to "Desafíos", challenges_path
     %h1.page-title= @challenge.name
     %p.muted
-      %span.status-chip{ class: "status-chip--#{@challenge.status}" }= t("flow.challenge_statuses.#{@challenge.status}")
+      %span{ class: chip_de_estado(@challenge.status) }= t("flow.challenge_statuses.#{@challenge.status}")
       %span= " · modo IA: #{t("flow.ai_modes.#{@challenge.ai_default_mode}")}"
   .page-head__actions
     -# Con el desafío en curso, lo que se viene a hacer acá es mirar las ideas.
     = link_to "Ideas", challenge_ideas_path(@challenge),
-              class: "btn #{@challenge.draft? ? 'btn--ghost' : 'btn--primary'}"
+              class: ["btn", (@challenge.draft? ? "btn--ghost" : "btn--primary")]
     - if policy(@challenge).builder?
       = link_to "Previsualizar", challenge_preview_path(@challenge), class: "btn btn--ghost"
       = link_to "Editar flujo", builder_challenge_path(@challenge), class: "btn btn--ghost"
@@ -78,7 +78,7 @@
             - if step.active?
               %span.here-chip acá está el flujo
           %td
-            %span.status-chip{ class: "status-chip--#{step.status}" }= t("flow.statuses.#{step.status}")
+            %span{ class: chip_de_estado(step.status) }= t("flow.statuses.#{step.status}")
           %td.muted= t("flow.ai_modes.#{step.effective_ai_mode}")
           - if encadenados
             %td.muted= step.source_step&.name || "—"

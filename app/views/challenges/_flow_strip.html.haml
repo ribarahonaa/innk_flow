@@ -3,7 +3,7 @@
   - challenge.steps.each_with_index do |step, index|
     - if index.positive?
       .flow-strip__arrow ›
-    .flow-strip__node{ class: "flow-strip__node--#{step.status}", title: "#{step.name} · #{t("flow.statuses.#{step.status}")}" }
+    %div{ class: clase_de_nodo_de_flujo(step.status), title: "#{step.name} · #{t("flow.statuses.#{step.status}")}" }
       %span.flow-strip__kind= t("flow.kinds.#{step.kind}")
   - if challenge.steps.empty?
     %span.muted Sin módulos todavía

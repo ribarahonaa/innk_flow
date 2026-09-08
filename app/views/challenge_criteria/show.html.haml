@@ -29,7 +29,7 @@
             %span.scorer__name= step.name
             %span.scorer__kind= t("flow.kinds.#{step.kind}")
             %span.muted= step.selection? ? " · filtra qué avanza" : " · puntúa cada idea"
-          %span.status-chip{ class: "status-chip--#{step.status}" }= t("flow.statuses.#{step.status}")
+          %span{ class: chip_de_estado(step.status) }= t("flow.statuses.#{step.status}")
 
         - if set.nil?
           %p.field-hint.field-hint--warn
@@ -52,7 +52,7 @@
           - else
             = link_to (set ? "Editar los criterios" : "Definir los criterios"),
                       challenge_step_criteria_path(@challenge, step),
-                      class: "btn btn--#{set ? 'ghost' : 'primary'} btn--sm"
+                      class: ["btn", (set ? "btn--ghost" : "btn--primary"), "btn--sm"]
 
 - if @challenge.draft? && policy(@challenge).builder?
   = render "shared/setup_nav", challenge: @challenge, current: :criteria

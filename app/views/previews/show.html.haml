@@ -32,7 +32,7 @@
           = "#{index + 1}. #{step.name}"
           %span.muted= " · #{t("flow.kinds.#{step.kind}")}"
         %p.muted= t("flow.kind_descriptions.#{step.kind}")
-      %span.status-chip{ class: "status-chip--#{step.status}" }= t("flow.statuses.#{step.status}")
+      %span{ class: chip_de_estado(step.status) }= t("flow.statuses.#{step.status}")
 
     - case step.kind
     - when "ideation"

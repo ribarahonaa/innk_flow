@@ -9,5 +9,5 @@
   %body.auth-body
     .auth-card
       - flash.each do |type, message|
-        .flash{ class: "flash--#{type}" }= message
+        %div{ class: clase_de_flash(type) }= message
       = yield

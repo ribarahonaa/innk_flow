@@ -25,9 +25,9 @@
 
   %ol.setup__steps
     - setup.steps.each_with_index do |step, index|
-      %li.setup__step{ class: ["setup__step--#{step.status}",
-                               ("setup__step--current" if step.key.to_s == current.to_s),
-                               ("setup__step--blocked" if step.blocked?)].compact }
+      %li{ class: [clase_de_paso_de_setup(step.status),
+                   ("setup__step--current" if step.key.to_s == current.to_s),
+                   ("setup__step--blocked" if step.blocked?)].compact }
         = link_to step.path, class: "setup__link" do
           %span.setup__mark= step.done? ? "✓" : index + 1
           %span.setup__body

@@ -107,7 +107,7 @@
               - if row["stale"]
                 %span.stale-chip{ title: "La idea cambió después de evaluarse" }= "→ #{row['current_version']}"
             %td
-              %span.status-chip{ class: "status-chip--#{row['status'] == 'active' ? 'active' : 'skipped'}" }
+              %span{ class: chip_de_estado(row["status"] == "active" ? "active" : "skipped") }
                 = t("flow.idea_statuses.#{row['status']}")
 
 - if data["distribution"].any?

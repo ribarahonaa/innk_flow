@@ -9,7 +9,7 @@
     %p.muted
       -# Cómo le fue, arriba de todo. Antes había que bajar hasta la sexta fila
       -# de «Cómo le fue» para enterarse de que la idea quedó afuera.
-      %span.status-chip{ class: "status-chip--#{@idea.eliminated? ? 'skipped' : 'active'}" }
+      %span{ class: chip_de_estado(@idea.eliminated? ? "skipped" : "active") }
         = t("flow.idea_statuses.#{@idea.status}")
       - if @idea.eliminated? && @idea.eliminated_at_step
         %span= " en «#{@idea.eliminated_at_step.name}»"
@@ -65,7 +65,7 @@
         %ul.result-list
           - @results.each do |resultado|
             - entry = resultado[:entry]
-            %li.result{ class: "result--#{entry.status}" }
+            %li{ class: clase_de_resultado(entry.status) }
               %span.result__step= resultado[:step].name
               %span.result__outcome= t("flow.entry_statuses.#{entry.status}", default: entry.status.humanize)
               - if resultado[:score]
