@@ -27,4 +27,47 @@ RSpec.describe EstilosHelper, type: :helper do
     expect(helper.chip_de_corrida_de_ia(mal)).to include("--skipped")
     expect(helper.chip_de_corrida_de_ia(curso)).to include("--pending")
   end
+
+  # Escritos contra el ENUM y no contra una lista a mano: así un estado que
+  # alguien agregue mañana al modelo rompe este spec en vez de pintarse con
+  # el color del fallback. `CHIP_DE_ESTADO` cubre DOS enums a la vez —el de
+  # Challenge y el de ChallengeStep, que la hoja agrupa con el mismo color—,
+  # así que se prueban los dos. Esto es lo que hubiera atrapado, en su
+  # momento, que "draft"/"running"/"closed" (Challenge::STATUSES) y "issue"
+  # (FeedbackItem::KINDS) y "advanced"/"eliminated" (StepEntry::STATUSES)
+  # caían al fallback en vez de tener su propia clase.
+  it "cubre todos los estados de un desafío" do
+    Challenge::STATUSES.each do |estado|
+      expect(helper.chip_de_estado(estado)).to include("--#{estado}"),
+        "«#{estado}» cae al fallback: es un color equivocado que nadie ve fallar"
+    end
+  end
+
+  it "cubre todos los estados de un módulo" do
+    ChallengeStep::STATUSES.each do |estado|
+      expect(helper.chip_de_estado(estado)).to include("--#{estado}"),
+        "«#{estado}» cae al fallback: es un color equivocado que nadie ve fallar"
+    end
+  end
+
+  it "cubre todos los orígenes de un criterio" do
+    Criterion::SOURCES.each do |source|
+      expect(helper.chip_de_origen(source)).to include("--#{source}"),
+        "«#{source}» cae al fallback: es un color equivocado que nadie ve fallar"
+    end
+  end
+
+  it "cubre todos los tipos de feedback" do
+    FeedbackItem::KINDS.each do |kind|
+      expect(helper.clase_de_feedback(kind)).to include("--#{kind}"),
+        "«#{kind}» cae al fallback: es un color equivocado que nadie ve fallar"
+    end
+  end
+
+  it "cubre todos los estados de una entrada de módulo" do
+    StepEntry::STATUSES.each do |status|
+      expect(helper.clase_de_resultado(status)).to include("--#{status}"),
+        "«#{status}» cae al fallback: es un color equivocado que nadie ve fallar"
+    end
+  end
 end
