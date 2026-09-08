@@ -27,9 +27,9 @@
         -# visible ES el value, así que no se puede mandar "acknowledged" y
         -# mostrar "Tomado en cuenta".
         = button_tag "Tomado en cuenta", type: "submit", name: "resolution",
-                     value: "acknowledged", class: "btn btn--ghost btn--sm"
+                     value: "acknowledged", class: "btn btn-ghost btn-sm"
         = button_tag "No aplica", type: "submit", name: "resolution",
-                     value: "dismissed", class: "btn btn--ghost btn--sm"
+                     value: "dismissed", class: "btn btn-ghost btn-sm"
   - else
     .feedback-item__resolution
       %span.status-chip.status-chip--completed= item.resolution_label

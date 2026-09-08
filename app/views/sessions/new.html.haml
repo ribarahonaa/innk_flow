@@ -10,7 +10,7 @@
   .field
     = f.label :password, "Contraseña"
     = f.password_field :password, autocomplete: "current-password", required: true
-  = f.submit "Entrar", class: "btn btn--primary btn--block"
+  = f.submit "Entrar", class: "btn btn-primary btn-block"
 - cuentas = Flow::Demo.accounts
 - if cuentas.any?
   .auth-hint

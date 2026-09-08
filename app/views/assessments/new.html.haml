@@ -20,7 +20,7 @@
         %p.muted Vas a ver su valor y su razón junto a cada criterio. Podés partir de ahí y ajustar.
         = link_to "Precargar con los valores de la IA",
                   new_challenge_step_assessment_path(@challenge, @step, idea_id: @idea.id, prefill: "ai"),
-                  class: "btn btn--ghost btn--sm"
+                  class: "btn btn-ghost btn-sm"
 
     .card
       %h2.section-title Ficha de evaluación
@@ -51,8 +51,8 @@
           = text_area_tag :overall_comment, @assessment.overall_comment, rows: 3
 
         .form-actions
-          = link_to "Cancelar", challenge_step_path(@challenge, @step), class: "btn btn--ghost"
-          = submit_tag "Guardar evaluación", class: "btn btn--primary"
+          = link_to "Cancelar", challenge_step_path(@challenge, @step), class: "btn btn-ghost"
+          = submit_tag "Guardar evaluación", class: "btn btn-primary"
 
   %aside.idea-layout__side
     - if @ai_scores.empty? && @step.effective_ai_mode != "human" && policy(@challenge).update_pipeline?
@@ -61,7 +61,7 @@
         %p.muted.field-hint Evalúa con los mismos criterios y te muestra qué pondría en cada uno, con su razón.
         = button_to "Pedir la guía de la IA",
                     challenge_ai_requests_path(@challenge, purpose: "evaluate_idea", step_id: @step.id, idea_id: @idea.id),
-                    class: "btn btn--ghost btn--sm btn--block"
+                    class: "btn btn-ghost btn-sm btn-block"
 
     - if @ai_assessment&.overall_comment.present?
       .card.assessment-detail--ai

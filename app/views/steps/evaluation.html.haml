@@ -21,11 +21,11 @@
     -# biblioteca lo comparten otros desafíos y se edita en el mantenedor.
     - if policy(@challenge).update_pipeline?
       - if @step.criteria_set&.inline?
-        = link_to "Ver los criterios", challenge_step_criteria_path(@challenge, @step), class: "btn btn--ghost btn--sm"
+        = link_to "Ver los criterios", challenge_step_criteria_path(@challenge, @step), class: "btn btn-ghost btn-sm"
       - elsif @step.criteria_set
-        = link_to "Ver el set", edit_criteria_set_path(@step.criteria_set), class: "btn btn--ghost btn--sm"
+        = link_to "Ver el set", edit_criteria_set_path(@step.criteria_set), class: "btn btn-ghost btn-sm"
       - else
-        = link_to "Definir los criterios", challenge_step_criteria_path(@challenge, @step), class: "btn btn--ghost btn--sm"
+        = link_to "Definir los criterios", challenge_step_criteria_path(@challenge, @step), class: "btn btn-ghost btn-sm"
 
   - if @handler.criteria_snapshot.empty?
     %p.muted
@@ -102,11 +102,11 @@
                   = number_field_tag :weight, asignacion.weight&.to_f, step: 0.1, min: 0.1,
                                      max: StepAssignment::MAX_WEIGHT, id: "peso_#{asignacion.id}",
                                      placeholder: "1", class: "assignment-weight__input"
-                  = submit_tag "Guardar", class: "btn btn--ghost btn--sm"
+                  = submit_tag "Guardar", class: "btn btn-ghost btn-sm"
                 -# Quien ya evaluó no se desasigna: su nota está puesta.
                 - if notas.zero?
                   = button_to "Quitar", challenge_step_step_assignment_path(@challenge, @step, asignacion),
-                              method: :delete, class: "btn btn--ghost btn--sm",
+                              method: :delete, class: "btn btn-ghost btn-sm",
                               form: { data: { turbo_confirm: "¿Sacar a #{asignacion.user.name} de este módulo?" } }
 
     - if !cerrado && @assignable.any?
@@ -116,7 +116,7 @@
                      include_blank: "Sumar a alguien…"
         = number_field_tag :weight, nil, step: 0.1, min: 0.1, max: StepAssignment::MAX_WEIGHT,
                            placeholder: "Peso (opcional)", class: "assignment-weight__input"
-        = submit_tag "Asignar", class: "btn btn--ghost btn--sm"
+        = submit_tag "Asignar", class: "btn btn-ghost btn-sm"
 
 - manda = policy(@challenge).update_pipeline?
 - pendientes = @step.step_entries.reject { |e| @handler.complete?(e) }
@@ -139,7 +139,7 @@
         %span.ai-chip IA
         = button_to "Evaluar #{Flow::Texto.contar(pendientes.size, "idea")} con IA",
                     evaluate_all_challenge_step_path(@challenge, @step),
-                    class: "btn btn--primary btn--sm"
+                    class: "btn btn-primary btn-sm"
         %span.muted Todas las que faltan, de una.
     = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode,
              actions: pendientes.first(1).map { |e| { label: "Evaluar solo «#{e.idea.title.truncate(28)}»", purpose: "evaluate_idea", step_id: @step.id, idea_id: e.idea_id } }
@@ -195,10 +195,10 @@
               - if @step.active? && propia
                 %span.field-hint Es tu idea
               - elsif @step.active?
-                = link_to "Evaluar", new_challenge_step_assessment_path(@challenge, @step, idea_id: entry.idea_id), class: "btn btn--ghost btn--sm"
+                = link_to "Evaluar", new_challenge_step_assessment_path(@challenge, @step, idea_id: entry.idea_id), class: "btn btn-ghost btn-sm"
                 - if @step.effective_ai_mode != "human" && manda
                   = button_to "IA", challenge_ai_requests_path(@challenge, purpose: "evaluate_idea", step_id: @step.id, idea_id: entry.idea_id),
-                              class: "btn btn--ghost btn--sm", title: "Que la IA evalúe esta idea"
+                              class: "btn btn-ghost btn-sm", title: "Que la IA evalúe esta idea"
 
 - hechas = @step.assessments.current.submitted_ones.includes(:idea, :evaluator, :assessment_scores).to_a
 -# Idem: solo se ven las de las ideas que ya evaluaste.

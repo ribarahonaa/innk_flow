@@ -15,9 +15,9 @@
     = data["mode"] == "by_version" ? "· cada puntaje dice sobre qué versión se evaluó." : "· solo la versión vigente."
   .report-actions
     = button_to "Excel", challenge_step_reports_path(@challenge, @step, format_kind: "xlsx"),
-                params: { format: "xlsx", kind: "snapshot" }, class: "btn btn--ghost btn--sm"
+                params: { format: "xlsx", kind: "snapshot" }, class: "btn btn-ghost btn-sm"
     = button_to "PDF", challenge_step_reports_path(@challenge, @step),
-                params: { format: "pdf", kind: "snapshot" }, class: "btn btn--ghost btn--sm"
+                params: { format: "pdf", kind: "snapshot" }, class: "btn btn-ghost btn-sm"
     = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode,
              actions: [{ label: "Resumen narrativo", purpose: "summarize_challenge", step_id: @step.id }]
 
@@ -46,7 +46,7 @@
             %td.muted= report.generated_at ? l(report.generated_at, format: :short) : "—"
             %td
               - if report.ready? && report.file.attached?
-                = link_to "Descargar", rails_blob_path(report.file, disposition: "attachment"), class: "btn btn--ghost btn--sm"
+                = link_to "Descargar", rails_blob_path(report.file, disposition: "attachment"), class: "btn btn-ghost btn-sm"
 
 - if narrative
   .card.narrative-card

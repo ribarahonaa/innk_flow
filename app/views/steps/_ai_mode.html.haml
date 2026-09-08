@@ -15,7 +15,7 @@
                  Challenge::AI_MODES.map { |m| [t("flow.ai_modes.#{m}"), m] },
                  { include_blank: "Heredar del desafío (#{t("flow.ai_modes.#{step.challenge.ai_default_mode}")})" },
                  class: "ai-mode-form__select"
-      = f.submit "Cambiar", class: "btn btn--ghost btn--sm"
+      = f.submit "Cambiar", class: "btn btn-ghost btn-sm"
   %p.muted.field-hint= t("flow.ai_mode_descriptions.#{step.effective_ai_mode}")
   - if step.effective_ai_mode == "human"
     -# Qué se le puede pedir depende del módulo. Decía «en cada evaluación» en

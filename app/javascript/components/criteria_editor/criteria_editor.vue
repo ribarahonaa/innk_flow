@@ -55,10 +55,10 @@
       </ol>
 
       <div class="criteria-edit-actions">
-        <button type="button" class="btn btn--ghost btn--sm" @click="add">+ Agregar criterio</button>
+        <button type="button" class="btn btn-ghost btn-sm" @click="add">+ Agregar criterio</button>
         <template v-if="!rows.length">
-          <button type="button" class="btn btn--ghost btn--sm" @click="preset('scoring')">Puntuación clásica</button>
-          <button type="button" class="btn btn--ghost btn--sm" @click="preset('gate')">Filtros de admisibilidad</button>
+          <button type="button" class="btn btn-ghost btn-sm" @click="preset('scoring')">Puntuación clásica</button>
+          <button type="button" class="btn btn-ghost btn-sm" @click="preset('gate')">Filtros de admisibilidad</button>
         </template>
       </div>
     </div>
@@ -68,8 +68,8 @@
       <span v-else-if="dirty" class="muted">Sin guardar</span>
       <span v-else-if="saved" class="muted">Guardado</span>
       <span class="editor-actions__spacer"></span>
-      <a :href="urls.index" class="btn btn--ghost">Volver</a>
-      <button type="button" class="btn btn--primary" :disabled="saving" @click="save">
+      <a :href="urls.index" class="btn btn-ghost">Volver</a>
+      <button type="button" class="btn btn-primary" :disabled="saving" @click="save">
         {{ saving ? 'Guardando…' : 'Guardar set' }}
       </button>
     </div>

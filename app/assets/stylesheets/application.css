@@ -1,10 +1,72 @@
-/* Sin `preflight`: esa capa resetea estilos por default del navegador (por
-   ejemplo, el bold de los <h1>-<h6>) que esta hoja siempre asumió y nunca
-   declaró explícitos. Traerla ahora cambiaría el render sin que ninguna
-   vista se haya tocado, justo lo que esta tarea tiene que evitar. */
-@layer theme, base, components, utilities;
-@import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/utilities.css" layer(utilities);
+@import "tailwindcss";
+
+/* `card` queda AFUERA. Medido: el `.card` de DaisyUI no solo pinta —declara
+   `display: flex`, `flex-direction: column` y `position: relative`—, y esas
+   tres el `.card` de esta app nunca las declaró, así que no había conflicto
+   que ganar por orden de fuente: entraban igual. Con 101 usos eso convierte
+   cada tarjeta en una columna flex y a sus hijos en items (un enlace suelto
+   pasa de `inline` a `block` y se come el ancho entero). Y su
+   `.card > :is([type=checkbox],[type=radio]) { appearance: none }` haría
+   desaparecer una casilla que cuelgue directo de una tarjeta.
+   Excluirla es más honesto que taparla regla por regla: el `card` de DaisyUI
+   entra en el plan 2, cuando las pantallas se reescriban con `card-body`, y
+   ahí se saca esta línea. */
+@plugin "daisyui" {
+  themes: false;
+  exclude: card;
+}
+
+/* El tema arranca replicando la paleta actual, en oklch. El objetivo de esta
+   tarea sigue siendo que nada cambie en pantalla: el carácter nuevo entra en
+   la tarea 4, y entonces solo cambian estos valores. */
+@plugin "daisyui/theme" {
+  name: "flow";
+  default: true;
+  color-scheme: light;
+
+  --color-base-100: oklch(100% 0 0);          /* era --surface #ffffff */
+  --color-base-200: oklch(97.594% 0.0029 264.54); /* era --bg      #f6f7f9 */
+  --color-base-300: oklch(92.379% 0.0063 255.48); /* era --border  #e3e6ea */
+  --color-base-content: oklch(24.113% 0.0097 248.23); /* era --text #1c2024 */
+
+  --color-primary: oklch(54.615% 0.2152 262.88); /* era --accent  #2563eb */
+  --color-primary-content: oklch(100% 0 0);
+
+  --color-error: oklch(57.583% 0.2088 29.48);  /* era --danger  #d92d20 */
+  --color-success: oklch(62.205% 0.1627 151.05); /* era --ok    #12a150 */
+  --color-warning: oklch(72.851% 0.1503 79.09);  /* era --warn  #d99a06 */
+
+  --radius-box: 0.625rem;   /* era --radius 10px */
+  --radius-field: 0.5rem;   /* era el 8px de los campos y de .btn */
+  --radius-selector: 0.375rem;
+
+  /* Los tres escalares de DaisyUI. Un tema propio NO hereda los valores por
+     default de los temas que trae la librería: si no se declaran acá, no
+     existen, y los componentes que los leen SIN fallback se rompen callados.
+     Medido: sin `--border`, `border-width: var(--border)` queda inválido y
+     cae en `medium`, o sea 3px en todos los botones; sin `--depth`, el
+     `color-mix()` del borde queda inválido y `border-color` cae en
+     `currentColor`, o sea un borde blanco de 3px alrededor del botón
+     primario. `--depth: 0` y `--noise: 0` son el aspecto plano de hoy. */
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/* Dos cosas que DaisyUI pinta en `:root` y que acá no queremos todavía. Van
+   sin capa, así que le ganan a su `@layer base` sin depender del orden.
+
+   `--root-bg` es el fondo del <html>: DaisyUI lo pone en la superficie
+   (base-100, blanco) y en esta app el fondo de la página es `--bg`
+   (base-200). Sin esto, todo lo que quede debajo del contenido en una
+   pantalla corta se ve blanco.
+
+   La barra de scroll la sigue dibujando el sistema: la de DaisyUI es más
+   fina y teñida, y eso es carácter nuevo, que es la tarea 4. */
+:root {
+  --root-bg: var(--color-base-200);
+  scrollbar-color: auto;
+}
 
 /* Dónde buscar clases. Tailwind 4 descubre fuentes solo, saltando lo que
    ignora git, pero acá se declaran explícitas: si mañana alguien agrega un
@@ -14,20 +76,87 @@
 @source "../../helpers";
 @source "../../javascript";
 
-/* Chrome compartido. Sin framework CSS: la maqueta define sus propios tokens */
-/* y evita heredar la deuda de Bootstrap 3 que arrastra innk_r5. */
+/* ── Los defaults del navegador que esta hoja heredaba ───────────────────── */
+/* El Preflight de Tailwind borra lo que el navegador daba gratis: el bold y */
+/* el tamaño de los encabezados, el margen de los párrafos, las viñetas, la */
+/* fuente monoespaciada, el margen de los radios. Esta hoja nunca los declaró */
+/* —los heredaba—, así que traer el Preflight los apagaba de golpe. */
+/* */
+/* La respuesta no es sacar el Preflight: DaisyUI está construido asumiéndolo */
+/* y correr sin él es salirse del contrato de la librería. La respuesta es */
+/* declarar explícito lo que se heredaba. */
+/* */
+/* Cada regla de acá salió de comparar el estilo computado de los 5.556 */
+/* elementos de 27 pantallas, antes y después de traer el Preflight. Ninguna */
+/* se adivinó: el inventario completo está en el reporte de la tarea. */
+/* */
+/* Va ARRIBA de las reglas propias a propósito: es una capa de defaults, así */
+/* que cualquier regla de la hoja con la misma especificidad le gana. */
+h1, h2, h3, h4, h5, h6 { font-weight: bold; }
+h1 { font-size: 2em;    margin-block: .67em; }
+h2 { font-size: 1.5em;  margin-block: .83em; }
+h3 { font-size: 1.17em; margin-block: 1em; }
+h4 { font-size: 1em;    margin-block: 1.33em; }
+h5 { font-size: .83em;  margin-block: 1.67em; }
+h6 { font-size: .67em;  margin-block: 2.33em; }
+
+p { margin-block: 1em; }
+
+code, kbd, samp, pre { font-family: monospace; }
+
+/* Los radios se separan del texto de su opción con el margen del navegador: */
+/* sin esto las tarjetas de `/challenges/new` se corren 5px y el texto se */
+/* pega al control. Los campos de texto no hacen falta —la hoja ya les */
+/* declara `font: inherit`— y las casillas tampoco: las que hay ya tienen */
+/* margen propio. */
+input[type="radio"] { margin: 3px 3px 0 5px; }
+
+/* Chrome atenúa con `opacity: .7` un <select> deshabilitado, y el Preflight
+   se lo lleva puesto con su `opacity: 1`. Más abajo esta hoja declara que «lo
+   bloqueado tiene que PARECER bloqueado»: esto es la otra mitad de eso. Sin
+   la línea, los cuatro «Tipo de respuesta» del editor del formulario —que no
+   se pueden cambiar cuando ya hay ideas— se ven exactamente como los que sí. */
+select:disabled { opacity: .7; }
+
+/* La única lista de la app que dependía de la viñeta del navegador: todas */
+/* las demás declaran `list-style: none`. */
+.flash ul { list-style: disc; }
+
+/* El Preflight deja los enlaces sin subrayar. La app lo apaga explícitamente */
+/* en cada enlace que tiene clase propia —455 de 456 en la medición—, así que */
+/* el subrayado se restituye solo donde venía del navegador: el enlace pelado, */
+/* sin clase, que aparece suelto en medio de un texto. Un `<a class="btn">` */
+/* queda afuera, que es lo que hay que evitar. */
+a:not([class]) { text-decoration: underline; }
+
+/* Los tokens heredados dejan de tener valor propio y pasan a ser alias de los
+   de DaisyUI. Es lo que hace que un cambio de tema alcance a las 1.939 líneas
+   que todavía no se migraron —y que el modo oscuro las alcance también—.
+   Acá tiene que ser invisible: el tema replica la paleta de hoy, así que si
+   algo cambia de color, el alias está mal. */
 :root {
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --border: #e3e6ea;
-  --text: #1c2024;
+  --bg: var(--color-base-200);
+  --surface: var(--color-base-100);
+  /* `--borde` y no `--border`: DaisyUI usa `--border` para el ANCHO de los
+     bordes de todos sus componentes (`border-width: var(--border)`). Con el
+     nombre viejo, el color de esta app se colaba ahí y el ancho quedaba
+     inválido: los botones salían con 3px de borde —el `medium` por default—
+     en vez de 1px. Se ve en la medición, no leyendo el CSS. */
+  --borde: var(--color-base-300);
+  --text: var(--color-base-content);
+  --accent: var(--color-primary);
+  --danger: var(--color-error);
+  --ok: var(--color-success);
+  --warn: var(--color-warning);
+  --radius: var(--radius-box);
+
+  /* Estos dos NO se aliasan acá. `--muted` es un gris azulado sin equivalente
+     exacto en la paleta de DaisyUI, y `--accent-soft` es un tinte del acento
+     sobre blanco: derivarlos ahora movería el color y rompería el «diff
+     vacío», que es justo la prueba que este paso necesita. Se resuelven en la
+     tarea 4, donde cambiar de color es el objetivo. */
   --muted: #58627a;
-  --accent: #2563eb;
   --accent-soft: #eef4ff;
-  --danger: #d92d20;
-  --ok: #12a150;
-  --warn: #d99a06;
-  --radius: 10px;
   --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
 }
 
@@ -49,7 +178,7 @@ a { color: var(--accent); }
   padding: 0 24px;
   height: 56px;
   background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--borde);
 }
 
 .app-header__brand { font-weight: 650; letter-spacing: -.01em; }
@@ -68,7 +197,7 @@ a { color: var(--accent); }
 
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 20px;
@@ -77,7 +206,7 @@ a { color: var(--accent); }
 .flash {
   padding: 10px 14px;
   border-radius: var(--radius);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   background: var(--surface);
 }
 .flash--alert { border-color: #f2b8b5; background: #fef3f2; color: var(--danger); }
@@ -95,7 +224,7 @@ a { color: var(--accent); }
   width: 100%;
   max-width: 380px;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 32px;
@@ -107,7 +236,7 @@ a { color: var(--accent); }
 .auth-hint {
   margin-top: 20px;
   padding-top: 16px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--borde);
   color: var(--muted);
   font-size: 12px;
 }
@@ -119,7 +248,7 @@ input[type="text"], input[type="email"], input[type="password"],
 input[type="number"], input[type="date"], textarea, select {
   width: 100%;
   padding: 9px 11px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: 8px;
   background: var(--surface);
   color: var(--text);
@@ -133,25 +262,45 @@ input:focus, textarea:focus, select:focus {
 }
 
 /* ── Buttons ────────────────────────────────────────────────────────────── */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 9px 16px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  font: inherit;
-  font-weight: 550;
-  cursor: pointer;
-  text-decoration: none;
-}
+/* Tres clases de esta app colisionan con DaisyUI —medido por intersección de
+   conjuntos sobre el paquete entero, 722 clases contra 406—: `btn`, `card` y
+   `btn-link`.
 
-.btn--primary { background: var(--accent); color: #fff; }
-.btn--primary:hover { background: #1d4ed8; }
-.btn--ghost { background: var(--surface); border-color: var(--border); color: var(--text); }
-.btn--ghost:hover { background: var(--accent-soft); border-color: var(--accent); }
-.btn--block { width: 100%; }
+   `btn` se migró: es autocontenida y el mapeo es directo. Las reglas propias
+   se borraron y las de DaisyUI toman su lugar.
+
+   `card` NO se migró, y no alcanzaba con dejarla después del @plugin: se
+   excluye del plugin, arriba, con la medición que lo justifica.
+
+   `btn-link` tampoco: el de DaisyUI es una variante de botón con la altura de
+   `btn`, y el de acá es una acción en medio de una frase, sin padding ni
+   borde. Esa sí gana por no estar en ninguna capa —el CSS sin capa le gana a
+   `@layer`— y lo único que DaisyUI le agrega es un `background-image: none`
+   que no cambia nada. Se migra en el plan 2, pantalla por pantalla. */
+
+/* Un `<a class="btn">` se pintaba con el color de los enlaces —azul sobre
+   azul, texto ilegible— porque `a { color: var(--accent) }` no está en
+   ninguna capa y el `.btn` de DaisyUI sí: el CSS sin capa le gana a `@layer`
+   sin importar la especificidad. Se re-declara acá, con la misma variable
+   que usa el componente, para que el que gane sea el botón. */
+.btn { color: var(--btn-fg); }
+
+/* El `btn--ghost` de esta app no era un botón fantasma: era el secundario
+   —superficie blanca, borde gris—, y son 58 usos. El `btn-ghost` de DaisyUI
+   es transparente y sin borde, así que el mapeo directo los dejaba a todos
+   sin fondo ni contorno: el cambio visual más grande que esta tarea podía
+   introducir, y justo lo que no puede hacer. Se re-declara con las variables
+   del propio componente, así que sigue al tema como cualquier otro botón. */
+.btn-ghost {
+  --btn-bg: var(--color-base-100);
+  --btn-fg: var(--color-base-content);
+  --btn-border: var(--color-base-300);
+  color: var(--btn-fg);
+}
+.btn-ghost:hover {
+  --btn-bg: var(--accent-soft);
+  --btn-border: var(--color-primary);
+}
 
 .company-list { list-style: none; padding: 0; display: grid; gap: 10px; }
 .muted { color: var(--muted); }
@@ -238,11 +387,11 @@ input:focus, textarea:focus, select:focus {
 
 /* Mapa compacto del pipeline */
 .flow-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
-.flow-strip__arrow { color: var(--border); }
+.flow-strip__arrow { color: var(--borde); }
 .flow-strip__node {
   padding: 3px 9px;
   border-radius: 6px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   background: var(--bg);
   font-size: 11px;
   color: var(--muted);
@@ -258,7 +407,7 @@ input:focus, textarea:focus, select:focus {
   gap: 10px;
   align-items: flex-start;
   padding: 11px 13px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: 8px;
   cursor: pointer;
   font-weight: 400;
@@ -275,16 +424,16 @@ input:focus, textarea:focus, select:focus {
 .step-table th {
   text-align: left;
   padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--borde);
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: .05em;
   color: var(--muted);
 }
-.step-table td { padding: 10px; border-bottom: 1px solid var(--border); }
+.step-table td { padding: 10px; border-bottom: 1px solid var(--borde); }
 /* Lo ya ejecutado se marca en gris: si compite con el acento, el módulo en */
 /* curso deja de destacarse y la tabla queda con un riel azul de punta a punta. */
-.step-table tr.is-touched td:first-child { border-left: 2px solid var(--border); }
+.step-table tr.is-touched td:first-child { border-left: 2px solid var(--borde); }
 
 /* ── Builder ────────────────────────────────────────────────────────────── */
 .builder {
@@ -336,7 +485,7 @@ input:focus, textarea:focus, select:focus {
   gap: 12px;
   padding: 14px 18px;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
@@ -356,7 +505,7 @@ input:focus, textarea:focus, select:focus {
   padding: 10px 12px;
   margin-bottom: 8px;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: 8px;
   cursor: pointer;
   font: inherit;
@@ -383,7 +532,7 @@ input:focus, textarea:focus, select:focus {
   gap: 11px;
   padding: 12px 14px;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: var(--radius);
   cursor: pointer;
 }
@@ -394,9 +543,9 @@ input:focus, textarea:focus, select:focus {
 /* Módulo ya ejecutado: se ve distinto y no ofrece handle. La restricción se */
 /* muestra, no solo se rechaza al guardar. */
 .step-card--locked { background: var(--bg); color: var(--muted); cursor: default; }
-.step-card--locked:hover { border-color: var(--border); }
+.step-card--locked:hover { border-color: var(--borde); }
 
-.step-card__handle { color: var(--border); cursor: grab; user-select: none; }
+.step-card__handle { color: var(--borde); cursor: grab; user-select: none; }
 .step-card__handle.is-hidden { visibility: hidden; cursor: default; }
 .step-card__index { width: 20px; color: var(--muted); font-size: 12px; text-align: center; }
 .step-card__body { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -456,7 +605,7 @@ input:focus, textarea:focus, select:focus {
   display: flex;
   justify-content: space-between;
   padding: 9px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: 8px;
   font-size: 13px;
 }
@@ -470,7 +619,7 @@ input:focus, textarea:focus, select:focus {
   align-items: center;
   gap: 12px;
   padding: 11px 13px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: 8px;
 }
 .idea-list__item:hover { border-color: var(--accent); }
@@ -482,7 +631,7 @@ input:focus, textarea:focus, select:focus {
   padding: 1px 7px;
   border-radius: 99px;
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   font-size: 11px;
   font-family: ui-monospace, monospace;
   color: var(--muted);
@@ -505,7 +654,7 @@ input:focus, textarea:focus, select:focus {
 .answer-list dd { margin: 4px 0 0; white-space: pre-line; }
 .answer-list dd.is-empty { color: var(--muted); }
 
-.version-timeline { list-style: none; margin: 0; padding: 0 0 0 16px; border-left: 2px solid var(--border); display: grid; gap: 16px; }
+.version-timeline { list-style: none; margin: 0; padding: 0 0 0 16px; border-left: 2px solid var(--borde); display: grid; gap: 16px; }
 .version-timeline__item { position: relative; font-size: 12.5px; }
 .version-timeline__item::before {
   content: "";
@@ -515,7 +664,7 @@ input:focus, textarea:focus, select:focus {
   width: 8px;
   height: 8px;
   border-radius: 99px;
-  background: var(--border);
+  background: var(--borde);
 }
 .version-timeline__item.is-current::before { background: var(--accent); }
 .version-timeline__head { display: flex; align-items: center; gap: 8px; }
@@ -526,7 +675,7 @@ input:focus, textarea:focus, select:focus {
 /* ── Diff ───────────────────────────────────────────────────────────────── */
 .diff-picker { display: flex; align-items: flex-end; gap: 12px; }
 .diff-picker .field { margin: 0; flex: 1; }
-.diff-row { padding: 16px 0; border-bottom: 1px solid var(--border); }
+.diff-row { padding: 16px 0; border-bottom: 1px solid var(--borde); }
 .diff-row:last-child { border-bottom: 0; }
 .diff-row__label { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 14px; }
 .diff-kind { padding: 1px 8px; border-radius: 99px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
@@ -534,7 +683,7 @@ input:focus, textarea:focus, select:focus {
 .diff-kind--removed { background: #fef3f2; color: var(--danger); }
 .diff-kind--changed { background: var(--accent-soft); color: var(--accent); }
 .diff-row__panes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.diff-pane { padding: 11px 13px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
+.diff-pane { padding: 11px 13px; border: 1px solid var(--borde); border-radius: 8px; background: var(--bg); }
 .diff-pane__tag { font-size: 10px; font-family: ui-monospace, monospace; color: var(--muted); }
 .diff-pane p { margin: 5px 0 0; white-space: pre-line; }
 .diff-pane--from { border-left: 3px solid #f2b8b5; }
@@ -560,7 +709,6 @@ input:focus, textarea:focus, select:focus {
   border-radius: 8px;
   background: #faf7ff;
 }
-.btn--sm { padding: 5px 11px; font-size: 12.5px; }
 .link-button {
   background: none;
   border: 0;
@@ -595,7 +743,7 @@ input:focus, textarea:focus, select:focus {
   gap: 3px;
   padding: 16px 18px;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: var(--radius);
 }
 .stat-card__value { font-size: 24px; font-weight: 650; letter-spacing: -.02em; }
@@ -630,14 +778,14 @@ input:focus, textarea:focus, select:focus {
   padding: 1px 6px;
   border-radius: 4px;
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   font-size: 11px;
   color: var(--muted);
 }
 
 .criterion-field {
   padding: 16px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--borde);
 }
 .criterion-field:last-of-type { border-bottom: 0; }
 .criterion-field__head { display: flex; align-items: center; justify-content: space-between; }
@@ -646,7 +794,7 @@ input:focus, textarea:focus, select:focus {
   padding: 1px 8px;
   border-radius: 99px;
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   font-size: 11px;
   color: var(--muted);
 }
@@ -660,7 +808,7 @@ input:focus, textarea:focus, select:focus {
   place-items: center;
   width: 38px;
   height: 38px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: 8px;
   background: var(--surface);
   font-size: 13px;
@@ -676,7 +824,7 @@ input:focus, textarea:focus, select:focus {
   align-items: center;
   gap: 9px;
   padding: 9px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: 8px;
   margin: 0;
   cursor: pointer;
@@ -692,7 +840,7 @@ input:focus, textarea:focus, select:focus {
 .criteria-editor { display: grid; gap: 12px; margin-bottom: 20px; }
 .criterion-row {
   padding: 14px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: var(--radius);
   background: var(--bg);
 }
@@ -750,7 +898,7 @@ input:focus, textarea:focus, select:focus {
 .feedback-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
 .feedback-item {
   padding: 10px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-left-width: 3px;
   border-radius: 8px;
   background: var(--surface);
@@ -873,14 +1021,14 @@ input:focus, textarea:focus, select:focus {
 .gate { display: inline-block; font-weight: 700; font-size: 14px; }
 .gate--pass { color: var(--ok); }
 .gate--fail { color: var(--danger); }
-.gate--pending { color: var(--border); }
+.gate--pending { color: var(--borde); }
 
 .gate-verdict { display: inline-flex; gap: 3px; }
 .gate-verdict__btn {
   width: 26px;
   height: 26px;
   padding: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: 6px;
   background: var(--surface);
   font-size: 12px;
@@ -911,7 +1059,7 @@ input:focus, textarea:focus, select:focus {
   padding: 0 5px;
   border-radius: 99px;
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   font-size: 10px;
   font-weight: 700;
   color: var(--muted);
@@ -919,14 +1067,14 @@ input:focus, textarea:focus, select:focus {
 }
 .evaluator-chip--ai { background: #f3ecfd; border-color: #ddd0f7; color: #7c3aed; }
 
-.assessment-group { padding: 14px 0; border-bottom: 1px solid var(--border); }
+.assessment-group { padding: 14px 0; border-bottom: 1px solid var(--borde); }
 .assessment-group:last-child { border-bottom: 0; }
 .assessment-group__title { margin: 0 0 10px; font-size: 14px; }
 
 .assessment-detail {
   padding: 11px 13px;
   margin-bottom: 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-left-width: 3px;
   border-radius: 8px;
   background: var(--surface);
@@ -994,7 +1142,7 @@ input:focus, textarea:focus, select:focus {
 .ai-mode-form__select { width: auto; min-width: 210px; font-size: 12.5px; padding: 6px 9px; }
 
 /* ── Panel de configuración de un módulo ────────────────────────────────── */
-.config-rule { border: 0; border-top: 1px solid var(--border); margin: 18px 0; }
+.config-rule { border: 0; border-top: 1px solid var(--borde); margin: 18px 0; }
 .config-locked {
   padding: 9px 11px;
   background: #fdf6e9;
@@ -1002,7 +1150,7 @@ input:focus, textarea:focus, select:focus {
   border-radius: 7px;
   margin: 0 0 16px;
 }
-.config-advanced { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px; }
+.config-advanced { margin-top: 16px; border-top: 1px solid var(--borde); padding-top: 14px; }
 .config-advanced summary {
   cursor: pointer;
   font-size: 12px;
@@ -1056,7 +1204,7 @@ textarea:disabled {
   gap: .75rem;
   padding: .85rem 1rem;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: var(--radius);
 }
 
@@ -1146,7 +1294,7 @@ textarea:disabled {
 
 .criterion-edit {
   padding: 14px 16px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: var(--radius);
   background: var(--bg);
 }
@@ -1203,7 +1351,7 @@ textarea:disabled {
   gap: 12px;
   margin-top: 12px;
   padding-top: 10px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--borde);
 }
 
 .criterion-edit__desc { flex: 1 1 auto; min-width: 0; width: auto; font-size: 12.5px; }
@@ -1299,7 +1447,7 @@ textarea:disabled {
   padding: 14px 18px;
   margin-top: 16px;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   position: sticky;
@@ -1322,7 +1470,7 @@ textarea:disabled {
   gap: 8px;
   align-items: flex-start;
   padding: 14px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: var(--radius);
   background: var(--bg);
 
@@ -1382,7 +1530,7 @@ textarea:disabled {
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: 8px;
   font-size: 13px;
 }
@@ -1450,7 +1598,7 @@ textarea:disabled {
 
 .notification {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-left-width: 3px;
   border-radius: var(--radius);
 }
@@ -1535,7 +1683,7 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   padding: 1px 8px;
   border-radius: 99px;
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   color: var(--muted);
   font-size: 11px;
   letter-spacing: 0;
@@ -1560,7 +1708,7 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   align-items: center;
   gap: 9px;
   padding: 10px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: var(--radius);
   background: var(--surface);
   text-decoration: none;
@@ -1577,7 +1725,7 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   height: 22px;
   border-radius: 99px;
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   color: var(--muted);
   font-size: 11px;
   font-weight: 700;
@@ -1619,7 +1767,7 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   padding: 14px 18px;
   margin-top: 20px;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
@@ -1633,7 +1781,7 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   cursor: default;
   opacity: .55;
 
-  &:hover { border-color: var(--border); }
+  &:hover { border-color: var(--borde); }
 }
 
 /* ── Índice de módulos que puntúan o filtran ───────────────────────────────── */
@@ -1642,7 +1790,7 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
 .scorer {
   padding: 16px 18px;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: var(--radius);
 }
 
@@ -1663,7 +1811,7 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   padding: 1px 8px;
   border-radius: 99px;
   background: var(--bg);
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   font-size: 11px;
   color: var(--muted);
 }
@@ -1699,7 +1847,7 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   align-items: center;
   gap: 12px;
   padding: 9px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-left-width: 3px;
   border-radius: 8px;
   font-size: 13px;
@@ -1731,7 +1879,7 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   align-items: center;
   gap: 12px;
   padding: 9px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: 8px;
   font-size: 13px;
 }
@@ -1745,7 +1893,7 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   display: inline-block;
   margin-left: 6px;
   padding: 1px 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--borde);
   border-radius: 99px;
   font-size: 10px;
   font-weight: 600;
@@ -1786,7 +1934,7 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   gap: 8px;
   margin-top: 14px;
   padding-top: 14px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--borde);
 }
 
 /* Dónde está parado el flujo: la fila en curso, y no todas las tocadas. */
@@ -1880,7 +2028,7 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
 .decision-batch + .decision-batch {
   margin-top: 18px;
   padding-top: 16px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--borde);
 }
 .decision-batch__head { margin: 0 0 4px; font-size: 13px; }
 .decision-batch__reason { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
@@ -1888,7 +2036,6 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
 .decision-batch__list li { display: flex; align-items: center; gap: 8px; font-size: 14px; }
 
 /* Repescar vive en la fila de su idea. */
-.btn--xs { padding: 1px 8px; font-size: 11px; }
 .ranking-table__reinstate { display: inline-block; margin-left: 8px; vertical-align: middle; }
 .ranking-table__reinstate form { display: inline; }
 
@@ -1923,7 +2070,7 @@ turbo-frame#ai-suggestions { display: contents; }
   text-decoration: none;
   color: inherit;
 
-  &:hover { border-color: var(--border); background: var(--bg); }
+  &:hover { border-color: var(--borde); background: var(--bg); }
 }
 .demo-account.is-current .demo-account__fill { border-color: var(--accent); background: var(--accent-soft); }
 .demo-account__email { font-size: 12.5px; color: var(--text); }

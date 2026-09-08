@@ -31,7 +31,7 @@
     = form_with url: challenge_gestores_path(challenge), method: :post, class: "people-form" do
       = select_tag :user_id, options_from_collection_for_select(candidatos, :id, :name),
                    include_blank: "Elegí a quién sumar"
-      = submit_tag "Sumar", class: "btn btn--ghost btn--sm"
+      = submit_tag "Sumar", class: "btn btn-ghost btn-sm"
   - else
     %p.field-hint
       - if asignados.any?

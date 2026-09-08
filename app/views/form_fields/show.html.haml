@@ -25,7 +25,7 @@
     %h2.section-title Todavía no hay campos
     %p.muted Sin formulario nadie puede postular. Empezá con los básicos, pedile una propuesta a la IA, o armalo a mano.
     .report-actions
-      = button_to "Usar los tres básicos", seed_defaults_challenge_form_path(@challenge), class: "btn btn--primary btn--sm"
+      = button_to "Usar los tres básicos", seed_defaults_challenge_form_path(@challenge), class: "btn btn-primary btn-sm"
       = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode, always: true,
                actions: [{ label: "Proponer campos con IA", purpose: "suggest_form_fields", step_id: @step.id }]
 - else

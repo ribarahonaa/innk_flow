@@ -5,8 +5,8 @@
     %h1.page-title= @challenge.name
     %p.muted Arrastrá los módulos para armar el flujo.
   .page-head__actions
-    = link_to "Previsualizar", challenge_preview_path(@challenge), class: "btn btn--ghost"
-    = link_to "Ver desafío", challenge_path(@challenge), class: "btn btn--ghost"
+    = link_to "Previsualizar", challenge_preview_path(@challenge), class: "btn btn-ghost"
+    = link_to "Ver desafío", challenge_path(@challenge), class: "btn btn-ghost"
 
 -# Solo en borrador: «Configurar el desafío · 5 de 6» sobre un desafío que
 -# lleva semanas corriendo no es una guía, es ruido — y marca como pendiente
@@ -29,7 +29,7 @@
           = render "challenges/template_outline", template: template
           %p.muted= template[:description]
           = button_to "Usar esta", apply_template_challenge_path(@challenge, template: template[:key]),
-                      class: "btn btn--ghost btn--sm"
+                      class: "btn btn-ghost btn-sm"
 
 -# Asistencia para ARMAR el flujo. Disponible cualquiera sea el modo del
 -# desafío: elegir "solo personas" define cómo se trabaja dentro de cada

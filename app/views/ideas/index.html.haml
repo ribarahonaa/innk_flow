@@ -6,7 +6,7 @@
     %p.muted= "#{@alive.size} en carrera · #{@eliminated.size} no avanzaron"
   - ideacion = @challenge.pipeline.ideation_step
   - if ideacion&.active?
-    = link_to "Postular una idea", new_challenge_idea_path(@challenge), class: "btn btn--primary"
+    = link_to "Postular una idea", new_challenge_idea_path(@challenge), class: "btn btn-primary"
   - elsif ideacion&.touched?
     -# Sin esto la pantalla simplemente no ofrece postular y no se sabe si es
     -# un permiso que falta, un error, o que la etapa ya cerró.

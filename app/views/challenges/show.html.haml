@@ -9,12 +9,12 @@
   .page-head__actions
     -# Con el desafío en curso, lo que se viene a hacer acá es mirar las ideas.
     = link_to "Ideas", challenge_ideas_path(@challenge),
-              class: ["btn", (@challenge.draft? ? "btn--ghost" : "btn--primary")]
+              class: ["btn", (@challenge.draft? ? "btn-ghost" : "btn-primary")]
     - if policy(@challenge).builder?
-      = link_to "Previsualizar", challenge_preview_path(@challenge), class: "btn btn--ghost"
-      = link_to "Editar flujo", builder_challenge_path(@challenge), class: "btn btn--ghost"
+      = link_to "Previsualizar", challenge_preview_path(@challenge), class: "btn btn-ghost"
+      = link_to "Editar flujo", builder_challenge_path(@challenge), class: "btn btn-ghost"
     - if policy(@challenge).start?
-      = button_to "Arrancar", start_challenge_path(@challenge), class: "btn btn--primary"
+      = button_to "Arrancar", start_challenge_path(@challenge), class: "btn btn-primary"
 
 -# En borrador la ficha del desafío es el punto de partida: ahí va el camino.
 - if @challenge.draft? && policy(@challenge).builder?

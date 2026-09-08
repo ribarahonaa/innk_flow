@@ -112,10 +112,10 @@
       <span v-if="dirty" class="muted">Hay cambios sin guardar.</span>
       <span v-else-if="savedAt" class="muted">Guardado.</span>
       <span class="builder__spacer"></span>
-      <button type="button" class="btn btn--ghost" :disabled="saving" @click="save">
+      <button type="button" class="btn btn-ghost" :disabled="saving" @click="save">
         {{ saving ? 'Guardando…' : 'Guardar flujo' }}
       </button>
-      <a v-if="localPermissions.canStart && !dirty && localValidation.valid" class="btn btn--primary" :href="urls.show">
+      <a v-if="localPermissions.canStart && !dirty && localValidation.valid" class="btn btn-primary" :href="urls.show">
         Ir al desafío
       </a>
     </footer>

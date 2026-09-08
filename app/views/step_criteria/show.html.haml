@@ -36,12 +36,12 @@
       .report-actions
         - if @step.criteria_set
           = button_to "Copiar ese set y hacerlo propio", challenge_step_criteria_path(@challenge, @step, from: "library"),
-                      class: "btn btn--primary btn--sm"
+                      class: "btn btn-primary btn-sm"
         - else
           = button_to "Usar los tres genéricos y editarlos", challenge_step_criteria_path(@challenge, @step, from: "defaults"),
-                      class: "btn btn--primary btn--sm"
+                      class: "btn btn-primary btn-sm"
         = button_to "Empezar en blanco", challenge_step_criteria_path(@challenge, @step, from: "blank"),
-                    class: "btn btn--ghost btn--sm"
+                    class: "btn btn-ghost btn-sm"
         = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode, always: true,
                  actions: [{ label: "Proponer criterios con IA", purpose: "suggest_criteria", step_id: @step.id }]
 - else

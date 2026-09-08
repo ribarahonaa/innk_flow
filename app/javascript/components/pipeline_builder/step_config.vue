@@ -41,7 +41,7 @@
           </p>
         </template>
 
-        <a :href="step.form.editUrl" class="btn btn--ghost btn--sm">
+        <a :href="step.form.editUrl" class="btn btn-ghost btn-sm">
           {{ step.form.count ? 'Editar el formulario' : 'Definir el formulario' }}
         </a>
       </div>
@@ -79,7 +79,7 @@
           </p>
         </template>
 
-        <a :href="step.criteria.editUrl" class="btn btn--ghost btn--sm">
+        <a :href="step.criteria.editUrl" class="btn btn-ghost btn-sm">
           {{ step.criteria.own ? 'Editar los criterios' : 'Definir criterios propios de este módulo' }}
         </a>
       </div>

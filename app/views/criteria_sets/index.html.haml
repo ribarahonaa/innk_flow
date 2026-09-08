@@ -3,13 +3,13 @@
   %div
     %h1.page-title Sets de criterios
     %p.muted Plantillas reusables. Al activar un módulo de evaluación, sus criterios quedan congelados ahí.
-  = link_to "Nuevo set", new_criteria_set_path, class: "btn btn--primary"
+  = link_to "Nuevo set", new_criteria_set_path, class: "btn btn-primary"
 
 - if @sets.empty?
   .card.empty-state
     %h2 Todavía no hay sets
     %p.muted Un set define con qué criterios y qué pesos se puntúan las ideas.
-    = link_to "Crear el primero", new_criteria_set_path, class: "btn btn--primary"
+    = link_to "Crear el primero", new_criteria_set_path, class: "btn btn-primary"
 - else
   .challenge-grid
     - @sets.each do |set|
@@ -30,4 +30,4 @@
                 = criterion.name
                 %span{ class: chip_de_origen(criterion.source) }= t("flow.criterion_sources.#{criterion.source}")
               %span.field-list__type= "#{(criterion.weight.to_f * 100).round}%"
-        = link_to "Editar", edit_criteria_set_path(set), class: "btn btn--ghost btn--block"
+        = link_to "Editar", edit_criteria_set_path(set), class: "btn btn-ghost btn-block"

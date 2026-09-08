@@ -51,7 +51,7 @@
           - if @step.active? && policy(entry.idea).update?
             = link_to "Responder editando la idea",
                       edit_challenge_idea_path(@challenge, entry.idea),
-                      class: "btn btn--primary btn--sm"
+                      class: "btn btn-primary btn-sm"
 
       - if items.any?
         %ul.feedback-list
@@ -67,4 +67,4 @@
         = form_with url: challenge_step_feedback_items_path(@challenge, @step, idea_id: entry.idea_id), method: :post, class: "feedback-form" do
           = select_tag :kind, options_for_select(FeedbackItem::KINDS.map { |k| [t("flow.feedback_kinds.#{k}"), k] }), class: "feedback-form__kind"
           = text_field_tag :body, nil, placeholder: "Qué le falta o qué mejorarías", required: true
-          = submit_tag "Comentar", class: "btn btn--ghost btn--sm"
+          = submit_tag "Comentar", class: "btn btn-ghost btn-sm"

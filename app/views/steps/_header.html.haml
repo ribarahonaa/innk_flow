@@ -13,6 +13,6 @@
     - ready, reasons = handler.can_complete?
     - if policy(step).advance? && step.active?
       - if ready
-        = button_to "Cerrar módulo y avanzar", advance_challenge_step_path(step.challenge, step), class: "btn btn--primary"
+        = button_to "Cerrar módulo y avanzar", advance_challenge_step_path(step.challenge, step), class: "btn btn-primary"
       - else
         %span.muted{ title: reasons.join(" ") }= reasons.first

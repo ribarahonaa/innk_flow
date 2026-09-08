@@ -17,7 +17,7 @@
       <button type="button" class="levels__remove" :disabled="disabled" @click="value.splice(index, 1)">×</button>
     </div>
 
-    <button type="button" class="btn btn--ghost btn--sm" :disabled="disabled" @click="add">+ Agregar nivel</button>
+    <button type="button" class="btn btn-ghost btn-sm" :disabled="disabled" @click="add">+ Agregar nivel</button>
   </div>
 </template>
 

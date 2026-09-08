@@ -4,7 +4,7 @@
     %h1.page-title Avisos
     %p.muted Lo que pasó mientras no estabas mirando.
   - if @unread.positive?
-    = button_to "Marcar todo como leído", read_all_notifications_path, class: "btn btn--ghost"
+    = button_to "Marcar todo como leído", read_all_notifications_path, class: "btn btn-ghost"
 
 - if @notifications.empty?
   .card.empty-state

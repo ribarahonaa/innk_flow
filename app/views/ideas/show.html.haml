@@ -21,9 +21,9 @@
         %span.status-chip.status-chip--pending Borrador
   .page-head__actions
     - if policy(@idea).update?
-      = link_to "Editar", edit_challenge_idea_path(@challenge, @idea), class: "btn btn--ghost"
+      = link_to "Editar", edit_challenge_idea_path(@challenge, @idea), class: "btn btn-ghost"
     - if @idea.submitted_at.nil? && policy(@idea).submit?
-      = button_to "Postular", submit_challenge_idea_path(@challenge, @idea), class: "btn btn--primary"
+      = button_to "Postular", submit_challenge_idea_path(@challenge, @idea), class: "btn btn-primary"
 
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 
@@ -150,4 +150,4 @@
       - if @versions.size > 1
         = link_to "Ver cambios entre versiones",
                   diff_challenge_idea_path(@challenge, @idea, a: @versions.first.id, b: @versions.last.id),
-                  class: "btn btn--ghost btn--block"
+                  class: "btn btn-ghost btn-block"

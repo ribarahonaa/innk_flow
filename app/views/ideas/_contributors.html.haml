@@ -26,6 +26,6 @@
         = select_tag :user_id, options_from_collection_for_select(candidates, :id, :name),
                      include_blank: "Elegí a alguien"
         = select_tag :role, options_for_select(IdeaContributor::ROLES.map { |r| [t("flow.contributor_roles.#{r}"), r] })
-        = submit_tag "Sumar", class: "btn btn--ghost btn--sm"
+        = submit_tag "Sumar", class: "btn btn-ghost btn-sm"
     - else
       %p.field-hint Ya está todo el equipo de la empresa en esta idea.

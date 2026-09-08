@@ -16,7 +16,7 @@
   .section-head
     %h2.section-title Cómo se decide
     - if @step.criteria_set && policy(@challenge).update_pipeline?
-      = link_to "Editar el set", edit_criteria_set_path(@step.criteria_set), class: "btn btn--ghost btn--sm"
+      = link_to "Editar el set", edit_criteria_set_path(@step.criteria_set), class: "btn btn-ghost btn-sm"
 
   - if gates.any?
     %p.field-hint
@@ -132,7 +132,7 @@
             -# que repetía estas mismas filas solo para colgarle el botón.
             - if fuera_aca.key?(row.idea.id) && policy(@step).advance?
               = button_to "Repescar", reinstate_challenge_step_selection_path(@challenge, @step, idea_id: row.idea.id),
-                          class: "btn btn--ghost btn--xs ranking-table__reinstate",
+                          class: "btn btn-ghost btn-xs ranking-table__reinstate",
                           form: { data: { turbo_confirm: "¿Devolver «#{row.idea.title.truncate(40)}» al módulo activo?" } }
           %td
             - if row.scored?
@@ -198,7 +198,7 @@
         = label_tag :reason, "Motivo del corte (queda en el registro)"
         = text_field_tag :reason, nil, placeholder: "El comité priorizó impacto sobre esfuerzo"
       .form-actions
-        = submit_tag "Confirmar corte", class: "btn btn--primary"
+        = submit_tag "Confirmar corte", class: "btn btn-primary"
 
 - decisions = SelectionDecision.where(challenge_step_id: @step.id).latest_first.includes(:idea, :decided_by).limit(30)
 - if decisions.any?

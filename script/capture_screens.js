@@ -120,6 +120,32 @@ async function revisarRitmo(page, name) {
   }
 }
 
+// Una clase que Tailwind no vio al escanear existe en el HTML y no tiene
+// ninguna regla detrás: en el DOM se ve perfecta y en pantalla no se ve nada.
+// Ninguna otra prueba lo atrapa — ni un request spec, que solo mira el body.
+//
+// Se detecta por el estilo COMPUTADO: un badge sin fondo, un botón sin
+// padding, son clases que no llegaron a la hoja.
+async function revisarClasesDescartadas(page, name) {
+  const huerfanas = await page.evaluate(() => {
+    const sospechosas = [];
+    for (const el of document.querySelectorAll('[class*="badge"],[class*="btn"],[class*="alert"],.steps,.card')) {
+      const cs = getComputedStyle(el);
+      const sinFondo = cs.backgroundColor === 'rgba(0, 0, 0, 0)' || cs.backgroundColor === 'transparent';
+      const sinRelleno = parseFloat(cs.paddingLeft) === 0 && parseFloat(cs.paddingTop) === 0;
+      if (sinFondo && sinRelleno && parseFloat(cs.borderTopWidth) === 0) {
+        sospechosas.push(el.className);
+      }
+    }
+    return [...new Set(sospechosas)].slice(0, 6);
+  });
+
+  if (huerfanas.length) {
+    failures++;
+    console.error(`[CLASES] ${name} tiene clases sin ninguna regla detrás: ${JSON.stringify(huerfanas)}`);
+  }
+}
+
 async function shot(page, name, url, prepare) {
   await page.goto(BASE + url, { waitUntil: 'networkidle' });
   if (prepare) await prepare(page);
@@ -203,6 +229,7 @@ async function shot(page, name, url, prepare) {
   await shot(page, '03c-paso-a-paso', '/challenges/sin-formulario/form');
   await shot(page, '03d-criterios-indice', '/challenges/sin-formulario/criteria');
   await shot(page, '04-challenge', `/challenges/${CHALLENGE}`);
+  await revisarClasesDescartadas(page, '04-challenge');
 
   // El builder es una isla Vue, y se llega NAVEGANDO POR EL LINK, no con un
   // goto directo.
@@ -345,7 +372,9 @@ async function shot(page, name, url, prepare) {
   }
 
   for (const [index, link] of stepLinks.entries()) {
-    await shot(page, `09-${index + 1}-step-${link.text.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, link.href);
+    const nombre = `09-${index + 1}-step-${link.text.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    await shot(page, nombre, link.href);
+    if (nombre.startsWith('09-3-')) await revisarClasesDescartadas(page, nombre);
 
     // El modo de IA se ajusta desde el módulo, sin volver al builder. La
     // selección era el único de los cinco que no lo ofrecía, y es donde más
@@ -492,6 +521,7 @@ async function shot(page, name, url, prepare) {
     console.error('[LINK] la biblioteca de criterios no ofrece editar un set');
   }
   await shot(page, '11-ai-runs', '/admin/ai_runs');
+  await revisarClasesDescartadas(page, '11-ai-runs');
 
   await browser.close();
 

@@ -30,9 +30,9 @@
         = label_tag "count_#{action[:purpose]}", "Cuántas", class: "ai-actions__label"
         = select_tag :count, options_for_select(action[:count_options], action[:count]),
                      id: "count_#{action[:purpose]}", class: "ai-actions__count"
-        = submit_tag action[:label], class: "btn btn--ghost btn--sm"
+        = submit_tag action[:label], class: "btn btn-ghost btn-sm"
     - else
       = button_to action[:label],
                   challenge_ai_requests_path(challenge, purpose: action[:purpose], step_id: action[:step_id], idea_id: action[:idea_id], field_key: action[:field_key], count: action[:count]),
-                  class: "btn btn--ghost btn--sm",
+                  class: "btn btn-ghost btn-sm",
                   form: { data: { turbo_frame: marco } }

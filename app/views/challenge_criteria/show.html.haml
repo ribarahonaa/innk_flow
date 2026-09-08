@@ -52,7 +52,7 @@
           - else
             = link_to (set ? "Editar los criterios" : "Definir los criterios"),
                       challenge_step_criteria_path(@challenge, step),
-                      class: ["btn", (set ? "btn--ghost" : "btn--primary"), "btn--sm"]
+                      class: ["btn", (set ? "btn-ghost" : "btn-primary"), "btn-sm"]
 
 - if @challenge.draft? && policy(@challenge).builder?
   = render "shared/setup_nav", challenge: @challenge, current: :criteria

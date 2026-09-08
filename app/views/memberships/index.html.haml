@@ -10,7 +10,7 @@
     = email_field_tag :email, nil, placeholder: "email@empresa.com", required: true
     = text_field_tag :name, nil, placeholder: "Nombre (opcional)"
     = select_tag :role, options_for_select(Membership::ROLES.map { |r| [t("flow.roles.#{r}"), r] }, "participant")
-    = submit_tag "Sumar", class: "btn btn--primary btn--sm"
+    = submit_tag "Sumar", class: "btn btn-primary btn-sm"
   %p.field-hint
     Si la persona ya existe se le suma esta empresa; si no, se crea. Todavía no hay envío de
     invitaciones por mail: quien la crea le pasa el acceso.
@@ -30,8 +30,8 @@
           = form_with url: member_path(membership), method: :patch, class: "member__form" do
             = select_tag :role, options_for_select(Membership::ROLES.map { |r| [t("flow.roles.#{r}"), r] }, membership.role),
                          onchange: "this.form.requestSubmit()"
-            %noscript= submit_tag "Cambiar", class: "btn btn--ghost btn--sm"
-        = button_to "Sacar", member_path(membership), method: :delete, class: "btn btn--ghost btn--sm",
+            %noscript= submit_tag "Cambiar", class: "btn btn-ghost btn-sm"
+        = button_to "Sacar", member_path(membership), method: :delete, class: "btn btn-ghost btn-sm",
                     form: { data: { turbo_confirm: "¿Sacar a #{membership.user.name} de #{current_company.name}?" } }
 
 .card

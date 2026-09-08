@@ -4,14 +4,14 @@
     %h1.page-title Desafíos
     %p.muted Cada desafío arma su propio flujo de módulos.
   - if current_membership&.manages_challenges?
-    = link_to "Nuevo desafío", new_challenge_path, class: "btn btn--primary"
+    = link_to "Nuevo desafío", new_challenge_path, class: "btn btn-primary"
 
 - if @challenges.empty?
   .card.empty-state
     %h2 Todavía no hay desafíos
     %p.muted El primero define su flujo eligiendo módulos y ordenándolos.
     - if current_membership&.manages_challenges?
-      = link_to "Crear el primero", new_challenge_path, class: "btn btn--primary"
+      = link_to "Crear el primero", new_challenge_path, class: "btn btn-primary"
 - else
   .challenge-grid
     - @challenges.each do |challenge|

@@ -13,7 +13,7 @@
     .field
       = label_tag :b, "Hasta"
       = select_tag :b, options_for_select(@versions.map { |v| ["#{v.label} · #{l(v.created_at, format: :short)}", v.id] }, @to.id)
-    = submit_tag "Comparar", class: "btn btn--ghost"
+    = submit_tag "Comparar", class: "btn btn-ghost"
 
 .card
   - if @diff.changes.empty?

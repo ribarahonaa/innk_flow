@@ -14,7 +14,7 @@
 
 .setup-nav
   - if anterior
-    = link_to "← #{anterior.label}", anterior.path, class: "btn btn--ghost"
+    = link_to "← #{anterior.label}", anterior.path, class: "btn btn-ghost"
   - else
     %span
 
@@ -24,13 +24,13 @@
       %span.setup-nav__blocked= "· #{actual.hint}"
 
   - if challenge.draft? && setup.ready? && policy(challenge).start?
-    = button_to "Arrancar el desafío", start_challenge_path(challenge), class: "btn btn--primary"
+    = button_to "Arrancar el desafío", start_challenge_path(challenge), class: "btn btn-primary"
   - elsif siguiente&.key == :start
     -# El último paso no se ofrece si algo bloquea: se dice qué falta y se
     -# lleva ahí, en vez de un botón que va a rebotar.
     - falta = setup.blockers.first
-    = link_to "Falta: #{falta.label.downcase} →", falta.path, class: "btn btn--primary"
+    = link_to "Falta: #{falta.label.downcase} →", falta.path, class: "btn btn-primary"
   - elsif siguiente
-    = link_to "#{siguiente.label} →", siguiente.path, class: "btn btn--primary"
+    = link_to "#{siguiente.label} →", siguiente.path, class: "btn btn-primary"
   - else
     %span

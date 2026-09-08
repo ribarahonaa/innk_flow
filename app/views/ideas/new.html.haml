@@ -7,5 +7,5 @@
   = form_with url: challenge_ideas_path(@challenge), method: :post, multipart: true do
     = render "ideas/form_fields", fields: @fields, payload: {}, attachments: []
     .form-actions
-      = link_to "Cancelar", challenge_path(@challenge), class: "btn btn--ghost"
-      = submit_tag "Guardar borrador", class: "btn btn--primary"
+      = link_to "Cancelar", challenge_path(@challenge), class: "btn btn-ghost"
+      = submit_tag "Guardar borrador", class: "btn btn-primary"
