@@ -1,5 +1,21 @@
-// Chrome compartido. Sin framework CSS: la maqueta define sus propios tokens
-// y evita heredar la deuda de Bootstrap 3 que arrastra innk_r5.
+/* Sin `preflight`: esa capa resetea estilos por default del navegador (por
+   ejemplo, el bold de los <h1>-<h6>) que esta hoja siempre asumió y nunca
+   declaró explícitos. Traerla ahora cambiaría el render sin que ninguna
+   vista se haya tocado, justo lo que esta tarea tiene que evitar. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* Dónde buscar clases. Tailwind 4 descubre fuentes solo, saltando lo que
+   ignora git, pero acá se declaran explícitas: si mañana alguien agrega un
+   .gitignore que tape app/views, las clases desaparecen de la hoja sin que
+   ninguna prueba lo diga. */
+@source "../../views";
+@source "../../helpers";
+@source "../../javascript";
+
+/* Chrome compartido. Sin framework CSS: la maqueta define sus propios tokens */
+/* y evita heredar la deuda de Bootstrap 3 que arrastra innk_r5. */
 :root {
   --bg: #f6f7f9;
   --surface: #ffffff;
@@ -43,8 +59,8 @@ a { color: var(--accent); }
   max-width: 1180px;
   margin: 0 auto;
   padding: 24px;
-  // Las tarjetas tenían margin 0: la página era una sola columna blanca
-  // continua partida por hairlines, sin agrupar nada.
+  /* Las tarjetas tenían margin 0: la página era una sola columna blanca */
+  /* continua partida por hairlines, sin agrupar nada. */
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -67,7 +83,7 @@ a { color: var(--accent); }
 .flash--alert { border-color: #f2b8b5; background: #fef3f2; color: var(--danger); }
 .flash--notice { border-color: #a6e3bf; background: #edfbf3; color: var(--ok); }
 
-// ── Auth ─────────────────────────────────────────────────────────────────
+/* ── Auth ───────────────────────────────────────────────────────────────── */
 .auth-body {
   display: grid;
   place-items: center;
@@ -96,7 +112,7 @@ a { color: var(--accent); }
   font-size: 12px;
 }
 
-// ── Form controls ────────────────────────────────────────────────────────
+/* ── Form controls ──────────────────────────────────────────────────────── */
 label { display: block; margin-bottom: 5px; font-size: 12px; font-weight: 600; color: var(--muted); }
 
 input[type="text"], input[type="email"], input[type="password"],
@@ -116,7 +132,7 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-// ── Buttons ──────────────────────────────────────────────────────────────
+/* ── Buttons ────────────────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -140,7 +156,7 @@ input:focus, textarea:focus, select:focus {
 .company-list { list-style: none; padding: 0; display: grid; gap: 10px; }
 .muted { color: var(--muted); }
 
-// ── Header de sesión ─────────────────────────────────────────────────────
+/* ── Header de sesión ───────────────────────────────────────────────────── */
 .app-header__session { display: flex; align-items: center; gap: 14px; font-size: 13px; }
 .app-header__company { font-weight: 600; }
 .app-header__user { color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
@@ -164,13 +180,13 @@ input:focus, textarea:focus, select:focus {
 }
 .app-header__link:hover { color: var(--accent); }
 
-// ── Layout de página ─────────────────────────────────────────────────────
+/* ── Layout de página ───────────────────────────────────────────────────── */
 .page-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  // El ritmo lo pone el `gap` del main: un margen acá se sumaría.
+  /* El ritmo lo pone el `gap` del main: un margen acá se sumaría. */
   margin-bottom: 0;
 }
 .page-head__actions { display: flex; gap: 8px; }
@@ -192,7 +208,7 @@ input:focus, textarea:focus, select:focus {
 .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
 .empty-state { text-align: center; padding: 44px 20px; }
 
-// ── Estados: una sola paleta para toda la app ────────────────────────────
+/* ── Estados: una sola paleta para toda la app ──────────────────────────── */
 .status-chip {
   display: inline-flex;
   align-items: center;
@@ -212,7 +228,7 @@ input:focus, textarea:focus, select:focus {
 .status-chip--closed,
 .status-chip--archived   { background: #eef0f3; color: #5b6472; }
 
-// ── Índice de desafíos ───────────────────────────────────────────────────
+/* ── Índice de desafíos ─────────────────────────────────────────────────── */
 .challenge-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
 .challenge-card { text-decoration: none; color: inherit; display: block; transition: border-color .12s, box-shadow .12s; }
 .challenge-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(37, 99, 235, .10); }
@@ -220,7 +236,7 @@ input:focus, textarea:focus, select:focus {
 .challenge-card__name { margin: 0 0 8px; font-size: 16px; }
 .challenge-card__brief { margin: 0 0 14px; font-size: 13px; }
 
-// Mapa compacto del pipeline
+/* Mapa compacto del pipeline */
 .flow-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
 .flow-strip__arrow { color: var(--border); }
 .flow-strip__node {
@@ -235,7 +251,7 @@ input:focus, textarea:focus, select:focus {
 .flow-strip__node--completed { border-color: #a6e3bf; background: #edfbf3; color: var(--ok); }
 .flow-strip__node--skipped { border-style: dashed; }
 
-// ── Radio cards ──────────────────────────────────────────────────────────
+/* ── Radio cards ────────────────────────────────────────────────────────── */
 .radio-cards { display: grid; gap: 8px; }
 .radio-card {
   display: flex;
@@ -254,7 +270,7 @@ input:focus, textarea:focus, select:focus {
 .radio-card__body { display: flex; flex-direction: column; gap: 2px; }
 .radio-card__body .muted { font-size: 12px; }
 
-// ── Tabla de módulos ─────────────────────────────────────────────────────
+/* ── Tabla de módulos ───────────────────────────────────────────────────── */
 .step-table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 13px; }
 .step-table th {
   text-align: left;
@@ -266,11 +282,11 @@ input:focus, textarea:focus, select:focus {
   color: var(--muted);
 }
 .step-table td { padding: 10px; border-bottom: 1px solid var(--border); }
-// Lo ya ejecutado se marca en gris: si compite con el acento, el módulo en
-// curso deja de destacarse y la tabla queda con un riel azul de punta a punta.
+/* Lo ya ejecutado se marca en gris: si compite con el acento, el módulo en */
+/* curso deja de destacarse y la tabla queda con un riel azul de punta a punta. */
 .step-table tr.is-touched td:first-child { border-left: 2px solid var(--border); }
 
-// ── Builder ──────────────────────────────────────────────────────────────
+/* ── Builder ────────────────────────────────────────────────────────────── */
 .builder {
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr) 290px;
@@ -287,32 +303,32 @@ input:focus, textarea:focus, select:focus {
 }
 .builder__flow { grid-area: flow; }
 
-// Mientras la barra flota tapa el borde inferior: toda columna que llegue
-// ahí necesita el colchón, o el último módulo del flujo queda inalcanzable.
+/* Mientras la barra flota tapa el borde inferior: toda columna que llegue */
+/* ahí necesita el colchón, o el último módulo del flujo queda inalcanzable. */
 .builder--dirty {
   .builder__flow,
   .builder__palette { padding-bottom: 78px; }
 }
-// Scroll propio: el panel de configuración creció y sin esto se mete debajo
-// de la barra de acciones sticky.
+/* Scroll propio: el panel de configuración creció y sin esto se mete debajo */
+/* de la barra de acciones sticky. */
 .builder__config {
   grid-area: config;
   position: sticky;
   top: 16px;
   max-height: calc(100vh - 110px);
   overflow-y: auto;
-  // La barra de acciones flota abajo: sin este colchón, el último campo del
-  // panel queda tapado y no se puede tocar.
+  /* La barra de acciones flota abajo: sin este colchón, el último campo del */
+  /* panel queda tapado y no se puede tocar. */
   padding-bottom: 78px;
 }
 .builder__hint { font-size: 12px; margin: -8px 0 12px; }
 
-// La barra flota SOLO cuando hay cambios sin guardar.
-//
-// Flotando siempre tapaba los últimos módulos del flujo mientras se scrollea,
-// para ofrecer un botón que no hacía falta: sin cambios, no hay nada que
-// guardar. Cuando sí los hay, taparlo un poco es el precio de que el aviso no
-// se pierda.
+/* La barra flota SOLO cuando hay cambios sin guardar. */
+/*  */
+/* Flotando siempre tapaba los últimos módulos del flujo mientras se scrollea, */
+/* para ofrecer un botón que no hacía falta: sin cambios, no hay nada que */
+/* guardar. Cuando sí los hay, taparlo un poco es el precio de que el aviso no */
+/* se pierda. */
 .builder__actions {
   grid-area: actions;
   display: flex;
@@ -375,8 +391,8 @@ input:focus, textarea:focus, select:focus {
 .step-card--selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .step-card--dragging { opacity: .45; }
 
-// Módulo ya ejecutado: se ve distinto y no ofrece handle. La restricción se
-// muestra, no solo se rechaza al guardar.
+/* Módulo ya ejecutado: se ve distinto y no ofrece handle. La restricción se */
+/* muestra, no solo se rechaza al guardar. */
 .step-card--locked { background: var(--bg); color: var(--muted); cursor: default; }
 .step-card--locked:hover { border-color: var(--border); }
 
@@ -398,7 +414,7 @@ input:focus, textarea:focus, select:focus {
 }
 .step-card__remove:hover { color: var(--danger); }
 
-// La línea de agua
+/* La línea de agua */
 .waterline {
   display: flex;
   align-items: center;
@@ -429,12 +445,12 @@ input:focus, textarea:focus, select:focus {
   .builder__palette, .builder__config { position: static; }
 }
 
-// ── Progreso de módulo ───────────────────────────────────────────────────
+/* ── Progreso de módulo ─────────────────────────────────────────────────── */
 .step-progress { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 .progress-bar { height: 6px; background: var(--bg); border-radius: 99px; overflow: hidden; }
 .progress-bar__fill { height: 100%; background: var(--accent); border-radius: 99px; }
 
-// ── Lista de campos del formulario ───────────────────────────────────────
+/* ── Lista de campos del formulario ─────────────────────────────────────── */
 .field-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .field-list__item {
   display: flex;
@@ -447,7 +463,7 @@ input:focus, textarea:focus, select:focus {
 .field-list__req { color: var(--danger); }
 .field-list__type { color: var(--muted); font-size: 11.5px; font-family: ui-monospace, monospace; }
 
-// ── Lista de ideas ───────────────────────────────────────────────────────
+/* ── Lista de ideas ─────────────────────────────────────────────────────── */
 .idea-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .idea-list__item {
   display: flex;
@@ -481,7 +497,7 @@ input:focus, textarea:focus, select:focus {
   letter-spacing: .03em;
 }
 
-// ── Detalle de idea ──────────────────────────────────────────────────────
+/* ── Detalle de idea ────────────────────────────────────────────────────── */
 .idea-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
 .answer-list { margin: 0; }
 .answer-list dt { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-top: 16px; }
@@ -507,7 +523,7 @@ input:focus, textarea:focus, select:focus {
 .version-timeline__note { margin: 5px 0 0; }
 .version-timeline__source, .version-timeline__date { margin: 2px 0 0; font-size: 11.5px; }
 
-// ── Diff ─────────────────────────────────────────────────────────────────
+/* ── Diff ───────────────────────────────────────────────────────────────── */
 .diff-picker { display: flex; align-items: flex-end; gap: 12px; }
 .diff-picker .field { margin: 0; flex: 1; }
 .diff-row { padding: 16px 0; border-bottom: 1px solid var(--border); }
@@ -532,7 +548,7 @@ input:focus, textarea:focus, select:focus {
 .step-table__link { text-decoration: none; color: inherit; }
 .step-table__link:hover strong { color: var(--accent); }
 
-// ── Capa de IA ───────────────────────────────────────────────────────────
+/* ── Capa de IA ─────────────────────────────────────────────────────────── */
 .ai-actions {
   display: flex;
   align-items: center;
@@ -571,7 +587,7 @@ input:focus, textarea:focus, select:focus {
 .ai-suggestion__body code { font-size: 11.5px; word-break: break-all; }
 .ai-suggestion__actions { display: flex; gap: 8px; }
 
-// ── Stat cards ───────────────────────────────────────────────────────────
+/* ── Stat cards ─────────────────────────────────────────────────────────── */
 .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
 .stat-card {
   display: flex;
@@ -598,7 +614,7 @@ input:focus, textarea:focus, select:focus {
   max-height: 380px;
 }
 
-// ── Evaluación ───────────────────────────────────────────────────────────
+/* ── Evaluación ─────────────────────────────────────────────────────────── */
 .derived-chip {
   padding: 1px 7px;
   margin-left: 6px;
@@ -672,7 +688,7 @@ input:focus, textarea:focus, select:focus {
 }
 .scale-option:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
 
-// ── Editor de criterios ──────────────────────────────────────────────────
+/* ── Editor de criterios ────────────────────────────────────────────────── */
 .criteria-editor { display: grid; gap: 12px; margin-bottom: 20px; }
 .criterion-row {
   padding: 14px;
@@ -691,7 +707,7 @@ input:focus, textarea:focus, select:focus {
   .criterion-row__main { grid-template-columns: 1fr; }
 }
 
-// ── Tabla de ranking con línea de corte ──────────────────────────────────
+/* ── Tabla de ranking con línea de corte ────────────────────────────────── */
 .ranking-table__check { width: 60px; text-align: center; }
 .ranking-table tr.is-below td { color: var(--muted); background: #fbfbfc; }
 
@@ -724,7 +740,7 @@ input:focus, textarea:focus, select:focus {
   background: repeating-linear-gradient(90deg, var(--warn) 0 6px, transparent 6px 12px);
 }
 
-// ── Tablero de feedback ──────────────────────────────────────────────────
+/* ── Tablero de feedback ────────────────────────────────────────────────── */
 .feedback-board { display: grid; gap: 14px; }
 .feedback-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .feedback-card__title { font-size: 15px; font-weight: 650; text-decoration: none; color: inherit; }
@@ -754,7 +770,7 @@ input:focus, textarea:focus, select:focus {
 .feedback-form { display: flex; gap: 8px; align-items: center; }
 .feedback-form__kind { width: 150px; flex: none; }
 
-// ── Reportería ───────────────────────────────────────────────────────────
+/* ── Reportería ─────────────────────────────────────────────────────────── */
 .report-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .report-actions .ai-actions { margin: 0; }
 .table-scroll { overflow-x: auto; }
@@ -809,7 +825,7 @@ input:focus, textarea:focus, select:focus {
 }
 .theme-card__count { font-size: 20px; font-weight: 650; color: #7c3aed; }
 
-// ── Navegación principal ─────────────────────────────────────────────────
+/* ── Navegación principal ───────────────────────────────────────────────── */
 .app-header__brand-link { color: inherit; text-decoration: none; }
 .app-nav { display: flex; gap: 4px; margin-left: 18px; }
 .app-nav__link {
@@ -828,7 +844,7 @@ input:focus, textarea:focus, select:focus {
 .section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .section-head .section-title { margin-bottom: 10px; }
 
-// ── Origen de un criterio ────────────────────────────────────────────────
+/* ── Origen de un criterio ──────────────────────────────────────────────── */
 .source-chip {
   padding: 1px 8px;
   margin-left: 6px;
@@ -852,7 +868,7 @@ input:focus, textarea:focus, select:focus {
   .criterion-row__jsons { grid-template-columns: 1fr; }
 }
 
-// ── Filtros de selección ─────────────────────────────────────────────────
+/* ── Filtros de selección ───────────────────────────────────────────────── */
 .gate-cell { text-align: center; white-space: nowrap; }
 .gate { display: inline-block; font-weight: 700; font-size: 14px; }
 .gate--pass { color: var(--ok); }
@@ -878,13 +894,13 @@ input:focus, textarea:focus, select:focus {
 .gate-verdict__btn--no:hover { background: #fef3f2; border-color: #f2b8b5; }
 .ranking-table input[type="checkbox"]:disabled { opacity: .35; }
 
-// ── Cierre de un comentario ──────────────────────────────────────────────
+/* ── Cierre de un comentario ────────────────────────────────────────────── */
 .feedback-card__state { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .feedback-resolve { display: flex; gap: 6px; align-items: center; margin-top: 10px; }
 .feedback-resolve__note { flex: 1; font-size: 12px; padding: 6px 9px; }
 .feedback-item__resolution { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; font-size: 11.5px; }
 
-// ── Evaluaciones hechas ──────────────────────────────────────────────────
+/* ── Evaluaciones hechas ────────────────────────────────────────────────── */
 .nowrap { white-space: nowrap; }
 .evaluators { display: inline-flex; gap: 3px; margin-left: 6px; }
 .evaluator-chip {
@@ -928,7 +944,7 @@ input:focus, textarea:focus, select:focus {
   color: var(--muted);
 }
 
-// ── La IA como guía dentro del formulario ────────────────────────────────
+/* ── La IA como guía dentro del formulario ──────────────────────────────── */
 .ai-guide-banner { border-color: #d8c9f5; background: #faf7ff; }
 
 .scale-radio--suggested span {
@@ -972,12 +988,12 @@ input:focus, textarea:focus, select:focus {
 }
 .ai-hint__reason { color: var(--muted); }
 
-// ── Modo de IA de un módulo ──────────────────────────────────────────────
+/* ── Modo de IA de un módulo ────────────────────────────────────────────── */
 .ai-mode-card { border-style: dashed; border-color: #d8c9f5; background: #faf7ff; }
 .ai-mode-form { display: flex; align-items: center; gap: 8px; }
 .ai-mode-form__select { width: auto; min-width: 210px; font-size: 12.5px; padding: 6px 9px; }
 
-// ── Panel de configuración de un módulo ──────────────────────────────────
+/* ── Panel de configuración de un módulo ────────────────────────────────── */
 .config-rule { border: 0; border-top: 1px solid var(--border); margin: 18px 0; }
 .config-locked {
   padding: 9px 11px;
@@ -1014,8 +1030,8 @@ input:focus, textarea:focus, select:focus {
 .field-check input { width: auto; }
 .builder__config select[multiple] { min-height: 88px; }
 
-// Lo bloqueado tiene que PARECER bloqueado: sin esto un campo deshabilitado se
-// ve igual que uno editable y el aviso de arriba parece no aplicar.
+/* Lo bloqueado tiene que PARECER bloqueado: sin esto un campo deshabilitado se */
+/* ve igual que uno editable y el aviso de arriba parece no aplicar. */
 input:disabled,
 select:disabled,
 textarea:disabled {
@@ -1024,7 +1040,7 @@ textarea:disabled {
   cursor: not-allowed;
 }
 
-// ── Editor del formulario de postulación ────────────────────────────────────
+/* ── Editor del formulario de postulación ──────────────────────────────────── */
 .field-editor {
   list-style: none;
   margin: 0 0 1rem;
@@ -1056,8 +1072,8 @@ textarea:disabled {
 
   &__body { flex: 1; display: flex; flex-direction: column; gap: .4rem; min-width: 0; }
 
-  // Los `input`/`select` de la hoja son `width: 100%`. Dentro de un flex eso
-  // deja al select comiéndose la fila y a la etiqueta reducida a un cuadrado.
+  /* Los `input`/`select` de la hoja son `width: 100%`. Dentro de un flex eso */
+  /* deja al select comiéndose la fila y a la etiqueta reducida a un cuadrado. */
   &__line {
     display: flex;
     gap: .5rem;
@@ -1107,7 +1123,7 @@ textarea:disabled {
 
 .field-editor__actions .editor-actions__spacer { flex: 1; }
 
-// Resumen del formulario dentro del panel del builder.
+/* Resumen del formulario dentro del panel del builder. */
 .config-form {
   display: flex;
   flex-direction: column;
@@ -1118,7 +1134,7 @@ textarea:disabled {
   &__labels { margin: 0; font-size: .9rem; }
 }
 
-// ── Editor de criterios ─────────────────────────────────────────────────────
+/* ── Editor de criterios ───────────────────────────────────────────────────── */
 .criteria-edit-list {
   list-style: none;
   margin: 0 0 14px;
@@ -1242,7 +1258,7 @@ textarea:disabled {
     }
   }
 
-  // Con 3 columnas (letras) no hay descriptor: se reparte el espacio.
+  /* Con 3 columnas (letras) no hay descriptor: se reparte el espacio. */
   &__row:has(> input:nth-child(3):last-of-type) { grid-template-columns: 80px 1fr 70px 28px; }
 
   &__remove {
@@ -1274,8 +1290,8 @@ textarea:disabled {
 
 .criteria-edit-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-// Barra de guardado de los editores. El builder tiene la suya dentro de su
-// grid; ésta es para las pantallas que no lo son.
+/* Barra de guardado de los editores. El builder tiene la suya dentro de su */
+/* grid; ésta es para las pantallas que no lo son. */
 .editor-actions {
   display: flex;
   align-items: center;
@@ -1293,7 +1309,7 @@ textarea:disabled {
   &__spacer { flex: 1; }
 }
 
-// ── Plantillas de flujo ─────────────────────────────────────────────────────
+/* ── Plantillas de flujo ───────────────────────────────────────────────────── */
 .template-picker {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -1311,28 +1327,28 @@ textarea:disabled {
   background: var(--bg);
 
   p { margin: 0; font-size: 12px; }
-  // Las tarjetas de una grilla no miden lo mismo: el botón se ancla abajo para
-  // que la fila quede pareja.
+  /* Las tarjetas de una grilla no miden lo mismo: el botón se ancla abajo para */
+  /* que la fila quede pareja. */
   .btn { margin-top: auto; }
 }
 
-// La flecha viaja con su nodo: si la línea se envuelve, no queda una flecha
-// suelta al final apuntando a nada.
+/* La flecha viaja con su nodo: si la línea se envuelve, no queda una flecha */
+/* suelta al final apuntando a nada. */
 .flow-strip__step {
   display: inline-flex;
   align-items: center;
   gap: 5px;
 }
 
-// Dentro de una tarjeta de opción el resumen del flujo va debajo del nombre,
-// no en la misma línea: son cuatro o seis nodos y no entran.
+/* Dentro de una tarjeta de opción el resumen del flujo va debajo del nombre, */
+/* no en la misma línea: son cuatro o seis nodos y no entran. */
 .radio-card__body .flow-strip { margin: 4px 0; }
 
-// ── Previsualización ────────────────────────────────────────────────────────
-//
-// El `fieldset[disabled]` deja la pantalla inerte de verdad (ni foco ni
-// teclado), pero grisea todo. Acá se repone el color: la gracia del preview es
-// ver cómo se va a ver, no cómo se ve deshabilitado.
+/* ── Previsualización ──────────────────────────────────────────────────────── */
+/*  */
+/* El `fieldset[disabled]` deja la pantalla inerte de verdad (ni foco ni */
+/* teclado), pero grisea todo. Acá se repone el color: la gracia del preview es */
+/* ver cómo se va a ver, no cómo se ve deshabilitado. */
 .preview-surface {
   border: 0;
   padding: 0;
@@ -1351,7 +1367,7 @@ textarea:disabled {
   .scale-option input:disabled + span { cursor: default; }
 }
 
-// ── Quiénes participan de una idea ──────────────────────────────────────────
+/* ── Quiénes participan de una idea ────────────────────────────────────────── */
 .people-list {
   list-style: none;
   margin: 0 0 12px;
@@ -1394,7 +1410,7 @@ textarea:disabled {
   select { width: auto; flex: 1; }
 }
 
-// ── Campana y bandeja de avisos ─────────────────────────────────────────────
+/* ── Campana y bandeja de avisos ───────────────────────────────────────────── */
 .bell {
   position: relative;
   display: inline-flex;
@@ -1460,11 +1476,11 @@ textarea:disabled {
   }
 }
 
-// ── Espera de la IA ─────────────────────────────────────────────────────────
-//
-// Turbo marca el `turbo-frame` con `aria-busy` mientras hay un pedido en
-// vuelo. Con un proveedor real la respuesta tarda de 10 a 70 segundos: sin
-// esto la pantalla se ve congelada y la gente vuelve a apretar el botón.
+/* ── Espera de la IA ───────────────────────────────────────────────────────── */
+/*  */
+/* Turbo marca el `turbo-frame` con `aria-busy` mientras hay un pedido en */
+/* vuelo. Con un proveedor real la respuesta tarda de 10 a 70 segundos: sin */
+/* esto la pantalla se ve congelada y la gente vuelve a apretar el botón. */
 .ai-waiting {
   display: none;
   align-items: center;
@@ -1480,7 +1496,7 @@ textarea:disabled {
 
 turbo-frame[aria-busy="true"] .ai-waiting { display: flex; }
 
-// Lo que ya estaba se atenúa: sigue legible, pero se lee que está por cambiar.
+/* Lo que ya estaba se atenúa: sigue legible, pero se lee que está por cambiar. */
 turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
 
 .ai-waiting__dot {
@@ -1500,7 +1516,7 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   .ai-waiting__dot { animation: none; opacity: .7; }
 }
 
-// ── Paso a paso de configuración ────────────────────────────────────────────
+/* ── Paso a paso de configuración ──────────────────────────────────────────── */
 .setup {
   margin-bottom: 16px;
 
@@ -1568,8 +1584,8 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   &__body { display: flex; flex-direction: column; min-width: 0; }
   &__label { font-size: 13px; font-weight: 600; }
 
-  // Dos líneas antes que puntos suspensivos: «3 de 4 módulos defi…» obliga a
-  // adivinar justo la parte que dice qué falta.
+  /* Dos líneas antes que puntos suspensivos: «3 de 4 módulos defi…» obliga a */
+  /* adivinar justo la parte que dice qué falta. */
   &__hint {
     font-size: 11.5px;
     line-height: 1.35;
@@ -1580,20 +1596,20 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
     overflow: hidden;
   }
 
-  // Hecho: el número se reemplaza por un tilde y el paso pierde peso visual.
+  /* Hecho: el número se reemplaza por un tilde y el paso pierde peso visual. */
   &__step--done &__mark { background: #e7f7ee; border-color: #a6e3bf; color: var(--ok); }
 
-  // El que estás mirando ahora.
+  /* El que estás mirando ahora. */
   &__step--current &__link { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
-  // Bloqueante sin resolver: sin esto el desafío no arranca.
+  /* Bloqueante sin resolver: sin esto el desafío no arranca. */
   &__step--blocked &__mark { background: #fef3f2; border-color: #f2b8b5; color: var(--danger); }
   &__step--blocked &__link { border-color: #f2b8b5; }
 
   &__next { display: flex; justify-content: flex-end; margin-top: 12px; }
 }
 
-// Barra de navegación del paso a paso, al pie de cada pantalla.
+/* Barra de navegación del paso a paso, al pie de cada pantalla. */
 .setup-nav {
   display: flex;
   align-items: center;
@@ -1610,8 +1626,8 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   &__blocked { color: var(--warn); }
 }
 
-// En la pantalla de creación el camino todavía no tiene estado: se dibuja
-// para que se vea qué viene, sin links a lo que no existe.
+/* En la pantalla de creación el camino todavía no tiene estado: se dibuja */
+/* para que se vea qué viene, sin links a lo que no existe. */
 .setup__step--outline .setup__link {
   cursor: default;
   opacity: .55;
@@ -1619,7 +1635,7 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   &:hover { border-color: var(--border); }
 }
 
-// ── Índice de módulos que puntúan o filtran ─────────────────────────────────
+/* ── Índice de módulos que puntúan o filtran ───────────────────────────────── */
 .scorer-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 
 .scorer {
@@ -1654,7 +1670,7 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   &__actions { margin-top: 12px; }
 }
 
-// Selector de cantidad dentro de una acción de IA.
+/* Selector de cantidad dentro de una acción de IA. */
 .ai-actions__form {
   display: flex;
   align-items: center;
@@ -1674,7 +1690,7 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   font-size: 12.5px;
 }
 
-// ── Cómo le fue a una idea, módulo por módulo ───────────────────────────────
+/* ── Cómo le fue a una idea, módulo por módulo ─────────────────────────────── */
 .result-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 
 .result {
@@ -1695,7 +1711,7 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   &__score { font-weight: 650; font-variant-numeric: tabular-nums; }
 }
 
-// ── Miembros de la empresa ──────────────────────────────────────────────────
+/* ── Miembros de la empresa ────────────────────────────────────────────────── */
 .invite-form {
   display: flex;
   gap: 8px;
@@ -1875,10 +1891,10 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
 .ranking-table__reinstate { display: inline-block; margin-left: 8px; vertical-align: middle; }
 .ranking-table__reinstate form { display: inline; }
 
-// El marco de sugerencias vive siempre en el DOM porque es el destino de los
-// pedidos a la IA, pero casi siempre está vacío. `display: contents` lo saca
-// del flujo flex sin sacarlo del documento: sus hijos —cuando los tenga— son
-// los que toman el gap.
+/* El marco de sugerencias vive siempre en el DOM porque es el destino de los */
+/* pedidos a la IA, pero casi siempre está vacío. `display: contents` lo saca */
+/* del flujo flex sin sacarlo del documento: sus hijos —cuando los tenga— son */
+/* los que toman el gap. */
 turbo-frame#ai-suggestions { display: contents; }
 
 /* La regla del corte, en una línea al pie de la tarjeta que la explica. */

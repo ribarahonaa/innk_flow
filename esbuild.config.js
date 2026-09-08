@@ -6,7 +6,6 @@
 //                  agregar app/javascript/packs/foo.js alcanza, no hay registro.
 //   2. application.js / application.scss -> el chrome compartido.
 const esBuild = require('esbuild');
-const { sassPlugin } = require('esbuild-sass-plugin');
 const vuePlugin = require('esbuild-plugin-vue-next');
 
 const sourcemap = process.env.NODE_ENV !== 'production';
@@ -41,18 +40,5 @@ esBuild.build({
   sourcemap,
   logLevel: 'info',
   outfile: 'app/assets/builds/application-build.js',
-  plugins: [sassPlugin()],
-  define: { 'process.env.NODE_ENV': JSON.stringify('production') }
-});
-
-esBuild.build({
-  entryPoints: ['./app/assets/stylesheets/application.scss'],
-  bundle: true,
-  minify: true,
-  sourcemap,
-  logLevel: 'info',
-  outfile: 'app/assets/builds/application-build-css.css',
-  plugins: [sassPlugin()],
-  external: ['*.png', '*.svg', '*.woff', '*.woff2', '*.eot', '*.ttf'],
   define: { 'process.env.NODE_ENV': JSON.stringify('production') }
 });
