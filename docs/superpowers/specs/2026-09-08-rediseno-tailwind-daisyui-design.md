@@ -39,7 +39,7 @@ hacer el trabajo de criterio dos veces.
 | | |
 |---|---|
 | Hoja de estilos | `app/assets/stylesheets/application.scss`, **1.939 líneas** |
-| ¿Usa Sass? | **No.** Cero `@use`, `@import`, `@mixin`, `@extend`, cero variables. Es CSS plano con comentarios `//` |
+| ¿Usa Sass? | **Sí, una sola cosa: concatenación de selector** (`&__x`, `&--x`) en 73 lugares. Cero `@use`, `@import`, `@mixin`, `@extend`, cero variables |
 | Vistas | 54 HAML, de las cuales 18 son partials |
 | Clases distintas en vistas | 531 |
 | Componentes Vue | 7, sin `<style>` propio, usando **119 clases** de la hoja compartida |
@@ -101,11 +101,31 @@ conserva el nombre y `stylesheet_link_tag "application-build-css"` queda igual.
 
 ### Sass se jubila entero
 
-Como la hoja no usa ninguna función de Sass, la conversión es mecánica:
-comentarios `//` a `/* */` y el archivo pasa a `.css`. Salen de
-`devDependencies`: **`esbuild-sass-plugin`** y **`sass`**. Sale el `sassPlugin()`
-de los otros dos builds —en el de `application.js` ni siquiera hacía falta,
-porque no importa ninguna hoja—. Ningún componente Vue tiene `<style>`.
+Salen de `devDependencies`: **`esbuild-sass-plugin`** y **`sass`**. Sale el
+`sassPlugin()` de los otros dos builds —en el de `application.js` ni siquiera
+hacía falta, porque no importa ninguna hoja—. Ningún componente Vue tiene
+`<style>`.
+
+La conversión tiene **dos** partes, y la segunda casi se pierde:
+
+1. Comentarios `//` a `/* */`, y el archivo pasa a `.css`. Mecánico.
+2. **Aplanar los 73 `&__x` / `&--x` a selectores explícitos.**
+
+> **La versión anterior de este spec decía que la hoja no usaba ninguna función
+> de Sass, y era falso.** La verificación que produjo esa afirmación buscó
+> `@use`, `@import`, `@mixin`, `@extend` y variables, y nunca `&`. Concatenar
+> con `&` **es** una función de Sass: CSS nativo tiene `&`, pero no permite
+> pegarle texto. Sin Sass, `&__icon` dentro de `.bell` compila a `__icon.bell`
+> —un selector de tipo de elemento que no matchea nada—, y el ícono de la
+> campana de avisos, presente en el layout de todas las pantallas autenticadas,
+> pasó a medir 0×0.
+>
+> Ni `make spec` (no ejercita CSS) ni `make screens` (falla por errores de JS y
+> HTTP ≥ 400, no por diferencia visual) lo atraparon: las dos pasaron en verde
+> con el bug puesto. Lo encontró una revisión midiendo en un navegador real.
+>
+> El anidamiento `&:hover`, `&.is-active`, `& > li` **sí** es CSS válido y se
+> conserva: son 9 casos y no se tocan.
 
 ### Paquetes
 
