@@ -1,0 +1,62 @@
+-# Lo que se consulta y no se edita en el curso normal del trabajo. Hasta acá
+-# eran tarjetas del mismo peso que el trabajo, apiladas encima de él: para
+-# llegar a la tabla de ideas había que pasar por delante de todo esto.
+-#
+-# Es una MUDANZA, no una reescritura: el markup viene tal cual de
+-# `steps/evaluation.html.haml`. Lo único que cambia es dónde vive y que la
+-# tabla de criterios pasa a lista, porque una tabla de tres columnas no entra
+-# en 280px.
+-#
+-# Lo que NO se mudó y por qué está en el reporte de la tarea: los
+-# formularios se quedan en la columna principal —son trabajo—, y una tarjeta
+-# que es toda formulario no se puede partir sin repetir la misma lista de
+-# nombres en las dos columnas.
+- desafio = step.challenge
+- progress = handler.progress
+.card
+  %h3.section-title Progreso
+  .step-progress
+    %div
+      %strong= progress.done
+      %span.muted= " de #{progress.total} #{progress.label} · mínimo #{handler.min_assessments} por idea"
+    .progress-bar
+      .progress-bar__fill{ style: "width: #{[progress.pct, 100].min}%" }
+
+.card
+  %h3.section-title
+    Criterios
+    - if step.criteria_set
+      %span.muted= " · #{step.criteria_set.name}"
+
+  - if handler.criteria_snapshot.empty?
+    %p.muted
+      Este módulo todavía no tiene criterios. Se le crean tres genéricos al activarlo, o podés
+      = succeed "." do
+        = link_to "definirlos ahora", challenge_step_criteria_path(desafio, step)
+  - else
+    %ul.field-list
+      - handler.criteria_snapshot.each do |criterion|
+        %li.field-list__item
+          %span
+            = criterion["name"]
+            -# Contra `source` y no contra `scale_type`, que es lo que decía la
+            -# tarjeta original: `align_scale_with_source` fuerza `numeric`
+            -# para las fórmulas, así que `scale_type == "formula"` no es
+            -# nunca cierto y el chip no se veía en ninguna pantalla.
+            - if criterion["source"] == "formula"
+              %span.derived-chip derivado
+            %br
+            %span.muted= t("flow.scale_types.#{criterion['scale_type']}")
+          %strong= "#{(criterion['weight'].to_f * 100).round}%"
+    %p.muted.field-hint
+      Congelados al activar el módulo: editar el set ahora no altera lo ya evaluado.
+
+  -# Un set inline es de ESTE módulo y se edita en su pantalla; uno de la
+  -# biblioteca lo comparten otros desafíos y se edita en el mantenedor.
+  - if policy(desafio).update_pipeline?
+    - if step.criteria_set&.inline?
+      = link_to "Ver los criterios", challenge_step_criteria_path(desafio, step), class: "btn btn-ghost btn-sm"
+    - elsif step.criteria_set
+      = link_to "Ver el set", edit_criteria_set_path(step.criteria_set), class: "btn btn-ghost btn-sm"
+    - else
+      = link_to "Definir los criterios", challenge_step_criteria_path(desafio, step), class: "btn btn-ghost btn-sm"

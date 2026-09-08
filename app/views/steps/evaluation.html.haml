@@ -1,58 +1,13 @@
 - content_for :title, @step.name
+
+-# La columna de la derecha: progreso y criterios, que se consultan mientras
+-# se evalúa y no se editan acá. Se declara arriba de todo porque el layout la
+-# lee después del `yield`.
+- content_for :referencia do
+  = render "steps/referencia_evaluacion", step: @step, handler: @handler
+
 = render "steps/header", step: @step, handler: @handler
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
-
-- progress = @handler.progress
-.card
-  .step-progress
-    %div
-      %strong= progress.done
-      %span.muted= " de #{progress.total} #{progress.label} · mínimo #{@handler.min_assessments} por idea"
-    .progress-bar
-      .progress-bar__fill{ style: "width: #{[progress.pct, 100].min}%" }
-
-.card
-  .section-head
-    %h2.section-title
-      Criterios
-      - if @step.criteria_set
-        %span.muted= " · #{@step.criteria_set.name}"
-    -# Un set inline es de ESTE módulo y se edita en su pantalla; uno de la
-    -# biblioteca lo comparten otros desafíos y se edita en el mantenedor.
-    - if policy(@challenge).update_pipeline?
-      - if @step.criteria_set&.inline?
-        = link_to "Ver los criterios", challenge_step_criteria_path(@challenge, @step), class: "btn btn-ghost btn-sm"
-      - elsif @step.criteria_set
-        = link_to "Ver el set", edit_criteria_set_path(@step.criteria_set), class: "btn btn-ghost btn-sm"
-      - else
-        = link_to "Definir los criterios", challenge_step_criteria_path(@challenge, @step), class: "btn btn-ghost btn-sm"
-
-  - if @handler.criteria_snapshot.empty?
-    %p.muted
-      Este módulo todavía no tiene criterios. Se le crean tres genéricos al activarlo, o podés
-      = succeed "." do
-        = link_to "definirlos ahora", challenge_step_criteria_path(@challenge, @step)
-  - else
-    %p.muted.field-hint
-      Congelados al activar el módulo: editar el set ahora no altera lo ya evaluado.
-      - if @step.criteria_set&.inline?
-        Este set es propio de este módulo.
-    %table.step-table
-      %thead
-        %tr
-          %th Criterio
-          %th Escala
-          %th Peso
-      %tbody
-        - @handler.criteria_snapshot.each do |criterion|
-          %tr
-            %td
-              %strong= criterion["name"]
-              - if criterion["scale_type"] == "formula"
-                %span.derived-chip derivado
-                %code.formula-code= criterion.dig("scale_config", "expression")
-            %td.muted= t("flow.scale_types.#{criterion['scale_type']}")
-            %td.muted= "#{(criterion['weight'].to_f * 100).round}%"
 
 = render "steps/ai_mode", step: @step
 

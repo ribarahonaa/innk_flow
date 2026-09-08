@@ -433,15 +433,192 @@ body {
 .app-header__brand { font-weight: 650; letter-spacing: -.01em; }
 .app-header__spacer { flex: 1; }
 
+/* ── El shell de tres regiones ──────────────────────────────────────────── */
+/* La del medio es lo que se hace; la de la derecha, lo que se consulta y no
+   se edita. El drawer solo existe dentro de un desafío.
+
+   `min-height` descuenta la barra de arriba en vez de ser `100vh`: con 100vh
+   la grilla mide siempre 56px más que la ventana y CUALQUIER pantalla —hasta
+   una vacía— nace con scroll vertical. */
+.app-shell { display: grid; grid-template-columns: 1fr; min-height: calc(100vh - 56px); }
+.app-shell--con-flujo { grid-template-columns: 232px minmax(0, 1fr); }
+/* Las dos regiones opcionales son independientes: una pantalla puede llenar
+   la referencia sin estar dentro de un desafío, y ahí no hay que reservar la
+   columna del flujo. */
+.app-shell:has(.app-aside) { grid-template-columns: minmax(0, 1fr) 280px; }
+.app-shell--con-flujo:has(.app-aside) { grid-template-columns: 232px minmax(0, 1fr) 280px; }
+
 .app-main {
-  max-width: 1180px;
-  margin: 0 auto;
   padding: 24px;
+  min-width: 0;
   /* Las tarjetas tenían margin 0: la página era una sola columna blanca */
   /* continua partida por hairlines, sin agrupar nada. */
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* Sola en la pantalla, la columna del trabajo no puede correr el ancho entero
+   de un monitor: es la medida que la app ya tenía. Con una región al lado, la
+   grilla ya la acota. */
+.app-shell:not(.app-shell--con-flujo):not(:has(.app-aside)) .app-main {
+  max-width: 1180px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Se queda a mano mientras se trabaja: consultar el peso de un criterio con
+   la tabla de ideas 2.000px más abajo era, hasta acá, volver arriba. */
+.app-aside {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  max-height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px 20px;
+  min-width: 0;
+}
+
+/* La línea entre las dos columnas la pone el TRABAJO, que ocupa la fila
+   entera. Puesta en la referencia —que queda pegada arriba— sería un borde
+   suelto que baja con el scroll en vez de una separación de columnas. */
+.app-shell:has(.app-aside) .app-main { border-right: 1px solid var(--color-base-300); }
+
+/* ── El flujo del desafío ───────────────────────────────────────────────── */
+/* La columna oscura ocupa la fila entera —`grid-row: 1 / -1`, porque cuando
+   la referencia baja debajo del trabajo el drawer se quedaría en la primera
+   fila y dejaría medio panel de aire a su lado— y lo que se queda pegado
+   al scroll es el panel de adentro. Pegar la columna misma la deja del alto
+   de su contenido: una tarjeta oscura flotando en una franja gris, no una
+   barra.
+
+   «Siempre a la vista» es literal: la pantalla de un módulo de evaluación
+   mide 3.800px, y sin esto el flujo se ve en el primer cuarto y desaparece
+   justo donde uno se pregunta dónde está.
+
+   `top: 0` y no 56: la barra de arriba NO está pegada, así que al scrollear
+   se va, y un panel pegado a 56px dejaría una franja clara arriba. */
+/* El borde no es adorno: en oscuro el panel (#0b0b16) y el fondo de página
+   (#11101d) dan 1,04:1 —o sea, no se distinguen— y la barra deja de leerse
+   como una región. En claro el panel ya contrasta y el borde no molesta. */
+.flow-drawer { grid-row: 1 / -1; border-right: 1px solid var(--color-base-300); }
+.flow-drawer__panel {
+  position: sticky;
+  top: 0;
+  max-height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 12px;
+}
+.flow-drawer__head { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; }
+.flow-drawer__title {
+  color: inherit;
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.flow-drawer__meta { font-size: 12px; opacity: 0.75; }
+
+/* El `menu` de DaisyUI nace `width: fit-content` y pinta el item activo con
+   `--color-neutral`: adentro de un panel `bg-neutral` el activo queda del
+   MISMO color que el fondo, o sea invisible. Los dos tokens se le pasan acá,
+   que es como DaisyUI espera que se lo adapte. */
+.flow-drawer__steps {
+  width: 100%;
+  padding: 0;
+  gap: 2px;
+  --menu-active-bg: var(--color-primary);
+  --menu-active-fg: var(--color-primary-content);
+}
+/* `inherit` va solo en los inactivos: sobre el activo pisaría el
+   `--menu-active-fg` —blanco, 6,12:1 contra el primario— y lo dejaría con el
+   gris claro del panel, que sobre violeta da 3,5:1. */
+.flow-drawer__link { text-decoration: none; align-items: center; gap: 8px; }
+.flow-drawer__link:not(.menu-active) { color: inherit; }
+/* El hover de DaisyUI mezcla `base-content` —casi negro— y sobre este panel
+   oscuro no se ve. */
+.flow-drawer__link:hover { background-color: color-mix(in oklab, var(--color-neutral-content) 15%, transparent); }
+.flow-drawer__num {
+  flex: none;
+  width: 18px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+.flow-drawer__name { flex: 1; min-width: 0; }
+/* El chip va sin rótulo: a 232px no entra, y el estado viaja en el `title`.
+   Se pinta con su color de TEXTO y no con su fondo: los fondos de los chips
+   son tonos «soft» pensados para una tarjeta clara, y sobre este panel oscuro
+   en modo oscuro dan 1,3:1, o sea puntos invisibles. El color de TEXTO del
+   mismo chip es el tono fuerte; se lo aclara hacia el color del panel porque
+   en modo claro ese tono está pensado para fondo blanco y sobre el panel
+   oscuro queda por debajo del piso de 3:1 de WCAG 1.4.11. La mezcla conserva
+   el tono —que es lo que distingue un estado de otro— y le sube el brillo. */
+.flow-drawer .status-chip {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  background-color: color-mix(in oklab, currentColor 55%, var(--color-neutral-content));
+}
+
+/* Debajo de 1280px la referencia baja debajo del trabajo: 280px de ancho
+   valen más para lo que se hace que para lo que se consulta.
+   1279 y no 1280: `max-width: 1280px` matchea EN 1280, que es de los anchos
+   de laptop más comunes, y ahí la referencia se iría al pie de una pantalla
+   de 3.800px, o sea a ningún lado. */
+@media (max-width: 1279px) {
+  .app-shell:has(.app-aside) { grid-template-columns: minmax(0, 1fr); }
+  .app-shell--con-flujo:has(.app-aside) { grid-template-columns: 232px minmax(0, 1fr); }
+  /* Debajo del trabajo ya no hay dos columnas que separar: la línea pasa a
+     ser horizontal y la referencia deja de estar pegada. */
+  .app-shell:has(.app-aside) .app-main { border-right: 0; }
+  .app-aside {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    border-top: 1px solid var(--color-base-300);
+  }
+  /* Sin esto la referencia cae en la columna del flujo, debajo del drawer. */
+  .app-shell--con-flujo .app-aside { grid-column: 2; }
+}
+
+/* Debajo de 1024px no hay lugar para una columna al costado y el flujo pasa a
+   ser una tira horizontal arriba del contenido. Esconderlo —que es lo obvio—
+   dejaría sin respuesta, justo en la pantalla más chica, la única pregunta
+   que esta barra existe para contestar. */
+@media (max-width: 1023px) {
+  .app-shell--con-flujo,
+  .app-shell--con-flujo:has(.app-aside) { grid-template-columns: minmax(0, 1fr); }
+  .app-shell--con-flujo .app-aside { grid-column: 1; }
+
+  /* La tira va arriba y no pegada: pegar una barra horizontal en la pantalla
+     más chica se come el alto, que es lo que ahí escasea. */
+  .flow-drawer { grid-row: auto; }
+  .flow-drawer__panel {
+    position: static;
+    max-height: none;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    /* Sin esto el largo de la tira es el mínimo de la columna y la grilla
+       entera se va más ancha que la ventana: scroll horizontal en toda la
+       app, no solo acá. */
+    min-width: 0;
+  }
+  .flow-drawer__head { flex-direction: row; align-items: baseline; gap: 8px; padding: 0; min-width: 0; }
+  .flow-drawer__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .flow-drawer__meta { flex: none; }
+  .flow-drawer__steps { flex-flow: row nowrap; overflow-x: auto; min-width: 0; }
+  .flow-drawer__name { white-space: nowrap; }
 }
 
 .card {

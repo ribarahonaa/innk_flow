@@ -37,8 +37,11 @@ RSpec.describe "criterios del desafío", type: :request do
     expect(response).to have_http_status(:ok)
     expect(response.body).to include("Técnica", "Corte", "Comité")
     expect(response.body).to include("puntúa cada idea", "filtra qué avanza")
-    # «Postulación» no puntúa: no tiene por qué estar acá.
-    expect(response.body).not_to include("Postulación</span>")
+    # «Postulación» no puntúa: no tiene por qué estar acá. Se mira solo la
+    # columna del trabajo, porque el flujo del shell nombra TODOS los módulos
+    # del desafío —ideación incluida— y eso es justo lo que tiene que hacer.
+    principal = response.body[%r{<main.*</main>}m]
+    expect(principal).not_to include("Postulación</span>")
   end
 
   it "marca cuáles van a usar los genéricos" do

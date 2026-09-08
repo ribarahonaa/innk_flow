@@ -1,0 +1,32 @@
+-# La barra lateral con el flujo del desafío. Responde «dónde estoy y qué
+-# sigue», que es la pregunta que la app no contestaba en ninguna pantalla.
+-#
+-# Es un `menu` de DaisyUI dentro de una región propia de la grilla del shell.
+-# NO es el componente `drawer`: ese pide un checkbox, dos labels y envolver el
+-# contenido entero para poder superponerse. Acá abajo de 1024px el flujo pasa
+-# a ser una tira horizontal arriba del contenido — sin una línea de JS y sin
+-# que haya que abrir nada para saber dónde estás.
+-#
+-# Los enlaces llevan clase propia a propósito: `a:not([class])` de `@layer
+-# base` le devuelve el subrayado del navegador al enlace pelado, y los de un
+-# menú saldrían todos subrayados.
+- pasos = desafio.steps.order(:position)
+-# El `__panel` no es decoración: la columna oscura ocupa la fila entera
+-# —si no, el flujo se ve como una tarjeta flotando en una franja gris— y lo
+-# que se queda pegado al scroll es lo de adentro.
+%aside.flow-drawer.bg-neutral.text-neutral-content
+  .flow-drawer__panel
+    .flow-drawer__head
+      = link_to desafio.name, challenge_path(desafio), class: "flow-drawer__title"
+      %span.flow-drawer__meta= t("flow.challenge_statuses.#{desafio.status}")
+    %ul.menu.flow-drawer__steps
+      - pasos.each_with_index do |paso, i|
+        - actual = @step&.id == paso.id
+        - estado = t("flow.statuses.#{paso.status}")
+        %li
+          = link_to challenge_step_path(desafio, paso), class: ["flow-drawer__link", ("menu-active" if actual)] do
+            %span.flow-drawer__num= i + 1
+            %span.flow-drawer__name= paso.name
+            -# El chip va vacío —a 232px no entra el rótulo— así que el estado
+            -# viaja en el `title`: un punto de color solo no dice nada.
+            %span{ class: chip_de_estado(paso.status), title: estado }

@@ -60,7 +60,17 @@
           - if current_user.multi_company?
             = link_to "Cambiar empresa", select_company_path, class: "app-header__link"
           = button_to "Salir", logout_path, method: :delete, class: "app-header__link app-header__link--button"
-    %main.app-main
-      - flash.each do |type, message|
-        %div{ class: clase_de_flash(type) }= message
-      = yield
+    -# Las tres regiones. El drawer solo existe si hay un desafío en contexto y
+    -# la referencia solo si la pantalla la llenó: las dos regiones opcionales
+    -# se declaran acá y la grilla se acomoda sola con `:has()`.
+    - desafio = desafio_del_shell
+    %div{ class: desafio ? "app-shell app-shell--con-flujo" : "app-shell" }
+      - if desafio
+        = render "layouts/flow_drawer", desafio: desafio
+      %main.app-main
+        - flash.each do |type, message|
+          %div{ class: clase_de_flash(type) }= message
+        = yield
+      -# Después del `yield`: es el template el que llena la referencia.
+      - if content_for?(:referencia)
+        %aside.app-aside= yield :referencia
