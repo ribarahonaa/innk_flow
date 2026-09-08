@@ -494,9 +494,29 @@ Sin cambio visual."
 
 DaisyUI trae 615 clases. Contra el vocabulario de esta app **colisionan exactamente dos**: `card` y `btn` (`btn-link` también, pero la app no lo usa en ninguna vista). Verificado por intersección de conjuntos, no por inspección.
 
-Se resuelven migrando esos dos componentes ahora —es mecánico, 223 usos de `btn` y 101 de `card`— en vez de arrastrar una colisión de cascada por toda la migración.
+**ENMENDADA tras el escaneo previo y la tarea 1.** Tres cambios respecto de lo
+que decía antes, cada uno con su razón:
 
-El tema de esta tarea reproduce **la paleta de hoy**, para que el cambio siga siendo invisible. El carácter nuevo entra en la tarea 4.
+1. **Se migra solo `btn`, no `card`.** El `.card` de DaisyUI es un contenedor
+   flex y el padding lo pone `.card-body`: borrar el `.card` propio dejaría 101
+   usos sin relleno de golpe. `btn` no tiene ese problema porque es
+   autocontenido. El `.card` propio se queda —va después del `@plugin`, así que
+   gana la cascada por orden de fuente— y su migración pasa al plan 2, pantalla
+   por pantalla, que es donde se puede envolver el contenido en `card-body`.
+2. **Vuelve el Preflight, medido y compensado.** La tarea 1 lo dejó afuera para
+   no cambiar el render, y midió que traerlo bajaba `h1.page-title` de 700 a
+   400. Pero DaisyUI está construido asumiendo Preflight, y correrlo sin él es
+   salirse del contrato de la librería. Este es el mejor momento para absorberlo:
+   la paleta no cambia, así que **toda** diferencia visual es atribuible al
+   Preflight y a nada más.
+3. **Se re-apunta el `:root` heredado a los tokens de DaisyUI.** Sin esto, la
+   tarea 4 repintaría los botones y dejaría tarjetas, chips y tablas en azul y
+   gris: las 1.939 líneas heredadas leen `var(--accent)`, `var(--surface)` y
+   `var(--border)`, no los tokens nuevos. Se hace acá y no en la 4 porque acá
+   tiene que ser **invisible**, y esa invisibilidad es la prueba de que el
+   cableado quedó bien.
+
+El tema de esta tarea reproduce **la paleta de hoy**. El carácter nuevo entra en la tarea 4.
 
 **Files:**
 - Modify: `package.json`
@@ -551,15 +571,133 @@ En `app/assets/stylesheets/application.css`, debajo del `@import`:
 }
 ```
 
-- [ ] **Step 3: Confirmar la colisión antes de tocar nada**
+- [ ] **Step 3: Traer el Preflight y medir qué rompe**
+
+La tarea 1 lo dejó afuera a propósito. Acá vuelve, porque DaisyUI lo asume.
+
+Reemplazar los dos `@import` sueltos que dejó la tarea 1 por el import completo:
+
+```css
+@import "tailwindcss";
+```
+
+Antes de reconstruir, capturar los estilos computados de referencia. Escribir
+`script/probe_estilos.js` (temporal, **no se commitea**):
+
+```javascript
+// Mide estilos computados de elementos representativos, para poder comparar
+// antes y después de un cambio de base. No es una prueba: es un instrumento.
+const { chromium } = require('playwright');
+const BASE = process.env.BASE_URL || 'http://localhost:3001';
+const SELECTORES = [
+  '.page-title', '.section-title', '.card', '.btn', '.status-chip',
+  '.step-table th', '.step-table td', '.muted', '.field-hint', 'a', 'ul', 'li'
+];
+(async () => {
+  const b = await chromium.launch();
+  const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
+  await p.goto(`${BASE}/login`);
+  await p.fill('input[name="email"]', 'admin@demo.test');
+  await p.fill('input[name="password"]', 'Test1234');
+  await Promise.all([p.waitForURL((u) => !/login/.test(u.href)),
+                     p.click('button[type="submit"], input[type="submit"]')]);
+  await p.goto(`${BASE}${process.env.RUTA || '/challenges/merma-bodega'}`);
+  const out = await p.evaluate((sels) => sels.map((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return `${sel}: (ausente)`;
+    const cs = getComputedStyle(el);
+    return `${sel}: size=${cs.fontSize} weight=${cs.fontWeight} ` +
+           `color=${cs.color} bg=${cs.backgroundColor} ` +
+           `pad=${cs.padding} margin=${cs.margin} border=${cs.borderTopWidth} ` +
+           `list=${cs.listStyleType}`;
+  }), sels = SELECTORES);
+  console.log(out.join('\n'));
+  await b.close();
+})();
+```
+
+Correrlo **antes** (con el estado actual, sin Preflight) y guardar:
+
+```bash
+docker run --rm --network host -v "$PWD/script:/script:ro" -w /run \
+  mcr.microsoft.com/playwright:v1.62.0-noble \
+  bash -c "cd /run && npm i -s playwright@1.62.0 >/dev/null 2>&1 && NODE_PATH=/run/node_modules node /script/probe_estilos.js" \
+  > /tmp/estilos-sin-preflight.txt
+cat /tmp/estilos-sin-preflight.txt
+```
+
+- [ ] **Step 4: Compensar lo que el Preflight resetea**
+
+Reconstruir con Preflight puesto y volver a medir:
 
 ```bash
 make yarn-build
-grep -c "^\.card{\|,\.card{\|{\.card{" app/assets/builds/application-build-css.css
+docker run --rm --network host -v "$PWD/script:/script:ro" -w /run \
+  mcr.microsoft.com/playwright:v1.62.0-noble \
+  bash -c "cd /run && npm i -s playwright@1.62.0 >/dev/null 2>&1 && NODE_PATH=/run/node_modules node /script/probe_estilos.js" \
+  > /tmp/estilos-con-preflight.txt
+diff /tmp/estilos-sin-preflight.txt /tmp/estilos-con-preflight.txt
 ```
-Se espera ver que `.card` aparece definido por los dos lados. Es la razón del paso siguiente.
 
-- [ ] **Step 4: Migrar los modificadores de `btn`**
+Cada línea que aparezca en el `diff` es una regla que la hoja daba por sentada y
+nunca declaró. Declararla explícita en `application.css`. Lo esperable —el
+Preflight resetea encabezados, listas, botones y bordes— es algo así:
+
+```css
+/* Lo que la hoja heredaba de los defaults del navegador y el Preflight de
+   Tailwind resetea. Se declara explícito en vez de sacar el Preflight, porque
+   DaisyUI está construido asumiéndolo. Cada regla de acá salió de comparar
+   estilos computados antes y después, no de adivinar. */
+h1, h2, h3, h4 { font-weight: 700; }
+.page-title { font-size: 22px; }
+.section-title { font-size: 15px; }
+```
+
+**No copies ese bloque a ciegas: escribí el que salga de TU `diff`.** Repetir
+la medición hasta que el `diff` quede vacío.
+
+Borrar `script/probe_estilos.js` antes de commitear.
+
+- [ ] **Step 5: Re-apuntar el `:root` heredado a los tokens de DaisyUI**
+
+Las 1.939 líneas heredadas leen `var(--accent)`, `var(--surface)`, `var(--border)`.
+Si siguen apuntando a sus propios hex, la tarea 4 cambia el tema y no se entera
+nadie más que los botones.
+
+Reemplazar el bloque `:root { … }` original por:
+
+```css
+/* Los tokens heredados dejan de tener valor propio y pasan a ser alias de los
+   de DaisyUI. Es lo que hace que un cambio de tema alcance a las 1.939 líneas
+   que todavía no se migraron —y que el modo oscuro las alcance también—.
+   Acá tiene que ser invisible: el tema replica la paleta de hoy, así que si
+   algo cambia de color, el alias está mal. */
+:root {
+  --bg: var(--color-base-200);
+  --surface: var(--color-base-100);
+  --border: var(--color-base-300);
+  --text: var(--color-base-content);
+  --accent: var(--color-primary);
+  --danger: var(--color-error);
+  --ok: var(--color-success);
+  --warn: var(--color-warning);
+  --radius: var(--radius-box);
+
+  /* Estos dos NO se aliasan acá. `--muted` es un gris azulado sin equivalente
+     exacto en la paleta de DaisyUI, y `--accent-soft` es un tinte del acento
+     sobre blanco: derivarlos ahora movería el color y rompería el «diff
+     vacío», que es justo la prueba que este paso necesita. Se resuelven en la
+     tarea 4, donde cambiar de color es el objetivo. */
+  --muted: #58627a;
+  --accent-soft: #eef4ff;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
+}
+```
+
+Volver a correr la medición del paso 3 y confirmar que el `diff` sigue vacío.
+Si aparece una diferencia de color, un alias está mal apuntado.
+
+- [ ] **Step 6: Migrar los modificadores de `btn`**
 
 ```bash
 grep -rl 'btn--' app/views app/javascript/components | \
@@ -568,20 +706,26 @@ grep -rc 'btn--' app/views app/javascript/components | grep -v ':0' || echo "sin
 ```
 Esperado: `sin restos de btn--`.
 
-- [ ] **Step 5: Borrar las reglas propias de `.btn` y `.card`**
+- [ ] **Step 7: Borrar las reglas propias de `.btn` — y NO las de `.card`**
 
-En `app/assets/stylesheets/application.css`, borrar el bloque `.btn { … }` con sus modificadores `.btn--*` (líneas ~119-138 del original) y el bloque `.card { … }` (líneas ~53-60). Las de DaisyUI toman su lugar.
+En `app/assets/stylesheets/application.css`, borrar el bloque `.btn { … }` con
+sus modificadores `.btn--*` (líneas ~119-138 del original). Las de DaisyUI toman
+su lugar.
 
-Dejar un comentario donde estaban:
+**El bloque `.card { … }` se queda.** Dejar en su lugar este comentario:
 
 ```css
-/* .btn y .card las pone DaisyUI. Eran las DOS únicas clases de esta app que
-   colisionaban con las suyas —medido por intersección, no por inspección—, y
-   arrastrar esa colisión por toda la migración habría dejado la cascada
-   decidiendo cuál gana en cada pantalla. */
+/* `card` y `btn` eran las DOS únicas clases de esta app que colisionaban con
+   DaisyUI —medido por intersección de conjuntos, no por inspección—.
+   `btn` se migró: es autocontenido y el mapeo es directo.
+   `card` NO, y es deliberado: el `card` de DaisyUI es un contenedor flex y el
+   padding lo pone `card-body`, así que borrar esta regla dejaría 101 usos sin
+   relleno de golpe. Esta definición va DESPUÉS del @plugin, así que gana por
+   orden de fuente. Se migra en el plan 2, pantalla por pantalla, que es donde
+   se puede envolver el contenido en un card-body. */
 ```
 
-- [ ] **Step 6: Sumar la revisión de clases descartadas a `make screens`**
+- [ ] **Step 8: Sumar la revisión de clases descartadas a `make screens`**
 
 En `script/capture_screens.js`, junto a las otras revisiones:
 
@@ -615,7 +759,7 @@ async function revisarClasesDescartadas(page, name) {
 
 Llamarla en tres pantallas de distinta forma, después de cada `shot`: `04-challenge`, `09-3-step-evaluaci-n-t-cnica` y `11-ai-runs`.
 
-- [ ] **Step 7: Construir y verificar**
+- [ ] **Step 9: Construir y verificar**
 
 ```bash
 make yarn-build
@@ -624,7 +768,7 @@ make screens
 ```
 Esperado: suite verde, `30 capturas`, sin `[CLASES]` ni `[MORPH]`.
 
-- [ ] **Step 8: Verificar la revisión por mutación**
+- [ ] **Step 10: Verificar la revisión por mutación**
 
 Sacar temporalmente `@source "../../views";` del CSS, reconstruir y correr las capturas: tiene que aparecer `[CLASES]`. Devolverlo después.
 
@@ -636,21 +780,28 @@ make yarn-build
 ```
 Esperado: el `grep -c` da ≥ 1. Si da `0`, la revisión no muerde y hay que arreglarla antes de seguir.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
 git add -A
-git commit -m "DaisyUI entra; btn y card dejan de colisionar
+git commit -m "DaisyUI entra, y el tema heredado pasa a colgar de sus tokens
 
 DaisyUI trae 615 clases y contra el vocabulario de esta app colisionan
-exactamente dos: card y btn. Medido por intersección de conjuntos, no por
-inspección. Se migran ahora —mecánico: 223 usos de btn, 101 de card— en vez de
-arrastrar una colisión de cascada por toda la migración, con la hoja decidiendo
-cuál gana en cada pantalla.
+exactamente dos: card y btn. Medido por intersección de conjuntos. Se migra btn
+—autocontenido, mapeo directo, 223 usos— y card NO: el card de DaisyUI deja el
+padding en card-body, así que borrar el propio dejaría 101 tarjetas sin relleno.
+Se queda, después del plugin, ganando por orden de fuente.
 
-El tema replica la paleta de hoy en oklch, así que esto tampoco cambia nada en
-pantalla. El carácter nuevo entra en el commit siguiente y solo toca estos
-valores.
+Vuelve el Preflight, que la tarea 1 había dejado afuera: DaisyUI está construido
+asumiéndolo. Lo que reseteaba y la hoja daba por sentado quedó declarado
+explícito, y cada una de esas reglas salió de comparar estilos computados antes
+y después, no de adivinar.
+
+Y los tokens heredados dejan de tener valor propio: pasan a ser alias de los de
+DaisyUI. Es lo que hace que el cambio de tema del commit siguiente alcance a las
+1.939 líneas que todavía no se migraron, y que el modo oscuro las alcance
+también. Acá es invisible a propósito —el tema replica la paleta de hoy—, y esa
+invisibilidad es la prueba de que el cableado quedó bien.
 
 Y \`make screens\` suma una revisión que ninguna otra prueba puede hacer: una
 clase que el escáner no vio existe en el HTML y no tiene ninguna regla detrás.
@@ -744,15 +895,27 @@ En `app/assets/stylesheets/application.css`, sumar el bloque de tipografía y **
 }
 ```
 
-- [ ] **Step 3: Aplicar las familias**
+- [ ] **Step 3: Aplicar las familias, y cerrar los dos alias que faltaban**
 
-Reemplazar la regla de `body` que hoy fija `font: 14px/1.5 system-ui, …`:
+La tarea 3 dejó `--bg`, `--surface`, `--border`, `--text` y `--accent` colgando
+de los tokens de DaisyUI, así que el color del `body` ya sigue al tema y no hay
+que tocarlo. Lo que sí cambia es la tipografía.
+
+En el `:root`, cerrar los dos alias que la tarea 3 dejó literales a propósito
+—acá cambiar de color es el objetivo, así que ya no rompen nada—:
+
+```css
+  --muted: color-mix(in oklch, var(--color-base-content) 62%, transparent);
+  --accent-soft: color-mix(in oklch, var(--color-primary) 12%, var(--color-base-100));
+```
+
+Y la regla de `body`, que hoy fija `font: 14px/1.5 system-ui, …`:
 
 ```css
 body {
   margin: 0;
-  background: var(--color-base-200);
-  color: var(--color-base-content);
+  background: var(--bg);
+  color: var(--text);
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
@@ -1010,11 +1173,11 @@ cambia dónde vive.
 -# Lo que se consulta y no se edita en el curso normal del trabajo. Hasta acá
 -# eran cuatro tarjetas del mismo peso que el trabajo, apiladas encima de él.
 - criterios = handler.criteria_snapshot
-.card.bg-base-100
+.card
   %h3.section-title Progreso
   %p.muted= handler.progress.label
 
-.card.bg-base-100
+.card
   %h3.section-title Criterios
   %ul.menu
     - criterios.each do |criterio|
@@ -1022,13 +1185,13 @@ cambia dónde vive.
         %span= criterio["name"]
         %span.muted= number_to_percentage(criterio["weight"].to_f * 100, precision: 0)
 
-.card.bg-base-100
+.card
   %h3.section-title Quién evalúa
   %ul.menu
     - step.step_assignments.includes(:user).each do |asignacion|
       %li= asignacion.user.name
 
-.card.bg-base-100
+.card
   %h3.section-title Modo de IA
   %p.muted= t("flow.ai_modes.#{step.effective_ai_mode}")
 ```
