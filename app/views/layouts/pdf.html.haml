@@ -2,15 +2,34 @@
 %html
   %head
     %meta{ charset: "utf-8" }
+    -# El PDF no puede colgar de los tokens del tema: lo arma wkhtmltopdf con
+    -# este HTML suelto, sin la hoja de la app y sin un navegador que resuelva
+    -# `var()`. Así que acá van literales, y su único trabajo es ser LOS MISMOS
+    -# que pinta la pantalla — este archivo era lo último que llegaba a un
+    -# usuario con el azul anterior (#2563eb), y encima en algo que se descarga
+    -# y circula.
+    -#
+    -# Los cinco salen de convertir el tema claro de `application.css`:
+    -#   #181826  --color-base-content    (17.5:1 sobre el papel)
+    -#   #5d5d67  el 70% del texto sobre blanco, que es lo que da `--muted`
+    -#            (6.5:1) — acá compuesto a mano, porque un alfa impreso
+    -#            depende del papel
+    -#   #e5e5ea  --color-base-300, el borde
+    -#   #f3f3f6  --color-base-200, la línea entre filas
+    -#   #5b3df5  --color-primary, el violeta de la marca (6.1:1)
+    -#
+    -# La tipografía NO se cambia: la display y la Inter viven en
+    -# `public/fonts` y wkhtmltopdf no las carga. El PDF se imprime con la
+    -# fuente del sistema a propósito.
     :css
-      body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #1c2024; }
+      body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #181826; }
       h1 { font-size: 20px; margin: 0 0 4px; }
-      h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #667085; margin: 22px 0 8px; }
-      .muted { color: #667085; }
+      h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #5d5d67; margin: 22px 0 8px; }
+      .muted { color: #5d5d67; }
       table { width: 100%; border-collapse: collapse; }
-      th { text-align: left; font-size: 9px; text-transform: uppercase; color: #667085;
-           border-bottom: 1px solid #e3e6ea; padding: 5px 6px; }
-      td { padding: 6px; border-bottom: 1px solid #eef0f3; }
-      .cover { border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 8px; }
+      th { text-align: left; font-size: 9px; text-transform: uppercase; color: #5d5d67;
+           border-bottom: 1px solid #e5e5ea; padding: 5px 6px; }
+      td { padding: 6px; border-bottom: 1px solid #f3f3f6; }
+      .cover { border-bottom: 2px solid #5b3df5; padding-bottom: 12px; margin-bottom: 8px; }
   %body
     = yield
