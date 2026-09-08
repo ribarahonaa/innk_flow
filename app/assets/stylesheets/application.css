@@ -36,6 +36,32 @@
   --color-success: oklch(62.205% 0.1627 151.05); /* era --ok    #12a150 */
   --color-warning: oklch(72.851% 0.1503 79.09);  /* era --warn  #d99a06 */
 
+  /* Los 11 que faltaban. Es el mismo agujero que `--border`: un tema propio
+     emite SOLO lo declarado, y estos DaisyUI los lee sin fallback. Hoy no
+     rompe porque la app solo usa `btn`, `btn-primary` y `btn-ghost`, pero en
+     cuanto alguien escriba `badge-neutral` o `alert-info` se rompe callado.
+     Los valores salen de la paleta de hoy: el gris oscuro del texto para
+     `neutral`, el violeta del hilo de IA —el único segundo color que esta app
+     tiene— para `secondary`, y el azul para `info`, que es con lo que la app
+     ya pinta lo informativo (`.status-chip`). `accent` no tiene equivalente:
+     apunta al azul para no inventar un tercer color de marca, y la tarea 4 le
+     da el suyo si lo quiere.
+
+     Los `*-content` se eligieron por contraste medido, no por simetría: sobre
+     verde el blanco da 3.37:1 y el texto oscuro 4.87:1; sobre ámbar, 2.45:1
+     contra 6.69:1. Por eso esos dos van oscuros y el resto en blanco. */
+  --color-neutral: oklch(24.113% 0.0097 248.23);   /* el #1c2024 del texto */
+  --color-neutral-content: oklch(100% 0 0);
+  --color-secondary: oklch(54.134% 0.2466 293.01); /* el #7c3aed de la IA */
+  --color-secondary-content: oklch(100% 0 0);
+  --color-accent: oklch(54.615% 0.2152 262.88);    /* sin equivalente: el azul */
+  --color-accent-content: oklch(100% 0 0);
+  --color-info: oklch(54.615% 0.2152 262.88);      /* lo informativo es azul */
+  --color-info-content: oklch(100% 0 0);
+  --color-error-content: oklch(100% 0 0);
+  --color-success-content: oklch(24.113% 0.0097 248.23);
+  --color-warning-content: oklch(24.113% 0.0097 248.23);
+
   --radius-box: 0.625rem;   /* era --radius 10px */
   --radius-field: 0.5rem;   /* era el 8px de los campos y de .btn */
   --radius-selector: 0.375rem;
@@ -90,44 +116,82 @@
 /* elementos de 27 pantallas, antes y después de traer el Preflight. Ninguna */
 /* se adivinó: el inventario completo está en el reporte de la tarea. */
 /* */
-/* Va ARRIBA de las reglas propias a propósito: es una capa de defaults, así */
-/* que cualquier regla de la hoja con la misma especificidad le gana. */
-h1, h2, h3, h4, h5, h6 { font-weight: bold; }
-h1 { font-size: 2em;    margin-block: .67em; }
-h2 { font-size: 1.5em;  margin-block: .83em; }
-h3 { font-size: 1.17em; margin-block: 1em; }
-h4 { font-size: 1em;    margin-block: 1.33em; }
-h5 { font-size: .83em;  margin-block: 1.67em; }
-h6 { font-size: .67em;  margin-block: 2.33em; }
+/* Va en `@layer base`, no sin capa. Sin capa le ganaría también a
+   `@layer utilities`, y entonces un `<h1 class="text-sm font-normal">` o un
+   `<p class="m-0">` saldrían con el default y la utilidad de Tailwind sería
+   inerte —parecería que la clase no compiló—. Desde `base` sigue ganándole al
+   Preflight (misma capa, más abajo en el archivo), sigue perdiendo contra las
+   reglas propias de esta hoja (que no están en ninguna capa) y pasa a perder
+   contra las utilidades, que es el orden correcto. */
+@layer base {
+  h1, h2, h3, h4, h5, h6 { font-weight: bold; }
+  h1 { font-size: 2em;    margin-block: .67em; }
+  h2 { font-size: 1.5em;  margin-block: .83em; }
+  h3 { font-size: 1.17em; margin-block: 1em; }
+  h4 { font-size: 1em;    margin-block: 1.33em; }
+  h5 { font-size: .83em;  margin-block: 1.67em; }
+  h6 { font-size: .67em;  margin-block: 2.33em; }
 
-p { margin-block: 1em; }
+  p { margin-block: 1em; }
 
-code, kbd, samp, pre { font-family: monospace; }
+  code, kbd, samp, pre { font-family: monospace; }
 
-/* Los radios se separan del texto de su opción con el margen del navegador: */
-/* sin esto las tarjetas de `/challenges/new` se corren 5px y el texto se */
-/* pega al control. Los campos de texto no hacen falta —la hoja ya les */
-/* declara `font: inherit`— y las casillas tampoco: las que hay ya tienen */
-/* margen propio. */
-input[type="radio"] { margin: 3px 3px 0 5px; }
+  /* Los radios se separan del texto de su opción con el margen del navegador:
+     sin esto las tarjetas de `/challenges/new` se corren 5px y el texto se
+     pega al control. Los campos de texto no hacen falta —la hoja ya les
+     declara `font: inherit`— y las casillas tampoco: las que hay ya tienen
+     margen propio. */
+  input[type="radio"] { margin: 3px 3px 0 5px; }
 
-/* Chrome atenúa con `opacity: .7` un <select> deshabilitado, y el Preflight
-   se lo lleva puesto con su `opacity: 1`. Más abajo esta hoja declara que «lo
-   bloqueado tiene que PARECER bloqueado»: esto es la otra mitad de eso. Sin
-   la línea, los cuatro «Tipo de respuesta» del editor del formulario —que no
-   se pueden cambiar cuando ya hay ideas— se ven exactamente como los que sí. */
-select:disabled { opacity: .7; }
+  /* Chrome atenúa con `opacity: .7` un <select> deshabilitado, y el Preflight
+     se lo lleva puesto con su `opacity: 1`. Más abajo esta hoja declara que
+     «lo bloqueado tiene que PARECER bloqueado»: esto es la otra mitad de eso.
+     Sin la línea, los cuatro «Tipo de respuesta» del editor del formulario
+     —que no se pueden cambiar cuando ya hay ideas— se ven igual que los que
+     sí. */
+  select:disabled { opacity: .7; }
 
-/* La única lista de la app que dependía de la viñeta del navegador: todas */
-/* las demás declaran `list-style: none`. */
-.flash ul { list-style: disc; }
+  /* Los dos pseudo-elementos que la sonda NO podía ver: `getComputedStyle(el)`
+     no llega a `::placeholder` ni a `::file-selector-button`, así que el
+     volcado de 5.556 elementos era ciego acá y hubo que pedirlos explícitos.
 
-/* El Preflight deja los enlaces sin subrayar. La app lo apaga explícitamente */
-/* en cada enlace que tiene clase propia —455 de 456 en la medición—, así que */
-/* el subrayado se restituye solo donde venía del navegador: el enlace pelado, */
-/* sin clase, que aparece suelto en medio de un texto. Un `<a class="btn">` */
-/* queda afuera, que es lo que hay que evitar. */
-a:not([class]) { text-decoration: underline; }
+     El Preflight le pone al placeholder `color-mix(currentcolor 50%)`, que
+     sobre el texto de esta app da un gris más claro que el del navegador: el
+     contraste bajaba de 4.6:1 a 3.0:1 en los 7 campos con `placeholder`.
+
+     Y al botón del campo de archivo le saca fondo, borde y padding —queda un
+     texto suelto que ya no parece un botón—. `revert` devuelve el valor de la
+     hoja del navegador, que es exactamente lo que la app mostraba. */
+  ::placeholder { color: revert; }
+  ::file-selector-button {
+    appearance: revert;
+    background-color: revert;
+    border: revert;
+    border-radius: revert;
+    padding: revert;
+    font: revert;
+    color: revert;
+  }
+
+  /* La única lista de la app que dependía de la viñeta del navegador: todas
+     las demás declaran `list-style: none`. */
+  .flash ul { list-style: disc; }
+
+  /* El Preflight deja los enlaces sin subrayar. La app lo apaga
+     explícitamente en cada enlace que tiene clase propia —455 de 456 en la
+     medición—, así que el subrayado se restituye solo donde venía del
+     navegador: el enlace pelado, sin clase, que aparece suelto en medio de un
+     texto. Un `<a class="btn">` queda afuera, que es lo que hay que evitar. */
+  a:not([class]) { text-decoration: underline; }
+
+  /* El color de los enlaces también va acá, y no suelto como estaba. Sin capa
+     le ganaba al `.btn` de DaisyUI —que vive en `@layer utilities`— sin
+     importar la especificidad, y un `<a class="btn btn-primary">` quedaba con
+     el texto del color del fondo: azul sobre azul. Desde `base` pierde contra
+     el componente, que es lo correcto, y sigue ganándole al `color: inherit`
+     del Preflight. */
+  a { color: var(--accent); }
+}
 
 /* Los tokens heredados dejan de tener valor propio y pasan a ser alias de los
    de DaisyUI. Es lo que hace que un cambio de tema alcance a las 1.939 líneas
@@ -168,8 +232,6 @@ body {
   color: var(--text);
   font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
-
-a { color: var(--accent); }
 
 .app-header {
   display: flex;
@@ -278,13 +340,6 @@ input:focus, textarea:focus, select:focus {
    `@layer`— y lo único que DaisyUI le agrega es un `background-image: none`
    que no cambia nada. Se migra en el plan 2, pantalla por pantalla. */
 
-/* Un `<a class="btn">` se pintaba con el color de los enlaces —azul sobre
-   azul, texto ilegible— porque `a { color: var(--accent) }` no está en
-   ninguna capa y el `.btn` de DaisyUI sí: el CSS sin capa le gana a `@layer`
-   sin importar la especificidad. Se re-declara acá, con la misma variable
-   que usa el componente, para que el que gane sea el botón. */
-.btn { color: var(--btn-fg); }
-
 /* El `btn--ghost` de esta app no era un botón fantasma: era el secundario
    —superficie blanca, borde gris—, y son 58 usos. El `btn-ghost` de DaisyUI
    es transparente y sin borde, así que el mapeo directo los dejaba a todos
@@ -295,7 +350,6 @@ input:focus, textarea:focus, select:focus {
   --btn-bg: var(--color-base-100);
   --btn-fg: var(--color-base-content);
   --btn-border: var(--color-base-300);
-  color: var(--btn-fg);
 }
 .btn-ghost:hover {
   --btn-bg: var(--accent-soft);
