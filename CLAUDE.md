@@ -40,9 +40,11 @@ No hay linter configurado.
 ## Verificación
 
 **`make screens` es la verificación end-to-end real**, no un extra. Recorre la
-app corriendo con un navegador y falla si hay error de JS, HTTP >= 400 o si
-queda un `.island-placeholder` sin montar. Corrélo después de tocar vistas,
-islas o CSS — un bug de Vue no lo atrapa ningún spec de Ruby (un
+app corriendo con un navegador y falla si hay error de JS, HTTP >= 400, si
+queda un `.island-placeholder` sin montar o si una clase quedó **sin ninguna
+regla detrás** porque Tailwind no la vio al escanear —eso se revisa en las 30
+pantallas, no en algunas: vive en `capturar()`—. Corrélo después de tocar
+vistas, islas o CSS — un bug de Vue no lo atrapa ningún spec de Ruby (un
 `__VUE_OPTIONS_API__` mal puesto dejó el builder en blanco y la suite en verde).
 
 Al escribir capturas nuevas en `script/capture_screens.js`:
@@ -420,7 +422,119 @@ la clave ausente.
 
 ### El sistema visual
 
-Tres piezas cargan casi toda la jerarquía, y las tres estaban mal calibradas:
+**Tailwind 4 + DaisyUI 5.** La hoja propia («sin framework CSS: la maqueta
+define sus propios tokens») se revirtió a propósito; el porqué y el orden de
+migración están en
+`docs/superpowers/specs/2026-09-08-rediseno-tailwind-daisyui-design.md`.
+
+La configuración vive **en el CSS** —Tailwind 4 es config-por-CSS, no hay
+`tailwind.config.js`—: `app/assets/stylesheets/application.css` abre con
+`@import "tailwindcss"`, `@plugin "daisyui"` y los dos temas, y declara con
+`@source` dónde buscar clases (`views`, `helpers`, `javascript`). La compila el
+**CLI de Tailwind** (`yarn build:css`), no esbuild, que ya solo ve JavaScript;
+Sass se jubiló entero. El archivo de salida conserva el nombre, así que el
+`stylesheet_link_tag` del layout nunca cambió.
+
+Esta fase migró la plomería, las clases dinámicas, el tema y el shell. Lo que
+sigue —los 18 partials compartidos, pantalla por pantalla y los componentes
+Vue— es el plan 2. Por eso `status-chip`, `.step-card` y compañía todavía son
+CSS escrito a mano y no `badge` ni `card` de DaisyUI.
+
+#### Lo que más fácil se rompe
+
+- **`data-theme` NO va en el `<html>`.** El tema oscuro es
+  `@plugin "daisyui/theme" { name: "flow-oscuro"; prefersdark: true; }`, y
+  `prefersdark` engancha
+  `@media (prefers-color-scheme: dark) { :root:not([data-theme]) }`. Poner el
+  atributo —**aunque sea con el nombre del tema claro**— hace que ese selector
+  no matchee nunca y deja el modo oscuro muerto. Es lo primero que uno agrega
+  al ver un tema de DaisyUI.
+- **El token del color de borde es `--borde`, no `--border`.** DaisyUI usa
+  `--border` para el **ancho** de los bordes de sus componentes
+  (`border-width: var(--border)`): con el nombre en inglés el color se colaba
+  ahí, el ancho quedaba inválido y todos los botones salían con los 3px del
+  `medium` por default. No se ve leyendo el CSS; se ve midiendo.
+- **Las mezclas van `in oklab`, nunca `in oklch`.** En oklch el tono interpola
+  por el arco corto: mezclar el ámbar (82°) con el texto (286°) da la vuelta
+  por el rojo y el «amarillo oscuro» sale marrón anaranjado. En oklab no hay
+  tono que rotar.
+- **Un color con alfa se compone sobre su fondo antes de medir su contraste.**
+  `--muted` es `color-mix(… 70%, transparent)`, y medirlo sin componer da un
+  número que en pantalla no existe. Si el fondo también es translúcido, se
+  compone la cadena hasta el primer opaco.
+- **Un tema propio emite SOLO lo que declara**: no hereda nada de los que trae
+  la librería. Los 20 colores y los tres escalares van completos **en los dos**
+  temas — sin `--depth`, el `color-mix()` del borde de `.btn` queda inválido y
+  `border-color` cae en `currentColor`.
+- **Lo declarado tiene que ser lo que pinta.** Varios oklch del plan estaban
+  fuera del gamut sRGB: el navegador los recorta, y entonces ajustar el croma
+  no hace nada hasta cruzar el límite. Los valores de la hoja son la conversión
+  exacta del hex y el croma máximo que entra.
+
+#### Las tres capas, y de quién es cada regla
+
+Componentes de DaisyUI donde existan · clases propias con nombre semántico para
+el vocabulario que es de esta app y se repite (`.flow-strip`, `.step-card`,
+`.empty-state`) · utilidades sueltas solo para lo irrepetible. **Si una clase
+aparece en más de dos vistas, es un componente, no doce utilidades.**
+
+`card` de DaisyUI está **excluida** (`exclude: card` en el `@plugin`): además
+de pintar declara `display: flex`, y eso convertiría en columna flex las 101
+tarjetas de la app, que nunca lo pidieron. Entra en el plan 2, cuando las
+pantallas se reescriban con `card-body`.
+
+**La capa decide quién gana, y no es la especificidad.** Las clases propias de
+la app van **sin capa**, y una regla sin capa le gana a cualquier `@layer` —o
+sea a todo Tailwind y todo DaisyUI—: es lo que sostiene las 1.939 líneas
+heredadas sin tener que tocarlas. El precio es que un selector genérico sin
+capa pisa un componente: `a { color: … }` suelto le ganaba al `.btn` de DaisyUI
+y dejaba un `<a class="btn btn-primary">` con el texto del color del fondo. Los
+defaults del navegador que el Preflight borra —y ese color de enlace— van en
+`@layer base`, desde donde le ganan al Preflight, pierden contra el componente
+y pierden contra las utilidades: si estuvieran sin capa, un `<p class="m-0">`
+saldría con el default y la utilidad parecería no haber compilado.
+
+#### Tailwind escanea texto: una clase interpolada no existe
+
+`app/helpers/estilos_helper.rb` traduce estado del dominio → clase y devuelve
+siempre el nombre **completo**, escrito literal. Nunca `"status-chip--#{x}"`:
+esa clase no llega a la hoja, el elemento queda sin ninguna regla detrás y en
+el DOM se ve perfecto mientras en pantalla no se ve nada. De rebote, la
+traducción estado → estilo queda en un solo lugar.
+
+La guarda es `spec/lint/clases_interpoladas_spec.rb` y mira **HAML y `.vue`**:
+las islas son fuente de Tailwind igual que las vistas. En una isla el nombre lo
+manda el **presenter** en las props —`PipelinePresenter` resuelve el chip con
+el mismo `chip_de_estado` que el HAML— y el componente solo lo liga.
+
+Cada mapeo se prueba **contra su enum**, y con `end_with` y no `include`: un
+helper que devolviera `--issued` pasaba el test de `issue`.
+
+#### El shell de tres regiones
+
+`.app-shell` es una grilla: el flujo del desafío a la izquierda (232px), el
+trabajo en el medio y la referencia a la derecha (280px). **Las dos laterales
+son opcionales y la grilla se acomoda sola con `:has()`**, así que ninguna
+pantalla declara su layout.
+
+- La regla de qué va dónde: **el centro es lo que se hace; la derecha es lo que
+  se consulta y no se edita** en el curso normal del trabajo.
+- El drawer aparece solo si hay un desafío **guardado** en contexto
+  (`ShellHelper#desafio_del_shell`). Dos guardas que parecen de más y no lo
+  son: `/challenges/new` deja un `Challenge.new` sin slug y el `challenge_path`
+  del drawer reventaba la pantalla entera; y sin tenant devuelve `nil`, porque
+  un 404 se renderiza **después** del `Current.reset` y la consulta de los
+  módulos moriría con `MissingTenant`.
+- La referencia la llena el template con `content_for :referencia` y el layout
+  la lee **después del `yield`**.
+- **No es el componente `drawer` de DaisyUI**: es un `menu` dentro de una
+  región de la grilla. El `drawer` pide un checkbox, dos labels y envolver el
+  contenido entero. Abajo de 1024px el flujo pasa a ser una tira horizontal
+  arriba del contenido, sin una línea de JS y sin que haya que abrir nada.
+- La barra es oscura **en los dos temas** (`bg-neutral`): es el shell, no el
+  modo oscuro.
+
+#### Lo que carga la jerarquía
 
 - **El ritmo lo pone `.app-main`**, que es `flex` en columna con `gap`. Las
   tarjetas tienen `margin: 0` a propósito: un margen por tarjeta rompería las
@@ -435,10 +549,30 @@ Tres piezas cargan casi toda la jerarquía, y las tres estaban mal calibradas:
 - **`--muted` se usa 178 veces**, así que casi todo el texto de la app es gris.
   Subir el contraste del token una vez lo levanta en todos lados; es más
   barato y más parejo que discutir usos.
+- **El acento es de las ACCIONES.** Los gráficos van con `--dato` /
+  `--dato-fuerte`, una rampa sacada del propio texto: pintar una barra con el
+  violeta del botón de al lado la hace leer como un control.
 
 Un `turbo-frame` que siempre se renderiza pero casi siempre está vacío —el de
 sugerencias de IA— necesita `display: contents`, o como hijo flex se lleva dos
 gaps y abre un hueco de la nada.
+
+#### Las fuentes se auto-hospedan
+
+Bricolage Grotesque (solo títulos) e Inter (todo lo demás) viven en
+`public/fonts` y las declara la hoja con `@font-face`. **No entran por Google
+Fonts**: una hoja de un tercero bloquea el render y, medido, con la petición
+colgada `DOMContentLoaded` no llega nunca y la pantalla queda **en blanco**
+—abortada rendía bien; colgada, no, y `preconnect` no ayuda contra un agujero
+negro—. Son los mismos dos archivos variables del subconjunto latin que el
+navegador ya bajaba (125 KB), con `font-display: swap` y la pila de respaldo
+intacta. La licencia OFL acompaña a los archivos, que es lo que pide.
+
+El PDF de reportería es la excepción y **no** cuelga de los tokens: lo arma
+wkhtmltopdf sin la hoja de la app y sin nadie que resuelva `var()`, así que
+`app/views/layouts/pdf.html.haml` lleva los cinco colores como literales y la
+fuente del sistema. Si el tema cambia, ese archivo se actualiza a mano — es el
+único lugar donde la paleta llega a un usuario en algo que se descarga.
 
 ### Las cuentas de demo
 
