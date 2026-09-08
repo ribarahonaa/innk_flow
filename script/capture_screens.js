@@ -146,14 +146,26 @@ async function revisarClasesDescartadas(page, name) {
   }
 }
 
+// La captura y las revisiones que solo piden la pantalla ya pintada.
+//
+// Nueve de las treinta pantallas no se abren por URL —se llega a ellas con un
+// clic, esperando que monte una isla— y por eso no pasan por `shot()`. La
+// revisión de clases descartadas corría en tres pantallas sueltas y el spec
+// dice «en cada pantalla del recorrido»: acá adentro corre en las treinta,
+// incluidas las que solo existen después de navegar.
+async function capturar(page, name) {
+  await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
+  await revisarClasesDescartadas(page, name);
+  shots.push(name);
+}
+
 async function shot(page, name, url, prepare) {
   await page.goto(BASE + url, { waitUntil: 'networkidle' });
   if (prepare) await prepare(page);
-  await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
   await revisarTexto(page, name);
   await revisarFormsAnidados(page, name, url);
   await revisarRitmo(page, name);
-  shots.push(name);
+  await capturar(page, name);
 }
 
 (async () => {
@@ -229,7 +241,6 @@ async function shot(page, name, url, prepare) {
   await shot(page, '03c-paso-a-paso', '/challenges/sin-formulario/form');
   await shot(page, '03d-criterios-indice', '/challenges/sin-formulario/criteria');
   await shot(page, '04-challenge', `/challenges/${CHALLENGE}`);
-  await revisarClasesDescartadas(page, '04-challenge');
 
   // El builder es una isla Vue, y se llega NAVEGANDO POR EL LINK, no con un
   // goto directo.
@@ -249,8 +260,7 @@ async function shot(page, name, url, prepare) {
   if (await ideationCard.count()) await ideationCard.click();
   await page.waitForTimeout(200);
   await page.waitForTimeout(300);
-  await page.screenshot({ path: `${OUT}/05-builder.png`, fullPage: true });
-  shots.push('05-builder');
+  await capturar(page, '05-builder');
 
   // El paso a paso es para CONFIGURAR: sobre un desafío que ya arrancó marca
   // como pendiente un paso que ya no se puede tocar. La guarda vive en el
@@ -272,8 +282,7 @@ async function shot(page, name, url, prepare) {
   if (await formLink.count()) {
     await formLink.first().click();
     await page.waitForSelector('[data-island-mounted="true"] .field-edit', { timeout: 15000 });
-    await page.screenshot({ path: `${OUT}/05b-form.png`, fullPage: true });
-    shots.push('05b-form');
+    await capturar(page, '05b-form');
 
     if (await page.locator('.setup').count()) {
       failures++;
@@ -307,8 +316,7 @@ async function shot(page, name, url, prepare) {
       previewLink.first().click()
     ]);
     await page.waitForSelector('.preview-surface, .empty-state', { timeout: 10000 });
-    await page.screenshot({ path: `${OUT}/05c-preview-borrador.png`, fullPage: true });
-    shots.push('05c-preview-borrador');
+    await capturar(page, '05c-preview-borrador');
   } else {
     failures++;
     console.error('[LINK] el builder no ofrece previsualizar');
@@ -338,15 +346,13 @@ async function shot(page, name, url, prepare) {
     versioned.first().locator('.idea-list__link').click()
   ]);
   await page.waitForSelector('.version-timeline', { timeout: 10000 });
-  await page.screenshot({ path: `${OUT}/07-idea.png`, fullPage: true });
-  shots.push('07-idea');
+  await capturar(page, '07-idea');
 
   const diffLink = page.locator('a:has-text("Ver cambios entre versiones")');
   if (await diffLink.count()) {
     await diffLink.click();
     await page.waitForURL('**/diff**', { timeout: 10000 });
-    await page.screenshot({ path: `${OUT}/08-diff.png`, fullPage: true });
-    shots.push('08-diff');
+    await capturar(page, '08-diff');
   } else {
     failures++;
     console.error('[LINK] la idea con v2 no ofrece ver el diff');
@@ -374,7 +380,6 @@ async function shot(page, name, url, prepare) {
   for (const [index, link] of stepLinks.entries()) {
     const nombre = `09-${index + 1}-step-${link.text.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
     await shot(page, nombre, link.href);
-    if (nombre.startsWith('09-3-')) await revisarClasesDescartadas(page, nombre);
 
     // El modo de IA se ajusta desde el módulo, sin volver al builder. La
     // selección era el único de los cinco que no lo ofrecía, y es donde más
@@ -438,8 +443,7 @@ async function shot(page, name, url, prepare) {
   await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
   await porTipo(page, 'Idear').click();
   await page.waitForTimeout(200);
-  await page.screenshot({ path: `${OUT}/09-9-builder-sin-formulario.png`, fullPage: true });
-  shots.push('09-9-builder-sin-formulario');
+  await capturar(page, '09-9-builder-sin-formulario');
 
   await shot(page, '09-10-form-vacio', '/challenges/sin-formulario/form');
 
@@ -467,8 +471,7 @@ async function shot(page, name, url, prepare) {
   await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
   await porTipo(page, 'Evaluación').click();
   await page.waitForTimeout(200);
-  await page.screenshot({ path: `${OUT}/09-11-panel-evaluacion.png`, fullPage: true });
-  shots.push('09-11-panel-evaluacion');
+  await capturar(page, '09-11-panel-evaluacion');
 
   // Por DESTINO y no por texto: la etiqueta cambia según el módulo ya tenga
   // criterios propios o no, y la captura se caía cuando alguien los definía.
@@ -476,8 +479,7 @@ async function shot(page, name, url, prepare) {
   if (await criteriaLink.count()) {
     await criteriaLink.first().click();
     await page.waitForLoadState('networkidle');
-    await page.screenshot({ path: `${OUT}/09-12-criterios-del-modulo.png`, fullPage: true });
-    shots.push('09-12-criterios-del-modulo');
+    await capturar(page, '09-12-criterios-del-modulo');
   } else {
     failures++;
     console.error('[LINK] el panel de evaluación no ofrece definir criterios propios');
@@ -497,8 +499,7 @@ async function shot(page, name, url, prepare) {
     await page.waitForSelector('[data-island-mounted="true"] .criterion-edit', { timeout: 15000 });
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await page.waitForTimeout(150);
-    await page.screenshot({ path: `${OUT}/10b-criteria-editor.png`, fullPage: true });
-    shots.push('10b-criteria-editor');
+    await capturar(page, '10b-criteria-editor');
 
     if (await page.locator('.island-placeholder').count()) {
       failures++;
@@ -521,7 +522,6 @@ async function shot(page, name, url, prepare) {
     console.error('[LINK] la biblioteca de criterios no ofrece editar un set');
   }
   await shot(page, '11-ai-runs', '/admin/ai_runs');
-  await revisarClasesDescartadas(page, '11-ai-runs');
 
   await browser.close();
 
