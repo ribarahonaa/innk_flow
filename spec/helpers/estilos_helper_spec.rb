@@ -36,38 +36,54 @@ RSpec.describe EstilosHelper, type: :helper do
   # momento, que "draft"/"running"/"closed" (Challenge::STATUSES) y "issue"
   # (FeedbackItem::KINDS) y "advanced"/"eliminated" (StepEntry::STATUSES)
   # caían al fallback en vez de tener su propia clase.
+  #
+  # `end_with` y no `include`: la clase termina en el nombre del estado. Con
+  # `include`, un helper que devolviera "--issued" pasaba el test de "issue"
+  # —el sufijo es lo que distingue un estado del que lo tiene de prefijo—.
   it "cubre todos los estados de un desafío" do
     Challenge::STATUSES.each do |estado|
-      expect(helper.chip_de_estado(estado)).to include("--#{estado}"),
+      expect(helper.chip_de_estado(estado)).to end_with("--#{estado}"),
         "«#{estado}» cae al fallback: es un color equivocado que nadie ve fallar"
     end
   end
 
   it "cubre todos los estados de un módulo" do
     ChallengeStep::STATUSES.each do |estado|
-      expect(helper.chip_de_estado(estado)).to include("--#{estado}"),
+      expect(helper.chip_de_estado(estado)).to end_with("--#{estado}"),
         "«#{estado}» cae al fallback: es un color equivocado que nadie ve fallar"
     end
   end
 
   it "cubre todos los orígenes de un criterio" do
     Criterion::SOURCES.each do |source|
-      expect(helper.chip_de_origen(source)).to include("--#{source}"),
+      expect(helper.chip_de_origen(source)).to end_with("--#{source}"),
         "«#{source}» cae al fallback: es un color equivocado que nadie ve fallar"
     end
   end
 
   it "cubre todos los tipos de feedback" do
     FeedbackItem::KINDS.each do |kind|
-      expect(helper.clase_de_feedback(kind)).to include("--#{kind}"),
+      expect(helper.clase_de_feedback(kind)).to end_with("--#{kind}"),
         "«#{kind}» cae al fallback: es un color equivocado que nadie ve fallar"
     end
   end
 
   it "cubre todos los estados de una entrada de módulo" do
     StepEntry::STATUSES.each do |status|
-      expect(helper.clase_de_resultado(status)).to include("--#{status}"),
+      expect(helper.clase_de_resultado(status)).to end_with("--#{status}"),
         "«#{status}» cae al fallback: es un color equivocado que nadie ve fallar"
+    end
+  end
+
+  # El mapa compacto del flujo pinta los MISMOS estados que los chips, con otra
+  # forma y en otro hash. Era el único de los seis sin nadie que lo recorriera
+  # contra su enum, que es justo el agujero por el que ya se colaron
+  # "draft"/"running"/"closed" en los chips y "advanced"/"eliminated" en los
+  # resultados.
+  it "cubre todos los estados de un módulo en el mapa del flujo" do
+    ChallengeStep::STATUSES.each do |estado|
+      expect(helper.clase_de_nodo_de_flujo(estado)).to end_with("--#{estado}"),
+        "«#{estado}» cae al fallback: es un color equivocado que nadie ve fallar"
     end
   end
 end
