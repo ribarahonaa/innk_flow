@@ -73,7 +73,10 @@
               </span>
             </span>
 
-            <span class="status-chip" :class="`status-chip--${step.status}`">
+            <!-- La clase la manda el server (PipelinePresenter#step_json), sin
+                 armarla acá con un template literal: Tailwind escanea texto y
+                 lo interpolado no lo ve. Es la misma regla que en el HAML. -->
+            <span :class="step.statusClass">
               {{ step.statusLabel }}
             </span>
             <span v-if="step.locked" class="step-card__lock" title="Módulo ya ejecutado">🔒</span>
@@ -243,6 +246,9 @@ export default {
         name: item.label,
         status: 'pending',
         statusLabel: 'Pendiente',
+        // Literal, como el rótulo de al lado: un módulo recién agregado nace
+        // pendiente y el server le manda la suya en cuanto se guarda.
+        statusClass: 'status-chip status-chip--pending',
         aiMode: null,
         sourceStepId: null,
         criteriaSetId: null,

@@ -7,6 +7,13 @@
 # Una vuelta de red menos, y la tenencia la garantiza el scope de acá — no una
 # ruta JSON que alguien podría olvidar scopear.
 class PipelinePresenter
+  # La clase del chip de estado la resuelve el MISMO mapeo que usan las vistas
+  # HAML. La isla la recibe hecha en vez de armarla con un template literal:
+  # Tailwind escanea texto y un `status-chip--${step.status}` no existe para el
+  # escáner —hoy es inocuo porque la clase está escrita a mano en la hoja, y
+  # deja de serlo en cuanto el chip pase a `badge` de DaisyUI—.
+  include EstilosHelper
+
   def initialize(challenge, membership: nil)
     @challenge = challenge
     @membership = membership
@@ -66,6 +73,7 @@ class PipelinePresenter
       name: step.name,
       status: step.status,
       statusLabel: I18n.t("flow.statuses.#{step.status}"),
+      statusClass: chip_de_estado(step.status),
       position: step.position.to_f,
       aiMode: step.ai_mode,
       effectiveAiMode: step.effective_ai_mode,
