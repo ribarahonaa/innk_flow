@@ -21,3 +21,4 @@ node_modules/
 
 # Artefactos de las corridas de `make screens`.
 /tmp/screenshots
+.superpowers/
