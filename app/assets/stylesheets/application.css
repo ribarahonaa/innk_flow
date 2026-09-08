@@ -441,12 +441,12 @@ body {
    la grilla mide siempre 56px más que la ventana y CUALQUIER pantalla —hasta
    una vacía— nace con scroll vertical. */
 .app-shell { display: grid; grid-template-columns: 1fr; min-height: calc(100vh - 56px); }
-.app-shell--con-flujo { grid-template-columns: 232px minmax(0, 1fr); }
+.app-shell--con-flujo { grid-template-columns: 232px minmax(0, var(--medida)); }
 /* Las dos regiones opcionales son independientes: una pantalla puede llenar
    la referencia sin estar dentro de un desafío, y ahí no hay que reservar la
    columna del flujo. */
-.app-shell:has(.app-aside) { grid-template-columns: minmax(0, 1fr) 280px; }
-.app-shell--con-flujo:has(.app-aside) { grid-template-columns: 232px minmax(0, 1fr) 280px; }
+.app-shell:has(.app-aside) { grid-template-columns: minmax(0, var(--medida)) 280px; }
+.app-shell--con-flujo:has(.app-aside) { grid-template-columns: 232px minmax(0, var(--medida)) 280px; }
 
 .app-main {
   padding: 24px;
@@ -458,11 +458,19 @@ body {
   gap: 16px;
 }
 
-/* Sola en la pantalla, la columna del trabajo no puede correr el ancho entero
-   de un monitor: es la medida que la app ya tenía. Con una región al lado, la
-   grilla ya la acota. */
+/* La medida: 1.180px de ancho de línea, que es lo que la app ya tenía.
+
+   El tope va en la COLUMNA y no solo en `.app-main` cuando está sola. Tener
+   una región al lado no acota nada arriba de ~1.600px: medido, en un monitor
+   de 1920 —el más común de escritorio— una pantalla de adentro de un desafío
+   corría 1.688px de línea, y a 2560 corría 2.328. El sobrante queda a la
+   derecha: el flujo es una barra lateral y va pegada al borde, no flotando en
+   el medio de la pantalla.
+
+   Sola en la pantalla la columna sí se centra, que es como estaba. */
+.app-shell { --medida: 1180px; }
 .app-shell:not(.app-shell--con-flujo):not(:has(.app-aside)) .app-main {
-  max-width: 1180px;
+  max-width: var(--medida);
   margin: 0 auto;
   width: 100%;
 }
@@ -488,9 +496,14 @@ body {
 .app-shell:has(.app-aside) .app-main { border-right: 1px solid var(--color-base-300); }
 
 /* ── El flujo del desafío ───────────────────────────────────────────────── */
-/* La columna oscura ocupa la fila entera —`grid-row: 1 / -1`, porque cuando
-   la referencia baja debajo del trabajo el drawer se quedaría en la primera
-   fila y dejaría medio panel de aire a su lado— y lo que se queda pegado
+/* La columna oscura ocupa las dos filas —cuando la referencia baja debajo del
+   trabajo, el drawer se quedaría en la primera y dejaría medio panel de aire
+   a su lado: 232 × 579px, medido a 1100px de ancho—. Va `span 2` y no
+   `1 / -1`: sin `grid-template-rows` el grid EXPLÍCITO de filas no tiene
+   ninguna, así que `-1` resuelve a la línea 1, `start == end`, y la regla
+   degrada a `span 1` sin avisar. Se ve igual de bien escrita y no hace nada.
+
+   Lo que se queda pegado
    al scroll es el panel de adentro. Pegar la columna misma la deja del alto
    de su contenido: una tarjeta oscura flotando en una franja gris, no una
    barra.
@@ -503,8 +516,10 @@ body {
    se va, y un panel pegado a 56px dejaría una franja clara arriba. */
 /* El borde no es adorno: en oscuro el panel (#0b0b16) y el fondo de página
    (#11101d) dan 1,04:1 —o sea, no se distinguen— y la barra deja de leerse
-   como una región. En claro el panel ya contrasta y el borde no molesta. */
-.flow-drawer { grid-row: 1 / -1; border-right: 1px solid var(--color-base-300); }
+   como una región. Va con `--tenue` y no con `--color-base-300`: ese daba
+   1,22:1 contra la página, o sea que no era una mitigación, era una línea
+   invisible. `--tenue` mide 3,38:1 en claro y 4,43:1 en oscuro. */
+.flow-drawer { grid-row: 1 / span 2; border-right: 1px solid var(--tenue); }
 .flow-drawer__panel {
   position: sticky;
   top: 0;
@@ -543,8 +558,20 @@ body {
 .flow-drawer__link { text-decoration: none; align-items: center; gap: 8px; }
 .flow-drawer__link:not(.menu-active) { color: inherit; }
 /* El hover de DaisyUI mezcla `base-content` —casi negro— y sobre este panel
-   oscuro no se ve. */
-.flow-drawer__link:hover { background-color: color-mix(in oklab, var(--color-neutral-content) 15%, transparent); }
+   oscuro no se ve. Va con `:not(.menu-active)` por el mismo motivo que el
+   `color` de arriba: sin capa le gana a `.menu-active`, que está en capa, así
+   que pasar el puntero por el módulo actual le borraba el violeta justo
+   cuando la señal de «acá estás» tiene que estar. */
+.flow-drawer__link:not(.menu-active):hover { background-color: color-mix(in oklab, var(--color-neutral-content) 15%, transparent); }
+
+/* El `menu` de DaisyUI apaga el outline de sus items y lo reemplaza por un
+   fondo `base-content 10%` que sobre este panel casi negro no existe: los
+   siete enlaces del flujo —la navegación principal nueva de la app— eran lo
+   único que no se veía tabulando. */
+.flow-drawer__link:focus-visible {
+  outline: 2px solid var(--color-neutral-content);
+  outline-offset: -2px;
+}
 .flow-drawer__num {
   flex: none;
   width: 18px;
@@ -575,19 +602,31 @@ body {
    de laptop más comunes, y ahí la referencia se iría al pie de una pantalla
    de 3.800px, o sea a ningún lado. */
 @media (max-width: 1279px) {
-  .app-shell:has(.app-aside) { grid-template-columns: minmax(0, 1fr); }
-  .app-shell--con-flujo:has(.app-aside) { grid-template-columns: 232px minmax(0, 1fr); }
-  /* Debajo del trabajo ya no hay dos columnas que separar: la línea pasa a
-     ser horizontal y la referencia deja de estar pegada. */
+  .app-shell:has(.app-aside) { grid-template-columns: minmax(0, var(--medida)); }
+  .app-shell--con-flujo:has(.app-aside) { grid-template-columns: 232px minmax(0, var(--medida)); }
+  /* Al lado ya no hay dos columnas que separar: la línea pasa a ser
+     horizontal y la referencia deja de estar pegada. */
   .app-shell:has(.app-aside) .app-main { border-right: 0; }
   .app-aside {
     position: static;
     max-height: none;
     overflow: visible;
-    border-top: 1px solid var(--color-base-300);
+    border-bottom: 1px solid var(--color-base-300);
   }
-  /* Sin esto la referencia cae en la columna del flujo, debajo del drawer. */
-  .app-shell--con-flujo .app-aside { grid-column: 2; }
+  /* ARRIBA del trabajo, no abajo. Al pie de un documento de 4.400px lo que se
+     consulta no está «más abajo», está en ningún lado: sin esto la mudanza
+     empeoraba el acceso a progreso y criterios en toda la banda de menos de
+     1280px, donde antes eran las dos primeras tarjetas de la pila. */
+  .app-shell:has(.app-aside) .app-aside { grid-row: 1; }
+  .app-shell:has(.app-aside) .app-main { grid-row: 2; }
+  /* Y en fila: apiladas a lo ancho de la pantalla, las mismas dos tarjetas
+     empujan el título del módulo 635px hacia abajo, o sea afuera de la
+     primera pantalla. En fila la banda mide lo que la tarjeta más alta. */
+  .app-aside { flex-direction: row; flex-wrap: wrap; align-items: flex-start; }
+  .app-aside > * { flex: 1 1 260px; }
+  /* Sin esto las dos caen en la columna del flujo, al lado del drawer. */
+  .app-shell--con-flujo .app-aside,
+  .app-shell--con-flujo:has(.app-aside) .app-main { grid-column: 2; }
 }
 
 /* Debajo de 1024px no hay lugar para una columna al costado y el flujo pasa a
@@ -596,12 +635,17 @@ body {
    que esta barra existe para contestar. */
 @media (max-width: 1023px) {
   .app-shell--con-flujo,
-  .app-shell--con-flujo:has(.app-aside) { grid-template-columns: minmax(0, 1fr); }
-  .app-shell--con-flujo .app-aside { grid-column: 1; }
+  .app-shell--con-flujo:has(.app-aside) { grid-template-columns: minmax(0, var(--medida)); }
+  /* Una sola columna: el drawer es la fila 1, la referencia la 2 y el trabajo
+     la 3. */
+  .flow-drawer { grid-row: 1; }
+  .app-shell--con-flujo .app-aside,
+  .app-shell--con-flujo:has(.app-aside) .app-main { grid-column: 1; }
+  .app-shell:has(.app-aside) .app-aside { grid-row: 2; }
+  .app-shell:has(.app-aside) .app-main { grid-row: 3; }
 
   /* La tira va arriba y no pegada: pegar una barra horizontal en la pantalla
      más chica se come el alto, que es lo que ahí escasea. */
-  .flow-drawer { grid-row: auto; }
   .flow-drawer__panel {
     position: static;
     max-height: none;
