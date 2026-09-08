@@ -1,9 +1,10 @@
 !!!
--# El tema queda fijado en claro. `flow-oscuro` existe y está medido, pero
--# DaisyUI lo engancha a `prefers-color-scheme` con `:root:not([data-theme])`:
--# mientras este atributo esté puesto, el modo oscuro NO se activa solo.
--# Sacarlo es lo único que hace falta para encenderlo.
-%html{ lang: I18n.locale, "data-theme": "flow" }
+-# Sin `data-theme`: DaisyUI resuelve el tema solo. El claro es `default: true`
+-# y el oscuro es `prefersdark: true`, que engancha
+-# `@media (prefers-color-scheme: dark) { :root:not([data-theme]) }`. Poner el
+-# atributo acá —aunque sea con el nombre del tema claro— hace que ese selector
+-# no matchee NUNCA y deja el modo oscuro muerto. Está medido en el reporte.
+%html{ lang: I18n.locale }
   %head
     %title= content_for(:title) || "innk flow"
     %meta{ name: "viewport", content: "width=device-width,initial-scale=1" }

@@ -97,9 +97,11 @@
    el oscuro invierte las superficies y los `*-content` se dan vuelta —blanco
    sobre el primario da 6.12 en claro y 3.21 en oscuro—.
 
-   Hoy este tema NO se activa solo: los layouts fijan `data-theme="flow"` y
-   DaisyUI engancha `prefersdark` a `:root:not([data-theme])`. Está completo y
-   medido para el día que se saque ese atributo. */
+   `prefersdark: true` lo engancha a
+   `@media (prefers-color-scheme: dark) { :root:not([data-theme]) }`, así que
+   los layouts NO pueden declarar `data-theme` —ni con el nombre del tema
+   claro—: el atributo hace que ese selector no matchee nunca y deja el modo
+   oscuro muerto. Medido en Chromium con los dos esquemas del sistema. */
 @plugin "daisyui/theme" {
   name: "flow-oscuro";
   prefersdark: true;
@@ -356,8 +358,24 @@
   /* Un panel entero teñido al 12% es demasiado: la IA ocupa tarjetas
      completas, no solo chips. */
   --ia-panel: color-mix(in oklab, var(--color-secondary) 6%, var(--color-base-100));
-  /* El otro extremo de un degradado del acento. */
-  --accent-claro: color-mix(in oklab, var(--color-primary) 55%, var(--color-base-100));
+  /* ── La tinta de los datos ─────────────────────────────────────────────
+     El acento es de las ACCIONES. Un gráfico pintado con el mismo violeta que
+     el botón de al lado se lee como un control, y con el embudo, el histograma
+     y los chips todos violetas la pantalla de reportería quedaba monocroma.
+
+     La rampa sale del texto, no de un color nuevo: `--color-base-content` es
+     un gris de tono 285.9°, la misma familia que el acento pero sin su croma.
+     Dialoga con la paleta sin competir con ninguno de los cinco colores
+     semánticos —no hay dónde confundirla con «avanzó», «falló» o «lo propuso
+     la IA»— y, como todas las mezclas de esta hoja, se da vuelta sola en el
+     tema oscuro: la tinta pasa a ser clara sobre fondo oscuro.
+
+     Dos pasos, y los dos se usan —un token de rampa que no pinta nada es una
+     invitación a inventarle un uso—:
+       --dato         el relleno de la marca (las barras de los dos gráficos)
+       --dato-fuerte  el contorno y el énfasis */
+  --dato: color-mix(in oklab, var(--color-base-content) 44%, var(--color-base-100));
+  --dato-fuerte: color-mix(in oklab, var(--color-base-content) 64%, var(--color-base-100));
 
   /* Los glifos que no son texto —la flecha entre módulos, el asa de arrastre,
      el guion de «todavía no se decidió»— estaban pintados con `--borde`, que
@@ -1187,7 +1205,9 @@ input:focus, textarea:focus, select:focus {
 .funnel__stage { position: relative; }
 .funnel__bar {
   height: 30px;
-  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-claro) 100%);
+  /* El degradado no codificaba nada: el dato es el LARGO de la barra. Sólido y
+     en tinta de datos. */
+  background: var(--dato);
   border-radius: 6px;
   min-width: 4px;
   transition: width .2s;
@@ -1204,9 +1224,9 @@ input:focus, textarea:focus, select:focus {
 }
 .histogram__col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
 /* Las barras eran el tinte más suave del acento sobre blanco: se leía la
-   grilla y no el dato. Con el contorno como relleno y el acento como borde
-   la barra se ve, y sigue siendo más liviana que un botón. */
-.histogram__bar { width: 100%; min-height: 2px; background: var(--accent-borde); border: 1px solid var(--accent); border-radius: 4px 4px 0 0; }
+   grilla y no el dato. En tinta de datos, con el contorno un paso más oscuro
+   para que dos barras vecinas no se peguen. */
+.histogram__bar { width: 100%; min-height: 2px; background: var(--dato); border: 1px solid var(--dato-fuerte); border-radius: 4px 4px 0 0; }
 .histogram__label, .histogram__count { font-size: 10px; color: var(--muted); }
 .histogram__count { font-weight: 600; }
 
