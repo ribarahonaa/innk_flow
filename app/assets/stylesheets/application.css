@@ -492,8 +492,13 @@ body {
 
 /* La línea entre las dos columnas la pone el TRABAJO, que ocupa la fila
    entera. Puesta en la referencia —que queda pegada arriba— sería un borde
-   suelto que baja con el scroll en vez de una separación de columnas. */
-.app-shell:has(.app-aside) .app-main { border-right: 1px solid var(--color-base-300); }
+   suelto que baja con el scroll en vez de una separación de columnas.
+
+   Con `--tenue` y no con `--color-base-300`, por la misma medición que cambió
+   el borde del drawer: sobre el fondo de página —que es donde se pinta, porque
+   estas dos regiones son transparentes— `base-300` da 1,13:1 en claro y 1,22:1
+   en oscuro, o sea ninguna línea. */
+.app-shell:has(.app-aside) .app-main { border-right: 1px solid var(--tenue); }
 
 /* ── El flujo del desafío ───────────────────────────────────────────────── */
 /* La columna oscura ocupa las dos filas —cuando la referencia baja debajo del
@@ -570,7 +575,13 @@ body {
    único que no se veía tabulando. */
 .flow-drawer__link:focus-visible {
   outline: 2px solid var(--color-neutral-content);
-  outline-offset: -2px;
+  /* AFUERA, no adentro. Con offset negativo el anillo se dibuja sobre el fondo
+     del propio elemento: en los seis inactivos eso es el panel (9,89:1) pero
+     en el ACTIVO es el violeta, y ahí medía 1,63:1 en oscuro y 3,10:1 en
+     claro. Es justo el enlace donde quien navega con teclado aterriza más
+     seguido, porque es el módulo en el que está. Con offset positivo el
+     vecino es el panel en los siete, y hay 12px de padding donde ponerlo. */
+  outline-offset: 2px;
 }
 .flow-drawer__num {
   flex: none;
@@ -611,7 +622,9 @@ body {
     position: static;
     max-height: none;
     overflow: visible;
-    border-bottom: 1px solid var(--color-base-300);
+    /* Es lo ÚNICO que marca dónde termina lo que se consulta y empieza lo
+       que se hace, desde que la referencia subió al tope. */
+    border-bottom: 1px solid var(--tenue);
   }
   /* ARRIBA del trabajo, no abajo. Al pie de un documento de 4.400px lo que se
      consulta no está «más abajo», está en ningún lado: sin esto la mudanza
