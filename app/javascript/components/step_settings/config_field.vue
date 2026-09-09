@@ -2,17 +2,28 @@
   <div v-if="visible" class="field">
     <label :for="inputId">{{ field.label }}</label>
 
-    <select v-if="field.type === 'select'" :id="inputId" v-model="value" :disabled="disabled">
+    <select v-if="field.type === 'select'" :id="inputId" v-model="value" :name="inputName" :disabled="disabled">
       <option v-if="field.blank" :value="null">{{ field.blank }}</option>
       <option v-for="opt in options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
     </select>
 
-    <select v-else-if="field.type === 'multi_select'" :id="inputId" v-model="value" multiple :disabled="disabled">
+    <select
+      v-else-if="field.type === 'multi_select'"
+      :id="inputId"
+      v-model="value"
+      :name="inputName"
+      multiple
+      :disabled="disabled"
+    >
       <option v-for="opt in options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
     </select>
 
     <label v-else-if="field.type === 'boolean'" class="field-check">
-      <input :id="inputId" v-model="value" type="checkbox" :disabled="disabled" />
+      <!-- Rails necesita el hidden ANTES: un checkbox desmarcado no manda
+           nada, y `config` se guarda por reemplazo total — sin esto la
+           clave desaparece en vez de guardarse en `false`. -->
+      <input type="hidden" :name="inputName" value="0" />
+      <input :id="inputId" v-model="value" type="checkbox" :name="inputName" :disabled="disabled" />
       <span>{{ field.checkboxLabel || 'Activado' }}</span>
     </label>
 
@@ -21,6 +32,7 @@
       :id="inputId"
       v-model.number="value"
       type="number"
+      :name="inputName"
       :min="field.min"
       :max="field.max"
       :disabled="disabled"
@@ -85,6 +97,17 @@ export default {
     emptyOptions() {
       return ['select', 'multi_select'].includes(this.field.type) &&
              !this.options.length && !this.field.blank;
+    },
+
+    // El input viaja DENTRO del form de Rails: la isla no guarda, renderiza.
+    // Un solo botón «Guardar el módulo» manda nombre, modo de IA y ajustes
+    // juntos contra un solo endpoint.
+    inputName() {
+      if (this.field.column === true) {
+        return `challenge_step[${this.field.key}]`;
+      }
+      const rutas = this.field.key.split('.').map((s) => `[${s}]`).join('');
+      return `challenge_step[config]${rutas}`;
     },
 
     value: {

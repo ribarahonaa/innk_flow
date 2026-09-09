@@ -47,6 +47,21 @@ class PipelinePresenter
     }
   end
 
+  # El esquema de configuración de cada kind, con las opciones dinámicas ya
+  # resueltas. El builder lo renderiza tal cual: no declara campos propios, así
+  # que agregar una opción es tocar Flow::StepSettings y nada más.
+  #
+  # Público porque `StepSettingsPresenter` lo necesita para la isla de la
+  # pantalla del módulo: duplicar el transform daría dos esquemas
+  # desincronizándose.
+  def settings_schema
+    Flow::StepSettings::SCHEMA.transform_values do |groups|
+      groups.transform_values do |fields|
+        fields.map { |field| resolve_field(field) }
+      end
+    end
+  end
+
   private
 
   def policy = @policy ||= ChallengePolicy.new(membership, challenge)
@@ -54,6 +69,9 @@ class PipelinePresenter
   def challenge_json
     {
       id: challenge.id,
+      # El link «Configurar →» de cada tarjeta lo arma el cliente con esto:
+      # la pantalla del módulo vive en `/challenges/:slug/steps/:id`.
+      slug: challenge.slug,
       name: challenge.name,
       brief: challenge.brief,
       status: challenge.status,
@@ -144,17 +162,6 @@ class PipelinePresenter
         singleton: singleton,
         disabled: singleton && taken.include?(kind)
       }
-    end
-  end
-
-  # El esquema de configuración de cada kind, con las opciones dinámicas ya
-  # resueltas. El builder lo renderiza tal cual: no declara campos propios, así
-  # que agregar una opción es tocar Flow::StepSettings y nada más.
-  def settings_schema
-    Flow::StepSettings::SCHEMA.transform_values do |groups|
-      groups.transform_values do |fields|
-        fields.map { |field| resolve_field(field) }
-      end
     end
   end
 

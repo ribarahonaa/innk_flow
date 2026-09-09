@@ -67,6 +67,12 @@
 
             <span class="step-card__body">
               <span class="step-card__name">{{ step.name }}</span>
+              <a
+                v-if="step.id"
+                class="step-card__config"
+                :href="`/challenges/${localChallenge.slug}/steps/${step.id}`"
+              >Configurar →</a>
+              <span v-else class="step-card__unsaved">sin guardar</span>
               <span class="step-card__meta">
                 <span class="step-card__kind">{{ step.kindLabel }}</span>
                 <span class="step-card__ai">{{ aiLabel(step) }}</span>
@@ -93,23 +99,6 @@
       </ol>
     </section>
 
-    <!-- Configuración del módulo seleccionado -->
-    <aside class="builder__config card">
-      <step-config
-        v-if="selected"
-        :step="selected"
-        :steps="localSteps"
-        :schema="settingsSchema"
-        :criteria-sets="criteriaSets"
-        :ai-modes="aiModes"
-        :challenge-ai-mode="localChallenge.aiDefaultMode"
-      />
-      <template v-else>
-        <h2 class="section-title">Configuración</h2>
-        <p class="muted">Elegí un módulo del flujo para configurarlo.</p>
-      </template>
-    </aside>
-
     <!-- Barra de acciones -->
     <footer class="builder__actions">
       <span v-if="dirty" class="muted">Hay cambios sin guardar.</span>
@@ -126,18 +115,14 @@
 </template>
 
 <script>
-import StepConfig from './step_config.vue';
-
 export default {
   name: 'PipelineBuilder',
-  components: { StepConfig },
 
   props: {
     challenge: { type: Object, required: true },
     steps: { type: Array, required: true },
     palette: { type: Array, required: true },
     aiModes: { type: Array, required: true },
-    criteriaSets: { type: Array, default: () => [] },
     settingsSchema: { type: Object, default: () => ({}) },
     insertionFloor: { type: Number, default: null },
     validation: { type: Object, required: true },
@@ -180,21 +165,6 @@ export default {
   },
 
   computed: {
-    selected() {
-      return this.localSteps.find((s) => this.keyOf(s) === this.selectedKey) || null;
-    },
-
-
-    challengeAiLabel() {
-      const mode = this.aiModes.find((m) => m.value === this.localChallenge.aiDefaultMode);
-      return mode ? mode.label : this.localChallenge.aiDefaultMode;
-    },
-
-    aiModeDescription() {
-      const value = this.selected?.aiMode || this.localChallenge.aiDefaultMode;
-      return this.aiModes.find((m) => m.value === value)?.description || '';
-    },
-
     // Índice del primer módulo NO tocado: ahí va la línea de agua.
     firstUnlockedIndex() {
       const index = this.localSteps.findIndex((s) => !s.locked);
