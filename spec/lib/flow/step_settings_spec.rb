@@ -34,16 +34,16 @@ RSpec.describe Flow::StepSettings do
     end
   end
 
-  describe ".campos_de" do
+  describe ".fields" do
     it "junta esencial y avanzado, en ese orden" do
-      claves = described_class.campos_de("selection").map { |f| f[:key] }
+      claves = described_class.fields("selection").map { |f| f[:key] }
 
       expect(claves).to eq(%w[source_step_id cut.mode cut.value
                               score_source.combine cut.tie_break])
     end
 
     it "devuelve vacío para un kind que no existe" do
-      expect(described_class.campos_de("inventado")).to eq([])
+      expect(described_class.fields("inventado")).to eq([])
     end
   end
 
@@ -88,6 +88,31 @@ RSpec.describe Flow::StepSettings do
 
     it "no revienta con un kind desconocido" do
       expect(described_class.filtrar("inventado", "x" => 1)).to eq({})
+    end
+
+    # Los valores malformados que no coinciden con el tipo se descartan sin error.
+    it "ignora un valor que no es hash cuando la ruta es anidada" do
+      resultado = described_class.filtrar("selection",
+                                          "cut" => "no_es_hash",
+                                          "score_source" => { "combine" => "weighted_avg" })
+
+      expect(resultado).to eq("score_source" => { "combine" => "weighted_avg" })
+    end
+
+    it "ignora un array cuando el tipo no es multi_select" do
+      resultado = described_class.filtrar("evaluation",
+                                          "min_assessments" => ["1", "2"],
+                                          "evaluator_aggregation" => "mean")
+
+      expect(resultado).to eq("evaluator_aggregation" => "mean")
+    end
+
+    it "ignora un hash cuando el tipo no es multi_select" do
+      resultado = described_class.filtrar("evaluation",
+                                          "min_assessments" => { "a" => "1" },
+                                          "evaluator_aggregation" => "median")
+
+      expect(resultado).to eq("evaluator_aggregation" => "median")
     end
   end
 

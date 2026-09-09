@@ -143,14 +143,6 @@ module Flow
         config
       end
 
-      # Los campos declarados para un kind, esenciales primero.
-      def campos_de(kind)
-        grupos = SCHEMA[kind.to_s]
-        return [] if grupos.nil?
-
-        Array(grupos[:essential]) + Array(grupos[:advanced])
-      end
-
       # Filtra un `config` que llegó por parámetros contra lo que el esquema
       # declara para ese kind, y castea al tipo declarado.
       #
@@ -161,16 +153,19 @@ module Flow
       #     así que el string se arrastra hasta que alguien compara o serializa.
       #
       # Los campos `column: true` (source_step_id, criteria_set_id) NO son
-      # config: viven en su columna y se permiten aparte.
+      # config: viven en su columna y se permiten aparte. Valores malformados
+      # —cuando la ruta no se puede recorrer o el tipo no es escalar— se
+      # descartan sin error, sanando la entrada.
       def filtrar(kind, hash)
         entrada = (hash || {}).to_h.deep_stringify_keys
 
-        campos_de(kind).reject { |campo| campo[:column] }.each_with_object({}) do |campo, acc|
-          segmentos = campo[:key].to_s.split(".")
-          valor = entrada.dig(*segmentos)
+        fields(kind).reject { |campo| campo[:column] }.each_with_object({}) do |campo, acc|
+          clave = campo[:key].to_s
+          valor = entrada.dig(*clave.split(".")) rescue nil
           next if valor.nil? || valor == ""
+          next unless escalar_o_multi_select?(valor, campo[:type])
 
-          escribir(acc, segmentos, castear(valor, campo[:type]))
+          write(acc, clave, castear(valor, campo[:type]))
         end
       end
 
@@ -185,13 +180,16 @@ module Flow
         end
       end
 
-      def escribir(hash, segmentos, valor)
-        *padres, ultimo = segmentos
-        nodo = padres.reduce(hash) { |acc, seg| acc[seg] ||= {} }
-        nodo[ultimo] = valor
+      # Valida que el valor sea escalar o multi_select (que lo es Array).
+      # Descarta valores malformados sin levantar.
+      def escalar_o_multi_select?(valor, tipo)
+        return true if valor.is_a?(String) || valor.is_a?(Numeric) || valor.is_a?(TrueClass) || valor.is_a?(FalseClass)
+        return true if tipo.to_s == "multi_select" && valor.is_a?(Array)
+
+        false
       end
 
-      private :castear, :escribir
+      private :castear, :escalar_o_multi_select?
     end
   end
 end
