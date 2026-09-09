@@ -1129,17 +1129,39 @@ input:focus, textarea:focus, select:focus {
 .step-card__index { width: 20px; color: var(--muted); font-size: 12px; text-align: center; }
 
 /* La tarjeta COMPLETA es el link al módulo —salvo la ✕ de quitar, que vive
-   afuera—. `display: contents` para que sus hijos sigan siendo los flex
-   items directos de `.step-card` y no se rompa la fila; sin eso el link
-   sería una caja más y el layout de toda la tarjeta cambiaría.
+   afuera—. Es una fila flex propia, con el MISMO `gap` que `.step-card`: sus
+   hijos quedan donde estaban cuando colgaban directo de la tarjeta, así que
+   la fila se ve igual.
+   NO va con `display: contents`, que fue lo primero que se probó para no
+   sumar una caja: un elemento sin caja no entra en el tab order nativo
+   —medido en Chromium, 60 `Tab` seguidos nunca aterrizan en él aunque
+   `tabIndex` diga 0, y un `.focus()` a mano tampoco mueve el foco— y
+   tampoco tendría dónde pintar el anillo, porque su
+   `getBoundingClientRect()` es 0x0.
    `draggable="false"` porque un link con href es arrastrable por default:
    sin eso el navegador arrastra el link en vez de dejar que `.step-card`
    —que es el que declara `draggable`— se reordene. Sin `id` (recién
    agregado, sin guardar el flujo) no hay adónde ir, así que en ese caso se
    renderiza como `<span>` y no como link (ver `stepCardTag`). */
-.step-card__link { display: contents; color: inherit; text-decoration: none; }
+.step-card__link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
 a.step-card__link { cursor: pointer; }
 a.step-card__link:hover .step-card__name { text-decoration: underline; }
+
+/* El anillo va AFUERA: adentro se dibujaría sobre el propio contenido de la
+   tarjeta. Hay 12px de padding donde ponerlo, así que los 2px de offset caen
+   sobre el fondo de la tarjeta y no sobre el chip ni sobre la ✕. */
+.step-card__link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 .step-card__body { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .step-card__name { font-weight: 600; }
@@ -1768,6 +1790,14 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
   cursor: pointer;
 }
 .field-check input { width: auto; }
+
+/* Un `select[multiple]` con la altura que le da el navegador muestra cuatro
+   filas de alto variable según el tema: con menos de esto no se ve que se
+   elige MÁS DE UNA opción y parece un desplegable roto. La altura la traía
+   `.builder__config`, el panel que se sacó del builder; ahora el campo vive
+   en la isla de los ajustes del módulo, así que la regla cuelga de ahí y no
+   de una clase muerta. */
+[data-island="step-settings"] select[multiple] { min-height: 88px; }
 
 /* Lo bloqueado tiene que PARECER bloqueado: sin esto un campo deshabilitado se */
 /* ve igual que uno editable y el aviso de arriba parece no aplicar. */

@@ -274,14 +274,10 @@ async function shot(page, name, url, prepare) {
   // El formulario de postulación: se llega desde la PANTALLA del módulo
   // «Idear» —ya no desde un panel del builder, que es lo que sacó esta
   // tarea— por el link nuevo: la tarjeta ENTERA es el link a su pantalla
-  // (`.step-card__link`), con `display: contents` para no romper la fila.
+  // (`.step-card__link`).
   //
-  // El click va sobre `.step-card__name` y no sobre `.step-card__link`: ese
-  // link no tiene caja propia (por el `display: contents`, a propósito, ver
-  // application.css) y Playwright no puede calcular dónde clickearlo —el
-  // click cuelga esperando que se vuelva "visible". Un click sobre el
-  // nombre es además más fiel a cómo clickea una persona: sobre contenido
-  // pintado, no sobre el link invisible que lo envuelve.
+  // El click va sobre `.step-card__name`, adentro del link: es donde clickea
+  // una persona —sobre contenido pintado— y no sobre la caja que lo envuelve.
   //
   // Se filtra por TIPO y no por nombre: el nombre de un módulo lo cambia
   // cualquiera —una propuesta de la IA lo renombra— y la captura se caía.

@@ -62,12 +62,21 @@
           >
             <!-- La tarjeta entera es el link al módulo (sin panel que abrir,
                  no hay nada más que seleccionar). Sin `id` todavía no hay
-                 adónde ir, así que se renderiza como `<span>` en vez de `<a>`. -->
+                 adónde ir, así que se renderiza como `<span>` en vez de `<a>`.
+
+                 El nombre accesible va EXPLÍCITO: calculado del contenido
+                 salía «⠿1PostulaciónIdearIA asistida (heredado)Pendiente»
+                 —el compilador de Vue no deja espacio entre spans hermanos,
+                 así que el handle decorativo, el índice, el nombre, el tipo,
+                 el modo de IA y el chip de estado se leen pegados—. En el
+                 `<span>` del módulo sin guardar no va: un genérico con
+                 `aria-label` y sin rol esconde su propio contenido. -->
             <component
               :is="stepCardTag(step)"
               class="step-card__link"
               draggable="false"
               :href="step.id ? `/challenges/${localChallenge.slug}/steps/${step.id}` : undefined"
+              :aria-label="step.id ? `Configurar «${step.name}»` : null"
             >
               <span class="step-card__handle" :class="{ 'is-hidden': !canDrag(step) }">⠿</span>
               <span class="step-card__index">{{ index + 1 }}</span>
