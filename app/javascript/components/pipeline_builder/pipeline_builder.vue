@@ -52,7 +52,6 @@
             class="step-card"
             :class="{
               'step-card--locked': step.locked,
-              'step-card--selected': selectedKey === keyOf(step),
               'step-card--dragging': draggingIndex === index
             }"
             :draggable="canDrag(step)"
@@ -60,32 +59,36 @@
             @dragover.prevent="onDragOver(index)"
             @drop.prevent="onDrop(index)"
             @dragend="onDragEnd"
-            @click="select(step)"
           >
-            <span class="step-card__handle" :class="{ 'is-hidden': !canDrag(step) }">⠿</span>
-            <span class="step-card__index">{{ index + 1 }}</span>
+            <!-- La tarjeta entera es el link al módulo (sin panel que abrir,
+                 no hay nada más que seleccionar). Sin `id` todavía no hay
+                 adónde ir, así que se renderiza como `<span>` en vez de `<a>`. -->
+            <component
+              :is="stepCardTag(step)"
+              class="step-card__link"
+              draggable="false"
+              :href="step.id ? `/challenges/${localChallenge.slug}/steps/${step.id}` : undefined"
+            >
+              <span class="step-card__handle" :class="{ 'is-hidden': !canDrag(step) }">⠿</span>
+              <span class="step-card__index">{{ index + 1 }}</span>
 
-            <span class="step-card__body">
-              <span class="step-card__name">{{ step.name }}</span>
-              <a
-                v-if="step.id"
-                class="step-card__config"
-                :href="`/challenges/${localChallenge.slug}/steps/${step.id}`"
-              >Configurar →</a>
-              <span v-else class="step-card__unsaved">sin guardar</span>
-              <span class="step-card__meta">
-                <span class="step-card__kind">{{ step.kindLabel }}</span>
-                <span class="step-card__ai">{{ aiLabel(step) }}</span>
+              <span class="step-card__body">
+                <span class="step-card__name">{{ step.name }}</span>
+                <span v-if="!step.id" class="step-card__unsaved">sin guardar</span>
+                <span class="step-card__meta">
+                  <span class="step-card__kind">{{ step.kindLabel }}</span>
+                  <span class="step-card__ai">{{ aiLabel(step) }}</span>
+                </span>
               </span>
-            </span>
 
-            <!-- La clase la manda el server (PipelinePresenter#step_json), sin
-                 armarla acá con un template literal: Tailwind escanea texto y
-                 lo interpolado no lo ve. Es la misma regla que en el HAML. -->
-            <span :class="step.statusClass">
-              {{ step.statusLabel }}
-            </span>
-            <span v-if="step.locked" class="step-card__lock" title="Módulo ya ejecutado">🔒</span>
+              <!-- La clase la manda el server (PipelinePresenter#step_json), sin
+                   armarla acá con un template literal: Tailwind escanea texto y
+                   lo interpolado no lo ve. Es la misma regla que en el HAML. -->
+              <span :class="step.statusClass">
+                {{ step.statusLabel }}
+              </span>
+              <span v-if="step.locked" class="step-card__lock" title="Módulo ya ejecutado">🔒</span>
+            </component>
 
             <button
               v-if="!step.locked && localPermissions.canEdit"
@@ -152,7 +155,6 @@ export default {
       localChallenge: inicial.challenge,
       localValidation: inicial.validation,
       localPermissions: inicial.permissions,
-      selectedKey: null,
       draggingIndex: null,
       dropIndex: null,
       saving: false,
@@ -179,8 +181,6 @@ export default {
   },
 
   methods: {
-    keyOf(step) { return step.id || step.tempId; },
-
     aiLabel(step) {
       const value = step.aiMode || this.localChallenge.aiDefaultMode;
       const mode = this.aiModes.find((m) => m.value === value);
@@ -188,7 +188,9 @@ export default {
       return step.aiMode ? label : `${label} (heredado)`;
     },
 
-    select(step) { this.selectedKey = this.keyOf(step); },
+    // Sin `id` (recién agregado, sin guardar el flujo) no hay pantalla de
+    // módulo adonde ir: se renderiza como `<span>`, no como `<a>`.
+    stepCardTag(step) { return step.id ? 'a' : 'span'; },
 
     // La línea de agua solo se dibuja si hay algo tocado y algo por delante.
     showWaterline(index) {
@@ -197,11 +199,6 @@ export default {
 
     canDrag(step) {
       return this.localPermissions.canEdit && this.localPermissions.canReorder && !step.locked;
-    },
-
-    evaluationsBefore(step) {
-      const index = this.localSteps.indexOf(step);
-      return this.localSteps.slice(0, index).filter((s) => s.kind === 'evaluation');
     },
 
     addStep(item) {
@@ -226,13 +223,11 @@ export default {
       };
 
       this.localSteps.push(step);
-      this.selectedKey = this.keyOf(step);
       this.refreshPalette();
     },
 
     removeStep(index) {
-      const [removed] = this.localSteps.splice(index, 1);
-      if (this.selectedKey === this.keyOf(removed)) this.selectedKey = null;
+      this.localSteps.splice(index, 1);
       this.refreshPalette();
     },
 

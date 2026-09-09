@@ -84,12 +84,20 @@ export default {
     // Las opciones que apuntan a otros módulos se filtran contra la posición
     // del módulo actual: una selección solo puede tomar el puntaje de una
     // evaluación ANTERIOR, y el orden cambia mientras se edita el flujo.
+    //
+    // Por `id`, no por referencia: en el builder viejo `step` salía de un
+    // `find()` sobre el mismo array `steps`, así que `indexOf` funcionaba. En
+    // esta isla `step` es un objeto NUEVO armado en `data()` —nunca es el
+    // mismo objeto que viaja en `steps`—, así que `indexOf` daba siempre -1 y
+    // no filtraba nada. Sin `id` (no debería pasar: esta isla siempre monta
+    // sobre un módulo ya guardado) no hay de dónde tomar la posición, y no
+    // filtrar es peor que no ofrecer nada.
     options() {
       const opts = this.field.options || [];
       if (!opts.length || opts[0].position === undefined) return opts;
 
-      const index = this.steps.indexOf(this.step);
-      const before = index === -1 ? this.steps : this.steps.slice(0, index);
+      const mine = this.step.id && this.steps.find((s) => s.id === this.step.id);
+      const before = mine ? this.steps.filter((s) => s.position < mine.position) : [];
       const allowed = new Set(before.map((s) => s.id).concat(before.map((s) => s.slug)));
       return opts.filter((o) => allowed.has(o.value));
     },

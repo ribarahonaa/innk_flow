@@ -1030,8 +1030,8 @@ input:focus, textarea:focus, select:focus {
 /* ── Builder ────────────────────────────────────────────────────────────── */
 .builder {
   display: grid;
-  grid-template-columns: 250px minmax(0, 1fr) 290px;
-  grid-template-areas: "palette flow config" "actions actions actions";
+  grid-template-columns: 250px minmax(0, 1fr);
+  grid-template-areas: "palette flow" "actions actions";
   gap: 16px;
   align-items: start;
 }
@@ -1049,18 +1049,6 @@ input:focus, textarea:focus, select:focus {
 .builder--dirty {
   .builder__flow,
   .builder__palette { padding-bottom: 78px; }
-}
-/* Scroll propio: el panel de configuración creció y sin esto se mete debajo */
-/* de la barra de acciones sticky. */
-.builder__config {
-  grid-area: config;
-  position: sticky;
-  top: 16px;
-  max-height: calc(100vh - 110px);
-  overflow-y: auto;
-  /* La barra de acciones flota abajo: sin este colchón, el último campo del */
-  /* panel queda tapado y no se puede tocar. */
-  padding-bottom: 78px;
 }
 .builder__hint { font-size: 12px; margin: -8px 0 12px; }
 
@@ -1126,28 +1114,35 @@ input:focus, textarea:focus, select:focus {
   background: var(--surface);
   border: 1px solid var(--borde);
   border-radius: var(--radius);
-  cursor: pointer;
 }
 .step-card:hover { border-color: var(--accent); }
-.step-card--selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .step-card--dragging { opacity: .45; }
 
-/* Módulo ya ejecutado: se ve distinto y no ofrece handle. La restricción se */
-/* muestra, no solo se rechaza al guardar. */
-.step-card--locked { background: var(--bg); color: var(--muted); cursor: default; }
+/* Módulo ya ejecutado: se ve distinto y no ofrece handle. Sigue teniendo
+   link a su pantalla —ahí se sigue ajustando el nombre y el modo de IA—,
+   así que el cursor no se fuerza a `default`. */
+.step-card--locked { background: var(--bg); color: var(--muted); }
 .step-card--locked:hover { border-color: var(--borde); }
 
 .step-card__handle { color: var(--tenue); cursor: grab; user-select: none; }
 .step-card__handle.is-hidden { visibility: hidden; cursor: default; }
 .step-card__index { width: 20px; color: var(--muted); font-size: 12px; text-align: center; }
+
+/* La tarjeta COMPLETA es el link al módulo —salvo la ✕ de quitar, que vive
+   afuera—. `display: contents` para que sus hijos sigan siendo los flex
+   items directos de `.step-card` y no se rompa la fila; sin eso el link
+   sería una caja más y el layout de toda la tarjeta cambiaría.
+   `draggable="false"` porque un link con href es arrastrable por default:
+   sin eso el navegador arrastra el link en vez de dejar que `.step-card`
+   —que es el que declara `draggable`— se reordene. Sin `id` (recién
+   agregado, sin guardar el flujo) no hay adónde ir, así que en ese caso se
+   renderiza como `<span>` y no como link (ver `stepCardTag`). */
+.step-card__link { display: contents; color: inherit; text-decoration: none; }
+a.step-card__link { cursor: pointer; }
+a.step-card__link:hover .step-card__name { text-decoration: underline; }
+
 .step-card__body { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .step-card__name { font-weight: 600; }
-
-/* El link a la pantalla del módulo, y su reemplazo mientras el step no tiene
-   id todavía (recién agregado, sin guardar el flujo). El acento es de las
-   ACCIONES: es lo mismo que abre la pantalla donde se configura. */
-.step-card__config { font-size: 11.5px; color: var(--accent); text-decoration: none; }
-.step-card__config:hover { text-decoration: underline; }
 .step-card__unsaved { font-size: 11.5px; color: var(--muted); font-style: italic; }
 
 .step-card__meta { display: flex; gap: 8px; font-size: 11.5px; color: var(--muted); }
@@ -1189,9 +1184,9 @@ input:focus, textarea:focus, select:focus {
 @media (max-width: 1040px) {
   .builder {
     grid-template-columns: 1fr;
-    grid-template-areas: "palette" "flow" "config" "actions";
+    grid-template-areas: "palette" "flow" "actions";
   }
-  .builder__palette, .builder__config { position: static; }
+  .builder__palette { position: static; }
 }
 
 /* ── Progreso de módulo ─────────────────────────────────────────────────── */
@@ -1746,15 +1741,7 @@ input:focus, textarea:focus, select:focus {
 .ai-mode-form { display: flex; align-items: center; gap: 8px; }
 .ai-mode-form__select { width: auto; min-width: 210px; font-size: 12.5px; padding: 6px 9px; }
 
-/* ── Panel de configuración de un módulo ────────────────────────────────── */
-.config-rule { border: 0; border-top: 1px solid var(--borde); margin: 18px 0; }
-.config-locked {
-  padding: 9px 11px;
-  background: var(--warn-soft);
-  border: 1px solid var(--warn-borde);
-  border-radius: 7px;
-  margin: 0 0 16px;
-}
+/* ── Configuración de un módulo ─────────────────────────────────────────── */
 .config-advanced { margin-top: 16px; border-top: 1px solid var(--borde); padding-top: 14px; }
 .config-advanced summary {
   cursor: pointer;
@@ -1781,7 +1768,6 @@ input:focus, textarea:focus, select:focus {
   cursor: pointer;
 }
 .field-check input { width: auto; }
-.builder__config select[multiple] { min-height: 88px; }
 
 /* Lo bloqueado tiene que PARECER bloqueado: sin esto un campo deshabilitado se */
 /* ve igual que uno editable y el aviso de arriba parece no aplicar. */
@@ -1875,17 +1861,6 @@ textarea:disabled {
 }
 
 .field-editor__actions .editor-actions__spacer { flex: 1; }
-
-/* Resumen del formulario dentro del panel del builder. */
-.config-form {
-  display: flex;
-  flex-direction: column;
-  gap: .4rem;
-  align-items: flex-start;
-}
-
-.config-form__title { font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
-.config-form__labels { margin: 0; font-size: .9rem; }
 
 /* ── Editor de criterios ───────────────────────────────────────────────────── */
 .criteria-edit-list {

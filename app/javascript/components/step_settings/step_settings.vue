@@ -13,7 +13,7 @@
     </template>
 
     <template v-if="advanced.length">
-      <details class="config-advanced" :open="advancedOpen">
+      <details class="config-advanced">
         <summary>Opciones avanzadas</summary>
         <config-field
           v-for="field in advanced"
@@ -52,8 +52,7 @@ export default {
         id: this.stepId,
         kind: this.kind,
         settings: JSON.parse(JSON.stringify(this.settings)),
-        sourceStepId: this.sourceStepId,
-        locked: false
+        sourceStepId: this.sourceStepId
       }
     };
   },
@@ -64,11 +63,7 @@ export default {
     },
     essential() { return this.groups.essential || []; },
     advanced() { return this.groups.advanced || []; },
-    todos() { return this.essential.concat(this.advanced); },
-
-    // El módulo pendiente es el único caso en que este panel existe, así que
-    // «avanzado» no tiene nada que ocultar por defecto.
-    advancedOpen() { return this.step.locked; }
+    todos() { return this.essential.concat(this.advanced); }
   }
 };
 </script>

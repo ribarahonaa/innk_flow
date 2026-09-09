@@ -5,12 +5,11 @@
 # `steps` viaja porque `source_step_id` se filtra contra la posición: una
 # selección sólo puede tomar puntaje de una evaluación ANTERIOR.
 class StepSettingsPresenter
-  def initialize(step, membership:)
+  def initialize(step)
     @step = step
-    @membership = membership
   end
 
-  attr_reader :step, :membership
+  attr_reader :step
 
   def as_json(*)
     {
@@ -29,7 +28,9 @@ class StepSettingsPresenter
 
   # El mismo transform que ya hace PipelinePresenter#settings_schema: las
   # opciones que apuntan a otros módulos se resuelven contra este desafío.
+  # `settings_schema` no consulta ninguna policy, así que no hace falta
+  # `membership` para resolverlo.
   def esquema
-    PipelinePresenter.new(step.challenge, membership: membership).settings_schema
+    PipelinePresenter.new(step.challenge).settings_schema
   end
 end
