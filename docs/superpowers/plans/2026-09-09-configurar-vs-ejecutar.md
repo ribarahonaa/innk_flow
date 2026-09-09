@@ -1759,6 +1759,94 @@ git commit -m "Handoff de la sesión"
 
 ---
 
+### Task 14: Sacar «Desempate», que nunca hizo nada
+
+Hallazgo de producto encontrado durante la ejecución, decidido por el usuario:
+**se saca del esquema.**
+
+`cut.tie_break` se ofrece en el panel desde siempre y **ningún código lo lee**.
+Verificado dos veces: `Flow::Handlers::Selection#resolve_config!` pisa el hash
+`cut` entero por `{mode, value}`, así que el valor ni sobrevive al arranque del
+módulo; y un `grep` de `tie_break`, `earliest_submission` y `lowest_dispersion`
+sobre `app/` y `lib/` sólo encuentra la declaración del esquema y las vistas —
+ninguna lectura.
+
+Es exactamente «un control que no hace nada», que es el problema que este plan
+vino a resolver. Implementarlo sería trabajo de producto con preguntas abiertas
+(qué significa «la de evaluaciones más parejas», si el orden queda estable); se
+elige la opción honesta y barata: que deje de ofrecerse.
+
+**Files:**
+- Modify: `app/lib/flow/step_settings.rb` (quitar el campo de `SCHEMA["selection"][:advanced]`)
+- Modify: `app/views/steps/selection.html.haml` (quitar las líneas que lo muestran)
+- Modify: `spec/lib/flow/step_settings_spec.rb`
+
+**Interfaces:**
+- Consumes: `Flow::StepSettings::SCHEMA`
+- Produces: `SCHEMA["selection"][:advanced]` pasa a declarar sólo `score_source.combine`.
+
+- [ ] **Step 1: Ajustar el spec que fija el esquema, y verlo fallar**
+
+En `spec/lib/flow/step_settings_spec.rb` hay tres lugares que nombran
+`cut.tie_break` (cerca de las líneas 42, 137 y 195). Sacalo de los tres: la lista
+de claves de `selection` pasa a ser `%w[source_step_id cut.mode cut.value
+score_source.combine]`.
+
+Run: `make spec-file FILE=spec/lib/flow/step_settings_spec.rb`
+Expected: FAIL — el esquema todavía declara el campo.
+
+- [ ] **Step 2: Sacarlo del esquema**
+
+En `app/lib/flow/step_settings.rb`, borrar del bloque `advanced` de `"selection"`
+el hash entero que empieza con `{ key: "cut.tie_break", …`, dejando sólo
+`score_source.combine`.
+
+- [ ] **Step 3: Sacarlo de la vista**
+
+En `app/views/steps/selection.html.haml`, borrar las líneas que resuelven y
+muestran el desempate (`tie_campo`, `tie_valor` y lo que las use), junto con el
+comentario que explicaba por qué no aparecía en un módulo tocado — ya no aplica.
+
+- [ ] **Step 4: Correr**
+
+Run: `make spec-file FILE=spec/lib/flow/step_settings_spec.rb`
+Expected: PASS
+
+Run: `make spec`
+Expected: `0 failures`. Si algún otro spec nombra `tie_break`, ajustalo.
+
+Run: `make screens`
+Expected: 30 capturas, sin errores.
+
+- [ ] **Step 5: Confirmar que no queda ninguna referencia**
+
+```bash
+grep -rn "tie_break\|earliest_submission\|lowest_dispersion" app/ lib/ spec/ script/
+```
+Expected: sin resultados.
+
+**No hace falta migración de datos.** Un `config` viejo que tenga
+`cut.tie_break` guardado queda con una clave inerte, que es lo que ya era;
+`Flow::StepSettings.filtrar` la descarta en el próximo guardado. **No corras
+`db:seed` ni toques los desafíos de prueba del usuario.**
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add app/lib/flow/step_settings.rb app/views/steps/selection.html.haml spec/lib/flow/step_settings_spec.rb
+git commit -m "Se saca «Desempate» del corte: nunca hizo nada
+
+El campo se ofrecía en el panel desde siempre y ningún código lo leía.
+\`resolve_config!\` pisa el hash \`cut\` entero por {mode, value}, así que el valor
+ni sobrevivía al arranque del módulo, y no hay una sola lectura en app/ ni lib/.
+
+Ofrecer un control que no hace nada es el problema que esta rama vino a
+resolver. Implementar el desempate es trabajo de producto con preguntas
+abiertas; dejar de mentir es gratis."
+```
+
+---
+
 ## Verificación de cierre
 
 - [ ] `make spec` en verde, con los specs nuevos: `step_settings_spec`, `step_config_spec`, `pipeline_no_pisa_config_spec`, `dos_caras_spec`, `una_vista_de_configuracion_spec`, `setup_spec`.
@@ -1766,4 +1854,5 @@ git commit -m "Handoff de la sesión"
 - [ ] **Mirar las capturas.** Ni la suite ni `make screens` ven CSS: fallan por errores de JS y HTTP, no por que algo se vea mal. Todos los defectos visuales caros de este repo aparecieron midiendo en un navegador, no leyendo código.
 - [ ] Probar a mano el camino completo sobre un desafío **desechable** (no `onboarding-remoto` ni `optimizacion-de-la-experiencia-de-onboarding`): crear, armar el flujo, entrar a cada módulo desde el builder, configurar el corte, volver al builder, **guardar el flujo**, y verificar que el corte sigue ahí. Ésa es la regresión que este plan existe para evitar.
 - [ ] Borrar el desafío desechable.
+- [ ] `grep -rn "tie_break" app/ lib/ spec/` sin resultados (Task 14).
 - [ ] `handoff.md` escrito, con las cinco secciones y con la 4 llena o explícitamente vacía.
