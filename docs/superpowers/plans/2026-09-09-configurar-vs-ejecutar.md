@@ -97,7 +97,7 @@ Filtra un `config` que llega por parámetros contra el esquema del `kind`, y cas
 - Test: `spec/lib/flow/step_settings_spec.rb` (crear si no existe)
 
 **Interfaces:**
-- Produces: `Flow::StepSettings.filtrar(kind, hash) -> Hash` (claves string, anidado). `Flow::StepSettings.campos_de(kind) -> Array<Hash>` (esencial + avanzado, en ese orden).
+- Produces: `Flow::StepSettings.filtrar(kind, hash) -> Hash` (claves string, anidado). Usa el `Flow::StepSettings.fields(kind)` que YA EXISTE (línea 120) — no agregues un segundo nombre para la misma búsqueda.
 
 - [ ] **Step 1: Escribir el test que falla**
 
@@ -108,16 +108,16 @@ Filtra un `config` que llega por parámetros contra el esquema del `kind`, y cas
 require "rails_helper"
 
 RSpec.describe Flow::StepSettings do
-  describe ".campos_de" do
+  describe ".fields" do
     it "junta esencial y avanzado, en ese orden" do
-      claves = described_class.campos_de("selection").map { |f| f[:key] }
+      claves = described_class.fields("selection").map { |f| f[:key] }
 
       expect(claves).to eq(%w[source_step_id cut.mode cut.value
                               score_source.combine cut.tie_break])
     end
 
     it "devuelve vacío para un kind que no existe" do
-      expect(described_class.campos_de("inventado")).to eq([])
+      expect(described_class.fields("inventado")).to eq([])
     end
   end
 
@@ -1069,7 +1069,7 @@ partial». Cada tarea suma el suyo.
     %h2.section-title Cómo quedó configurado
   %p.field-hint 🔒 Quedó fijado cuando arrancó el módulo. Se pueden cambiar el nombre, el modo de IA y quién participa; la regla no.
   %ul.field-list
-    - Flow::StepSettings.campos_de(step.kind).each do |campo|
+    - Flow::StepSettings.fields(step.kind).each do |campo|
       - valor = campo[:column] ? step.public_send(campo[:key]) : step.settings.dig(*campo[:key].to_s.split("."))
       - next if valor.nil? || valor == ""
       %li.field-list__item
