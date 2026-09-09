@@ -1170,6 +1170,28 @@ Y en `StepsController#show`, dentro de la rama de configuración:
 
 (ya está en `show`; verificá que siga cargándose para la cara A).
 
+- [ ] **Step 4b: Las sugerencias de IA no pueden quedarse sin pantalla**
+
+`step_criteria/show` es hoy una de las dos pantallas que renderizan
+`shared/ai_suggestions` y `shared/ai_actions` para un módulo. Al borrarla, una
+sugerencia de IA **pendiente de revisión** sobre un módulo pendiente se queda sin
+ningún lugar donde verse — y `@pending_suggestions` ya se calcula en
+`StepsController#show` sin que nadie lo renderice.
+
+Sumá a `app/views/steps/_criterios_editor.html.haml`, arriba del editor:
+
+```haml
+= render "shared/ai_suggestions", suggestions: suggestions
+```
+
+y pasale `suggestions: @pending_suggestions` desde las dos vistas que lo
+renderizan. Las acciones de IA («Proponer criterios con IA», «Rehacer los
+criterios con IA») ya vienen en el bloque que mudás desde `step_criteria/show`:
+verificá que hayan quedado.
+
+**Guarda:** un request spec que, con una `AiSuggestion` pendiente sobre un módulo
+de selección pendiente, afirme que la pantalla del módulo la muestra.
+
 - [ ] **Step 5: Redirigir la pantalla vieja**
 
 En `app/controllers/step_criteria_controller.rb`, reemplazar `show`:
@@ -1285,6 +1307,19 @@ En `app/views/steps/config/ideation.html.haml` y también en `app/views/steps/id
 ```
 
 En la cara B, sacá el `link_to "Editar el formulario"` que hoy apunta a `challenge_form_path`: el editor ya está ahí.
+
+- [ ] **Step 4b: Las sugerencias de IA, igual que en criterios**
+
+`form_fields/show` es la otra pantalla que hoy renderiza `shared/ai_suggestions`
+para un módulo. Al borrarla, una sugerencia de campos pendiente de revisión se
+queda sin pantalla. Sumá `= render "shared/ai_suggestions", suggestions:
+@pending_suggestions` arriba del editor en
+`app/views/steps/_campos_editor.html.haml`, y verificá que las acciones de IA
+(«Proponer campos con IA», «Rehacer el formulario con IA») hayan quedado en el
+bloque que mudás.
+
+**Guarda:** un request spec que, con una `AiSuggestion` pendiente sobre el módulo
+de idear, afirme que la pantalla del módulo la muestra.
 
 - [ ] **Step 5: Redirigir la pantalla vieja**
 
