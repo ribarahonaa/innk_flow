@@ -157,7 +157,11 @@ module Flow
       # —cuando la ruta no se puede recorrer o el tipo no es escalar— se
       # descartan sin error, sanando la entrada.
       def filtrar(kind, hash)
-        entrada = (hash || {}).to_h.deep_stringify_keys
+        # La raíz tiene que ser un Hash: un `config` que llega escalar
+        # (`challenge_step[config]=x`) o en array (`challenge_step[config][]=x`)
+        # no tiene `.to_h` seguro —revienta con `NoMethodError` o `TypeError`—
+        # y la promesa de este método es sanar lo malformado, no reventar.
+        entrada = hash.is_a?(Hash) ? hash.deep_stringify_keys : {}
 
         fields(kind).reject { |campo| campo[:column] }.each_with_object({}) do |campo, acc|
           clave = campo[:key].to_s

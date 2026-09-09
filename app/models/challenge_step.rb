@@ -18,7 +18,7 @@ class ChallengeStep < ApplicationRecord
   # `name` y `ai_mode` NO están: renombrar un módulo no altera nada, y el modo
   # de IA es una política operativa —"a partir de ahora acepto ayuda de la
   # IA"— que se puede cambiar sin tocar lo ya hecho.
-  FROZEN_ATTRIBUTES = %w[kind slug challenge_id position config source_step_id].freeze
+  FROZEN_ATTRIBUTES = %w[kind slug challenge_id position config source_step_id criteria_set_id].freeze
 
   # Lo que se puede cambiar aunque el módulo ya esté en curso.
   ADJUSTABLE_ATTRIBUTES = %w[name ai_mode].freeze
@@ -46,6 +46,7 @@ class ChallengeStep < ApplicationRecord
 
   validate :single_ideation_per_challenge
   validate :source_step_precedes_self
+  validate :criteria_set_belongs_to_challenge
   validate :position_respects_insertion_floor
   validate :frozen_attributes_unchanged
 
@@ -110,11 +111,43 @@ class ChallengeStep < ApplicationRecord
   end
 
   # Una selección no puede tomar el puntaje de una evaluación que viene después.
+  #
+  # `source_step` sale `nil` tanto si la columna está vacía como si el id no
+  # existe —`belongs_to optional: true` no distingue—, así que un id borrado o
+  # inventado se dejaba pasar sin error hasta la FK compuesta, que explota con
+  # `PG::ForeignKeyViolation` en vez de un mensaje legible.
   def source_step_precedes_self
-    return if source_step.nil?
+    return if source_step_id.blank?
+
+    if source_step.nil?
+      errors.add(:source_step_id, "no existe")
+      return
+    end
 
     errors.add(:source_step_id, "debe pertenecer al mismo desafío") if source_step.challenge_id != challenge_id
     errors.add(:source_step_id, "debe estar antes en el flujo") if source_step.position.to_d >= position.to_d
+  end
+
+  # Mismo problema que `source_step_id` (id borrado o inventado sin error de
+  # validación) más una guarda propia: un set `library` es compartible por
+  # diseño —cualquier desafío puede apuntarle—, pero un set `inline` es de UN
+  # módulo, su `owner_step`, y se edita en el lugar. Si el step que lo
+  # referencia fuera de otro desafío, `StepCriteriaController` reescribiría,
+  # desde acá, los criterios de ese otro desafío.
+  def criteria_set_belongs_to_challenge
+    return if criteria_set_id.blank?
+
+    if criteria_set.nil?
+      errors.add(:criteria_set_id, "no existe")
+      return
+    end
+
+    return if criteria_set.library?
+
+    owner_challenge_id = criteria_set.owner_step&.challenge_id
+    return if owner_challenge_id.nil? || owner_challenge_id == challenge_id
+
+    errors.add(:criteria_set_id, "debe pertenecer al mismo desafío")
   end
 
   # La regla dura del producto, replicada como invariante de modelo.
