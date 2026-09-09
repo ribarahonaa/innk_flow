@@ -1671,6 +1671,54 @@ git commit -m "La documentación, con las dos caras y el dueño de cada cosa"
 
 ---
 
+### Task 13: El handoff
+
+Toda sesión cierra con un `handoff.md`. Lo que se pierde cuando una sesión se
+corta no es el código —eso está en git— sino los callejones sin salida ya
+recorridos: sin la sección 4, la sesión siguiente vuelve a probar lo mismo.
+
+**Files:**
+- Create: `handoff.md` (raíz del repo)
+
+- [ ] **Step 1: Escribirlo, con estas cinco secciones y en este orden**
+
+```markdown
+# Handoff
+
+## Objetivo
+[Qué estamos construyendo, una o dos líneas.]
+
+## Estado actual
+[Qué funciona ya y qué queda pendiente.]
+
+## Archivos y cambios
+[Qué archivos se tocaron y qué cambió en esta sesión.]
+
+## Intentos fallidos
+[Qué se probó que no funcionó, para no repetirlo. Si no falló nada,
+decirlo explícitamente en vez de borrar la sección.]
+
+## Próximos pasos
+[Las acciones exactas que siguen, en orden.]
+```
+
+Corto y factual: sólo lo que la próxima sesión necesita para continuar limpio.
+Nada de narrativa ni de resumen de la conversación.
+
+Para la sección 4, revisá el ledger de esta ejecución
+(`.superpowers/sdd/2026-09-09-configurar-vs-ejecutar/progress.md`): las líneas
+`fix round`, `parked` y `Ruling:` son exactamente los intentos fallidos y las
+decisiones que la próxima sesión necesita heredar.
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add handoff.md
+git commit -m "Handoff de la sesión"
+```
+
+---
+
 ## Verificación de cierre
 
 - [ ] `make spec` en verde, con los specs nuevos: `step_settings_spec`, `step_config_spec`, `pipeline_no_pisa_config_spec`, `dos_caras_spec`, `una_vista_de_configuracion_spec`, `setup_spec`.
@@ -1678,3 +1726,4 @@ git commit -m "La documentación, con las dos caras y el dueño de cada cosa"
 - [ ] **Mirar las capturas.** Ni la suite ni `make screens` ven CSS: fallan por errores de JS y HTTP, no por que algo se vea mal. Todos los defectos visuales caros de este repo aparecieron midiendo en un navegador, no leyendo código.
 - [ ] Probar a mano el camino completo sobre un desafío **desechable** (no `onboarding-remoto` ni `optimizacion-de-la-experiencia-de-onboarding`): crear, armar el flujo, entrar a cada módulo desde el builder, configurar el corte, volver al builder, **guardar el flujo**, y verificar que el corte sigue ahí. Ésa es la regresión que este plan existe para evitar.
 - [ ] Borrar el desafío desechable.
+- [ ] `handoff.md` escrito, con las cinco secciones y con la 4 llena o explícitamente vacía.
