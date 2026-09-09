@@ -204,10 +204,56 @@ guarda la lista completa con un `PUT` y el server reconcilia. Así que la págin
 tiene el botón del módulo más el guardado de cada editor. No se inventa una
 transacción entre islas.
 
-La biblioteca de criterios sigue existiendo aparte: su razón de ser es reusar sets
-entre desafíos, que no es lo mismo que configurar un módulo.
+Las dos pantallas sueltas que hoy los alojan se eliminan — ver 5, que es un
+requisito duro y no una consecuencia.
 
-## 5 · La excepción del formulario
+## 5 · Una sola vista de configuración
+
+Requisito duro: **cuando esto termine tiene que haber exactamente un lugar donde
+se configura un módulo.** No alcanza con agregar la cara nueva; las viejas se
+eliminan. Si quedan conviviendo, el problema original —rebotar entre pantallas—
+queda igual y encima con una pantalla más.
+
+Lo que desaparece:
+
+| Pantalla | Qué pasa con ella |
+|---|---|
+| Panel derecho del builder | Se elimina; la tarjeta pasa a ser un link |
+| `GET /challenges/:cid/steps/:sid/criteria` | Redirect permanente a la pantalla del módulo |
+| `GET /challenges/:id/form` | Redirect permanente a la pantalla del módulo de idear |
+
+Redirect y no borrado directo: son URLs que ya están en links, en marcadores y en
+`back_url`. Un 404 acá se lee como una función que se perdió.
+
+`StepCriteriaController#create` sobrevive como acción (es la que decide con qué
+arranca el set propio) pero deja de tener vista.
+
+### La biblioteca no cuenta, y por qué
+
+`/criteria_sets` sigue existiendo. Mi lectura del requisito es que habla de la
+configuración **de un módulo**, y la biblioteca no lo es: es el CRUD de otro
+objeto, cuya razón de ser es reusar un set entre desafíos distintos. Un set de
+biblioteca ni siquiera se puede editar desde un módulo —se copia, justamente para
+no tocar los otros desafíos que lo usan—.
+
+Si tu lectura es más estricta y querés que la biblioteca también se pliegue
+adentro, decilo y lo rehago: es un cambio de alcance, no un detalle.
+
+### La guarda
+
+Que esto se cumpla se verifica contando declaraciones de isla en las vistas, no
+leyendo el diff:
+
+- `data-island="form-editor"` aparece en **exactamente una** vista: la cara de
+  configuración de idear.
+- `data-island="criteria-editor"` aparece en **exactamente dos**: la cara de
+  configuración de evaluación/selección, y el form de la biblioteca.
+
+Es el mismo estilo de guarda que `spec/lint/clases_interpoladas_spec.rb`: barata,
+y ataja que dentro de seis meses alguien resuelva un pedido agregando una tercera
+pantalla de configuración sin darse cuenta de que existía la regla.
+
+## 6 · La excepción del formulario
 
 El formulario de postulación **no** se congela con `touched?`. Su candado es
 `challenge.ideas.submitted.exists?` (`Api::V1::FormFieldsController#locked?`), y
@@ -218,9 +264,9 @@ Se conserva. En Idear, la cara B sigue mostrando el editor de campos con su prop
 candado. No es una fuga de la regla general: es que ese objeto tiene una regla
 mejor.
 
-## 6 · Verificación
+## 7 · Verificación
 
-Tres guardas nuevas, porque las tres fallan en silencio:
+Cuatro guardas nuevas, porque las cuatro fallan en silencio:
 
 - **Guardar el flujo no pisa la configuración de un módulo.** Se configura un
   módulo, se guarda el pipeline con props viejas, y la configuración sigue ahí.
@@ -229,6 +275,8 @@ Tres guardas nuevas, porque las tres fallan en silencio:
   el modo de IA pasa. Las dos autorizaciones, las dos direcciones.
 - **`Flow::StepSettings.filtrar` descarta claves ajenas y castea los tipos.**
   Contra el esquema real de los cinco kinds, no contra una lista escrita a mano.
+- **No hay más de una vista de configuración**, contando declaraciones de isla
+  (ver 5). Y las dos URLs viejas redirigen en vez de dar 404.
 
 Más, por kind: un request spec que verifique que la cara A trae todos sus bloques
 y que la cara B no trae ninguno editable salvo los tres vivos.
@@ -246,5 +294,10 @@ navegación **por link** desde el builder — que es justo el camino nuevo, y un
 
 ## Decisiones abiertas
 
-Ninguna. La única que se discutió —uniformar el candado del formulario a
-`touched?`— se resolvió a favor de conservar su regla fina.
+Una, y es de alcance: **si la biblioteca de criterios cuenta como «vista de
+configuración»** a los efectos del requisito de 5. Está diseñado asumiendo que no
+—es el CRUD de otro objeto, para reusar sets entre desafíos— y se implementa así
+salvo que se diga lo contrario.
+
+Cerrada: uniformar el candado del formulario a `touched?` se resolvió a favor de
+conservar su regla fina (ver 6).
