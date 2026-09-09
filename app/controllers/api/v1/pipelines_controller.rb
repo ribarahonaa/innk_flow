@@ -81,8 +81,10 @@ module Api
             after: after,
             name: attrs[:name].presence,
             ai_mode: attrs[:aiMode].presence,
-            criteria_set_id: attrs[:criteriaSetId].presence,
-            config: attrs[:settings].presence || {}
+            # Nace con los defaults del esquema, no con `settings` ni
+            # `criteriaSetId`: eso ya no lo elige el builder, se configura
+            # después en la pantalla del módulo.
+            config: Flow::StepSettings.defaults(attrs[:kind])
           )
           # El id provisional del cliente se reemplaza por el real.
           attrs[:id] = result.step&.id if result.ok?
@@ -100,22 +102,22 @@ module Api
         @challenge.steps.find { |s| s.id == previous[:id] }
       end
 
+      # El builder es dueño solo del ARMADO del flujo: kind, orden, alta y
+      # baja (create_added, destroy_removed y reorder_all). De un módulo que
+      # YA EXISTE no escribe ningún atributo — ni siquiera `name` o
+      # `ai_mode`: la tabla de propiedad los deja del lado de la pantalla del
+      # módulo, que los escribe por `steps#update`
+      # (`app/views/steps/_ai_mode.html.haml` incluido).
+      #
+      # Si esto escribiera algo, guardar el flujo con props cargadas antes
+      # revertiría lo configurado, y el bloqueo optimista no lo atajaría:
+      # `lock_version` es del desafío y un PATCH al módulo no lo incrementa.
       def update_existing(incoming)
         incoming.filter_map do |attrs|
           next if attrs[:id].blank?
 
           step = @challenge.steps.reload.find { |s| s.id == attrs[:id] }
           next if step.nil?
-
-          # El builder es dueño del ARMADO del flujo: kind, orden, alta y baja.
-          # La configuración de un módulo —config, criterios, de dónde saca el
-          # puntaje— se escribe en la pantalla del módulo, por `steps#update`.
-          #
-          # Si esto siguiera escribiéndolas, guardar el flujo con props
-          # cargadas antes revertiría lo configurado, y `lock_version` no lo
-          # atajaría: es del desafío, y un PATCH al módulo no lo incrementa.
-          step.name = attrs[:name] if attrs.key?(:name) && attrs[:name].present?
-          step.ai_mode = attrs[:aiMode].presence if attrs.key?(:aiMode)
 
           next if step.save
 

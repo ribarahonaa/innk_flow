@@ -63,10 +63,11 @@ RSpec.describe "API del pipeline", type: :request do
       expect(response).to have_http_status(:ok)
       expect(json["steps"].map { _1["kind"] }).to eq(%w[ideation evaluation selection])
       expect(json["steps"].map { _1["position"] }).to eq([1.0, 2.0, 3.0])
-      # `settings` ya no viaja en las props del builder —es de la pantalla del
-      # módulo—, así que el config inicial se verifica contra el modelo.
+      # `settings` ya no es un segundo camino hacia `config`, ni siquiera al
+      # crear un módulo: nace con los defaults del esquema y se configura
+      # después en su pantalla — el `min_ideas: 3` de arriba se ignora.
       ideation = as_company(company) { challenge.steps.reload.find_by(kind: "ideation") }
-      expect(ideation.config).to eq("min_ideas" => 3)
+      expect(ideation.config).to eq(Flow::StepSettings.defaults("ideation"))
       expect(json["steps"].second["effectiveAiMode"]).to eq("ai_auto")
     end
 
@@ -210,7 +211,10 @@ RSpec.describe "API del pipeline", type: :request do
       expect(json["criteriaSets"].first["editUrl"]).to be_present
     end
 
-    it "asigna el set al guardar el flujo" do
+    # `criteriaSetId` ya no es del builder, ni siquiera al crear el módulo:
+    # se asigna después, en su pantalla (`steps#update`). Mandarlo en el PUT
+    # no rompe el guardado, pero tampoco asigna nada.
+    it "el criteriaSetId del builder ya no asigna nada: eso lo hace la pantalla del módulo" do
       put pipeline_path, params: {
         lock_version: 0,
         steps: [
@@ -220,25 +224,27 @@ RSpec.describe "API del pipeline", type: :request do
       }, as: :json
 
       expect(response).to have_http_status(:ok)
-      evaluation = json["steps"].find { _1["kind"] == "evaluation" }
-      # `criteriaSetId` ya no viaja en las props del builder —es de la
-      # pantalla del módulo—, así que la asignación se verifica contra el
-      # modelo. `criteriaSetName` sigue siendo suyo: la tarjeta lo muestra.
       step = as_company(company) { challenge.steps.reload.find_by(kind: "evaluation") }
-      expect(step.criteria_set_id).to eq(set.id)
-      expect(evaluation["criteriaSetName"]).to eq("Técnica avanzada")
+      expect(step.criteria_set_id).to be_nil
+
+      evaluation = json["steps"].find { _1["kind"] == "evaluation" }
+      expect(evaluation["criteriaSetName"]).to be_nil
     end
 
     it "el módulo usa ESOS criterios al activarse, no los por defecto" do
       put pipeline_path, params: {
         lock_version: 0,
         steps: [{ id: nil, kind: "ideation" },
-                { id: nil, kind: "evaluation", name: "Técnica", criteriaSetId: set.id }]
+                { id: nil, kind: "evaluation", name: "Técnica" }]
       }, as: :json
 
+      step = as_company(company) { challenge.steps.reload.find_by(kind: "evaluation") }
+      # El set se asigna en la pantalla del módulo, no al crearlo desde el
+      # builder.
+      patch challenge_step_path(challenge, step), params: { challenge_step: { criteria_set_id: set.id } }
+
       as_company(company) do
-        step = challenge.steps.reload.find_by(kind: "evaluation")
-        Flow::Handlers::Base.for(step).activate!
+        Flow::Handlers::Base.for(step.reload).activate!
 
         expect(step.reload.settings["criteria"].map { _1["key"] }).to eq(%w[impacto riesgo])
       end

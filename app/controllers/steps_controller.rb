@@ -32,7 +32,10 @@ class StepsController < ApplicationController
     end
   end
 
-  # El ÚNICO camino de escritura de la configuración de un módulo.
+  # El camino de escritura de la configuración de un módulo — salvo
+  # `criteria_set_id`, que tiene un segundo camino legítimo:
+  # `StepCriteriaController#create` también lo asigna, al crear el set PROPIO
+  # del módulo desde su editor de criterios, otra pantalla.
   #
   # Autoriza según lo que llega, porque las dos cosas no piden lo mismo: el
   # selector de modo de IA de la cara de ejecución pide `advance?`, y
