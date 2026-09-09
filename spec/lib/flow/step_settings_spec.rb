@@ -39,7 +39,7 @@ RSpec.describe Flow::StepSettings do
       claves = described_class.fields("selection").map { |f| f[:key] }
 
       expect(claves).to eq(%w[source_step_id cut.mode cut.value
-                              score_source.combine cut.tie_break])
+                              score_source.combine])
     end
 
     it "devuelve vacío para un kind que no existe" do
@@ -134,7 +134,7 @@ RSpec.describe Flow::StepSettings do
   describe "defaults" do
     it "arma la config inicial de un módulo desde el esquema" do
       expect(described_class.defaults("selection")).to eq(
-        "cut" => { "mode" => "manual", "value" => 10, "tie_break" => "earliest_submission" },
+        "cut" => { "mode" => "manual", "value" => 10 },
         "score_source" => { "combine" => "weighted_avg" }
       )
     end
@@ -192,7 +192,7 @@ RSpec.describe Flow::StepSettings do
       "ideation" => %w[min_ideas generated_ideas],
       "evolution" => %w[require_response],
       "evaluation" => %w[min_assessments evaluator_aggregation],
-      "selection" => %w[cut.mode cut.value score_source.combine cut.tie_break],
+      "selection" => %w[cut.mode cut.value score_source.combine],
       "reporting" => %w[mode include_eliminated step_slugs]
     }.freeze
 

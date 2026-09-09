@@ -83,12 +83,6 @@ module Flow
               { value: "max", label: "La nota más alta" },
               { value: "min", label: "La nota más baja" },
               { value: "last", label: "La última evaluación" }
-            ] },
-          { key: "cut.tie_break", type: "select", default: "earliest_submission",
-            label: "Desempate",
-            options: [
-              { value: "earliest_submission", label: "La postulada primero" },
-              { value: "lowest_dispersion", label: "La de evaluaciones más parejas" }
             ] }
         ]
       },

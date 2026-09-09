@@ -58,22 +58,10 @@
     - else
       %span.muted · sin fuente de puntaje: el orden es manual
 
-  -# Los dos avanzados del kind, que "Cómo se decide" no mostraba en ningún
-  -# lado —ni acá ni en `_config_congelada`, que no se suma en esta vista a
-  -# propósito (ver el reporte de la Task 5)—.
-  -#
-  -# Ojo: `Handlers::Selection#resolve_config!` reemplaza `resolved_config["cut"]`
-  -# entero por `{mode, value}` y nunca copia `tie_break` — un módulo tocado no
-  -# lo muestra nunca, sin que sea culpa de esta línea. Bug preexistente, fuera
-  -# del alcance de esta tarea; queda para quien lo encuentre después.
   - combine_campo = Flow::StepSettings.fields("selection").find { |c| c[:key] == "score_source.combine" }
   - combine_valor = @step.settings.dig("score_source", "combine")
   - if fuentes.size > 1 && combine_valor.present?
     %p.muted.field-hint= "#{combine_campo[:label]}: #{Flow::StepSettings.display_value(combine_campo, combine_valor)}"
-  - tie_campo = Flow::StepSettings.fields("selection").find { |c| c[:key] == "cut.tie_break" }
-  - tie_valor = @step.settings.dig("cut", "tie_break")
-  - if tie_valor.present?
-    %p.muted.field-hint= "#{tie_campo[:label]}: #{Flow::StepSettings.display_value(tie_campo, tie_valor)}"
 
   -# `@step.touched?` es siempre cierto acá: esta vista sólo se renderiza así.
   %p.field-hint El corte quedó fijado cuando arrancó el módulo. Se puede cambiar el modo de IA, no la regla.
