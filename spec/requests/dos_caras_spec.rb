@@ -78,6 +78,48 @@ RSpec.describe "las dos caras de un módulo", type: :request do
       expect(response.body).not_to include('name="challenge_step[name]"')
       expect(response.body).not_to include("Guardar el módulo")
       expect(response.body).to include("Cómo está configurado")
+      # Mismo criterio que el form del módulo: sin `configure?`, el bloque de
+      # criterios tampoco ofrece sus controles de edición.
+      expect(response.body).not_to include("Usar los tres genéricos y editarlos")
+      expect(response.body).not_to include("Proponer criterios con IA")
+    end
+
+    it "trae el editor de criterios en los dos kinds que puntúan o filtran" do
+      %w[evaluation selection].each do |kind|
+        get challenge_step_path(challenge, paso(kind))
+
+        expect(response.body).to include("Criterios propios de este módulo")
+          .or include("todavía no tiene criterios propios")
+      end
+    end
+
+    it "la pantalla suelta de criterios redirige al módulo" do
+      get challenge_step_criteria_path(challenge, paso("selection"))
+
+      expect(response).to redirect_to(challenge_step_path(challenge, paso("selection")))
+    end
+
+    # `step_criteria/show` era una de las dos únicas pantallas que mostraban
+    # `shared/ai_suggestions` para un módulo. Borrarla sin más dejaba una
+    # sugerencia pendiente de revisión sobre un módulo pendiente sin ningún
+    # lugar donde verse — con `@pending_suggestions` calculado en el
+    # controller y nadie que lo renderizara.
+    it "una sugerencia de IA pendiente de revisión aparece en la pantalla del módulo" do
+      paso_seleccion = paso("selection")
+      as_company(company) do
+        run = AiRun.create!(challenge: challenge, challenge_step: paso_seleccion, purpose: "suggest_criteria",
+                            mode: "ai_assisted", status: "succeeded", provider: "fixture",
+                            idempotency_key: SecureRandom.uuid)
+        AiSuggestion.create!(ai_run: run, challenge_step: paso_seleccion, status: "pending",
+                             payload: { "name" => "Filtros propuestos",
+                                        "criteria" => [{ "name" => "Formulario completo", "weight" => 100,
+                                                         "source" => "manual" }] })
+      end
+
+      get challenge_step_path(challenge, paso_seleccion)
+
+      expect(response.body).to include("Propuestas de la IA")
+      expect(response.body).to include("Formulario completo")
     end
   end
 

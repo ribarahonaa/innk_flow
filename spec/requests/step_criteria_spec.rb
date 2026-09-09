@@ -34,9 +34,21 @@ RSpec.describe "criterios de un módulo", type: :request do
 
   before { sign_in(owner, company: company) }
 
+  # La pantalla propia de criterios se borró: el editor vive embebido en la
+  # cara de configuración del módulo (`StepsController#show`, cuando el
+  # módulo está pendiente). La URL vieja se conserva como redirect, no como
+  # 404, porque vive en links, marcadores y `back_url`.
+  describe "la pantalla vieja de criterios" do
+    it "redirige a la pantalla del módulo" do
+      get criteria_path
+
+      expect(response).to redirect_to(challenge_step_path(challenge, step))
+    end
+  end
+
   describe "cuando el módulo no tiene criterios propios" do
     it "dice con qué va a correr y ofrece las salidas" do
-      get criteria_path
+      get challenge_step_path(challenge, step)
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("todavía no tiene criterios propios",
@@ -62,7 +74,7 @@ RSpec.describe "criterios de un módulo", type: :request do
 
     it "y después de crearlos, monta el editor" do
       post criteria_path, params: { from: "defaults" }
-      get criteria_path
+      get challenge_step_path(challenge, step)
 
       expect(response.body).to include('data-island="criteria-editor"')
       expect(response.body).to include("no afectan a otros desafíos")
@@ -85,7 +97,7 @@ RSpec.describe "criterios de un módulo", type: :request do
     # Editar el set de la biblioteca desde el módulo tocaría a todos los
     # desafíos que lo comparten. Se copia, no se apunta.
     it "no deja editarlo desde acá: ofrece copiarlo" do
-      get criteria_path
+      get challenge_step_path(challenge, step)
 
       expect(response.body).to include("Estándar", "Copiar ese set y hacerlo propio")
       expect(response.body).not_to include('data-island="criteria-editor"')
@@ -136,7 +148,7 @@ RSpec.describe "criterios de un módulo", type: :request do
   # sacaba de la pantalla de criterios justo al aplicarlos.
   describe "proponer los criterios con IA" do
     it "la pantalla lo ofrece cuando el módulo no tiene criterios propios" do
-      get criteria_path
+      get challenge_step_path(challenge, step)
       expect(response.body).to include("Proponer criterios con IA")
     end
 

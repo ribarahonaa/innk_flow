@@ -489,8 +489,8 @@ async function shot(page, name, url, prepare) {
   // Sobre un módulo YA ARRANCADO a propósito, y no sobre uno de
   // «sin-formulario» (que está pendiente): la tarea «configurar vs ejecutar»
   // le dio dos caras a la pantalla del módulo, y esta referencia es de la cara
-  // de EJECUCIÓN. La de configuración recupera su propio camino a los
-  // criterios con la tarea que embebe el editor ahí.
+  // de EJECUCIÓN — sólo un panel de sólo lectura, sin link a ninguna pantalla
+  // de criterios propia. La de configuración se captura aparte, más abajo.
   await page.goto(`${BASE}/challenges/${CHALLENGE}`, { waitUntil: 'networkidle' });
   const evaluacionLink = page
     .locator('.step-table tr', { hasText: 'Evaluación de comité' })
@@ -501,25 +501,45 @@ async function shot(page, name, url, prepare) {
       evaluacionLink.first().click()
     ]);
     await capturar(page, '09-11-panel-evaluacion');
-
-    // Por DESTINO y no por texto: la etiqueta cambia según el módulo ya tenga
-    // criterios propios o no, y la captura se caía cuando alguien los
-    // definía. Acotado a `.app-aside`: el link «Criterios» de la barra
-    // superior también matchea `/criteria` por substring.
-    const criteriaLink = page.locator('.app-aside a[href*="/criteria"]');
-    if (await criteriaLink.count()) {
-      await Promise.all([
-        page.waitForURL(/\/criteria/, { timeout: 15000 }),
-        criteriaLink.first().click()
-      ]);
-      await capturar(page, '09-12-criterios-del-modulo');
-    } else {
-      failures++;
-      console.error('[LINK] el módulo de evaluación no ofrece definir criterios propios');
-    }
   } else {
     failures++;
     console.error('[LINK] el desafío no tiene módulo de evaluación');
+  }
+
+  // El editor de criterios de un módulo TODAVÍA PENDIENTE: ya no vive en una
+  // pantalla propia (`step_criteria/show`, que redirige a ésta) — la tarea
+  // «los criterios, embebidos» lo sumó a la cara de configuración del
+  // módulo. Se llega por link desde la ficha de un desafío en borrador
+  // («sin-formulario»), cuya evaluación nunca arrancó: sobre un módulo
+  // arrancado (como el de arriba) ya no hay ningún link a `/criteria` que
+  // lleve a algo distinto de la propia pantalla.
+  await page.goto(`${BASE}/challenges/sin-formulario`, { waitUntil: 'networkidle' });
+  const revisionLink = page
+    .locator('.step-table tr', { hasText: 'Primera revisión' })
+    .locator('.step-table__link');
+  if (await revisionLink.count()) {
+    await Promise.all([
+      page.waitForURL(/\/steps\/[^/]+$/, { timeout: 15000 }),
+      revisionLink.first().click()
+    ]);
+    await capturar(page, '09-12-criterios-del-modulo');
+
+    // La sugerencia de IA pendiente de revisión no se pierde al borrar la
+    // pantalla suelta: el marco de propuestas sigue presente, embebido en
+    // el bloque de criterios.
+    if (!(await page.locator('turbo-frame#ai-suggestions').count())) {
+      failures++;
+      console.error('[IA] el módulo pendiente perdió el marco de sugerencias de criterios');
+    }
+
+    // El bloque de criterios quedó FUERA del form del módulo (los dos
+    // conviven en la misma pantalla, uno detrás del otro): si quedara
+    // adentro, el navegador se comería el form interno y sus botones
+    // pasarían a pertenecer al externo.
+    await revisarFormsAnidados(page, '09-12-criterios-del-modulo', new URL(page.url()).pathname);
+  } else {
+    failures++;
+    console.error('[LINK] el módulo de evaluación pendiente no ofrece sus criterios');
   }
 
   await shot(page, '09-13-avisos', '/notifications');

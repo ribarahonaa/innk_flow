@@ -1,0 +1,75 @@
+-# El editor de criterios, embebido en la cara de configuración del módulo.
+-#
+-# Antes era pantalla propia. Configurar un módulo exigía rebotar entre cuatro
+-# pantallas y ninguna era la del módulo; ésa era la queja que originó todo.
+-#
+-# La pantalla vieja (`step_criteria/show`) la autorizaba el CONTROLLER con
+-# `manage_criteria?`, así que sólo la veía quien administra. Embebida en una
+-# pantalla que cualquiera de la empresa puede ver (`ChallengeStepPolicy#show?`),
+-# el permiso tiene que vivir en la VISTA: mismo criterio que el form del
+-# módulo (`steps/config/_modulo`), `configure?`. Sin esto, un participante
+-# recibía los botones de «Copiar…», «Empezar en blanco» y la isla entera, y
+-# apretarlos le rebotaba en un 403 — el mismo control-que-no-responde de
+-# siempre, ahora en el bloque de criterios.
+- set = step.criteria_set&.library? ? nil : step.criteria_set
+- props = set ? CriteriaSetPresenter.new(set, membership: current_membership, back_url: challenge_step_path(step.challenge, step)).as_json : nil
+- puede_configurar = policy(step).configure?
+
+-# `step_criteria/show` era una de las dos únicas pantallas que mostraban esto
+-# para un módulo. Borrarla sin más dejaba una sugerencia PENDIENTE DE REVISIÓN
+-# sobre un módulo todavía pendiente sin ningún lugar donde verse.
+= render "shared/ai_suggestions", suggestions: suggestions
+
+.card
+  .section-head
+    %h2.section-title= step.selection? ? "Los filtros" : "Los criterios"
+  %p.muted= step.selection? ? "Condiciones que la idea tiene que cumplir para avanzar. Se aplican antes del corte." : "Con qué se puntúa cada idea en este módulo."
+
+- if set.nil?
+  .card
+    %h2.section-title Este módulo todavía no tiene criterios propios
+    - if step.criteria_set
+      %p.muted
+        Hoy usa
+        %strong= step.criteria_set.name
+        de la biblioteca, que comparten otros desafíos. Editarlo desde acá los tocaría a todos.
+    - else
+      %p.muted Sin criterios propios se van a usar los genéricos: impacto, factibilidad y esfuerzo.
+
+    - if !puede_configurar
+      %p.field-hint.field-hint--warn 🔒 Sólo quien administra el desafío puede definir los criterios de este módulo.
+    - elsif step.touched?
+      %p.field-hint.field-hint--warn Este módulo ya se ejecutó: sus criterios quedaron congelados.
+    - else
+      .report-actions
+        - if step.criteria_set
+          = button_to "Copiar ese set y hacerlo propio", challenge_step_criteria_path(step.challenge, step, from: "library"),
+                      class: "btn btn-primary btn-sm"
+        - else
+          = button_to "Usar los tres genéricos y editarlos", challenge_step_criteria_path(step.challenge, step, from: "defaults"),
+                      class: "btn btn-primary btn-sm"
+        = button_to "Empezar en blanco", challenge_step_criteria_path(step.challenge, step, from: "blank"),
+                    class: "btn btn-ghost btn-sm"
+        = render "shared/ai_actions", challenge: step.challenge, mode: step.effective_ai_mode, always: true,
+                 actions: [{ label: "Proponer criterios con IA", purpose: "suggest_criteria", step_id: step.id }]
+- else
+  .flash.flash--notice
+    Estos criterios son de este módulo: no afectan a otros desafíos.
+    - if puede_configurar
+      = link_to "Guardarlos también en la biblioteca", promote_criteria_set_path(set),
+                data: { turbo_method: :post }, class: "field-hint__link"
+
+  - if puede_configurar
+    - unless step.touched?
+      .card
+        = render "shared/ai_actions", challenge: step.challenge, mode: step.effective_ai_mode, always: true,
+                 actions: [{ label: "Rehacer los criterios con IA", purpose: "suggest_criteria", step_id: step.id }]
+
+    %div{ "data-island": "criteria-editor", data: { props: props.to_json } }
+      .card.island-placeholder
+        %p.muted Cargando el editor de criterios…
+
+    = javascript_include_tag "packs/criteria_editor", defer: true, nonce: content_security_policy_nonce
+  - else
+    .card
+      %p.field-hint 🔒 Sólo quien administra el desafío puede cambiar los criterios de este módulo.

@@ -10,15 +10,13 @@
 class StepCriteriaController < ApplicationController
   before_action :set_step
 
+  # Los criterios se configuran en la pantalla del módulo. Esta URL vivía en
+  # links, marcadores y `back_url`, así que redirige en vez de dar 404: un 404
+  # acá se lee como una función que se perdió.
   def show
     authorize @step, :manage_criteria?
 
-    @pending_suggestions = AiSuggestion.pending_review.where(challenge_step_id: @step.id).recent
-    @set = own_set
-    return if @set.nil?
-
-    @props = CriteriaSetPresenter.new(@set, membership: current_membership,
-                                            back_url: back_url).as_json
+    redirect_to challenge_step_path(@challenge, @step), status: :moved_permanently
   end
 
   # Crea el set propio del módulo. `from` decide con qué arranca:
@@ -48,15 +46,6 @@ class StepCriteriaController < ApplicationController
     raise ActiveRecord::RecordNotFound unless @step.evaluation? || @step.selection?
   end
 
-  # El set que este módulo puede editar: solo el suyo. Uno de la biblioteca se
-  # comparte con otros desafíos y editarlo desde acá los tocaría a todos.
-  def own_set
-    set = @step.criteria_set
-    return nil if set.nil? || set.library?
-
-    set
-  end
-
   def build_set
     source = @step.criteria_set
 
@@ -80,7 +69,4 @@ class StepCriteriaController < ApplicationController
   end
 
   def step_criteria_path = challenge_step_criteria_path(@challenge, @step)
-
-  def back_url = builder_challenge_path(@challenge)
-  helper_method :back_url
 end
