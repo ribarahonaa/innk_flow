@@ -570,11 +570,13 @@ RSpec.describe "guardar el flujo no pisa la configuración de un módulo", type:
     expect(corte.name).to eq("Corte final")
   end
 
+  # Contra el JSON del endpoint y no contra un regex sobre el HTML: es el
+  # mismo presenter, y HAML escapa el `data-props` de formas que el regex
+  # atrapa mal.
   it "no publica en las props lo que dejó de ser suyo" do
-    get builder_challenge_path(challenge)
+    get api_v1_challenge_pipeline_path(challenge)
 
-    props = JSON.parse(response.body[/data-props="([^"]*)"/, 1].gsub("&quot;", '"'))
-    paso = props["steps"].find { |s| s["kind"] == "selection" }
+    paso = response.parsed_body["steps"].find { |s| s["kind"] == "selection" }
 
     expect(paso).not_to have_key("settings")
     expect(paso).not_to have_key("criteriaSetId")
@@ -773,7 +775,9 @@ class StepSettingsPresenter
 end
 ```
 
-> Si `PipelinePresenter#settings_schema` es privado, hacelo público (`public :settings_schema` o moverlo arriba del `private`). Es el mismo dato, y duplicarlo sería tener dos esquemas que se desincronizan.
+> **`PipelinePresenter#settings_schema` HOY ES PRIVADO** (está en la línea 153, y el `private` en la 50). Movelo arriba del `private` para que `StepSettingsPresenter` pueda llamarlo. Duplicar el transform daría dos esquemas que se desincronizan.
+>
+> El payload del builder sigue trayendo `settingsSchema:` aunque ya nadie lo consuma. Se deja: sacarlo es limpieza que arriesga romper esto sin ganar nada.
 
 - [ ] **Step 6: Sacarle el panel al builder**
 
@@ -906,7 +910,7 @@ RSpec.describe "las dos caras de un módulo", type: :request do
     it "muestra la configuración congelada" do
       get challenge_step_path(challenge, paso("ideation"))
 
-      expect(response.body).to include("quedó fijado")
+      expect(response.body).to include("Quedó fijado")
     end
 
     # Las tres cosas que siguen vivas: modo de IA, nombre y asignaciones.
@@ -1006,9 +1010,10 @@ En `app/controllers/steps_controller.rb#show`, reemplazar la última línea (`re
 = render "steps/config/modulo", step: @step, props: @settings_props
 ```
 
-Las otras cuatro, completas. Los bloques que todavía no existen los crean las
-tareas 6, 7 y 8: escribí **ahora** sólo las tres primeras líneas de cada una, y
-sumá el `render` que falta cuando su tarea cree el partial.
+Las otras cuatro. **Escribí SÓLO las cuatro líneas de cada una y NO las líneas
+`render` comentadas con «lo suma la Task N»**: esos partials todavía no
+existen, y escribirlos ahora hace fallar los tests de esta tarea con «missing
+partial». Cada tarea suma el suyo.
 
 ```haml
 -# app/views/steps/config/ideation.html.haml
@@ -1269,7 +1274,7 @@ Creá `app/views/steps/_campos_editor.html.haml` con el contenido de `app/views/
                     back: challenge_step_path(step.challenge, step) } }
 ```
 
-> `form_field_json` es el `serialize` privado de `FormFieldsController`. Movelo a un helper (`app/helpers/form_fields_helper.rb`) para que lo puedan usar los dos, en vez de duplicarlo.
+> **Hacé esto ANTES del Step 5**, o vas a borrar el método que el partial necesita: `form_field_json` es el `serialize` privado de `FormFieldsController` (línea 52). Movelo a `app/helpers/form_fields_helper.rb` con el nombre `form_field_json`, y recién después reescribí `show` como redirect.
 
 - [ ] **Step 4: Renderizarlo**
 

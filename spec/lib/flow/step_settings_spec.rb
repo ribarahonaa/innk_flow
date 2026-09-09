@@ -34,6 +34,63 @@ RSpec.describe Flow::StepSettings do
     end
   end
 
+  describe ".campos_de" do
+    it "junta esencial y avanzado, en ese orden" do
+      claves = described_class.campos_de("selection").map { |f| f[:key] }
+
+      expect(claves).to eq(%w[source_step_id cut.mode cut.value
+                              score_source.combine cut.tie_break])
+    end
+
+    it "devuelve vacío para un kind que no existe" do
+      expect(described_class.campos_de("inventado")).to eq([])
+    end
+  end
+
+  describe ".filtrar" do
+    it "arma las claves anidadas que declara el esquema" do
+      resultado = described_class.filtrar("selection",
+                                          "cut" => { "mode" => "top_n", "value" => "4" })
+
+      expect(resultado).to eq("cut" => { "mode" => "top_n", "value" => 4 })
+    end
+
+    # El handler hace `.to_f`, así que un string no explota: se arrastra hasta
+    # que alguien compara o serializa. Se castea acá, contra el tipo declarado.
+    it "castea a número lo que el esquema declara número" do
+      resultado = described_class.filtrar("evaluation", "min_assessments" => "3")
+
+      expect(resultado["min_assessments"]).to eq(3)
+    end
+
+    it "descarta cualquier clave que el esquema no declare para ese kind" do
+      resultado = described_class.filtrar("selection",
+                                          "cut" => { "mode" => "top_n" },
+                                          "min_assessments" => 9,
+                                          "lo_que_sea" => "x")
+
+      expect(resultado).to eq("cut" => { "mode" => "top_n" })
+    end
+
+    # `source_step_id` es `column: true`: no vive en config sino en su columna.
+    it "no mete en config los campos que son columna" do
+      resultado = described_class.filtrar("selection", "source_step_id" => "abc")
+
+      expect(resultado).to eq({})
+    end
+
+    it "omite lo ausente y lo vacío en vez de guardar nil" do
+      resultado = described_class.filtrar("selection",
+                                          "cut" => { "mode" => "manual", "value" => "" })
+
+      expect(resultado).to eq("cut" => { "mode" => "manual" })
+    end
+
+    it "no revienta con un kind desconocido" do
+      expect(described_class.filtrar("inventado", "x" => 1)).to eq({})
+    end
+  end
+
   describe "claves anidadas" do
     it "lee y escribe rutas con punto" do
       config = {}
