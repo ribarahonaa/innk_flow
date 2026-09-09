@@ -94,6 +94,7 @@
         :field="field"
         :step="step"
         :steps="steps"
+        :fields="todos"
         :disabled="step.locked"
       />
     </template>
@@ -107,6 +108,7 @@
           :field="field"
           :step="step"
           :steps="steps"
+          :fields="todos"
           :disabled="step.locked"
         />
       </details>
@@ -136,6 +138,7 @@ export default {
     },
     essential() { return this.groups.essential || []; },
     advanced() { return this.groups.advanced || []; },
+    todos() { return this.essential.concat(this.advanced); },
 
     // Un módulo en curso abre lo avanzado: ahí el panel es para CONSULTAR con
     // qué quedó configurado, y esconder la mitad no ayuda.

@@ -41,6 +41,9 @@ export default {
     field: { type: Object, required: true },
     step: { type: Object, required: true },
     steps: { type: Array, required: true },
+    // Los demás campos del mismo esquema: `depends_on` necesita el DEFAULT del
+    // campo al que apunta, no sólo su valor guardado.
+    fields: { type: Array, default: () => [] },
     disabled: { type: Boolean, default: false }
   },
 
@@ -52,7 +55,15 @@ export default {
     visible() {
       const rule = this.field.depends_on;
       if (!rule) return true;
-      const other = this.read(rule.key);
+
+      // Contra el valor EFECTIVO. Un módulo recién creado no tiene `cut` en
+      // settings, así que leer a secas daba `undefined` —que no es "manual"—
+      // y «Valor del corte» aparecía debajo de una regla que dice Manual.
+      let other = this.read(rule.key);
+      if (other === undefined || other === null) {
+        other = this.fields.find((f) => f.key === rule.key)?.default;
+      }
+
       if (rule.not !== undefined) return other !== rule.not;
       if (rule.is !== undefined) return other === rule.is;
       return true;

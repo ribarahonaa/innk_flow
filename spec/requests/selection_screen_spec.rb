@@ -151,5 +151,50 @@ RSpec.describe "la pantalla de una selección", type: :request do
       expect(response.body).not_to include("te guíe en cada evaluación")
     end
   end
-end
 
+  # El corte vive en `config`, que se congela al arrancar el módulo. Mientras el
+  # módulo está pendiente NO está congelado: se edita, pero desde el builder. La
+  # pantalla lo anunciaba como un hecho, con un botón «Editar el set» al lado que
+  # edita otra cosa, así que se leía como un control roto.
+  describe "el corte, con el módulo todavía pendiente" do
+    let!(:pendiente) do
+      as_company(company) do
+        c = create(:challenge, name: "Onboarding", ai_default_mode: "human")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
+        c.steps.create!(kind: "evaluation", position: 2, name: "Comité")
+        c.steps.create!(kind: "selection", position: 3, name: "Corte final",
+                        config: { "cut" => { "mode" => "top_n", "value" => 3 } })
+        c
+      end
+    end
+
+    def corte = as_company(company) { pendiente.steps.reload.find(&:selection?) }
+
+    it "dice dónde se cambia el corte, porque todavía se puede cambiar" do
+      get challenge_step_path(pendiente, corte)
+
+      expect(response.body).to include(builder_challenge_path(pendiente))
+      expect(response.body).to include("Cambiar el corte")
+    end
+
+    # `source_steps` sale de `resolved_config`, que recién se escribe en
+    # `activate!`. Leerlo en un módulo pendiente daba siempre vacío, así que la
+    # pantalla anunciaba «el orden es manual» aunque hubiera una evaluación
+    # antes a la que el corte se va a atar solo.
+    it "nombra la evaluación a la que se va a atar en vez de decir que no hay" do
+      get challenge_step_path(pendiente, corte)
+
+      expect(response.body).to include("Comité")
+      expect(response.body).not_to include("sin fuente de puntaje")
+    end
+  end
+
+  describe "el corte, con el módulo ya arrancado" do
+    it "dice que quedó fijado, en vez de ofrecer un cambio que el server rechaza" do
+      get challenge_step_path(challenge, paso)
+
+      expect(response.body).not_to include("Cambiar el corte")
+      expect(response.body).to include("quedó fijado")
+    end
+  end
+end

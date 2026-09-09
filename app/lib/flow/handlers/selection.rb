@@ -211,6 +211,20 @@ module Flow
       # pasan los filtros.
       def no_score_source? = source_steps.empty?
 
+      # Lo que la PANTALLA muestra, que no es lo mismo que lo que el corte usa.
+      # `source_steps` sale de `resolved_config`, y eso recién se escribe en
+      # `activate!`: en un módulo pendiente da siempre vacío. Mostrar eso hacía
+      # que la ficha anunciara «sin fuente de puntaje: el orden es manual»
+      # aunque hubiera una evaluación antes a la que el corte se ata solo al
+      # arrancar. Acá se resuelve igual que en `resolve_config!`, sin escribir
+      # nada: el late binding sigue pasando una sola vez y en su momento.
+      def expected_source_steps
+        return source_steps if step.touched?
+        return [] if manual_source?
+
+        resolve_source_steps(step.config["score_source"] || {})
+      end
+
       def cut_mode = settings.dig("cut", "mode").presence || "manual"
       def cut_value = settings.dig("cut", "value").to_f
       def manual_cut? = cut_mode == "manual"
