@@ -144,6 +144,47 @@ RSpec.describe Flow::StepSettings do
     end
   end
 
+  # La cara de ejecución mostraba el valor tal cual sale de `config`: `false`,
+  # `trimmed_mean` o `["ideation", "evaluation"]` con la sintaxis de
+  # `Array#inspect`. `display_value` resuelve la etiqueta humana desde las
+  # `options` del propio campo.
+  describe ".display_value" do
+    it "un boolean dice Sí o No, no true/false" do
+      campo = { type: "boolean" }
+      expect(described_class.display_value(campo, true)).to eq("Sí")
+      expect(described_class.display_value(campo, false)).to eq("No")
+    end
+
+    it "un select busca la etiqueta de su option" do
+      campo = described_class.fields("evaluation").find { |f| f[:key] == "evaluator_aggregation" }
+      expect(described_class.display_value(campo, "trimmed_mean")).to eq("Promedio sin extremos")
+    end
+
+    it "un select sin option que matchee cae al valor crudo" do
+      campo = described_class.fields("evaluation").find { |f| f[:key] == "evaluator_aggregation" }
+      expect(described_class.display_value(campo, "inventado")).to eq("inventado")
+    end
+
+    it "un multi_select junta las etiquetas con comas" do
+      campo = { type: "multi_select",
+                options: [{ value: "a", label: "Uno" }, { value: "b", label: "Dos" }] }
+      expect(described_class.display_value(campo, %w[a b])).to eq("Uno, Dos")
+    end
+
+    # `step_slugs` (reporting) es multi_select SIN `options` estáticas: el
+    # `source:` es dinámico y este método no tiene ahí ningún desafío contra
+    # el que resolver. Sin una `option` que matchee, junta los valores crudos
+    # en vez de `Array#inspect`.
+    it "un multi_select sin options se junta igual, sin corchetes ni comillas" do
+      campo = described_class.fields("reporting").find { |f| f[:key] == "step_slugs" }
+      expect(described_class.display_value(campo, %w[ideation evaluation])).to eq("ideation, evaluation")
+    end
+
+    it "un número o texto se muestra tal cual, como string" do
+      expect(described_class.display_value({ type: "number" }, 7)).to eq("7")
+    end
+  end
+
   # La razón de ser del esquema: que no vuelva a haber opciones que el motor lee
   # y nadie puede tocar.
   describe "cobertura contra los handlers" do

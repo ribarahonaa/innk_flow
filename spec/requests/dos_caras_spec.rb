@@ -49,10 +49,35 @@ RSpec.describe "las dos caras de un módulo", type: :request do
       expect(response.body).to include('name="challenge_step[ai_mode]"')
     end
 
+    # «Confirmar el corte» está detrás de `decidible = @step.active? &&
+    # policy(@step).advance?`, así que un módulo pendiente nunca lo mostró, ni
+    # antes de esta tarea: no probaba nada. «Cómo se decide» sí es exclusivo
+    # de la cara de ejecución (`steps/selection.html.haml`) — la de
+    # configuración no la renderiza.
     it "no muestra el trabajo del módulo, que todavía no existe" do
       get challenge_step_path(challenge, paso("selection"))
 
+      expect(response.body).not_to include("Cómo se decide")
       expect(response.body).not_to include("Confirmar el corte")
+    end
+
+    # La cara de configuración se sirve sin ninguna policy propia:
+    # `ChallengeStepPolicy#show?` es «cualquiera de la empresa», así que sin
+    # esta guarda un participante o evaluador recibía el form entero —con el
+    # botón «Guardar el módulo»— y el PATCH le rebotaba en 403 al enviarlo.
+    it "sin `configure?` no ofrece el form, sólo la vista de sólo lectura" do
+      participante = without_tenant do
+        u = create(:user, email: "part@test.dev", name: "Paula Participante")
+        create(:membership, company: company, user: u, role: "participant")
+        u
+      end
+      sign_in(participante, company: company)
+
+      get challenge_step_path(challenge, paso("selection"))
+
+      expect(response.body).not_to include('name="challenge_step[name]"')
+      expect(response.body).not_to include("Guardar el módulo")
+      expect(response.body).to include("Cómo está configurado")
     end
   end
 
@@ -88,6 +113,82 @@ RSpec.describe "las dos caras de un módulo", type: :request do
       get challenge_step_path(challenge, paso("selection"))
 
       expect(response.body).to include('data-island="step-settings"')
+    end
+  end
+
+  # El `before` de "cara B" arriba sólo hace `pipeline.start!`, y eso deja
+  # tocado ÚNICAMENTE a `ideation` — las cinco `it` de ese describe corren
+  # sobre un solo kind. Acá se activan los cinco directo por el handler (sin
+  # pasar por `pipeline.advance!`, que exigiría satisfacer el `can_complete?`
+  # de cada uno en orden) para probar la tarjeta congelada en los cinco, con
+  # `config` explícito para que haya algo real que afirmar.
+  describe "cara B en los cinco kinds: la configuración congelada muestra algo real" do
+    let!(:tocado) do
+      as_company(company) do
+        c = create(:challenge, name: "Recorrido completo", ai_default_mode: "human")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1, config: { "min_ideas" => 7 }))
+        c.steps.create!(kind: "evaluation", position: 2, name: "Comité",
+                        config: { "evaluator_aggregation" => "trimmed_mean" })
+        c.steps.create!(kind: "selection", position: 3, name: "Corte",
+                        config: { "cut" => { "mode" => "top_n", "value" => 2 } })
+        c.steps.create!(kind: "reporting", position: 4, name: "Informe",
+                        config: { "mode" => "latest", "step_slugs" => %w[ideation evaluation] })
+        c.steps.create!(kind: "evolution", position: 5, name: "Mejorar",
+                        config: { "require_response" => true })
+        create(:idea, challenge: c, author: admin, status: "active").update!(submitted_at: Time.current)
+        c.steps.reload.ordered.each { |s| Flow::Handlers::Base.for(s).activate! }
+        c
+      end
+    end
+
+    def paso_tocado(kind) = as_company(company) { tocado.steps.reload.find { |s| s.kind == kind } }
+
+    # «Quedó fijado» va con mayúscula en `_config_congelada`; `selection` no
+    # lo usa —tiene su propia tarjeta «Cómo se decide», con el mismo aviso en
+    # minúscula (ver el reporte de la Task 5)— así que el chequeo va sin
+    # distinguir mayúsculas.
+    it "queda tocado, con algún aviso de congelado, en los cinco kinds" do
+      %w[ideation evolution evaluation selection reporting].each do |kind|
+        get challenge_step_path(tocado, paso_tocado(kind))
+
+        expect(response.body).not_to include('data-island="step-settings"'), "#{kind} no debería estar en cara A"
+        expect(response.body).to match(/quedó fijado/i), "#{kind} sin ningún aviso de congelado"
+      end
+    end
+
+    it "un campo numérico muestra su número real, no un genérico" do
+      get challenge_step_path(tocado, paso_tocado("ideation"))
+
+      expect(response.body).to match(/Ideas mínimas para poder avanzar.*?7/m)
+    end
+
+    it "un select muestra la etiqueta legible, no el valor de máquina" do
+      get challenge_step_path(tocado, paso_tocado("evaluation"))
+
+      expect(response.body).to include("Promedio sin extremos")
+      expect(response.body).not_to include("trimmed_mean")
+
+      get challenge_step_path(tocado, paso_tocado("reporting"))
+
+      expect(response.body).to include("Versión vigente, marcando lo desactualizado")
+      expect(response.body).not_to include(">latest<")
+    end
+
+    # `step_slugs` es multi_select sin `options` estáticas (el `source:` es
+    # dinámico): antes de este arreglo salía como `Array#inspect`, con
+    # corchetes y comillas.
+    it "un multi_select se junta con comas, no `Array#inspect`" do
+      get challenge_step_path(tocado, paso_tocado("reporting"))
+
+      expect(response.body).to include("ideation, evaluation")
+      expect(response.body).not_to include('["ideation"')
+    end
+
+    it "un boolean dice Sí/No, no `true`/`false`" do
+      get challenge_step_path(tocado, paso_tocado("evolution"))
+
+      expect(response.body).to include("Sí")
+      expect(response.body).not_to include(">true<")
     end
   end
 end

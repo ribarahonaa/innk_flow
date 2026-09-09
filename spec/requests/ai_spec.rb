@@ -480,6 +480,18 @@ RSpec.describe "cambiar el modo de IA de un módulo en curso", type: :request do
     end
   end
 
+  # El `<select>` de «Heredar del desafío» manda `ai_mode=""`, no `nil` —es
+  # HTML, un `<option>` sin `value`—, y la validación de `inclusion` con
+  # `allow_nil: true` no perdonaba el string vacío: elegir «Heredar» no
+  # guardaba nada, sin ningún error visible en ninguna vista.
+  it "elegir «Heredar del desafío» sí guarda, aunque el select mande vacío" do
+    as_company(company) { step.update!(ai_mode: "ai_assisted") }
+
+    patch challenge_step_path(challenge, step), params: { challenge_step: { ai_mode: "" } }
+
+    as_company(company) { expect(step.reload.ai_mode).to be_nil }
+  end
+
   it "cambiado el modo, la IA aparece disponible" do
     as_company(company) do
       idea = create(:idea, challenge: challenge, author: owner, status: "active")

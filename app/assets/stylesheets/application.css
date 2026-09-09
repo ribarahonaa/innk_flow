@@ -1761,6 +1761,10 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
 /* ── Modo de IA de un módulo ────────────────────────────────────────────── */
 .ai-mode-card { border-style: dashed; border-color: var(--ia-borde); background: var(--ia-panel); }
 .ai-mode-form { display: flex; align-items: center; gap: 8px; }
+/* Sin esto el `width: 100%` que traen los `input[type="text"]` de base se
+   pelea con el `display: flex` del formulario: el nombre se estira y empuja
+   el select y el botón afuera de la fila. */
+.ai-mode-form__name { width: auto; min-width: 180px; font-size: 12.5px; padding: 6px 9px; }
 .ai-mode-form__select { width: auto; min-width: 210px; font-size: 12.5px; padding: 6px 9px; }
 
 /* ── Configuración de un módulo ─────────────────────────────────────────── */

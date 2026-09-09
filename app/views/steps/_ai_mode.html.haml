@@ -1,4 +1,11 @@
--# Cambiar el modo de IA de un módulo EN CURSO.
+-# El nombre y el modo de IA de un módulo EN CURSO.
+-#
+-# Los dos son `ADJUSTABLE_ATTRIBUTES`: cambiarlos no reescribe el pasado. El
+-# nombre lo sacó de acá el builder (Task 3, ya no lo escribe) y la cara de
+-# configuración de la Task 5 sólo existe con el módulo pendiente: sin este
+-# campo, un módulo ya arrancado se quedaba sin NINGUNA pantalla donde
+-# renombrarse, contra `ADJUSTABLE_ATTRIBUTES` y contra el propio texto de
+-# `_config_congelada` ("se puede cambiar el nombre...").
 -#
 -# El modo es una política operativa, no parte del historial: decidir "a partir
 -# de ahora acepto ayuda de la IA" no altera nada de lo ya hecho. Por eso se
@@ -7,15 +14,16 @@
 
 .card.ai-mode-card
   .section-head
-    %h2.section-title
-      Modo de IA
-      %span.muted= " · #{t("flow.ai_modes.#{step.effective_ai_mode}")}"
+    %h2.section-title El módulo
     = form_with model: step, url: challenge_step_path(step.challenge, step), method: :patch, class: "ai-mode-form" do |f|
+      = f.label :name, "Nombre"
+      = f.text_field :name, required: true, class: "ai-mode-form__name"
+      = f.label :ai_mode, "Modo de IA"
       = f.select :ai_mode,
                  Challenge::AI_MODES.map { |m| [t("flow.ai_modes.#{m}"), m] },
                  { include_blank: "Heredar del desafío (#{t("flow.ai_modes.#{step.challenge.ai_default_mode}")})" },
                  class: "ai-mode-form__select"
-      = f.submit "Cambiar", class: "btn btn-ghost btn-sm"
+      = f.submit "Guardar", class: "btn btn-ghost btn-sm"
   %p.muted.field-hint= t("flow.ai_mode_descriptions.#{step.effective_ai_mode}")
   - if step.effective_ai_mode == "human"
     -# Qué se le puede pedir depende del módulo. Decía «en cada evaluación» en

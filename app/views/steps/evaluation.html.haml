@@ -6,8 +6,8 @@
 - content_for :referencia do
   = render "steps/referencia_evaluacion", step: @step, handler: @handler
 
-= render "steps/config_congelada", step: @step
 = render "steps/header", step: @step, handler: @handler
+= render "steps/config_congelada", step: @step
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 
 = render "steps/ai_mode", step: @step
@@ -32,10 +32,6 @@
       - else
         Todas las voces pesan igual salvo que le pongas un peso distinto a alguna. Un peso
         de 2 hace que esa nota cuente el doble que una de peso 1.
-        - unless @step.touched?
-          %br
-          Si asignás a alguien antes de arrancar, el módulo respeta esa lista en vez de
-          repartirlo entre todos los que evalúan en la empresa.
 
     - if asignaciones.empty?
       %p.muted Todavía no hay nadie asignado. Se asignan solos al activar el módulo.

@@ -2,24 +2,33 @@
 -# junto. La isla `step-settings` renderiza los campos del esquema ADENTRO de
 -# este form: no guarda por su cuenta, así que hay un solo botón y un solo
 -# endpoint.
-= form_with model: step, url: challenge_step_path(step.challenge, step), method: :patch do |f|
-  .card
-    %h2.section-title El módulo
-    .field
-      = f.label :name, "Nombre"
-      = f.text_field :name, required: true
-    .field
-      = f.label :ai_mode, "Modo de IA"
-      = f.select :ai_mode,
-                 Challenge::AI_MODES.map { |m| [t("flow.ai_modes.#{m}"), m] },
-                 include_blank: "Heredar del desafío (#{t("flow.ai_modes.#{step.challenge.ai_default_mode}")})"
-      %p.field-hint= t("flow.ai_mode_descriptions.#{step.effective_ai_mode}")
+-#
+-# `ChallengeStepPolicy#show?` es «cualquiera de la empresa»: sin esta guarda,
+-# quien participa o evalúa recibía el form entero —con el botón de guardar—
+-# y el PATCH le rebotaba en 403 al enviarlo. Es el mismo control-que-no-
+-# responde que originó esta tarea, ahora en la pantalla que se supone lo
+-# arregla. Sin `configure?`, se muestra en modo lectura.
+- if policy(step).configure?
+  = form_with model: step, url: challenge_step_path(step.challenge, step), method: :patch do |f|
+    .card
+      %h2.section-title El módulo
+      .field
+        = f.label :name, "Nombre"
+        = f.text_field :name, required: true
+      .field
+        = f.label :ai_mode, "Modo de IA"
+        = f.select :ai_mode,
+                   Challenge::AI_MODES.map { |m| [t("flow.ai_modes.#{m}"), m] },
+                   include_blank: "Heredar del desafío (#{t("flow.ai_modes.#{step.challenge.ai_default_mode}")})"
+        %p.field-hint= t("flow.ai_mode_descriptions.#{step.effective_ai_mode}")
 
-    %div{ "data-island": "step-settings", data: { props: props.to_json } }
-      .island-placeholder
-        %p.muted Cargando los ajustes…
+      %div{ "data-island": "step-settings", data: { props: props.to_json } }
+        .island-placeholder
+          %p.muted Cargando los ajustes…
 
-    .form-actions
-      = f.submit "Guardar el módulo", class: "btn btn-primary"
+      .form-actions
+        = f.submit "Guardar el módulo", class: "btn btn-primary"
 
-= javascript_include_tag "packs/step_settings", defer: true, nonce: content_security_policy_nonce
+  = javascript_include_tag "packs/step_settings", defer: true, nonce: content_security_policy_nonce
+- else
+  = render "steps/config_congelada", step: step

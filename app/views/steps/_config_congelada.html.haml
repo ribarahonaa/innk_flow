@@ -1,14 +1,43 @@
--# La configuración en la cara de ejecución: se muestra, no se toca.
+-# La configuración en modo lectura: se muestra, no se toca.
 -#
 -# Decirlo importa: sin esta línea, la ausencia de controles se lee como que
 -# falta el control, que es exactamente el reporte con el que empezó todo.
+-#
+-# «Quién participa» sólo existe en evaluación (evaluadores) y evolución
+-# (gestores): en los otros tres kinds nombraba un control que no está en la
+-# pantalla.
+-#
+-# Sirve para DOS casos, no sólo el de la cara de ejecución que le dio
+-# nombre: también es el fallback de `steps/config/_modulo` para quien no
+-# tiene `configure?` sobre un módulo TODAVÍA pendiente. Ahí «quedó fijado
+-# cuando arrancó» sería falso —el módulo ni arrancó—, así que el aviso
+-# distingue los dos casos.
 .card
   .section-head
-    %h2.section-title Cómo quedó configurado
-  %p.field-hint 🔒 Quedó fijado cuando arrancó el módulo. Se pueden cambiar el nombre, el modo de IA y quién participa; la regla no.
+    %h2.section-title
+      - if step.touched?
+        Cómo quedó configurado
+      - else
+        Cómo está configurado
+  %p.field-hint
+    - if step.touched?
+      🔒 Quedó fijado cuando arrancó el módulo.
+      - if step.evaluation? || step.evolution?
+        Se pueden cambiar el nombre, el modo de IA y quién participa; la regla no.
+      - else
+        Se pueden cambiar el nombre y el modo de IA; la regla no.
+    - else
+      🔒 Todavía no arrancó. Sólo quien administra el desafío puede cambiar esta configuración.
   %ul.field-list
     - Flow::StepSettings.fields(step.kind).each do |campo|
-      - valor = campo[:column] ? step.public_send(campo[:key]) : step.settings.dig(*campo[:key].to_s.split("."))
+      -# `column: true` no vive en `config`: es una columna con su propia
+      -# asociación (`source_step_id` → `source_step`), y lo que se muestra es
+      -# su nombre, no el id crudo.
+      - if campo[:column]
+        - valor = step.public_send(campo[:key].to_s.sub(/_id\z/, ""))&.name
+      - else
+        - crudo = step.settings.dig(*campo[:key].to_s.split("."))
+        - valor = crudo.nil? || crudo == "" ? nil : Flow::StepSettings.display_value(campo, crudo)
       - next if valor.nil? || valor == ""
       %li.field-list__item
         %span= campo[:label]

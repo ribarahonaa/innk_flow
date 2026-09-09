@@ -128,6 +128,30 @@ module Flow
         end
       end
 
+      # La forma humana de un valor guardado, según lo que declara el campo.
+      #
+      # Sin esto la cara de ejecución mostraba el valor tal cual sale de
+      # `config`: `false`, `trimmed_mean`, `by_version` o `["ideation",
+      # "evaluation"]` con la sintaxis de `Array#inspect`. El `select` y el
+      # `multi_select` ya traen `options` con su `label`; sólo hace falta
+      # usarlas.
+      #
+      # No resuelve los campos `column: true` (p.ej. `source_step_id`): esos
+      # no viven en `config` sino en una columna con su propia asociación, y
+      # quien la tiene a mano es quien llama, no este método.
+      def display_value(campo, valor)
+        case campo[:type].to_s
+        when "boolean"
+          valor ? "Sí" : "No"
+        when "select"
+          etiqueta_de(campo, valor) || valor.to_s
+        when "multi_select"
+          Array(valor).map { |v| etiqueta_de(campo, v) || v.to_s }.join(", ")
+        else
+          valor.to_s
+        end
+      end
+
       # Lee una clave que puede ser anidada ("cut.mode").
       def read(config, key)
         key.to_s.split(".").reduce(config) do |node, segment|
@@ -193,7 +217,16 @@ module Flow
         false
       end
 
-      private :castear, :escalar_o_multi_select?
+      # Busca la `label` de un `value` dentro de las `options` del campo.
+      # `nil` si el campo no declara opciones estáticas —los `source:`
+      # dinámicos (`previous_evaluations`, `previous_steps`) las resuelven en
+      # otro lado (`PipelinePresenter#settings_schema`) para la isla, y este
+      # método no tiene ahí ningún desafío contra el que buscar.
+      def etiqueta_de(campo, valor)
+        campo[:options]&.find { |o| o[:value].to_s == valor.to_s }&.fetch(:label, nil)
+      end
+
+      private :castear, :escalar_o_multi_select?, :etiqueta_de
     end
   end
 end

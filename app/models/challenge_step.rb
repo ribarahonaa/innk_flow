@@ -52,6 +52,7 @@ class ChallengeStep < ApplicationRecord
 
   before_validation :derive_slug, on: :create
   before_validation :derive_name, on: :create
+  before_validation :normalize_ai_mode
 
   scope :ordered, -> { order(:position) }
   scope :touched, -> { where(status: TOUCHED_STATUSES) }
@@ -82,6 +83,17 @@ class ChallengeStep < ApplicationRecord
   def display_kind = I18n.t("flow.kinds.#{kind}")
 
   private
+
+  # El `<select>` de «Heredar del desafío» manda `ai_mode=""`, no `nil`: es
+  # HTML, un `<option>` sin `value` manda string vacío. La validación de
+  # `inclusion` con `allow_nil: true` no perdona el string vacío, así que
+  # elegir «Heredar» no guardaba nada —la actualización fallaba entera, sin
+  # tocar ninguno de los otros campos del mismo form— sin que se notara desde
+  # ninguna vista. Vacío y `nil` significan lo mismo (heredar del desafío);
+  # que se escriban distinto es un accidente del HTML, no una diferencia real.
+  def normalize_ai_mode
+    self.ai_mode = nil if ai_mode.blank?
+  end
 
   def derive_slug
     return if slug.present?

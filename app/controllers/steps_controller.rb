@@ -9,19 +9,28 @@ class StepsController < ApplicationController
 
   def show
     authorize @step, :show?
-    @handler = @step.handler
+
+    # Estos tres se usan hoy sólo en la cara de ejecución, pero las Tasks 6 y
+    # 8 los suman también a la de configuración (`_pending_suggestions` para
+    # las sugerencias de IA del editor de criterios; `@assignable` y
+    # `@gestor_candidates` para asignar evaluadores/gestores con el módulo
+    # todavía pendiente) — sus briefs dicen explícitamente "ya está/ya
+    # calcula... antes del render, así que sirven a las dos ramas". Quedan
+    # afuera del `if` a propósito, para no obligarlas a moverlos de vuelta.
     @pending_suggestions = AiSuggestion.pending_review.where(challenge_step_id: @step.id).recent
     @assignable = @step.evaluation? ? assignable_users : []
     # Un gestor acompaña la evolución: se lo asigna donde eso pasa.
     @gestor_candidates = @step.evolution? ? gestor_candidates : []
-    # Qué ideas puede ver esta persona en este módulo. La regla es una sola y
-    # vive en `IdeaPolicy::Scope`: quien participa ve solo las suyas.
-    @ideas_visibles = policy_scope(Idea).where(challenge_id: @challenge.id).pluck(:id).to_set
 
     # Dos caras, y la decide el módulo y no el desafío: uno en curso sigue
     # teniendo módulos pendientes más adelante, y ésos son configurables. Es
     # la misma regla de la línea de agua que ya aplica el pipeline.
     if @step.touched?
+      @handler = @step.handler
+      # Qué ideas puede ver esta persona en este módulo. La regla es una sola
+      # y vive en `IdeaPolicy::Scope`: quien participa ve solo las suyas. Sólo
+      # lo usa la cara de ejecución.
+      @ideas_visibles = policy_scope(Idea).where(challenge_id: @challenge.id).pluck(:id).to_set
       render "steps/#{@step.kind}"
     else
       @settings_props = StepSettingsPresenter.new(@step).as_json
