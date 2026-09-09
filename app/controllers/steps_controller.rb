@@ -32,13 +32,20 @@ class StepsController < ApplicationController
     end
   end
 
-  # Ajustes que no reescriben la historia: el nombre y el modo de IA.
+  # El ÚNICO camino de escritura de la configuración de un módulo.
+  #
+  # Autoriza según lo que llega, porque las dos cosas no piden lo mismo: el
+  # selector de modo de IA de la cara de ejecución pide `advance?`, y
+  # reescribir la configuración pide `configure?`.
+  #
+  # El congelamiento NO se revisa acá: lo impone `FROZEN_ATTRIBUTES` como
+  # validación de modelo. Repetirlo en el controller sería una segunda copia
+  # de la regla, que es exactamente como se desincronizan.
   def update
-    authorize @step, :advance?
+    authorize @step, estructural? ? :configure? : :advance?
 
     if @step.update(step_params)
-      redirect_to challenge_step_path(@step.challenge, @step),
-                  notice: "Módulo actualizado: la IA queda en «#{t("flow.ai_modes.#{@step.effective_ai_mode}")}»."
+      redirect_to challenge_step_path(@step.challenge, @step), notice: "Módulo actualizado."
     else
       redirect_to challenge_step_path(@step.challenge, @step),
                   alert: @step.errors.full_messages.to_sentence
@@ -112,7 +119,27 @@ class StepsController < ApplicationController
     @step = @challenge.steps.find(params[:id])
   end
 
+  ESTRUCTURALES = %w[config source_step_id criteria_set_id].freeze
+
+  def estructural? = crudos.keys.intersect?(ESTRUCTURALES)
+
+  # Ojo con el default: `params.fetch(:challenge_step, {})` devuelve un Hash
+  # pelado cuando la clave falta, y `to_unsafe_h` no existe ahí.
+  def crudos
+    @crudos ||= params.fetch(:challenge_step, ActionController::Parameters.new)
+                      .to_unsafe_h.stringify_keys
+  end
+
+  # `config` no se permite con `permit(config: {})` —eso es un escritor de
+  # jsonb arbitrario—: se filtra contra el esquema del kind, que además
+  # castea al tipo declarado.
   def step_params
-    params.require(:challenge_step).permit(*ChallengeStep::ADJUSTABLE_ATTRIBUTES)
+    permitidos = params.require(:challenge_step)
+                       .permit(*ChallengeStep::ADJUSTABLE_ATTRIBUTES,
+                               :source_step_id, :criteria_set_id)
+
+    return permitidos unless crudos.key?("config")
+
+    permitidos.merge(config: Flow::StepSettings.filtrar(@step.kind, crudos["config"]))
   end
 end

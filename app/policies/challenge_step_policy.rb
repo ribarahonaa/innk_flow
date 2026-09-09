@@ -10,6 +10,12 @@ class ChallengeStepPolicy < ApplicationPolicy
   def advance? = manager?
   def skip? = manager?
 
+  # Reescribir la configuración de un módulo, que es más que ajustarlo en
+  # curso: `update_pipeline?` suma `&& !closed? && !archived?` sobre
+  # `manager?`. Con el desafío cerrado, cambiar el modo de IA sigue siendo
+  # legítimo —es política operativa— y reescribir el corte no.
+  def configure? = ChallengePolicy.new(membership, record.challenge).update_pipeline?
+
   # Editar el formulario de postulación.
   def manage_form? = manager?
   def manage_criteria? = manager?
