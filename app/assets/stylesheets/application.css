@@ -484,12 +484,12 @@ body {
    la grilla mide siempre 56px más que la ventana y CUALQUIER pantalla —hasta
    una vacía— nace con scroll vertical. */
 .app-shell { display: grid; grid-template-columns: 1fr; min-height: calc(100vh - 56px); }
-.app-shell--con-flujo { grid-template-columns: 232px minmax(0, var(--medida)); }
+.app-shell--con-flujo { grid-template-columns: 232px minmax(0, 1fr); }
 /* Las dos regiones opcionales son independientes: una pantalla puede llenar
    la referencia sin estar dentro de un desafío, y ahí no hay que reservar la
    columna del flujo. */
-.app-shell:has(.app-aside) { grid-template-columns: minmax(0, var(--medida)) 280px; }
-.app-shell--con-flujo:has(.app-aside) { grid-template-columns: 232px minmax(0, var(--medida)) 280px; }
+.app-shell:has(.app-aside) { grid-template-columns: minmax(0, 1fr) var(--referencia); }
+.app-shell--con-flujo:has(.app-aside) { grid-template-columns: 232px minmax(0, 1fr) var(--referencia); }
 
 .app-main {
   padding: 24px;
@@ -503,20 +503,36 @@ body {
 
 /* La medida: 1.180px de ancho de línea, que es lo que la app ya tenía.
 
-   El tope va en la COLUMNA y no solo en `.app-main` cuando está sola. Tener
-   una región al lado no acota nada arriba de ~1.600px: medido, en un monitor
-   de 1920 —el más común de escritorio— una pantalla de adentro de un desafío
-   corría 1.688px de línea, y a 2560 corría 2.328. El sobrante queda a la
-   derecha: el flujo es una barra lateral y va pegada al borde, no flotando en
-   el medio de la pantalla.
+   Sola en la pantalla la columna también se centra. */
+/* `--medida` es el ancho del TRABAJO, no de su columna. La columna se lleva
+   todo el sobrante y el trabajo se centra adentro: si el tope estuviera en la
+   columna —como estaba— el sobrante se amontona entero contra el borde derecho
+   y la pantalla se lee inconclusa. Medido a 1920: 490px muertos sin referencia
+   y 208px con ella. */
+.app-shell { --trabajo: 1440px; --prosa: 72ch; --referencia: 320px; }
 
-   Sola en la pantalla la columna sí se centra, que es como estaba. */
-.app-shell { --medida: 1180px; }
-.app-shell:not(.app-shell--con-flujo):not(:has(.app-aside)) .app-main {
-  max-width: var(--medida);
-  margin: 0 auto;
-  width: 100%;
-}
+/* Dónde va el sobrante, que es la pregunta que esta grilla contesta.
+
+   El tope estaba en la COLUMNA y el sobrante se amontonaba entero contra el
+   borde derecho: 490px muertos a 1920 sin referencia, y la pantalla se leía
+   inconclusa. Empujarlo al otro lado abre un hueco de 188px al lado del flujo,
+   que se ve peor. Y sacar el tope del todo estira las filas: en la lista de
+   ideas el chip de estado queda varado a 1.700px de su título.
+
+   Así que el trabajo se acota y se CENTRA en lo que le queda. La medida es
+   generosa a propósito: a 1920 con referencia la columna mide 1.368 y el tope
+   ni entra en juego, o sea que en el ancho más común no sobra nada. Cuando
+   sobra, sobra parejo a los dos lados, que es la diferencia entre un margen y
+   un borde sin terminar.
+
+   Y la prosa lleva su propia medida: un párrafo a 1.440px de línea no se lee
+   por más que la tarjeta sí quiera ese ancho. */
+.app-main { max-width: var(--trabajo); width: 100%; margin-inline: auto; }
+.app-main > .card p:not([class]),
+.app-main > .card .muted,
+.app-main > .card .field-hint,
+.app-main > .page-head p,
+.app-main > p { max-width: var(--prosa); }
 
 /* Se queda a mano mientras se trabaja: consultar el peso de un criterio con
    la tabla de ideas 2.000px más abajo era, hasta acá, volver arriba. */
@@ -541,7 +557,9 @@ body {
    el borde del drawer: sobre el fondo de página —que es donde se pinta, porque
    estas dos regiones son transparentes— `base-300` da 1,13:1 en claro y 1,22:1
    en oscuro, o sea ninguna línea. */
-.app-shell:has(.app-aside) .app-main { border-right: 1px solid var(--tenue); }
+.app-shell:has(.app-aside) .app-main {
+  border-right: 1px solid var(--tenue);
+}
 
 /* ── El flujo del desafío ───────────────────────────────────────────────── */
 /* La columna oscura ocupa las dos filas —cuando la referencia baja debajo del
@@ -656,8 +674,8 @@ body {
    de laptop más comunes, y ahí la referencia se iría al pie de una pantalla
    de 3.800px, o sea a ningún lado. */
 @media (max-width: 1279px) {
-  .app-shell:has(.app-aside) { grid-template-columns: minmax(0, var(--medida)); }
-  .app-shell--con-flujo:has(.app-aside) { grid-template-columns: 232px minmax(0, var(--medida)); }
+  .app-shell:has(.app-aside) { grid-template-columns: minmax(0, 1fr); }
+  .app-shell--con-flujo:has(.app-aside) { grid-template-columns: 232px minmax(0, 1fr); }
   /* Al lado ya no hay dos columnas que separar: la línea pasa a ser
      horizontal y la referencia deja de estar pegada. */
   .app-shell:has(.app-aside) .app-main { border-right: 0; }
@@ -691,7 +709,7 @@ body {
    que esta barra existe para contestar. */
 @media (max-width: 1023px) {
   .app-shell--con-flujo,
-  .app-shell--con-flujo:has(.app-aside) { grid-template-columns: minmax(0, var(--medida)); }
+  .app-shell--con-flujo:has(.app-aside) { grid-template-columns: minmax(0, 1fr); }
   /* Una sola columna: el drawer es la fila 1, la referencia la 2 y el trabajo
      la 3. */
   .flow-drawer { grid-row: 1; }
