@@ -52,10 +52,14 @@ class AiSuggestionsController < ApplicationController
   # Los campos del formulario cuelgan de un módulo, así que por tipo de
   # objetivo esto mandaba a la pantalla del módulo — sacándote del formulario
   # que estabas editando justo cuando aceptabas los campos nuevos.
+  # `suggest_criteria` va directo a la pantalla del módulo, no a
+  # `challenge_step_criteria_path`: esa URL sólo redirige ahí desde que el
+  # editor de criterios se embebió (Task 6). Apuntarla acá encadenaba un 302
+  # (este redirect) → 301 (el de la URL vieja) → 200, dos saltos de más.
   PATHS_BY_PURPOSE = {
     "suggest_form_fields" => ->(s, r) { r.challenge_form_path(s.challenge_step.challenge) },
     "suggest_criteria" => lambda { |s, r|
-      r.challenge_step_criteria_path(s.challenge_step.challenge, s.challenge_step)
+      r.challenge_step_path(s.challenge_step.challenge, s.challenge_step)
     }
   }.freeze
 

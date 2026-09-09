@@ -8,39 +8,48 @@
 -# pantalla que cualquiera de la empresa puede ver (`ChallengeStepPolicy#show?`),
 -# el permiso tiene que vivir en la VISTA: mismo criterio que el form del
 -# módulo (`steps/config/_modulo`), `configure?`. Sin esto, un participante
--# recibía los botones de «Copiar…», «Empezar en blanco» y la isla entera, y
--# apretarlos le rebotaba en un 403 — el mismo control-que-no-responde de
--# siempre, ahora en el bloque de criterios.
+-# recibía los botones de «Copiar…»/«Empezar en blanco», la isla entera Y el
+-# panel de sugerencias de IA con «Aplicar»/«Descartar» — apretar cualquiera
+-# rebotaba en un 403, el mismo control-que-no-responde de siempre, ahora en
+-# el bloque de criterios. Por eso TODO lo que no sea el encabezado vive
+-# detrás de un único `if puede_configurar`: dos guardas sueltas son dos
+-# lugares donde una se puede olvidar.
+-#
+-# Este partial SÓLO lo renderizan `steps/config/evaluation` y
+-# `steps/config/selection`, y esas dos vistas sólo se renderizan cuando
+-# `!step.touched?` (`StepsController#show`). Por eso no hay ninguna rama
+-# `step.touched?` acá abajo: sería código muerto, siempre falso en este
+-# contexto — la pantalla del módulo ya arrancado (cara de ejecución) muestra
+-# lo congelado en `steps/_referencia_evaluacion`, no acá.
 - set = step.criteria_set&.library? ? nil : step.criteria_set
 - props = set ? CriteriaSetPresenter.new(set, membership: current_membership, back_url: challenge_step_path(step.challenge, step)).as_json : nil
 - puede_configurar = policy(step).configure?
-
--# `step_criteria/show` era una de las dos únicas pantallas que mostraban esto
--# para un módulo. Borrarla sin más dejaba una sugerencia PENDIENTE DE REVISIÓN
--# sobre un módulo todavía pendiente sin ningún lugar donde verse.
-= render "shared/ai_suggestions", suggestions: suggestions
 
 .card
   .section-head
     %h2.section-title= step.selection? ? "Los filtros" : "Los criterios"
   %p.muted= step.selection? ? "Condiciones que la idea tiene que cumplir para avanzar. Se aplican antes del corte." : "Con qué se puntúa cada idea en este módulo."
 
-- if set.nil?
-  .card
-    %h2.section-title Este módulo todavía no tiene criterios propios
-    - if step.criteria_set
-      %p.muted
-        Hoy usa
-        %strong= step.criteria_set.name
-        de la biblioteca, que comparten otros desafíos. Editarlo desde acá los tocaría a todos.
-    - else
-      %p.muted Sin criterios propios se van a usar los genéricos: impacto, factibilidad y esfuerzo.
+- if puede_configurar
+  -# `step_criteria/show` era una de las dos únicas pantallas que mostraban
+  -# esto para un módulo. Borrarla sin más dejaba una sugerencia PENDIENTE DE
+  -# REVISIÓN sobre un módulo todavía pendiente sin ningún lugar donde verse.
+  -# Va detrás de la misma guarda que el resto del bloque: aceptar o
+  -# descartar pide el mismo permiso que configurar (la tarea es de alcance
+  -# `:challenge`, la resuelve `ChallengePolicy#update_pipeline?`).
+  = render "shared/ai_suggestions", suggestions: suggestions
 
-    - if !puede_configurar
-      %p.field-hint.field-hint--warn 🔒 Sólo quien administra el desafío puede definir los criterios de este módulo.
-    - elsif step.touched?
-      %p.field-hint.field-hint--warn Este módulo ya se ejecutó: sus criterios quedaron congelados.
-    - else
+  - if set.nil?
+    .card
+      %h2.section-title Este módulo todavía no tiene criterios propios
+      - if step.criteria_set
+        %p.muted
+          Hoy usa
+          %strong= step.criteria_set.name
+          de la biblioteca, que comparten otros desafíos. Editarlo desde acá los tocaría a todos.
+      - else
+        %p.muted Sin criterios propios se van a usar los genéricos: impacto, factibilidad y esfuerzo.
+
       .report-actions
         - if step.criteria_set
           = button_to "Copiar ese set y hacerlo propio", challenge_step_criteria_path(step.challenge, step, from: "library"),
@@ -52,24 +61,41 @@
                     class: "btn btn-ghost btn-sm"
         = render "shared/ai_actions", challenge: step.challenge, mode: step.effective_ai_mode, always: true,
                  actions: [{ label: "Proponer criterios con IA", purpose: "suggest_criteria", step_id: step.id }]
-- else
-  .flash.flash--notice
-    Estos criterios son de este módulo: no afectan a otros desafíos.
-    - if puede_configurar
+  - else
+    .flash.flash--notice
+      Estos criterios son de este módulo: no afectan a otros desafíos.
       = link_to "Guardarlos también en la biblioteca", promote_criteria_set_path(set),
                 data: { turbo_method: :post }, class: "field-hint__link"
 
-  - if puede_configurar
-    - unless step.touched?
-      .card
-        = render "shared/ai_actions", challenge: step.challenge, mode: step.effective_ai_mode, always: true,
-                 actions: [{ label: "Rehacer los criterios con IA", purpose: "suggest_criteria", step_id: step.id }]
+    .card
+      = render "shared/ai_actions", challenge: step.challenge, mode: step.effective_ai_mode, always: true,
+               actions: [{ label: "Rehacer los criterios con IA", purpose: "suggest_criteria", step_id: step.id }]
 
     %div{ "data-island": "criteria-editor", data: { props: props.to_json } }
       .card.island-placeholder
         %p.muted Cargando el editor de criterios…
 
     = javascript_include_tag "packs/criteria_editor", defer: true, nonce: content_security_policy_nonce
-  - else
-    .card
-      %p.field-hint 🔒 Sólo quien administra el desafío puede cambiar los criterios de este módulo.
+- else
+  -# Sin `configure?`: el encabezado de arriba y qué se va a usar para
+  -# puntuar o filtrar, sin las explicaciones de configuración (por qué se
+  -# copia y no se edita, qué pasa si no se hace nada) ni ningún control para
+  -# actuar sobre ellos. `step.criteria_set` y no la variable `set` de arriba,
+  -# porque acá no importa si es de la biblioteca o propio del módulo — sólo
+  -# qué corre.
+  - efectivo = step.criteria_set
+  .card
+    - if efectivo
+      %p.muted
+        = efectivo.inline? ? "Criterios propios de este módulo" : "De la biblioteca: #{efectivo.name}"
+        = " · #{Flow::Texto.contar(efectivo.active_criteria.size, 'criterio')}"
+      %ul.field-list
+        - efectivo.active_criteria.each do |criterion|
+          %li.field-list__item
+            %span.field-list__label
+              = criterion.name
+              %span.criterion-field__weight= "#{(criterion.weight.to_f * 100).round}%"
+            %span.field-list__type= criterion.summary
+    - else
+      %p.muted Sin criterios propios: usa los genéricos (impacto, factibilidad y esfuerzo).
+    %p.field-hint.field-hint--warn 🔒 Sólo quien administra el desafío puede cambiar esto.

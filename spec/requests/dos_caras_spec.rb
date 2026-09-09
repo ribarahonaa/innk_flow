@@ -121,6 +121,65 @@ RSpec.describe "las dos caras de un módulo", type: :request do
       expect(response.body).to include("Propuestas de la IA")
       expect(response.body).to include("Formulario completo")
     end
+
+    # H1 de la ronda 1: el panel de sugerencias vivía ANTES de `puede_configurar`
+    # en el partial, así que un participante recibía el payload propuesto
+    # completo y los `button_to` de «Aplicar»/«Descartar» — que le rebotaban
+    # 403 al apretarlos, porque aceptar pide el mismo permiso que configurar.
+    it "sin `configure?`, la sugerencia pendiente no ofrece Aplicar ni Descartar" do
+      paso_seleccion = paso("selection")
+      as_company(company) do
+        run = AiRun.create!(challenge: challenge, challenge_step: paso_seleccion, purpose: "suggest_criteria",
+                            mode: "ai_assisted", status: "succeeded", provider: "fixture",
+                            idempotency_key: SecureRandom.uuid)
+        AiSuggestion.create!(ai_run: run, challenge_step: paso_seleccion, status: "pending",
+                             payload: { "name" => "Filtros propuestos",
+                                        "criteria" => [{ "name" => "Formulario completo", "weight" => 100,
+                                                         "source" => "manual" }] })
+      end
+      participante = without_tenant do
+        u = create(:user, email: "part-ia@test.dev", name: "Pía Participante")
+        create(:membership, company: company, user: u, role: "participant")
+        u
+      end
+      sign_in(participante, company: company)
+
+      get challenge_step_path(challenge, paso_seleccion)
+
+      expect(response.body).not_to include("Propuestas de la IA")
+      expect(response.body).not_to include("Aplicar")
+      expect(response.body).not_to include("Descartar")
+    end
+
+    # H2 de la ronda 1: el desafío de este spec nunca le da un set INLINE a
+    # ningún módulo, así que la rama `- else` de `set.nil?` —isla completa,
+    # «Rehacer los criterios con IA», «Guardarlos también en la
+    # biblioteca»— no la ejercitaba nadie sin `configure?`. Por mutación:
+    # poner en `true` el `if puede_configurar` que envuelve esa rama dejaba
+    # esta suite en verde igual.
+    it "sin `configure?`, un módulo con criterios propios muestra los criterios pero no la isla ni sus acciones" do
+      seleccion = paso("selection")
+      as_company(company) do
+        set = CriteriaSet.create!(name: "Criterios propios de Corte", scope: "inline", owner_step_id: seleccion.id)
+        set.criteria.create!(name: "Formulario completo", key: "completo", weight: 1, source: "manual",
+                             scale_type: "boolean")
+        set.refresh_status!
+        ChallengeStep.find(seleccion.id).update!(criteria_set_id: set.id)
+      end
+      participante = without_tenant do
+        u = create(:user, email: "part-set@test.dev", name: "Pablo Participante")
+        create(:membership, company: company, user: u, role: "participant")
+        u
+      end
+      sign_in(participante, company: company)
+
+      get challenge_step_path(challenge, seleccion)
+
+      expect(response.body).to include("Formulario completo")
+      expect(response.body).not_to include('data-island="criteria-editor"')
+      expect(response.body).not_to include("Rehacer los criterios con IA")
+      expect(response.body).not_to include("Guardarlos también en la biblioteca")
+    end
   end
 
   describe "cara B: el módulo ya arrancó" do

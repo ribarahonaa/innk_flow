@@ -13,8 +13,13 @@ class StepCriteriaController < ApplicationController
   # Los criterios se configuran en la pantalla del módulo. Esta URL vivía en
   # links, marcadores y `back_url`, así que redirige en vez de dar 404: un 404
   # acá se lee como una función que se perdió.
+  #
+  # `show?`, no `manage_criteria?`: el destino es la pantalla del módulo, que
+  # cualquiera de la empresa puede ver. Pedir un permiso más estricto que el
+  # del destino le daba 403 a un marcador viejo de alguien que sí puede ver
+  # a dónde lo manda.
   def show
-    authorize @step, :manage_criteria?
+    authorize @step, :show?
 
     redirect_to challenge_step_path(@challenge, @step), status: :moved_permanently
   end

@@ -152,13 +152,16 @@ RSpec.describe "criterios de un módulo", type: :request do
       expect(response.body).to include("Proponer criterios con IA")
     end
 
-    it "aplicar la propuesta deja en la pantalla de criterios, con el set puesto" do
+    # El destino es la pantalla del MÓDULO, no `criteria_path`: esa URL sólo
+    # redirige ahí desde que el editor se embebió. Apuntar `accept` a la
+    # vieja encadenaba un 302 → 301 de más para llegar al mismo lugar.
+    it "aplicar la propuesta deja en la pantalla del módulo, con el set puesto" do
       post challenge_ai_requests_path(challenge, purpose: "suggest_criteria", step_id: step.id)
       sugerencia = as_company(company) { AiSuggestion.pending_review.order(:created_at).last }
 
       post accept_ai_suggestion_path(sugerencia)
 
-      expect(response).to redirect_to(criteria_path)
+      expect(response).to redirect_to(challenge_step_path(challenge, step))
       expect(set_of(step)&.scope).to eq("inline")
       expect(criteria_of(step)).not_to be_empty
     end

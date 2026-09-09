@@ -509,20 +509,31 @@ async function shot(page, name, url, prepare) {
   // El editor de criterios de un módulo TODAVÍA PENDIENTE: ya no vive en una
   // pantalla propia (`step_criteria/show`, que redirige a ésta) — la tarea
   // «los criterios, embebidos» lo sumó a la cara de configuración del
-  // módulo. Se llega por link desde la ficha de un desafío en borrador
-  // («sin-formulario»), cuya evaluación nunca arrancó: sobre un módulo
-  // arrancado (como el de arriba) ya no hay ningún link a `/criteria` que
-  // lleve a algo distinto de la propia pantalla.
-  await page.goto(`${BASE}/challenges/sin-formulario`, { waitUntil: 'networkidle' });
-  const revisionLink = page
-    .locator('.step-table tr', { hasText: 'Primera revisión' })
+  // módulo. Se llega por link desde la ficha de un desafío en borrador.
+  //
+  // Tiene que ser un módulo con un set INLINE de verdad, no uno vacío: la
+  // isla sólo monta cuando hay `set` (ver `steps/_criterios_editor.html.haml`)
+  // — sobre un módulo sin criterios propios la captura sólo prueba el estado
+  // vacío, que es justo lo que NO justificaba reemplazar el click roto.
+  // «optimizacion-de-la-experiencia-de-onboarding» ya tiene cuatro módulos
+  // así (dos de evaluación, dos de selección); se navega tal cual está, sin
+  // tocarlo.
+  await page.goto(`${BASE}/challenges/optimizacion-de-la-experiencia-de-onboarding`, { waitUntil: 'networkidle' });
+  const seleccionLink = page
+    .locator('.step-table tr', { hasText: 'Selección de ideas más prometedoras para profundizar' })
     .locator('.step-table__link');
-  if (await revisionLink.count()) {
+  if (await seleccionLink.count()) {
     await Promise.all([
       page.waitForURL(/\/steps\/[^/]+$/, { timeout: 15000 }),
-      revisionLink.first().click()
+      seleccionLink.first().click()
     ]);
+    await page.waitForSelector('[data-island-mounted="true"] .criterion-edit', { timeout: 15000 });
     await capturar(page, '09-12-criterios-del-modulo');
+
+    if (await page.locator('.island-placeholder').count()) {
+      failures++;
+      console.error('[ISLA] el editor de criterios embebido no montó');
+    }
 
     // La sugerencia de IA pendiente de revisión no se pierde al borrar la
     // pantalla suelta: el marco de propuestas sigue presente, embebido en
@@ -539,7 +550,7 @@ async function shot(page, name, url, prepare) {
     await revisarFormsAnidados(page, '09-12-criterios-del-modulo', new URL(page.url()).pathname);
   } else {
     failures++;
-    console.error('[LINK] el módulo de evaluación pendiente no ofrece sus criterios');
+    console.error('[LINK] no se encontró el módulo de selección pendiente con criterios propios');
   }
 
   await shot(page, '09-13-avisos', '/notifications');

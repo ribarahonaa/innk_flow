@@ -29,10 +29,7 @@
       %span.muted= " · #{step.criteria_set.name}"
 
   - if handler.criteria_snapshot.empty?
-    %p.muted
-      Este módulo todavía no tiene criterios. Se le crean tres genéricos al activarlo, o podés
-      = succeed "." do
-        = link_to "definirlos ahora", challenge_step_criteria_path(desafio, step)
+    %p.muted Este módulo se activó sin criterios propios.
   - else
     %ul.field-list
       - handler.criteria_snapshot.each do |criterion|
@@ -51,12 +48,10 @@
     %p.muted.field-hint
       Congelados al activar el módulo: editar el set ahora no altera lo ya evaluado.
 
-  -# Un set inline es de ESTE módulo y se edita en su pantalla; uno de la
-  -# biblioteca lo comparten otros desafíos y se edita en el mantenedor.
-  - if policy(desafio).update_pipeline?
-    - if step.criteria_set&.inline?
-      = link_to "Ver los criterios", challenge_step_criteria_path(desafio, step), class: "btn btn-ghost btn-sm"
-    - elsif step.criteria_set
-      = link_to "Ver el set", edit_criteria_set_path(step.criteria_set), class: "btn btn-ghost btn-sm"
-    - else
-      = link_to "Definir los criterios", challenge_step_criteria_path(desafio, step), class: "btn btn-ghost btn-sm"
+  -# Congelados, no hay nada que definir ni dónde editar un set inline: la
+  -# única pantalla que lo mostraba fuera de la lista de arriba era
+  -# `step_criteria/show`, que se borró. Uno de la biblioteca sigue editable
+  -# en el mantenedor —afecta a otros desafíos, por eso vive ahí y no acá—,
+  -# así que ese caso sí ofrece un link; el resto no va a ningún lado.
+  - if policy(desafio).update_pipeline? && step.criteria_set&.library?
+    = link_to "Ver el set", edit_criteria_set_path(step.criteria_set), class: "btn btn-ghost btn-sm"
