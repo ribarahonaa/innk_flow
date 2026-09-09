@@ -921,6 +921,28 @@ input:focus, textarea:focus, select:focus {
 .breadcrumb a { color: var(--muted); text-decoration: none; }
 .breadcrumb a:hover { color: var(--accent); }
 .narrow { max-width: 560px; margin-left: auto; margin-right: auto; }
+
+/* Un formulario con dos mitades que quieren anchos distintos.
+   El de crear un desafío pregunta tres cosas —qué se pregunta, quién trabaja
+   y con qué flujo arranca—: las dos primeras son texto y quieren medida de
+   lectura; la tercera son tarjetas con los módulos del flujo adentro y quieren
+   ancho. En una sola columna de 560px las tarjetas quedaban apretadas y la
+   pantalla dejaba 900px vacíos al lado de un paso a paso que mide el ancho
+   entero: dos medidas apiladas que no se hablaban. */
+.form-doble {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 40px;
+  align-items: start;
+}
+.form-doble__col { min-width: 0; }
+/* Lo que es del formulario entero y no de una mitad. */
+.form-doble > .flash,
+.form-doble > .form-actions { grid-column: 1 / -1; }
+
+@media (max-width: 900px) {
+  .form-doble { grid-template-columns: minmax(0, 1fr); }
+}
 .field { margin-bottom: 16px; }
 .field-hint { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
 .field-hint--warn { color: var(--warn); }
