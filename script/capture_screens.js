@@ -251,14 +251,9 @@ async function shot(page, name, url, prepare) {
   await page.goto(`${BASE}/challenges/${CHALLENGE}`, { waitUntil: 'networkidle' });
   await page.click('a:has-text("Editar flujo")');
   await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
-  // Se abre el panel de «Idear»: es el que muestra el formulario, y en el demo
-  // ya está ejecutado (bloqueado), que es justo el caso que interesa ver.
-  //
-  // Se filtra por TIPO y no por nombre: el nombre de un módulo lo cambia
-  // cualquiera —una propuesta de la IA lo renombra— y la captura se caía.
-  const ideationCard = porTipo(page, 'Idear');
-  if (await ideationCard.count()) await ideationCard.click();
-  await page.waitForTimeout(200);
+  // Ya no se abre ningún panel —el builder lo perdió, se configura desde la
+  // pantalla del módulo— así que alcanza con la lista tal cual monta,
+  // incluida la tarjeta de «Idear» bloqueada (ya ejecutada en el demo).
   await page.waitForTimeout(300);
   await capturar(page, '05-builder');
 
@@ -276,35 +271,50 @@ async function shot(page, name, url, prepare) {
     console.error('[ISLA] el builder no montó: quedó "Cargando el editor de flujo…"');
   }
 
-  // El formulario de postulación: se llega desde el panel del módulo «Idear»,
-  // que es donde el dueño se entera de que existe.
-  const formLink = page.locator('a:has-text("Editar el formulario")');
-  if (await formLink.count()) {
-    await formLink.first().click();
-    await page.waitForSelector('[data-island-mounted="true"] .field-edit', { timeout: 15000 });
-    await capturar(page, '05b-form');
+  // El formulario de postulación: se llega desde la PANTALLA del módulo
+  // «Idear» —ya no desde un panel del builder, que es lo que sacó esta
+  // tarea— por el link nuevo de su tarjeta, «Configurar →».
+  //
+  // Se filtra por TIPO y no por nombre: el nombre de un módulo lo cambia
+  // cualquiera —una propuesta de la IA lo renombra— y la captura se caía.
+  const ideationConfigLink = porTipo(page, 'Idear').locator('.step-card__config');
+  if (await ideationConfigLink.count()) {
+    await Promise.all([
+      page.waitForURL(/\/steps\/[^/]+$/, { timeout: 15000 }),
+      ideationConfigLink.click()
+    ]);
 
-    if (await page.locator('.setup').count()) {
-      failures++;
-      console.error('[SETUP] el paso a paso aparece en el formulario de un desafío en curso');
-    }
+    const formLink = page.locator('a:has-text("Editar el formulario")');
+    if (await formLink.count()) {
+      await formLink.first().click();
+      await page.waitForSelector('[data-island-mounted="true"] .field-edit', { timeout: 15000 });
+      await capturar(page, '05b-form');
 
-    // Todo campo tiene que decir qué es: sin etiqueta hay dos cajas de texto
-    // seguidas y hay que deducir cuál es la pregunta y cuál la ayuda.
-    const campos = await page.locator('.field-edit').count();
-    const etiquetas = await page.locator('.field-edit .captioned__text').count();
-    if (etiquetas < campos * 3) {
-      failures++;
-      console.error(`[ETIQUETAS] el editor del formulario tiene campos sin etiqueta (${etiquetas} para ${campos} campos)`);
-    }
+      if (await page.locator('.setup').count()) {
+        failures++;
+        console.error('[SETUP] el paso a paso aparece en el formulario de un desafío en curso');
+      }
 
-    if (await page.locator('.island-placeholder').count()) {
+      // Todo campo tiene que decir qué es: sin etiqueta hay dos cajas de texto
+      // seguidas y hay que deducir cuál es la pregunta y cuál la ayuda.
+      const campos = await page.locator('.field-edit').count();
+      const etiquetas = await page.locator('.field-edit .captioned__text').count();
+      if (etiquetas < campos * 3) {
+        failures++;
+        console.error(`[ETIQUETAS] el editor del formulario tiene campos sin etiqueta (${etiquetas} para ${campos} campos)`);
+      }
+
+      if (await page.locator('.island-placeholder').count()) {
+        failures++;
+        console.error('[ISLA] el editor del formulario no montó');
+      }
+    } else {
       failures++;
-      console.error('[ISLA] el editor del formulario no montó');
+      console.error('[LINK] la pantalla de «Idear» no ofrece editar el formulario');
     }
   } else {
     failures++;
-    console.error('[LINK] el panel de «Idear» no ofrece editar el formulario');
+    console.error('[LINK] la tarjeta de «Idear» no ofrece ir a su pantalla');
   }
 
   // La previsualización: se llega por link desde el builder.
@@ -437,11 +447,11 @@ async function shot(page, name, url, prepare) {
     console.error('[LINK] el desafío no tiene el módulo de corte con filtros');
   }
 
-  // El desafío en borrador: «Idear» todavía no tiene formulario. El builder lo
-  // marca como error y la pantalla ofrece las dos salidas.
+  // El desafío en borrador: «Idear» todavía no tiene formulario. El builder
+  // lo marca como error arriba de la lista (Flow::Pipeline#validate) sin que
+  // haga falta abrir ninguna tarjeta.
   await page.goto(`${BASE}/challenges/sin-formulario/builder`, { waitUntil: 'networkidle' });
   await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
-  await porTipo(page, 'Idear').click();
   await page.waitForTimeout(200);
   await capturar(page, '09-9-builder-sin-formulario');
 
@@ -466,23 +476,40 @@ async function shot(page, name, url, prepare) {
   // si el morph la dejara sin montar la revisión del placeholder lo canta.
   await revisarMorphing(page, '09-10-form-vacio');
 
-  // Los criterios del módulo de evaluación, desde su panel en el builder.
-  await page.goto(`${BASE}/challenges/sin-formulario/builder`, { waitUntil: 'networkidle' });
-  await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
-  await porTipo(page, 'Evaluación').click();
-  await page.waitForTimeout(200);
-  await capturar(page, '09-11-panel-evaluacion');
+  // Los criterios del módulo de evaluación: ya no se muestran en un panel del
+  // builder —lo que sacó esta tarea—, sino en la referencia de SU PROPIA
+  // pantalla (`steps/_referencia_evaluacion.html.haml`), que ya los ofrece.
+  // Se llega por link desde la ficha del desafío, no con un goto directo a
+  // la pantalla del módulo.
+  await page.goto(`${BASE}/challenges/sin-formulario`, { waitUntil: 'networkidle' });
+  const evaluacionLink = page
+    .locator('.step-table tr', { hasText: 'Evaluación' })
+    .locator('.step-table__link');
+  if (await evaluacionLink.count()) {
+    await Promise.all([
+      page.waitForURL(/\/steps\/[^/]+$/, { timeout: 15000 }),
+      evaluacionLink.first().click()
+    ]);
+    await capturar(page, '09-11-panel-evaluacion');
 
-  // Por DESTINO y no por texto: la etiqueta cambia según el módulo ya tenga
-  // criterios propios o no, y la captura se caía cuando alguien los definía.
-  const criteriaLink = page.locator('.config-form a[href*="/criteria"]');
-  if (await criteriaLink.count()) {
-    await criteriaLink.first().click();
-    await page.waitForLoadState('networkidle');
-    await capturar(page, '09-12-criterios-del-modulo');
+    // Por DESTINO y no por texto: la etiqueta cambia según el módulo ya tenga
+    // criterios propios o no, y la captura se caía cuando alguien los
+    // definía. Acotado a `.app-aside`: el link «Criterios» de la barra
+    // superior también matchea `/criteria` por substring.
+    const criteriaLink = page.locator('.app-aside a[href*="/criteria"]');
+    if (await criteriaLink.count()) {
+      await Promise.all([
+        page.waitForURL(/\/criteria/, { timeout: 15000 }),
+        criteriaLink.first().click()
+      ]);
+      await capturar(page, '09-12-criterios-del-modulo');
+    } else {
+      failures++;
+      console.error('[LINK] el módulo de evaluación no ofrece definir criterios propios');
+    }
   } else {
     failures++;
-    console.error('[LINK] el panel de evaluación no ofrece definir criterios propios');
+    console.error('[LINK] el desafío no tiene módulo de evaluación');
   }
 
   await shot(page, '09-13-avisos', '/notifications');
