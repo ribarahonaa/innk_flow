@@ -107,16 +107,15 @@ module Api
           step = @challenge.steps.reload.find { |s| s.id == attrs[:id] }
           next if step.nil?
 
-          # De un módulo ya en curso solo se ajustan nombre y modo de IA: lo
-          # estructural quedó congelado al activarlo.
+          # El builder es dueño del ARMADO del flujo: kind, orden, alta y baja.
+          # La configuración de un módulo —config, criterios, de dónde saca el
+          # puntaje— se escribe en la pantalla del módulo, por `steps#update`.
+          #
+          # Si esto siguiera escribiéndolas, guardar el flujo con props
+          # cargadas antes revertiría lo configurado, y `lock_version` no lo
+          # atajaría: es del desafío, y un PATCH al módulo no lo incrementa.
           step.name = attrs[:name] if attrs.key?(:name) && attrs[:name].present?
-          step.ai_mode = attrs[:aiMode].presence
-
-          unless step.touched?
-            step.config = attrs[:settings] if attrs.key?(:settings)
-            step.source_step_id = attrs[:sourceStepId].presence
-            step.criteria_set_id = attrs[:criteriaSetId].presence if attrs.key?(:criteriaSetId)
-          end
+          step.ai_mode = attrs[:aiMode].presence if attrs.key?(:aiMode)
 
           next if step.save
 

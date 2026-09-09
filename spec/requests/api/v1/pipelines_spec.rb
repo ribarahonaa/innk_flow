@@ -63,7 +63,10 @@ RSpec.describe "API del pipeline", type: :request do
       expect(response).to have_http_status(:ok)
       expect(json["steps"].map { _1["kind"] }).to eq(%w[ideation evaluation selection])
       expect(json["steps"].map { _1["position"] }).to eq([1.0, 2.0, 3.0])
-      expect(json["steps"].first["settings"]).to eq("min_ideas" => 3)
+      # `settings` ya no viaja en las props del builder —es de la pantalla del
+      # módulo—, así que el config inicial se verifica contra el modelo.
+      ideation = as_company(company) { challenge.steps.reload.find_by(kind: "ideation") }
+      expect(ideation.config).to eq("min_ideas" => 3)
       expect(json["steps"].second["effectiveAiMode"]).to eq("ai_auto")
     end
 
@@ -218,7 +221,11 @@ RSpec.describe "API del pipeline", type: :request do
 
       expect(response).to have_http_status(:ok)
       evaluation = json["steps"].find { _1["kind"] == "evaluation" }
-      expect(evaluation["criteriaSetId"]).to eq(set.id)
+      # `criteriaSetId` ya no viaja en las props del builder —es de la
+      # pantalla del módulo—, así que la asignación se verifica contra el
+      # modelo. `criteriaSetName` sigue siendo suyo: la tarjeta lo muestra.
+      step = as_company(company) { challenge.steps.reload.find_by(kind: "evaluation") }
+      expect(step.criteria_set_id).to eq(set.id)
       expect(evaluation["criteriaSetName"]).to eq("Técnica avanzada")
     end
 

@@ -64,6 +64,9 @@ class PipelinePresenter
     }
   end
 
+  # Sin `settings`, `sourceStepId` ni `criteriaSetId`: son de la pantalla del
+  # módulo. Publicarlas acá es lo que permitía que guardar el flujo con props
+  # viejas revirtiera la configuración.
   def step_json(step)
     json = {
       id: step.id,
@@ -77,10 +80,7 @@ class PipelinePresenter
       position: step.position.to_f,
       aiMode: step.ai_mode,
       effectiveAiMode: step.effective_ai_mode,
-      sourceStepId: step.source_step_id,
-      criteriaSetId: step.criteria_set_id,
       criteriaSetName: step.criteria_set&.name,
-      settings: step.settings,
       touched: step.touched?,
       # La UI muestra la restricción, no solo la rechaza: los módulos bajo la
       # línea de agua se dibujan sin handle de arrastre y en gris.
