@@ -142,6 +142,56 @@ module Flow
         node[last] = value
         config
       end
+
+      # Los campos declarados para un kind, esenciales primero.
+      def campos_de(kind)
+        grupos = SCHEMA[kind.to_s]
+        return [] if grupos.nil?
+
+        Array(grupos[:essential]) + Array(grupos[:advanced])
+      end
+
+      # Filtra un `config` que llegó por parámetros contra lo que el esquema
+      # declara para ese kind, y castea al tipo declarado.
+      #
+      # Dos motivos, los dos aprendidos a la mala:
+      #
+      #   · `params.permit(config: {})` es un escritor de jsonb arbitrario.
+      #   · Un `cut.value` que llega `"4"` no explota —el handler hace `.to_f`—
+      #     así que el string se arrastra hasta que alguien compara o serializa.
+      #
+      # Los campos `column: true` (source_step_id, criteria_set_id) NO son
+      # config: viven en su columna y se permiten aparte.
+      def filtrar(kind, hash)
+        entrada = (hash || {}).to_h.deep_stringify_keys
+
+        campos_de(kind).reject { |campo| campo[:column] }.each_with_object({}) do |campo, acc|
+          segmentos = campo[:key].to_s.split(".")
+          valor = entrada.dig(*segmentos)
+          next if valor.nil? || valor == ""
+
+          escribir(acc, segmentos, castear(valor, campo[:type]))
+        end
+      end
+
+      # El default del esquema es número: en `config_field.vue` el `v-else` es un
+      # input numérico. Se espeja acá para que la UI y el server no discrepen.
+      def castear(valor, tipo)
+        case tipo.to_s
+        when "select" then valor.to_s
+        when "multi_select" then Array(valor).map(&:to_s)
+        when "boolean" then ActiveModel::Type::Boolean.new.cast(valor).present?
+        else valor.to_s.include?(".") ? valor.to_f : valor.to_i
+        end
+      end
+
+      def escribir(hash, segmentos, valor)
+        *padres, ultimo = segmentos
+        nodo = padres.reduce(hash) { |acc, seg| acc[seg] ||= {} }
+        nodo[ultimo] = valor
+      end
+
+      private :castear, :escribir
     end
   end
 end
