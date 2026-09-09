@@ -1,4 +1,5 @@
 - content_for :title, "#{@step.name} · #{@challenge_name = @step.challenge.name}"
+= render "steps/config_congelada", step: @step
 = render "steps/header", step: @step, handler: @handler
 
 = render "steps/ai_mode", step: @step

@@ -191,8 +191,8 @@ module Flow
 
       list.select { |s| s.evaluation? && s.pending? && s.criteria_set_id.blank? }.each do |step|
         warnings << "«#{step.name}» va a usar los criterios genéricos (impacto, factibilidad y " \
-                    "esfuerzo). Desde su panel podés elegir un set de la biblioteca o definir los " \
-                    "criterios propios de este módulo."
+                    "esfuerzo). Desde la pantalla del módulo podés elegir un set de la biblioteca o " \
+                    "definir los criterios propios de este módulo."
       end
 
       Report.new(errors: errors, warnings: warnings)

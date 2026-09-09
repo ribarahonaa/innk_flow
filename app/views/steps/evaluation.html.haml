@@ -6,6 +6,7 @@
 - content_for :referencia do
   = render "steps/referencia_evaluacion", step: @step, handler: @handler
 
+= render "steps/config_congelada", step: @step
 = render "steps/header", step: @step, handler: @handler
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 

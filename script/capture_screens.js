@@ -481,13 +481,19 @@ async function shot(page, name, url, prepare) {
   await revisarMorphing(page, '09-10-form-vacio');
 
   // Los criterios del módulo de evaluación: ya no se muestran en un panel del
-  // builder —lo que sacó esta tarea—, sino en la referencia de SU PROPIA
-  // pantalla (`steps/_referencia_evaluacion.html.haml`), que ya los ofrece.
-  // Se llega por link desde la ficha del desafío, no con un goto directo a
-  // la pantalla del módulo.
-  await page.goto(`${BASE}/challenges/sin-formulario`, { waitUntil: 'networkidle' });
+  // builder, sino en la referencia de SU PROPIA pantalla
+  // (`steps/_referencia_evaluacion.html.haml`), que ya los ofrece. Se llega
+  // por link desde la ficha del desafío, no con un goto directo a la pantalla
+  // del módulo.
+  //
+  // Sobre un módulo YA ARRANCADO a propósito, y no sobre uno de
+  // «sin-formulario» (que está pendiente): la tarea «configurar vs ejecutar»
+  // le dio dos caras a la pantalla del módulo, y esta referencia es de la cara
+  // de EJECUCIÓN. La de configuración recupera su propio camino a los
+  // criterios con la tarea que embebe el editor ahí.
+  await page.goto(`${BASE}/challenges/${CHALLENGE}`, { waitUntil: 'networkidle' });
   const evaluacionLink = page
-    .locator('.step-table tr', { hasText: 'Evaluación' })
+    .locator('.step-table tr', { hasText: 'Evaluación de comité' })
     .locator('.step-table__link');
   if (await evaluacionLink.count()) {
     await Promise.all([

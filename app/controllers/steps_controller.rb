@@ -17,7 +17,16 @@ class StepsController < ApplicationController
     # Qué ideas puede ver esta persona en este módulo. La regla es una sola y
     # vive en `IdeaPolicy::Scope`: quien participa ve solo las suyas.
     @ideas_visibles = policy_scope(Idea).where(challenge_id: @challenge.id).pluck(:id).to_set
-    render "steps/#{@step.kind}"
+
+    # Dos caras, y la decide el módulo y no el desafío: uno en curso sigue
+    # teniendo módulos pendientes más adelante, y ésos son configurables. Es
+    # la misma regla de la línea de agua que ya aplica el pipeline.
+    if @step.touched?
+      render "steps/#{@step.kind}"
+    else
+      @settings_props = StepSettingsPresenter.new(@step).as_json
+      render "steps/config/#{@step.kind}"
+    end
   end
 
   def advance

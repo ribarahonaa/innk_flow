@@ -1,0 +1,15 @@
+-# La configuración en la cara de ejecución: se muestra, no se toca.
+-#
+-# Decirlo importa: sin esta línea, la ausencia de controles se lee como que
+-# falta el control, que es exactamente el reporte con el que empezó todo.
+.card
+  .section-head
+    %h2.section-title Cómo quedó configurado
+  %p.field-hint 🔒 Quedó fijado cuando arrancó el módulo. Se pueden cambiar el nombre, el modo de IA y quién participa; la regla no.
+  %ul.field-list
+    - Flow::StepSettings.fields(step.kind).each do |campo|
+      - valor = campo[:column] ? step.public_send(campo[:key]) : step.settings.dig(*campo[:key].to_s.split("."))
+      - next if valor.nil? || valor == ""
+      %li.field-list__item
+        %span= campo[:label]
+        %span.field-list__type= valor

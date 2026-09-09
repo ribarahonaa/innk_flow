@@ -17,11 +17,10 @@
     %h2.section-title Cómo se decide
     - if @step.criteria_set && policy(@challenge).update_pipeline?
       = link_to "Editar el set", edit_criteria_set_path(@step.criteria_set), class: "btn btn-ghost btn-sm"
-    -# El corte vive en `config`: se edita en el builder y se congela al
-    -# arrancar. Sin este link la ficha lo anunciaba como un hecho, al lado de
-    -# un botón que edita OTRA cosa, y se leía como un control que no responde.
-    - if !@step.touched? && policy(@challenge).update_pipeline?
-      = link_to "Cambiar el corte", builder_challenge_path(@challenge), class: "btn btn-ghost btn-sm"
+    -# El corte vive en `config` y se congela al arrancar. Esta vista es la
+    -# cara de ejecución —sólo se renderiza con el módulo tocado—, así que ya
+    -# no hay un «Cambiar el corte» que ofrecer: mientras estuvo pendiente, se
+    -# configuraba en la pantalla propia del módulo (`steps/config/selection`).
 
   - if gates.any?
     %p.field-hint
@@ -60,8 +59,8 @@
             = "(#{fuentes.map { |s| "#{s.name} #{(weights[s.slug].to_f * 100).round}%" }.join(', ')})"
     - else
       %span.muted · sin fuente de puntaje: el orden es manual
-  - if @step.touched?
-    %p.field-hint El corte quedó fijado cuando arrancó el módulo. Se puede cambiar el modo de IA, no la regla.
+  -# `@step.touched?` es siempre cierto acá: esta vista sólo se renderiza así.
+  %p.field-hint El corte quedó fijado cuando arrancó el módulo. Se puede cambiar el modo de IA, no la regla.
 
 -# El modo de IA es una política operativa y se ajusta desde el módulo, como en
 -# los otros cuatro. Acá importa más que en ninguno: con «Solo personas» los

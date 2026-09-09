@@ -1,4 +1,5 @@
 - content_for :title, @step.name
+= render "steps/config_congelada", step: @step
 = render "steps/header", step: @step, handler: @handler
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 

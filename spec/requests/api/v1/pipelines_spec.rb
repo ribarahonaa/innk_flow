@@ -261,8 +261,9 @@ RSpec.describe "API del pipeline", type: :request do
       expect(json["validation"]["warnings"].join).to match(/criterios propios de este módulo/)
     end
 
-    # El panel tiene que poder ofrecer las dos formas de tener criterios sin
-    # que el editor las adivine: el set de la biblioteca y los propios.
+    # La pantalla del módulo tiene que poder ofrecer las dos formas de tener
+    # criterios sin que el editor las adivine: el set de la biblioteca y los
+    # propios.
     it "el paso de evaluación viaja con su resumen de criterios y su link" do
       step_id = as_company(company) do
         seed_form!(challenge.steps.create!(kind: "ideation", position: 1))

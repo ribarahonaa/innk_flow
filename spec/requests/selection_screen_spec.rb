@@ -153,9 +153,9 @@ RSpec.describe "la pantalla de una selección", type: :request do
   end
 
   # El corte vive en `config`, que se congela al arrancar el módulo. Mientras el
-  # módulo está pendiente NO está congelado: se edita, pero desde el builder. La
-  # pantalla lo anunciaba como un hecho, con un botón «Editar el set» al lado que
-  # edita otra cosa, así que se leía como un control roto.
+  # módulo está pendiente NO está congelado: se edita, pero desde la pantalla
+  # del propio módulo —el builder ya no tiene panel para eso; sus tarjetas son
+  # links a acá—.
   describe "el corte, con el módulo todavía pendiente" do
     let!(:pendiente) do
       as_company(company) do
@@ -170,11 +170,11 @@ RSpec.describe "la pantalla de una selección", type: :request do
 
     def corte = as_company(company) { pendiente.steps.reload.find(&:selection?) }
 
-    it "dice dónde se cambia el corte, porque todavía se puede cambiar" do
+    it "se cambia en la propia pantalla del módulo, no en un link al builder" do
       get challenge_step_path(pendiente, corte)
 
-      expect(response.body).to include(builder_challenge_path(pendiente))
-      expect(response.body).to include("Cambiar el corte")
+      expect(response.body).to include('data-island="step-settings"')
+      expect(response.body).not_to include("Cambiar el corte")
     end
 
     # `source_steps` sale de `resolved_config`, que recién se escribe en

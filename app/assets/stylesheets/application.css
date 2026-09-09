@@ -1793,11 +1793,12 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
 
 /* Un `select[multiple]` con la altura que le da el navegador muestra cuatro
    filas de alto variable según el tema: con menos de esto no se ve que se
-   elige MÁS DE UNA opción y parece un desplegable roto. La altura la traía
-   `.builder__config`, el panel que se sacó del builder; ahora el campo vive
-   en la isla de los ajustes del módulo, así que la regla cuelga de ahí y no
-   de una clase muerta. */
-[data-island="step-settings"] select[multiple] { min-height: 88px; }
+   elige MÁS DE UNA opción y parece un desplegable roto. La regla cuelga de
+   `.field` —el contenedor que envuelve cada campo, tanto en `config_field.vue`
+   como en el formulario de postulación— y no de una vista puntual: acoplarla
+   a `[data-island="step-settings"]` la deja inerte y sin error si esa vista
+   cambia de literal. */
+.field select[multiple] { min-height: 88px; }
 
 /* Lo bloqueado tiene que PARECER bloqueado: sin esto un campo deshabilitado se */
 /* ve igual que uno editable y el aviso de arriba parece no aplicar. */
