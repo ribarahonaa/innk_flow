@@ -102,12 +102,18 @@ export default {
     // El input viaja DENTRO del form de Rails: la isla no guarda, renderiza.
     // Un solo botón «Guardar el módulo» manda nombre, modo de IA y ajustes
     // juntos contra un solo endpoint.
+    //
+    // `multi_select` necesita el sufijo `[]`: sin él, un `<select multiple>`
+    // manda varios pares con la MISMA clave (`clave=a&clave=b`) y Rack se
+    // queda solo con el último — elegir tres módulos en «Qué módulos abarca»
+    // guardaba uno.
     inputName() {
       if (this.field.column === true) {
         return `challenge_step[${this.field.key}]`;
       }
       const rutas = this.field.key.split('.').map((s) => `[${s}]`).join('');
-      return `challenge_step[config]${rutas}`;
+      const sufijo = this.field.type === 'multi_select' ? '[]' : '';
+      return `challenge_step[config]${rutas}${sufijo}`;
     },
 
     value: {

@@ -123,7 +123,6 @@ export default {
     steps: { type: Array, required: true },
     palette: { type: Array, required: true },
     aiModes: { type: Array, required: true },
-    settingsSchema: { type: Object, default: () => ({}) },
     insertionFloor: { type: Number, default: null },
     validation: { type: Object, required: true },
     permissions: { type: Object, required: true },
@@ -222,8 +221,6 @@ export default {
         aiMode: null,
         sourceStepId: null,
         criteriaSetId: null,
-        // Los valores por defecto vienen del esquema, no hardcodeados acá.
-        settings: this.defaultsFor(item.kind),
         locked: false,
         removable: true
       };
@@ -231,24 +228,6 @@ export default {
       this.localSteps.push(step);
       this.selectedKey = this.keyOf(step);
       this.refreshPalette();
-    },
-
-    // Defaults declarados en Flow::StepSettings, resueltos desde el esquema.
-    defaultsFor(kind) {
-      const groups = this.settingsSchema[kind] || {};
-      const fields = [...(groups.essential || []), ...(groups.advanced || [])];
-      const settings = {};
-
-      fields.forEach((field) => {
-        if (field.column || field.default === undefined) return;
-        const segs = field.key.split('.');
-        const last = segs.pop();
-        let node = settings;
-        segs.forEach((seg) => { node[seg] = node[seg] || {}; node = node[seg]; });
-        node[last] = field.default;
-      });
-
-      return settings;
     },
 
     removeStep(index) {
@@ -306,8 +285,7 @@ export default {
           name: s.name,
           aiMode: s.aiMode,
           sourceStepId: s.sourceStepId,
-          criteriaSetId: s.criteriaSetId,
-          settings: s.settings || {}
+          criteriaSetId: s.criteriaSetId
         }))
       };
 
