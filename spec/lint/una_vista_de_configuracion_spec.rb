@@ -14,7 +14,7 @@ RSpec.describe "una sola vista de configuración", type: :lint do
     # - Explícita: %div{ "data-island": "form-editor" }
     # - Anidada:   %div{ data: { island: "form-editor" } }
     # (Rails renderiza ambas como data-island="..." en HTML)
-    pattern = /"data-island":\s*"#{Regexp.escape(isla)}"|data:\s*\{.*?\bisland:\s*"#{Regexp.escape(isla)}"/m
+    pattern = /"data-island":\s*"#{Regexp.escape(isla)}"|data:\s*\{[^{}]*\bisland:\s*"#{Regexp.escape(isla)}"/
     Dir[Rails.root.join("app/views/**/*.haml")].select do |archivo|
       File.read(archivo).match?(pattern)
     end.map { |a| a.sub("#{Rails.root}/", "") }
@@ -38,9 +38,9 @@ RSpec.describe "una sola vista de configuración", type: :lint do
       .to contain_exactly("app/views/steps/config/_modulo.html.haml")
   end
 
-  # El panel del builder era la primera de las seis. Esta guarda pide que no
-  # haya vuelto a aparecer bajo esos nombres: detecta si quien escribió el código
-  # reintrodujo la configuración con otros nombres de clase.
+  # El panel del builder era la primera de las seis. Esta guarda solo confirma
+  # que esos dos nombres puntuales no reaparecieron; un panel reintroducido bajo
+  # un nombre de clase distinto no lo detecta.
   it "el builder no volvió a tener panel de configuración" do
     builder = File.read(Rails.root.join("app/javascript/components/pipeline_builder/pipeline_builder.vue"))
 
