@@ -20,4 +20,39 @@ module ApplicationHelper
   rescue ArgumentError
     "ai-suggestions"
   end
+
+  # Las filas de «cómo quedó configurado»: `[etiqueta, valor legible]` por cada
+  # campo del esquema que tenga algo que decir sobre este módulo.
+  #
+  # Sobre `Flow::StepSettings.efectivo` y no sobre `step.settings` a secas:
+  # `settings` sólo trae lo que alguien escribió, y ni las plantillas ni el
+  # seed escriben todo. Con el hueco leído como ausencia, evolución y
+  # reportería servían la tarjeta entera vacía —«Cómo quedó configurado»
+  # arriba de un `<ul>` sin ningún `<li>`—, que es justo el control fantasma
+  # que esta rama existe para sacar.
+  def resumen_de_configuracion(step)
+    efectivo = Flow::StepSettings.efectivo(step.kind, step.settings)
+
+    Flow::StepSettings.fields(step.kind).filter_map do |campo|
+      next unless Flow::StepSettings.visible?(campo, efectivo)
+
+      valor = valor_de_campo(step, campo, efectivo)
+      next if valor.blank?
+
+      [campo[:label], valor]
+    end
+  end
+
+  # `column: true` no vive en `config`: es una columna con su propia asociación
+  # (`source_step_id` → `source_step`), y lo que se muestra es su nombre, no el
+  # id crudo. Por eso lo resuelve la vista y no `Flow::StepSettings`, que no
+  # tiene el step a mano.
+  def valor_de_campo(step, campo, efectivo)
+    return step.public_send(campo[:key].to_s.sub(/_id\z/, ""))&.name if campo[:column]
+
+    crudo = Flow::StepSettings.read(efectivo, campo[:key])
+    return nil if crudo.nil? || crudo == ""
+
+    Flow::StepSettings.display_value(campo, crudo)
+  end
 end

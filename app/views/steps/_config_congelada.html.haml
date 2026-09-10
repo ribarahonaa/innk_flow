@@ -28,17 +28,20 @@
         Se pueden cambiar el nombre y el modo de IA; la regla no.
     - else
       🔒 Todavía no arrancó. Sólo quien administra el desafío puede cambiar esta configuración.
-  %ul.field-list
-    - Flow::StepSettings.fields(step.kind).each do |campo|
-      -# `column: true` no vive en `config`: es una columna con su propia
-      -# asociación (`source_step_id` → `source_step`), y lo que se muestra es
-      -# su nombre, no el id crudo.
-      - if campo[:column]
-        - valor = step.public_send(campo[:key].to_s.sub(/_id\z/, ""))&.name
-      - else
-        - crudo = step.settings.dig(*campo[:key].to_s.split("."))
-        - valor = crudo.nil? || crudo == "" ? nil : Flow::StepSettings.display_value(campo, crudo)
-      - next if valor.nil? || valor == ""
-      %li.field-list__item
-        %span= campo[:label]
-        %span.field-list__type= valor
+  -# Las filas salen del esquema con los DEFAULTS aplicados
+  -# (`resumen_de_configuracion`): `settings` sólo trae lo que alguien
+  -# escribió, y evolución y reportería salían sin una sola fila.
+  -#
+  -# El `else` no es alcanzable con los cinco kinds de hoy —todos declaran al
+  -# menos un campo con default— pero un kind nuevo sin entrada en el esquema
+  -# volvería a dejar la tarjeta muda, y decir «no hay nada» es lo único
+  -# honesto que se puede poner ahí.
+  - filas = resumen_de_configuracion(step)
+  - if filas.any?
+    %ul.field-list
+      - filas.each do |etiqueta, valor|
+        %li.field-list__item
+          %span= etiqueta
+          %span.field-list__type= valor
+  - else
+    %p.muted Este módulo no tiene nada configurable.

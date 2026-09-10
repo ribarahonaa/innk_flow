@@ -122,6 +122,35 @@ module Flow
         end
       end
 
+      # La config con la que el módulo REALMENTE corre: lo guardado sobre los
+      # defaults del esquema.
+      #
+      # `config` sólo trae lo que alguien escribió, y las dos vías normales de
+      # creación dejan huecos: `Flow::FlowTemplates` manda configs PARCIALES y
+      # `db/seeds.rb` no manda ninguna —sólo `create_added` siembra
+      # `defaults`—. Los handlers leen con `fetch(clave, default)`, así que un
+      # hueco no significa "sin valor": significa el default. Mostrar el hueco
+      # como ausencia era lo que dejaba la tarjeta de configuración congelada
+      # ENTERA vacía en evolución y en reportería.
+      def efectivo(kind, config)
+        defaults(kind).deep_merge((config || {}).deep_stringify_keys)
+      end
+
+      # Un campo puede depender de otro: «Valor del corte» no describe nada con
+      # la regla de corte en «manual». Espeja `visible` de `config_field.vue`,
+      # contra el valor EFECTIVO —que ya trae el default del campo del que
+      # depende, y por eso acá no hay que volver a buscarlo—.
+      def visible?(campo, efectivo)
+        regla = campo[:depends_on]
+        return true if regla.nil?
+
+        otro = read(efectivo, regla[:key])
+        return otro != regla[:not] if regla.key?(:not)
+        return otro == regla[:is] if regla.key?(:is)
+
+        true
+      end
+
       # La forma humana de un valor guardado, según lo que declara el campo.
       #
       # Sin esto la cara de ejecución mostraba el valor tal cual sale de
@@ -174,6 +203,22 @@ module Flow
       # config: viven en su columna y se permiten aparte. Valores malformados
       # —cuando la ruta no se puede recorrer o el tipo no es escalar— se
       # descartan sin error, sanando la entrada.
+      #
+      # OJO: esto también descarta claves que el esquema NO declara y que algún
+      # handler SÍ lee. Hoy son las de `score_source` fuera de `combine`:
+      # `type`, `weights`, `step_slugs` y `step_ids`
+      # (`Flow::Handlers::Selection`). Que no sea un problema depende de dónde
+      # viven: en `resolved_config`, que las escribe `resolve_config!` al
+      # arrancar y que `filtrar` no toca nunca —`steps#update` sólo escribe
+      # `config`, y con el módulo tocado `FROZEN_ATTRIBUTES` ni eso—. En
+      # `config` no las pone nadie: ni las plantillas, ni el seed, ni la base
+      # de desarrollo (0 filas). El único que podría es
+      # `Tasks::ProposePipeline#apply!`, que guarda el `config` del modelo sin
+      # pasarlo por acá. Declararlas NO es agregar dos líneas: `weights` es un
+      # mapa slug→peso y `filtrar` sólo sabe de escalares y de arrays de
+      # `multi_select`, y `type` es una decisión de producto (habilita «sin
+      # fuente de puntaje», que es lo que `Flow::Pipeline#validate` mira para
+      # perdonar una selección sin evaluación previa).
       def filtrar(kind, hash)
         # La raíz tiene que ser un Hash: un `config` que llega escalar
         # (`challenge_step[config]=x`) o en array (`challenge_step[config][]=x`)

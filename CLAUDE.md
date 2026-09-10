@@ -123,6 +123,20 @@ opción es agregar una línea al esquema, sin tocar Vue.
 | `Flow::CriterionSettings` | Qué parámetros pide cada verificación y cada escala | editor de criterios |
 | `Flow::FlowTemplates` | Puntos de partida del flujo | creación del desafío y builder vacío |
 
+**En `config` un hueco no es «sin valor»: es el default del esquema.** Sólo
+`Api::V1::PipelinesController#create_added` siembra `StepSettings.defaults`;
+`Flow::FlowTemplates` manda configs PARCIALES y `db/seeds.rb` no manda ninguna,
+así que los dos caminos normales dejan claves ausentes — y los handlers leen
+con `fetch(clave, default)`, o sea que el módulo corre con el default igual.
+Mostrar la ausencia como ausencia dejaba la tarjeta «Cómo quedó configurado» de
+evolución y de reportería **entera vacía**: encabezado, aviso del candado y un
+`<ul>` sin una sola fila, que es el mismo control fantasma que esta rama existe
+para sacar. Se lee con `StepSettings.efectivo(kind, settings)` y se filtra con
+`StepSettings.visible?`, que espeja el `depends_on` de `config_field.vue` (con
+la regla de corte en «manual», «Valor del corte» no describe nada). Ojo con la
+suite: el fixture que probaba esa tarjeta ponía `config:` a mano en los cinco
+kinds, que es justo el caso que no ocurre en la práctica.
+
 ### Criterios: dos ejes independientes
 
 `source` (quién produce el valor: `manual` / `automatic` / `ai` / `formula`) y
@@ -140,17 +154,24 @@ todos los desafíos que lo usan — por eso se copia (`StepCriteriaController`).
 **La biblioteca no se pisa: se versiona.** Guardar un set de biblioteca que ya
 usa algún módulo crea la versión siguiente (`family_id`, `version`,
 `superseded_at`) y deja la anterior intacta; los módulos que la usaban siguen
-con ella. **Pasarlos a la nueva versión ya no tiene ningún camino**: el
-control vivía en el panel del builder —`step_config.vue`, con el aviso «Hay
-una versión más nueva» y un botón que reasignaba `criteriaSetId`— y esta rama
-lo borró (`58bd076`) sin reponerlo en ningún lado. `PipelinePresenter` sigue
-calculando `newerVersion` y mandándolo en las props del builder, pero ninguna
-vista lo lee (`newerVersion` no aparece en ningún `.vue`); el único lugar que
-escribe `criteria_set_id` es `StepCriteriaController#create`, y siempre crea
-una copia `inline` nueva, nunca apunta a una versión existente. Un módulo que
-quedó en una versión vieja de la biblioteca se queda ahí. Un set que no usa
-nadie se edita en el lugar: versionar lo que nadie tiene asignado no protege a
-nadie.
+con ella hasta que alguien los pase a la nueva **desde la pantalla del
+módulo**. Un set que no usa nadie se edita en el lugar: versionar lo que nadie
+tiene asignado no protege a nadie.
+
+**Elegir un set de la biblioteca y pasar un módulo a la versión nueva son dos
+controles de la cara de configuración**, en el bloque de criterios
+(`steps/_criterios_editor.html.haml`, detrás del mismo `configure?` que el
+resto). Ninguno tiene endpoint propio: los dos escriben `criteria_set_id` por
+`PATCH steps#update`, que es el único camino de escritura de la configuración
+de un módulo. `CriteriaSet.asignables_para` arma las opciones (la vigente de
+cada familia, más la que el módulo tenga puesta aunque ya no lo sea) y
+`CriteriaSet#newer_version` dice si hay una más nueva. Los dos vivían en el
+panel del builder (`step_config.vue`) y se perdieron al borrarlo (`58bd076`):
+durante esa ventana **nada** podía apuntar un módulo a la biblioteca —el único
+escritor era la copia `inline` de `StepCriteriaController#create`— mientras dos
+textos de la app seguían instruyendo a hacerlo (`Flow::Pipeline#validate`,
+`CriteriaSetPresenter#version_notice`). Volvieron en HAML y no en la isla: el
+builder es dueño del armado, no de la configuración.
 
 Esto reemplaza al candado por evaluaciones **solo en la biblioteca**: sobre una
 versión nueva nadie puntuó nada, así que peso y escala vuelven a ser editables.
@@ -434,7 +455,21 @@ configurar exigía rebotar entre todas. Hay guarda:
 alta y baja; no manda `settings`, `criteria_set_id` ni `source_step_id`. Si los
 mandara, guardar el flujo con props cargadas antes revertiría lo configurado, y
 `lock_version` no lo ataja: es del desafío, y un PATCH al módulo no lo
-incrementa.
+incrementa. El payload del PUT es literalmente `{ id, kind }` por módulo, y
+`create_added` lee sólo `kind`: ni `name` ni `ai_mode`, que el builder no tiene
+cómo escribir. `update_existing` no existe — de un módulo que ya existe no se
+escribe ningún atributo.
+
+**Y tampoco manda para el otro lado.** `PipelinePresenter` publica sólo lo que
+la tarjeta dibuja. Cuando la configuración se mudó a la pantalla del módulo
+quedaron 6,4 KB de 10,4 KB de props que ningún `.vue` leía —el resumen de
+criterios y el del formulario enteros, `settingsSchema`, `criteriaSets`,
+`position`, `touched`, `effectiveAiMode`, tres URLs—, y no era sólo peso: el
+resumen de criterios corría `newer_version_for` (una consulta por módulo que
+puntúa) y el del formulario cargaba `form_fields.ordered` en **cada** render
+del builder. Además `createApp(component, props)` convierte toda prop no
+declarada en atributo del elemento raíz, así que lo que sobra se serializa al
+DOM. Antes de sumar una clave, buscá quién la lee.
 
 Tres cosas NO se congelan al arrancar y la cara B las muestra como vivas:
 el nombre, el modo de IA (`ADJUSTABLE_ATTRIBUTES`) y las asignaciones.

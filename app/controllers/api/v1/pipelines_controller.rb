@@ -44,8 +44,14 @@ module Api
       end
 
       # El payload trae la lista entera de steps en su orden final. Se resuelve
-      # como tres operaciones: borrar los que ya no están, crear los nuevos,
-      # y reordenar/actualizar el resto.
+      # como tres operaciones: borrar los que ya no están, crear los nuevos y
+      # reordenar. De un módulo que YA EXISTE no se escribe ningún atributo —
+      # ni siquiera `name` o `ai_mode`: la tabla de propiedad los deja del lado
+      # de la pantalla del módulo, que los escribe por `steps#update`
+      # (`app/views/steps/_ai_mode.html.haml` incluido). Si esto escribiera
+      # algo, guardar el flujo con props cargadas antes revertiría lo
+      # configurado, y el bloqueo optimista no lo atajaría: `lock_version` es
+      # del desafío y un PATCH al módulo no lo incrementa.
       def apply_changes!
         errors = []
         pipeline = @challenge.pipeline
@@ -54,7 +60,6 @@ module Api
         ActiveRecord::Base.transaction do
           errors.concat(destroy_removed(pipeline, incoming))
           errors.concat(create_added(pipeline, incoming))
-          errors.concat(update_existing(incoming))
           errors.concat(reorder_all(incoming))
 
           raise ActiveRecord::Rollback if errors.any?
@@ -73,14 +78,17 @@ module Api
         end
       end
 
+      # Del payload sólo se lee `kind` y el orden. Ni `name` ni `aiMode`: el
+      # builder no tiene control para ninguno de los dos —el nombre que manda
+      # es la etiqueta del kind, que es justo lo que deriva `derive_name`— y
+      # leer algo que nadie puede escribir es prometer una configuración que
+      # esta pantalla ya no hace.
       def create_added(pipeline, incoming)
         incoming.reject { |s| s[:id].present? }.filter_map do |attrs|
           after = anchor_for(incoming, attrs)
           result = pipeline.insert(
             kind: attrs[:kind],
             after: after,
-            name: attrs[:name].presence,
-            ai_mode: attrs[:aiMode].presence,
             # Nace con los defaults del esquema, no con `settings` ni
             # `criteriaSetId`: eso ya no lo elige el builder, se configura
             # después en la pantalla del módulo.
@@ -100,29 +108,6 @@ module Api
         return nil if previous.nil?
 
         @challenge.steps.find { |s| s.id == previous[:id] }
-      end
-
-      # El builder es dueño solo del ARMADO del flujo: kind, orden, alta y
-      # baja (create_added, destroy_removed y reorder_all). De un módulo que
-      # YA EXISTE no escribe ningún atributo — ni siquiera `name` o
-      # `ai_mode`: la tabla de propiedad los deja del lado de la pantalla del
-      # módulo, que los escribe por `steps#update`
-      # (`app/views/steps/_ai_mode.html.haml` incluido).
-      #
-      # Si esto escribiera algo, guardar el flujo con props cargadas antes
-      # revertiría lo configurado, y el bloqueo optimista no lo atajaría:
-      # `lock_version` es del desafío y un PATCH al módulo no lo incrementa.
-      def update_existing(incoming)
-        incoming.filter_map do |attrs|
-          next if attrs[:id].blank?
-
-          step = @challenge.steps.reload.find { |s| s.id == attrs[:id] }
-          next if step.nil?
-
-          next if step.save
-
-          "«#{step.name}»: #{step.errors.full_messages.join(', ')}"
-        end
       end
 
       def reorder_all(incoming)

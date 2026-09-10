@@ -40,17 +40,35 @@
   = render "shared/ai_suggestions", suggestions: suggestions
 
   - if set.nil?
+    -# Las dos capacidades de biblioteca del panel del builder que se borró con
+    -# él (`step_config.vue`): apuntar el módulo a un set compartido, y pasarlo
+    -# a la versión siguiente cuando la biblioteca se versionó. Sin ellas nada
+    -# escribía `criteria_set_id` apuntando a la biblioteca —sólo copias
+    -# `inline`— y dos avisos de la app («podés elegir un set de la
+    -# biblioteca», «asignales la nueva desde su módulo») pedían algo imposible.
+    -#
+    -# No hay endpoint nuevo: los dos escriben por `PATCH steps#update`, el
+    -# único camino de escritura de la configuración de un módulo.
+    - nueva_version = step.criteria_set&.newer_version
+    - asignables = CriteriaSet.asignables_para(step)
     .card
       %h2.section-title Este módulo todavía no tiene criterios propios
       - if step.criteria_set
         %p.muted
           Hoy usa
-          %strong= step.criteria_set.name
+          %strong= step.criteria_set.label
           de la biblioteca, que comparten otros desafíos. Editarlo desde acá los tocaría a todos.
+        - if nueva_version
+          %p.field-hint.field-hint--warn
+            = "Hay una versión más nueva (#{nueva_version.label}). Este módulo sigue con la que tiene hasta que alguien lo pase."
       - else
         %p.muted Sin criterios propios se van a usar los genéricos: impacto, factibilidad y esfuerzo.
 
       .report-actions
+        - if nueva_version
+          = button_to "Pasarlo a #{nueva_version.label}", challenge_step_path(step.challenge, step),
+                      method: :patch, params: { challenge_step: { criteria_set_id: nueva_version.id } },
+                      class: "btn btn-ghost btn-sm"
         - if step.criteria_set
           = button_to "Copiar ese set y hacerlo propio", challenge_step_criteria_path(step.challenge, step, from: "library"),
                       class: "btn btn-primary btn-sm"
@@ -61,6 +79,23 @@
                     class: "btn btn-ghost btn-sm"
         = render "shared/ai_actions", challenge: step.challenge, mode: step.effective_ai_mode, always: true,
                  actions: [{ label: "Proponer criterios con IA", purpose: "suggest_criteria", step_id: step.id }]
+
+      -# Hermano de `.report-actions`, nunca adentro: cada `button_to` de arriba
+      -# ya es un `<form>` y un form dentro de otro lo descarta el navegador,
+      -# reasignándole los botones al de afuera. `id:` explícito porque
+      -# `steps/config/_modulo` ya sirvió otro `form_with model: step` en esta
+      -# misma pantalla y los dos generarían el mismo id.
+      - if asignables.any?
+        = form_with model: step, url: challenge_step_path(step.challenge, step), method: :patch,
+                    id: "asignar-set-de-biblioteca" do |f|
+          .field
+            = f.label :criteria_set_id, step.selection? ? "O usá un set de filtros de la biblioteca" : "O usá un set de criterios de la biblioteca"
+            = f.select :criteria_set_id,
+                       asignables.map { |candidato| ["#{candidato.label} — #{Flow::Texto.contar(candidato.active_criteria.size, "criterio")}", candidato.id] },
+                       { include_blank: step.selection? ? "Sin filtros" : "Criterios genéricos (impacto, factibilidad y esfuerzo)" }
+            %p.field-hint Se comparte entre desafíos: acá se elige cuál usa este módulo, no se edita. Queda fijo en cuanto el módulo arranca.
+          .form-actions
+            = f.submit "Usar ese set", class: "btn btn-ghost btn-sm"
   - else
     .flash.flash--notice
       Estos criterios son de este módulo: no afectan a otros desafíos.

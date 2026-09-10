@@ -37,7 +37,6 @@ RSpec.describe "API del pipeline", type: :request do
       get pipeline_path
       expect(json["steps"].first).to have_key("aiMode")
       expect(json["steps"].first["aiMode"]).to be_nil
-      expect(json["steps"].first["effectiveAiMode"]).to eq(challenge.ai_default_mode)
     end
 
     it "deshabilita «Idear» en la paleta cuando ya está en el flujo" do
@@ -62,13 +61,19 @@ RSpec.describe "API del pipeline", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(json["steps"].map { _1["kind"] }).to eq(%w[ideation evaluation selection])
-      expect(json["steps"].map { _1["position"] }).to eq([1.0, 2.0, 3.0])
-      # `settings` ya no es un segundo camino hacia `config`, ni siquiera al
-      # crear un módulo: nace con los defaults del esquema y se configura
-      # después en su pantalla — el `min_ideas: 3` de arriba se ignora.
+      # La posición ya no viaja en el payload —el builder dibuja el orden del
+      # array— pero renumerar sigue siendo lo que hace el server.
+      expect(as_company(company) { challenge.steps.reload.ordered.map { _1.position.to_f } }).to eq([1.0, 2.0, 3.0])
+      # Ni `settings` ni `name` ni `aiMode` son un segundo camino hacia la
+      # configuración, ni siquiera al crear: el módulo nace con los defaults
+      # del esquema y con el nombre de su kind, y se configura después en su
+      # pantalla. El `min_ideas: 3` y el `aiMode: "ai_auto"` de arriba se
+      # ignoran.
       ideation = as_company(company) { challenge.steps.reload.find_by(kind: "ideation") }
       expect(ideation.config).to eq(Flow::StepSettings.defaults("ideation"))
-      expect(json["steps"].second["effectiveAiMode"]).to eq("ai_auto")
+      evaluation = as_company(company) { challenge.steps.reload.find_by(kind: "evaluation") }
+      expect(evaluation.ai_mode).to be_nil
+      expect(evaluation.name).to eq(I18n.t("flow.kinds.evaluation"))
     end
 
     # El flujo recién armado NO es válido todavía: «Idear» nace sin preguntas y
@@ -83,12 +88,6 @@ RSpec.describe "API del pipeline", type: :request do
 
       expect(json["validation"]["valid"]).to be(false)
       expect(json["validation"]["errors"].join).to include("no tiene formulario")
-      expect(json["steps"].first["form"]).to include("count" => 0)
-      # El formulario se edita en la pantalla del módulo: `editUrl` deja de
-      # apuntar a `challenge_form_path`, que sólo redirige ahí desde que el
-      # editor se embebió (Task 7).
-      ideation = as_company(company) { challenge.steps.reload.find_by(kind: "ideation") }
-      expect(json["steps"].first["form"]["editUrl"]).to eq("/challenges/#{challenge.slug}/steps/#{ideation.id}")
     end
 
     it "y vuelve a ser válido una vez definidas las preguntas" do
@@ -102,7 +101,6 @@ RSpec.describe "API del pipeline", type: :request do
 
       get pipeline_path
       expect(json["validation"]["valid"]).to be(true)
-      expect(json["steps"].first["form"]).to include("count" => 3, "requiredCount" => 3)
     end
 
     it "rechaza un segundo módulo de ideación" do
@@ -206,15 +204,6 @@ RSpec.describe "API del pipeline", type: :request do
       end
     end
 
-    it "expone los sets de la biblioteca para poder elegir uno" do
-      get pipeline_path
-
-      names = json["criteriaSets"].map { _1["name"] }
-      expect(names).to include("Técnica avanzada")
-      expect(json["criteriaSets"].first["criteriaCount"]).to eq(2)
-      expect(json["criteriaSets"].first["editUrl"]).to be_present
-    end
-
     # `criteriaSetId` ya no es del builder, ni siquiera al crear el módulo:
     # se asigna después, en su pantalla (`steps#update`). Mandarlo en el PUT
     # no rompe el guardado, pero tampoco asigna nada.
@@ -230,9 +219,6 @@ RSpec.describe "API del pipeline", type: :request do
       expect(response).to have_http_status(:ok)
       step = as_company(company) { challenge.steps.reload.find_by(kind: "evaluation") }
       expect(step.criteria_set_id).to be_nil
-
-      evaluation = json["steps"].find { _1["kind"] == "evaluation" }
-      expect(evaluation["criteriaSetName"]).to be_nil
     end
 
     it "el módulo usa ESOS criterios al activarse, no los por defecto" do
@@ -263,22 +249,6 @@ RSpec.describe "API del pipeline", type: :request do
       get pipeline_path
       expect(json["validation"]["warnings"].join).to match(/criterios genéricos/)
       expect(json["validation"]["warnings"].join).to match(/criterios propios de este módulo/)
-    end
-
-    # La pantalla del módulo tiene que poder ofrecer las dos formas de tener
-    # criterios sin que el editor las adivine: el set de la biblioteca y los
-    # propios.
-    it "el paso de evaluación viaja con su resumen de criterios y su link" do
-      step_id = as_company(company) do
-        seed_form!(challenge.steps.create!(kind: "ideation", position: 1))
-        challenge.steps.create!(kind: "evaluation", position: 2, name: "Técnica").id
-      end
-
-      get pipeline_path
-      criteria = json["steps"].last["criteria"]
-
-      expect(criteria).to include("count" => 0, "own" => false)
-      expect(criteria["editUrl"]).to eq("/challenges/#{challenge.slug}/steps/#{step_id}/criteria")
     end
   end
 

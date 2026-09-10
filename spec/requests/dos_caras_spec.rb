@@ -477,6 +477,93 @@ RSpec.describe "las dos caras de un módulo", type: :request do
     end
   end
 
+  # Fix de la revisión final de la rama: el `describe` de arriba pone `config:`
+  # a mano en los cinco kinds, y ése es el caso que NO ocurre en la práctica.
+  # `Api::V1::PipelinesController#create_added` siembra
+  # `Flow::StepSettings.defaults`, pero `Flow::FlowTemplates` manda configs
+  # PARCIALES y `db/seeds.rb` no manda ninguna: los dos caminos normales dejan
+  # huecos. Con `_config_congelada` leyendo `step.settings` a secas, evolución
+  # y reportería servían la tarjeta ENTERA vacía —encabezado, aviso del
+  # candado y un `<ul>` sin una sola fila—, que es la misma pantalla que
+  # anuncia un control y no lo muestra con la que empezó todo esto.
+  describe "cara B de un módulo creado SIN config, como lo crean plantillas y seed" do
+    let!(:sin_config) do
+      as_company(company) do
+        c = create(:challenge, name: "Sin config", ai_default_mode: "human")
+        %w[ideation evolution evaluation selection reporting].each do |kind|
+          c.pipeline.insert(kind: kind, after: :end)
+        end
+        seed_form!(c.steps.reload.find(&:ideation?))
+        create(:idea, challenge: c, author: admin, status: "active").update!(submitted_at: Time.current)
+        c.steps.reload.ordered.each { |s| Flow::Handlers::Base.for(s).activate! }
+        c
+      end
+    end
+
+    def paso_sin_config(kind) = as_company(company) { sin_config.steps.reload.find { |s| s.kind == kind } }
+
+    it "nace sin nada escrito: es el estado que el fixture de arriba no cubría" do
+      expect(paso_sin_config("evolution").settings).to eq({})
+      expect(paso_sin_config("reporting").settings).to eq({})
+    end
+
+    # Un default del esquema no es un valor inventado: es con el que corre el
+    # handler (`settings.fetch("min_ideas", 1)`, `settings["require_response"]
+    # == true`). Mostrarlo es decir la verdad; saltearlo era callarla.
+    it "los cuatro kinds que usan la tarjeta dicen con qué corren" do
+      {
+        "ideation" => "Ideas mínimas para poder avanzar",
+        "evolution" => "Exigir que cada idea responda",
+        "evaluation" => "Evaluaciones mínimas por idea",
+        "reporting" => "Cómo trata las versiones"
+      }.each do |kind, etiqueta|
+        get challenge_step_path(sin_config, paso_sin_config(kind))
+
+        expect(response.body).to include(etiqueta), "#{kind} sirvió la configuración sin esa fila"
+      end
+    end
+
+    it "y con el valor del default, no con la etiqueta sola" do
+      get challenge_step_path(sin_config, paso_sin_config("evolution"))
+      expect(response.body).to match(/Exigir que cada idea responda.*?No/m)
+
+      get challenge_step_path(sin_config, paso_sin_config("reporting"))
+      expect(response.body).to include("Por versión: cada puntaje dice qué versión se evaluó")
+    end
+  end
+
+  # La misma tarjeta sirve de fallback en cara A para quien no puede
+  # configurar, así que ahí el hueco se veía igual.
+  describe "cara A sin `configure?`: la tarjeta de sólo lectura tampoco queda vacía" do
+    let!(:participante) do
+      without_tenant do
+        u = create(:user, email: "part-congelada@test.dev", name: "Pedro Participante")
+        create(:membership, company: company, user: u, role: "participant")
+        u
+      end
+    end
+
+    before { sign_in(participante, company: company) }
+
+    it "muestra los ajustes de un módulo creado sin config" do
+      get challenge_step_path(challenge, paso("evolution"))
+
+      expect(response.body).to include("Cómo está configurado")
+      expect(response.body).to include("Exigir que cada idea responda")
+    end
+
+    # `depends_on` se respeta igual que en el editor: con la regla de corte en
+    # «manual» el valor no describe nada, y anunciarlo sería un número que el
+    # handler ni mira.
+    it "no anuncia «Valor del corte» con la regla en manual" do
+      get challenge_step_path(challenge, paso("selection"))
+
+      expect(response.body).to include("Regla de corte")
+      expect(response.body).to include("Manual: el dueño decide")
+      expect(response.body).not_to include("Valor del corte")
+    end
+  end
+
   # Fix round 1: asignar en cara A es un camino nuevo y cambia cómo arranca el
   # módulo. `Flow::Handlers::Evaluation#assign_evaluators!` sólo autoasigna a
   # todo el que puede evaluar cuando arranca SIN ninguna asignación explícita

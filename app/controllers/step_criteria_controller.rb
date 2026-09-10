@@ -35,12 +35,12 @@ class StepCriteriaController < ApplicationController
   def create
     authorize @step, :manage_criteria?
 
-    return redirect_to(step_criteria_path, alert: "Este módulo ya se ejecutó.") if @step.touched?
+    return redirect_to(pantalla_del_modulo, alert: "Este módulo ya se ejecutó.") if @step.touched?
 
     set = build_set
     @step.update!(criteria_set_id: set.id)
 
-    redirect_to step_criteria_path, notice: "Listo: estos criterios son de este módulo."
+    redirect_to pantalla_del_modulo, notice: "Listo: estos criterios son de este módulo."
   end
 
   private
@@ -73,5 +73,8 @@ class StepCriteriaController < ApplicationController
     Flow::Handlers::Evaluation::DEFAULT_CRITERIA.each { |attributes| set.criteria.create!(**attributes) }
   end
 
-  def step_criteria_path = challenge_step_criteria_path(@challenge, @step)
+  # Al MÓDULO, no a `challenge_step_criteria_path`: esa URL sólo redirige acá
+  # desde que el editor se embebió, así que volver por ella encadenaba
+  # POST → 302 → 301 → 200 para llegar al mismo lugar.
+  def pantalla_del_modulo = challenge_step_path(@challenge, @step)
 end

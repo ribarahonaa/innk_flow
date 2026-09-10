@@ -225,8 +225,6 @@ export default {
         // pendiente y el server le manda la suya en cuanto se guarda.
         statusClass: 'status-chip status-chip--pending',
         aiMode: null,
-        sourceStepId: null,
-        criteriaSetId: null,
         locked: false,
         removable: true
       };
@@ -281,16 +279,14 @@ export default {
       this.saving = true;
       this.serverErrors = [];
 
+      // El armado y nada más: qué módulo y en qué orden. El nombre, el modo
+      // de IA, los criterios y el módulo de origen se escriben desde la
+      // pantalla del módulo, así que mandarlos acá sería payload que nadie
+      // lee — y, si algún día alguien lo leyera, guardar el flujo con props
+      // cargadas antes revertiría lo configurado.
       const payload = {
         lock_version: this.localChallenge.lockVersion,
-        steps: this.localSteps.map((s) => ({
-          id: s.id,
-          kind: s.kind,
-          name: s.name,
-          aiMode: s.aiMode,
-          sourceStepId: s.sourceStepId,
-          criteriaSetId: s.criteriaSetId
-        }))
+        steps: this.localSteps.map((s) => ({ id: s.id, kind: s.kind }))
       };
 
       try {

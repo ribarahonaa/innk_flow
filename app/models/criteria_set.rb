@@ -44,6 +44,28 @@ class CriteriaSet < ApplicationRecord
 
   def label = version > 1 ? "#{name} · v#{version}" : name
 
+  # La versión vigente de la familia, cuando este set ya dejó de serlo. `nil`
+  # si todavía es la vigente, o si es `inline`: un set de un módulo no se
+  # versiona, se edita en el lugar.
+  #
+  # Vive en el modelo y no en un presenter porque la pregunta es del set, y
+  # quien la hace es la pantalla del módulo (para ofrecer el pase a la nueva),
+  # no el builder.
+  def newer_version
+    return nil unless library? && superseded?
+
+    CriteriaSet.library.current.find_by(family_id: family_id)
+  end
+
+  # Lo que se le puede asignar a un módulo: la versión vigente de cada familia
+  # de la biblioteca, más —si el módulo quedó en una anterior— la que tiene
+  # puesta, para que el select no pierda lo que ya está usando.
+  def self.asignables_para(step)
+    library.current
+           .or(library.where(id: step.criteria_set_id))
+           .includes(:criteria).order(:name, :version)
+  end
+
   # La huella de lo que decide un puntaje. Cambiar el nombre del set no crea
   # una versión; cambiar un criterio, un peso o una escala, sí.
   def fingerprint

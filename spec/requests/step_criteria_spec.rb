@@ -114,6 +114,152 @@ RSpec.describe "criterios de un módulo", type: :request do
     end
   end
 
+  # Las dos capacidades de biblioteca que el panel del builder se llevó puestas
+  # al borrarse (`step_config.vue`, `58bd076`): apuntar el módulo a un set
+  # compartido, y pasarlo a la versión siguiente cuando la biblioteca se
+  # versionó. Sin ellas nada escribía `criteria_set_id` apuntando a la
+  # biblioteca —el único escritor era la COPIA `inline` de acá al lado— y dos
+  # avisos de la app («podés elegir un set de la biblioteca» en
+  # `Flow::Pipeline#validate`, «asignales la nueva desde su módulo» en
+  # `CriteriaSetPresenter`) pedían algo que no tenía cómo hacerse.
+  describe "elegir un set de la biblioteca" do
+    let!(:library) do
+      as_company(company) do
+        s = CriteriaSet.create!(name: "Estándar", scope: "library")
+        s.criteria.create!(name: "Impacto", key: "impacto", weight: 1, source: "manual",
+                           scale_type: "numeric", scale_config: { "min" => 1, "max" => 10 })
+        s.refresh_status!
+        s
+      end
+    end
+
+    # Cuenta la anidación de <form> en el HTML SERVIDO. En el DOM no se puede
+    # mirar: el navegador descarta el form interno al parsear y sus botones
+    # pasan a pertenecer al externo. El bloque de criterios sirve varios
+    # `button_to` —o sea, varios forms— al lado del nuevo select.
+    def profundidad_maxima_de_forms(html)
+      maxima = 0
+      actual = 0
+      html.scan(%r{<form\b|</form>}) do |etiqueta|
+        actual += etiqueta == "</form>" ? -1 : 1
+        maxima = [maxima, actual].max
+      end
+      maxima
+    end
+
+    it "la cara de configuración ofrece elegirlo" do
+      get challenge_step_path(challenge, step)
+
+      expect(response.body).to include('name="challenge_step[criteria_set_id]"')
+      expect(response.body).to include("Estándar")
+    end
+
+    it "no sirve un formulario dentro de otro" do
+      get challenge_step_path(challenge, step)
+
+      expect(profundidad_maxima_de_forms(response.body)).to eq(1)
+    end
+
+    # Un solo camino de escritura para la configuración del módulo: el PATCH
+    # de `steps#update`. Nada de un endpoint nuevo para esto.
+    it "asignarlo va por el PATCH del módulo" do
+      patch challenge_step_path(challenge, step),
+            params: { challenge_step: { criteria_set_id: library.id } }
+
+      expect(response).to redirect_to(challenge_step_path(challenge, step))
+      expect(set_of(step)&.id).to eq(library.id)
+    end
+
+    it "y se puede volver a los genéricos dejándolo en blanco" do
+      as_company(company) { ChallengeStep.find(step.id).update!(criteria_set_id: library.id) }
+
+      patch challenge_step_path(challenge, step),
+            params: { challenge_step: { criteria_set_id: "" } }
+
+      expect(set_of(step)).to be_nil
+    end
+
+    it "quien no configura no recibe el control" do
+      participante = without_tenant do
+        u = create(:user, email: "part-criterios@test.dev", name: "Paula Participante")
+        create(:membership, company: company, user: u, role: "participant")
+        u
+      end
+      sign_in(participante, company: company)
+
+      get challenge_step_path(challenge, step)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).not_to include('name="challenge_step[criteria_set_id]"')
+    end
+
+    describe "cuando la biblioteca se versiona bajo los pies del módulo" do
+      let!(:nueva) do
+        as_company(company) do
+          ChallengeStep.find(step.id).update!(criteria_set_id: library.id)
+          CriteriaSet.find(library.id).next_version!
+        end
+      end
+
+      it "el módulo avisa que hay una más nueva y ofrece pasarlo" do
+        get challenge_step_path(challenge, step)
+
+        expect(response.body).to include("Hay una versión más nueva")
+        expect(response.body).to include("Pasarlo a")
+      end
+
+      # El botón es un `button_to` con `params:` anidado: si Rails no armara el
+      # hidden con el nombre anidado, el PATCH llegaría sin nada que cambiar y
+      # el botón sería otro control que no responde. Se mira el form SERVIDO.
+      it "el botón manda el id de la nueva en el nombre que espera el controller" do
+        get challenge_step_path(challenge, step)
+
+        formulario = response.body.scan(%r{<form\b.*?</form>}m).find { |f| f.include?("Pasarlo a") }
+
+        expect(formulario).to be_present
+        expect(formulario).to include(%(name="challenge_step[criteria_set_id]"))
+        expect(formulario).to include(%(value="#{nueva.id}"))
+      end
+
+      it "pasarlo lo deja en la vigente, sin tocar la anterior" do
+        patch challenge_step_path(challenge, step),
+              params: { challenge_step: { criteria_set_id: nueva.id } }
+
+        expect(set_of(step)&.id).to eq(nueva.id)
+        expect(as_company(company) { CriteriaSet.find(library.id) }).to be_superseded
+      end
+    end
+
+    # `criteria_set_id` está en `FROZEN_ATTRIBUTES`: con el módulo arrancado,
+    # cambiar de set reescribiría la vara con la que ya se puntuó.
+    describe "con el módulo ya arrancado" do
+      before do
+        as_company(company) do
+          ChallengeStep.find(step.id).update!(criteria_set_id: library.id)
+          Flow::Handlers::Base.for(ChallengeStep.find(step.id)).activate!
+        end
+      end
+
+      it "la pantalla ya no es la de configuración: no hay ningún control" do
+        get challenge_step_path(challenge, step)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.body).not_to include('name="challenge_step[criteria_set_id]"')
+        expect(response.body).not_to include("Hay una versión más nueva")
+      end
+
+      it "y el PATCH tampoco lo cambia" do
+        otro = as_company(company) { CriteriaSet.create!(name: "Otro", scope: "library") }
+
+        patch challenge_step_path(challenge, step),
+              params: { challenge_step: { criteria_set_id: otro.id } }
+
+        expect(flash[:alert]).to include("ya ejecutado")
+        expect(set_of(step)&.id).to eq(library.id)
+      end
+    end
+  end
+
   describe "con el módulo ya ejecutado" do
     before { as_company(company) { ChallengeStep.find(step.id).update_column(:status, "completed") } }
 

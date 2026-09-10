@@ -40,17 +40,29 @@ versión siguiente y deja la anterior intacta.
 | `version` | 1, 2, 3… `label` muestra «Nombre · v2» a partir de la segunda |
 | `superseded_at` | Cuándo dejó de ser la vigente. `scope :current` filtra por esto |
 
-Los módulos que usaban la versión anterior **siguen con ella**. Pasarlos a la
-nueva ya no tiene ningún camino: el control vivía en el panel del builder
-(`step_config.vue`, con el aviso «Hay una versión más nueva» y un botón que
-reasignaba `criteriaSetId`), y la tarea que le dio a cada módulo su propia
-pantalla de configuración lo borró sin reponerlo en ningún lado (`58bd076`).
-`PipelinePresenter` sigue calculando `newerVersion` y mandándolo en las props
-del builder, pero ninguna vista lo lee hoy: el único lugar que asigna
-`criteria_set_id` es `StepCriteriaController#create`, y siempre crea una
-copia `inline` nueva — nunca apunta a una versión existente de la biblioteca.
-Un módulo que quedó en una versión vieja se queda ahí; nadie se entera de un
-cambio que no pidió, pero tampoco hay cómo pedirlo.
+Los módulos que usaban la versión anterior **siguen con ella** hasta que alguien
+los pase a la nueva desde la pantalla del módulo. Nadie se entera de un cambio
+que no pidió.
+
+El aviso y el pase viven en el bloque de criterios de la cara de configuración
+(`steps/_criterios_editor.html.haml`, detrás de `configure?`): si el set
+asignado ya fue reemplazado, `CriteriaSet#newer_version` devuelve la vigente de
+la familia y la pantalla ofrece «Pasarlo a …». No hay endpoint propio — el pase
+es un `PATCH steps#update` con `criteria_set_id`, el mismo y único camino de
+escritura de la configuración de un módulo. Ahí mismo está el select que elige
+cualquier set vigente de la biblioteca (`CriteriaSet.asignables_para`), que es
+lo que hace verdadera la advertencia de `Flow::Pipeline#validate`.
+
+Los dos controles vivían en el panel del builder (`step_config.vue`) y se
+perdieron cuando ese panel se borró (`58bd076`): durante esa ventana **nada**
+apuntaba un módulo a la biblioteca —el único escritor de `criteria_set_id` era
+la copia `inline` de `StepCriteriaController#create`— y dos textos de la app
+seguían instruyendo a hacerlo. Volvieron en HAML, no en la isla: el builder es
+dueño del armado, no de la configuración.
+
+Con el módulo ya arrancado no se cambia: `criteria_set_id` está en
+`ChallengeStep::FROZEN_ATTRIBUTES` y la pantalla pasa a su cara de ejecución,
+que no ofrece ninguno de los dos controles.
 
 Un set que **no usa nadie** se edita en el lugar: versionar lo que ningún módulo
 tiene asignado no protege a nadie y llenaría la biblioteca de versiones muertas.

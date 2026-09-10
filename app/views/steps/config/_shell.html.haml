@@ -16,4 +16,10 @@
     %p.muted
       %span{ class: chip_de_estado(step.status) }= t("flow.statuses.#{step.status}")
       %span= " · #{t("flow.kinds.#{step.kind}")}"
-      %span  · configurá cómo va a funcionar antes de que arranque
+      -# Quien no configura recibe esta misma pantalla en modo lectura, así que
+      -# el imperativo le nombraba algo que no puede hacer. La cara es la misma;
+      -# lo que cambia es qué se puede hacer con ella.
+      - if policy(step).configure?
+        %span  · configurá cómo va a funcionar antes de que arranque
+      - else
+        %span  · así va a funcionar cuando arranque
