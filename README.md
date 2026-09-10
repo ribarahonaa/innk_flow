@@ -133,8 +133,8 @@ Se regeneran desde su `.json` con la skill `archify`; el comando exacto está en
 ### Verificación
 
 ```
-make spec       # 650 ejemplos
-make screens    # 30 capturas; falla si alguna pantalla tira error JS o HTTP >= 400
+make spec       # 743 ejemplos
+make screens    # 35 capturas; falla si alguna pantalla tira error JS o HTTP >= 400
 ```
 
 `make screens` es la verificación end-to-end real: recorre la app corriendo con
@@ -154,10 +154,12 @@ Mismas versiones que `innk_r5` a propósito: el equipo no cambia de terreno entr
 repos, y mover código de uno a otro es trivial.
 
 **Vue solo donde el estado es del cliente.** Casi todo es server-rendered. Hay
-tres islas, y las tres son editores de listas que se reordenan y validan en
-vivo: el builder del pipeline, el del formulario de postulación y el de
-criterios. Sus props las serializa el server —el fetch queda solo para lo
-interactivo, y la tenencia la garantiza el scope de Ruby.
+cuatro islas: tres son editores de listas que se reordenan y validan en vivo
+—el builder del pipeline, el del formulario de postulación y el de
+criterios—, y la cuarta son los ajustes de un módulo, que renderiza el
+esquema de configuración de cada `kind` sin guardado propio. Sus props las
+serializa el server —el fetch queda solo para lo interactivo, y la tenencia
+la garantiza el scope de Ruby.
 
 **Y las pantallas se actualizan sin recargarse.** Turbo 8 con
 `turbo-refresh-method: morph`: un POST que vuelve a la misma pantalla —que es lo

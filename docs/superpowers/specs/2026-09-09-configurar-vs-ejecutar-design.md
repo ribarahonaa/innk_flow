@@ -1,6 +1,6 @@
 # Configurar y ejecutar: dos caras de la pantalla del módulo
 
-> Estado: diseño aprobado, sin implementar.
+> Estado: implementado.
 > Rama sugerida: `configurar-vs-ejecutar`, encima de `rediseno-tailwind`.
 
 ## El problema
@@ -294,10 +294,28 @@ navegación **por link** desde el builder — que es justo el camino nuevo, y un
 
 ## Decisiones abiertas
 
-Una, y es de alcance: **si la biblioteca de criterios cuenta como «vista de
-configuración»** a los efectos del requisito de 5. Está diseñado asumiendo que no
-—es el CRUD de otro objeto, para reusar sets entre desafíos— y se implementa así
-salvo que se diga lo contrario.
+Ninguna sigue abierta. Quedan anotadas cómo se resolvieron.
+
+**Si la biblioteca de criterios cuenta como «vista de configuración»** (la
+única que era de alcance): no. Se implementó como estaba diseñado —es el CRUD
+de otro objeto, para reusar sets entre desafíos distintos— y la guarda de 5 lo
+confirma: `data-island="criteria-editor"` aparece en la cara del módulo y en
+`criteria_sets/_form`, nada más (`spec/lint/una_vista_de_configuracion_spec.rb`).
 
 Cerrada: uniformar el candado del formulario a `touched?` se resolvió a favor de
 conservar su regla fina (ver 6).
+
+**Una tercera, que este documento no se planteó y apareció al implementar 5:**
+borrar `GET /challenges/:id/criteria` —el índice de TODOS los módulos que
+puntúan o filtran a la vez, con pesos, biblioteca-vs-propio y congelado, de un
+vistazo— se llevó puesta una pantalla que hoy no reemplaza ninguna otra. No
+estaba en la tabla de «Lo que desaparece»: se sumó porque `Flow::Setup` usaba
+ese índice para el paso «Los criterios», y con el flujo ya listando los
+módulos y llevando a cada uno, el índice era una sexta pantalla de
+configuración redundante. Antes de borrarlo se leyó a conciencia por si hacía
+algo que ninguna pantalla de módulo hace sola —y sí: comparaba de un vistazo
+qué puntúa cada módulo del desafío, cosa que hoy no se puede ver sin entrar
+módulo por módulo—. Se aceptó la pérdida a sabiendas, con la alternativa
+(conservarlo como índice de sólo lectura) puesta por escrito y descartada.
+Recuperarla es revertir el borrado de `ChallengeCriteriaController` y su
+vista.

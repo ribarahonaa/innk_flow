@@ -42,7 +42,7 @@ No hay linter configurado.
 **`make screens` es la verificación end-to-end real**, no un extra. Recorre la
 app corriendo con un navegador y falla si hay error de JS, HTTP >= 400, si
 queda un `.island-placeholder` sin montar o si una clase quedó **sin ninguna
-regla detrás** porque Tailwind no la vio al escanear —eso se revisa en las 30
+regla detrás** porque Tailwind no la vio al escanear —eso se revisa en las 35
 pantallas, no en algunas: vive en `capturar()`—. Corrélo después de tocar
 vistas, islas o CSS — un bug de Vue no lo atrapa ningún spec de Ruby (un
 `__VUE_OPTIONS_API__` mal puesto dejó el builder en blanco y la suite en verde).
@@ -55,6 +55,17 @@ Al escribir capturas nuevas en `script/capture_screens.js`:
   calma antes de que Turbo ponga el body nuevo, y la captura sale de la
   pantalla anterior.
 - Las islas exponen `data-island-mounted="true"` como señal determinista.
+- **Nunca apuntes una captura a un desafío que también se usa a mano**
+  (`onboarding-remoto`, `optimizacion-de-la-experiencia-de-onboarding`): no
+  vive en `db/seeds.rb`, así que un `goto` ahí revienta en cualquier entorno
+  recién sembrado, y aunque viva en el seed, compartirlo con pruebas manuales
+  rompe la corrida en cuanto alguien le toca algo (`3e437d6`, pagado dos
+  veces con `onboarding-remoto`). `sin-formulario` existe **solo** para el
+  recorrido —y esta rama reintrodujo el antipatrón de todas formas, dos veces
+  (`04f2d00`, y de nuevo en la Task 11 antes de que la revisión lo cortara)—.
+  Hoy siembra los cinco `kind` pendientes y un set de criterios inline en su
+  módulo de selección (`db/seeds.rb:360` en adelante), del que dependen varias
+  capturas de las dos caras.
 
 **Los system specs con navegador no cubren el recorrido.** Los servicios usan
 `with_lock` (SELECT FOR UPDATE) y eso deadlockea contra el pool compartido de
@@ -108,7 +119,7 @@ opción es agregar una línea al esquema, sin tocar Vue.
 
 | Archivo | Qué declara | Quién lo consume |
 |---|---|---|
-| `Flow::StepSettings` | Qué configura cada `kind` de módulo | panel del builder |
+| `Flow::StepSettings` | Qué configura cada `kind` de módulo | la cara de configuración del módulo, isla `step-settings` |
 | `Flow::CriterionSettings` | Qué parámetros pide cada verificación y cada escala | editor de criterios |
 | `Flow::FlowTemplates` | Puntos de partida del flujo | creación del desafío y builder vacío |
 
@@ -388,22 +399,84 @@ Tres cosas que no son obvias:
   (`shouldCacheSnapshot = formSubmission.isSafe`), así que `turbo:before-cache`
   no se dispara y no sirve para desmontar nada en el camino que importa.
   `islands.js` también escucha `turbo:before-render`.
-- **El morph no rompe las islas**, medido en las dos pantallas donde una
-  sugerencia de IA vuelve a la misma URL (`/challenges/:id/form` y los
-  criterios del módulo): reemplaza el contenedor entero y `turbo:load` vuelve a
-  montar con las props nuevas. `make screens` lo verifica sin gastar una
-  llamada al proveedor, pidiendo a mano la misma navegación.
+- **El morph no rompe las islas**, medido en la cara de configuración de
+  Idear —la pantalla del módulo que hoy monta el editor de formulario,
+  destino del redirect 301 que dejó `/challenges/:id/form`—: reemplaza el
+  contenedor entero y `turbo:load` vuelve a montar con las props nuevas.
+  `make screens` lo verifica sin gastar una llamada al proveedor
+  (`revisarMorphing` en `script/capture_screens.js`), pidiendo a mano la misma
+  navegación.
+
+### Configurar y ejecutar son dos caras de la misma pantalla
+
+`StepsController#show` despacha por `step.touched?`: pendiente renderiza
+`steps/config/<kind>` —la configuración entera del módulo—, tocado renderiza
+`steps/<kind>` —el trabajo, con la configuración como resumen con candado—.
+
+La cara la decide el MÓDULO y no el desafío: uno en curso sigue teniendo
+módulos pendientes más adelante, y ésos son configurables. Es la misma regla
+que `insertion_floor`.
+
+**Un módulo se configura en UN solo lugar.** Estuvo repartido en seis
+pantallas que se sumaron de a una, cada una razonable por su cuenta, y
+configurar exigía rebotar entre todas. Hay guarda:
+`spec/lint/una_vista_de_configuracion_spec.rb` cuenta declaraciones de isla.
+
+**El builder es dueño del ARMADO, no de la configuración.** Manda kind, orden,
+alta y baja; no manda `settings`, `criteria_set_id` ni `source_step_id`. Si los
+mandara, guardar el flujo con props cargadas antes revertiría lo configurado, y
+`lock_version` no lo ataja: es del desafío, y un PATCH al módulo no lo
+incrementa.
+
+Tres cosas NO se congelan al arrancar y la cara B las muestra como vivas:
+el nombre, el modo de IA (`ADJUSTABLE_ATTRIBUTES`) y las asignaciones.
+
+El formulario de postulación tiene un candado más fino que `touched?`:
+`ideas.submitted.exists?`. Con el módulo abierto pero sin postulaciones,
+corregir el label de un campo es sano. Por eso su editor aparece en las dos
+caras.
+
+**La guarda de permiso vive en la VISTA, no en el controller.** Un editor o un
+bloque de controles que antes vivía en pantalla propia —con su propio
+controller pidiendo `manage_criteria?`, `manage_form?`— pasa a embeberse en la
+pantalla del módulo, que sirve `ChallengeStepPolicy#show?`: cualquiera de la
+empresa. Heredar ese permiso amplio sin poner uno más estricto en el partial
+deja la isla y los botones montados para quien no puede usarlos, y apretarlos
+rebota en un 403 — el mismo control-que-no-responde que esta rama entera
+existe para arreglar, ahora adentro de la pantalla que se supone lo soluciona.
+El mismo defecto apareció así de repetido: primero el form completo de
+`steps/config/_modulo` se servía sin ninguna policy; después, en
+`_criterios_editor`, el panel de sugerencias de IA quedó afuera de la guarda
+que sí envolvía el resto. La forma que quedó, en `_criterios_editor.html.haml`
+y `_campos_editor.html.haml`: **un solo `if` que envuelve todo menos el
+encabezado**, no guardas sueltas por bloque — una guarda que se olvida se
+encuentra más fácil que dos. Cuál predicado según qué bloque:
+`configure?` para los ajustes del módulo y para sus criterios, `manage_form?`
+para los campos del formulario, `manage_assignments?` para quién evalúa y
+cuánto pesa.
+
+**Borrar o mudar una pantalla de configuración le puede sacar el sonido a
+`Flow::Setup`.** El paso a paso apunta cada paso a una URL (`Flow::Setup::Step#path`)
+y `setup_nav`/`setup_progress` sólo los pinta si el que los renderiza declara
+el `current:` que les toca; mudar o borrar la pantalla que lo hacía deja el
+paso vivo en la lista pero sin ningún «siguiente →» que lo ofrezca. Pasó con
+el paso `:form` al mudarlo a la cara del módulo, y de nuevo con `:criteria` al
+borrar su índice — **las dos veces `make spec` y `make screens` quedaron en
+verde igual**, porque ninguna aserción existente miraba el pie del paso a
+paso en la pantalla que se había quedado sin su render. Quien borre o mude una
+pantalla de configuración tiene que revisar `Flow::Setup` y los renders de
+`setup_nav`/`setup_progress` a mano, no confiar en la suite para que avise.
 
 ### Islas Vue
 
-Tres: `pipeline_builder`, `form_editor`, `criteria_editor`. Se montan con
-`app/javascript/islands.js`, que cubre `DOMContentLoaded`, `turbo:load` y el
-script que llega tarde, y desmonta en `turbo:before-cache`.
+Cuatro: `pipeline_builder`, `form_editor`, `criteria_editor`, `step_settings`.
+Se montan con `app/javascript/islands.js`, que cubre `DOMContentLoaded`,
+`turbo:load` y el script que llega tarde, y desmonta en `turbo:before-cache`.
 
 Las props las serializa el **server** (`PipelinePresenter`,
-`CriteriaSetPresenter`) y viajan en un `data-props`: una vuelta de red menos y
-la tenencia la garantiza el scope de Ruby, no una ruta JSON que alguien podría
-olvidar scopear.
+`CriteriaSetPresenter`, `StepSettingsPresenter`) y viajan en un `data-props`:
+una vuelta de red menos y la tenencia la garantiza el scope de Ruby, no una
+ruta JSON que alguien podría olvidar scopear.
 
 **Las props son el estado INICIAL, no el estado.** Vue no hace reactivas las
 props de la raíz: mutarlas cambia los datos y **no redibuja nada**. Copiá a
@@ -412,9 +485,13 @@ mutaba sus props (`steps.push`, `steps.splice`) y por eso agregar, quitar y
 reordenar módulos no se veían — y el segundo clic en una tarjeta fantasma
 reventaba con «Cannot read properties of undefined».
 
-Cada isla guarda la **lista completa** contra su API (`PUT`), y el server
-reconcilia. No agregues un segundo camino de escritura (nested attributes,
-endpoints por fila): la pantalla de criterios los tenía y se sacó.
+Las primeras tres guardan la **lista completa** contra su API (`PUT`), y el
+server reconcilia. No agregues un segundo camino de escritura (nested
+attributes, endpoints por fila): la pantalla de criterios los tenía y se
+sacó. `step-settings` es la excepción: no tiene guardado propio, renderiza sus
+campos DENTRO del `form_with` de Rails de `steps/config/_modulo` y viaja en el
+mismo PATCH que el nombre y el modo de IA — un solo botón, un solo endpoint
+(`steps#update`).
 
 Cuidado con `.compact` sobre el hash de un step en el presenter: se lleva puesto
 `aiMode: nil`, que significa «heredá el modo del desafío» y no es lo mismo que
