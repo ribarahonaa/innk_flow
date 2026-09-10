@@ -11,10 +11,27 @@ y ninguna era la del módulo. El detalle de cómo quedó armado ya está en
 
 ## Estado actual
 
-**Rama terminada, veredicto mergeable.** Las 13 tareas del plan (más la Task
-14, insertada por decisión del usuario) están cerradas, cada una con su
+**Rama terminada, revisada, mergeada y pusheada.** Las 13 tareas del plan (más
+la Task 14, insertada por decisión del usuario) están cerradas, cada una con su
 revisión y su ronda de arreglos. Corrió además una revisión amplia de toda la
 rama, con una única ola de arreglos y su re-revisión, ya aplicada.
+
+Cerrada con `superpowers:finishing-a-development-branch`: merge fast-forward a
+`rediseno-tailwind`, suite y capturas verificadas **sobre el resultado
+mergeado**, y `configurar-vs-ejecutar` borrada con `-d` (sin forzar) una vez
+contenida en la base y pusheada. Local y `origin` quedaron 0/0.
+
+Después del merge se sumó un commit que la rama no había tocado: **los dos
+diagramas de `docs/` estaban viejos** y ninguna tarea del plan los tenía en su
+lista de archivos. Se corrigieron tres hechos —las islas Vue son cuatro y no
+tres; lo ajustable con el módulo en curso son tres cosas y no dos (nombre, modo
+de IA y asignaciones); «Formulario y criterios» figuraba como etapa aparte del
+recorrido, que es justo el reparto en pantallas sueltas que esta rama
+eliminó— y se regeneraron los dos HTML con archify (showcase, 9/9 checks, cero
+warnings). Al hacerlo se pegó contra la trampa que `CLAUDE.md` documenta
+(`composition/desktop-readability` a 1440px): se resolvió ensanchando el nodo de
+170 a 200 —el ancho que ya tenían los otros ocho— y recién después acortando
+«formulario» a «campos».
 
 - `make spec`: **756 ejemplos, 0 fallas, 0 pending.**
 - `make screens`: **35 capturas.**
@@ -198,8 +215,13 @@ tareas escriben `script/capture_screens.js`.
 
 ## Próximos pasos
 
-1. **`superpowers:finishing-a-development-branch`** — es el paso que sigue
-   según el plan; la rama ya está en veredicto mergeable.
+1. **Dos restos de limpieza, ninguno bloqueante:**
+   - `origin/configurar-vs-ejecutar` sigue viva en GitHub. Todos sus commits
+     están contenidos en `rediseno-tailwind` y pusheados, así que borrarla no
+     pierde nada: `git push origin --delete configurar-vs-ejecutar`.
+   - El workspace del SDD (`.superpowers/sdd/2026-09-09-configurar-vs-ejecutar/`,
+     gitignored) quedó en disco con el ledger y los 14 reportes de tarea. Todo
+     lo que había que conservar de ahí está en este archivo; se puede borrar.
 2. **Cuatro minors, parkeados sin segunda ola por regla del proceso** (una
    ola de arreglos por revisión final, ya usada):
    - `app/lib/flow/step_settings.rb:206-213` — el comentario dice que las
