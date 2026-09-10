@@ -95,7 +95,7 @@ module Flow
 
       Step.new(key: :form, label: "El formulario",
                hint: fields.positive? ? "#{Flow::Texto.contar(fields, "campo")}" : "nadie puede postular",
-               path: ideation ? routes.challenge_form_path(challenge) : routes.builder_challenge_path(challenge),
+               path: ideation ? routes.challenge_step_path(challenge, ideation) : routes.builder_challenge_path(challenge),
                status: fields.positive? ? :done : :pending, blocking: ideation.present?)
     end
 
@@ -108,9 +108,23 @@ module Flow
 
       Step.new(key: :criteria, label: "Los criterios",
                hint: criteria_hint(scorers, propios),
-               path: routes.challenge_criteria_path(challenge),
+               path: criteria_path(scorers),
                status: criteria_status(scorers, propios),
                blocking: false)
+    end
+
+    # Al primer módulo que puntúa, que es donde los criterios se configuran de
+    # verdad (`steps/config/evaluation` y `.../selection`). Un índice aparte
+    # sería una sexta pantalla de configuración —lo que este paso a paso
+    # existe para evitar—, y apuntar al builder en su lugar (como hace
+    # `flow_step`) deja al paso a paso en un ida y vuelta: el pie del
+    # formulario ofrece «Los criterios →» hacia el builder, y el del builder
+    # ofrece «El formulario →» de vuelta. Revisar nunca se alcanza. Por eso
+    # el builder queda solo como el fallback de `form_step`, para cuando
+    # todavía no hay módulo que puntúe.
+    def criteria_path(scorers)
+      primero = scorers.first
+      primero ? routes.challenge_step_path(challenge, primero) : routes.builder_challenge_path(challenge)
     end
 
     # Sin flujo este paso todavía no se puede contestar: los criterios son de

@@ -93,6 +93,31 @@ RSpec.describe "las dos caras de un módulo", type: :request do
       end
     end
 
+    # `challenge_criteria/show` (el índice borrado) era la única pantalla que
+    # renderizaba `shared/setup_nav` con `current: :criteria`. Embeber los
+    # criterios en `steps/config/evaluation` y `.../selection` sin sumar ese
+    # render dejaba el paso a paso sin «siguiente →» ahí también — el mismo
+    # agujero que ya se pagó una vez para el formulario (ver el test de abajo
+    # sobre Idear). El desafío de arriba ya tiene flujo Y formulario, así que
+    # su paso a paso está `ready?` y el pie ofrece «Arrancar» en vez de un
+    # link con flecha — se prueba sobre un desafío SIN formulario todavía,
+    # donde sigue habiendo algo pendiente antes de arrancar y el pie tiene que
+    # decir a dónde seguir.
+    it "el pie del paso a paso sigue ofreciendo el siguiente paso en los criterios" do
+      sin_formulario = as_company(company) do
+        c = create(:challenge, name: "Sin formulario todavía")
+        c.steps.create!(kind: "ideation", position: 1)
+        c.steps.create!(kind: "evaluation", position: 2, name: "Técnica")
+        c
+      end
+      tecnica = as_company(company) { sin_formulario.steps.reload.find(&:evaluation?) }
+
+      get challenge_step_path(sin_formulario, tecnica)
+
+      expect(response.body).to include('<div class="setup-nav">')
+      expect(response.body).to include("→")
+    end
+
     it "la pantalla suelta de criterios redirige al módulo" do
       get challenge_step_criteria_path(challenge, paso("selection"))
 

@@ -38,6 +38,9 @@ RSpec.describe Flow::Setup do
 
       expect(step(:criteria)).to be_done
       expect(step(:criteria).hint).to eq("ningún módulo puntúa ni filtra")
+      # Sin ningún módulo que puntúe no hay a dónde llevar: cae al builder,
+      # igual que el formulario sin ideación.
+      expect(step(:criteria).path).to eq(builder_challenge_path(challenge))
     end
 
     it "no está listo para arrancar, y dice por qué" do
@@ -64,8 +67,13 @@ RSpec.describe Flow::Setup do
       expect(setup.blockers.map(&:key)).to eq([:form])
     end
 
-    it "el paso del formulario lleva a su pantalla" do
-      expect(step(:form).path).to eq(challenge_form_path(challenge))
+    # Antes llevaba a `form_fields#show`, que hoy sólo redirige acá: el
+    # formulario se edita en la pantalla del módulo de idear, no en una
+    # pantalla suelta.
+    it "el paso del formulario lleva al módulo de idear, no a una pantalla suelta" do
+      idear = challenge.steps.find(&:ideation?)
+
+      expect(step(:form).path).to eq(challenge_step_path(challenge, idear))
     end
 
     # Sin set propio se usan los genéricos: es una decisión válida, no un
@@ -77,11 +85,17 @@ RSpec.describe Flow::Setup do
       expect(step(:criteria).hint).to eq("0 de 1 módulos definidos")
     end
 
-    # Antes llevaba al PRIMER módulo sin criterios. No se veía cuántos módulos
-    # puntúan ni en cuál estabas, y al volver atrás aterrizabas en otro porque
-    # «el primero sin resolver» había cambiado.
-    it "el paso de criterios lleva al índice de los módulos, no a uno" do
-      expect(step(:criteria).path).to eq(challenge_criteria_path(challenge))
+    # El índice aparte (`challenge_criteria_path`) se borró: duplicaba lo que
+    # ya hace el flujo, que lista los módulos y ahora lleva a cada uno.
+    # Apuntar al builder en su lugar dejaba al paso a paso en un ida y vuelta
+    # sin salida: el pie del formulario ofrece «Los criterios →» hacia el
+    # builder, y el del builder ofrece «El formulario →» de vuelta — Revisar
+    # nunca se alcanza. Por eso va DIRECTO al primer módulo que puntúa, que es
+    # donde los criterios se configuran de verdad.
+    it "el paso de criterios lleva al módulo que puntúa, no a un índice aparte" do
+      tecnica = challenge.steps.find(&:evaluation?)
+
+      expect(step(:criteria).path).to eq(challenge_step_path(challenge, tecnica))
     end
 
     it "y la pista habla de MÓDULOS, que es lo que se cuenta" do

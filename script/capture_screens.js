@@ -230,7 +230,6 @@ async function shot(page, name, url, prepare) {
   for (const url of ['/challenges/sin-formulario',
                      '/challenges/sin-formulario/builder',
                      '/challenges/sin-formulario/form',
-                     '/challenges/sin-formulario/criteria',
                      '/challenges/sin-formulario/preview']) {
     await page.goto(BASE + url, { waitUntil: 'networkidle' });
     if (await page.locator('.setup__step').count() !== 6) {
@@ -239,8 +238,43 @@ async function shot(page, name, url, prepare) {
     }
   }
   await shot(page, '03c-paso-a-paso', '/challenges/sin-formulario/form');
-  await shot(page, '03d-criterios-indice', '/challenges/sin-formulario/criteria');
   await shot(page, '04-challenge', `/challenges/${CHALLENGE}`);
+
+  // El índice de criterios (`/criteria`) se borró: duplicaba lo que ya hace
+  // el flujo, que lista los módulos y ahora lleva a cada uno. El paso «Los
+  // criterios» del paso a paso manda directo al módulo que puntúa, que es la
+  // pantalla donde se configuran de verdad. Se llega por LINK desde el
+  // builder —no con un `goto` directo a `/steps/:id`, que ni siquiera se
+  // podría armar sin conocer el id— porque es la cara de configuración del
+  // módulo, con su propia isla de ajustes.
+  await page.goto(`${BASE}/challenges/sin-formulario/builder`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
+  const evaluacionCard = porTipo(page, 'Evaluación').locator('.step-card__name');
+  if (await evaluacionCard.count()) {
+    await Promise.all([
+      page.waitForURL(/\/steps\/[^/]+$/, { timeout: 15000 }),
+      evaluacionCard.click()
+    ]);
+    await page.waitForSelector('[data-island-mounted="true"]', { timeout: 15000 });
+
+    if (await page.locator('.setup__step').count() !== 6) {
+      failures++;
+      console.error('[SETUP] falta el paso a paso en el módulo de evaluación');
+    }
+    // El índice era la única pantalla que cerraba con el pie del paso a
+    // paso («siguiente →») para el paso de los criterios. Sin este render en
+    // `steps/config/evaluation`/`.../selection`, el paso a paso queda sin
+    // «siguiente» justo ahí — un indicador, no un recorrido.
+    if (!(await page.locator('.setup-nav').count())) {
+      failures++;
+      console.error('[SETUP] el módulo de evaluación perdió el pie del paso a paso (setup_nav)');
+    }
+
+    await capturar(page, '03d-criterios-modulo');
+  } else {
+    failures++;
+    console.error('[LINK] «sin-formulario» no tiene módulo de evaluación');
+  }
 
   // El builder es una isla Vue, y se llega NAVEGANDO POR EL LINK, no con un
   // goto directo.

@@ -2414,41 +2414,6 @@ turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
   &:hover { border-color: var(--borde); }
 }
 
-/* ── Índice de módulos que puntúan o filtran ───────────────────────────────── */
-.scorer-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-
-.scorer {
-  padding: 16px 18px;
-  background: var(--surface);
-  border: 1px solid var(--borde);
-  border-radius: var(--radius);
-}
-
-.scorer--pending { border-left: 3px solid var(--warn); }
-
-.scorer__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.scorer__name { font-weight: 600; font-size: 15px; }
-
-.scorer__kind {
-  margin-left: 8px;
-  padding: 1px 8px;
-  border-radius: 99px;
-  background: var(--bg);
-  border: 1px solid var(--borde);
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.scorer__origin { margin: 0 0 8px; font-size: 12.5px; }
-.scorer__actions { margin-top: 12px; }
-
 /* Selector de cantidad dentro de una acción de IA. */
 .ai-actions__form {
   display: flex;

@@ -66,9 +66,6 @@ Rails.application.routes.draw do
     # Quiénes acompañan la evolución de las ideas de ESTE desafío.
     resources :gestores, only: %i[create destroy], controller: "challenge_gestores"
 
-    # Índice de los módulos que puntúan o filtran, con el estado de cada uno.
-    resource :criteria, only: %i[show], controller: "challenge_criteria"
-
     # El formulario de postulación del desafío (vive en su módulo de ideación).
     resource :form, only: %i[show], controller: "form_fields" do
       post :seed_defaults
