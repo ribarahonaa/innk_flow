@@ -364,6 +364,11 @@ Flow::Tenant.bypass! do
     # capturas dependían de un desafío que además se usa para probar a mano,
     # bastaba con que alguien le aplicara una propuesta de IA para que la
     # corrida fallara por datos y no por código. Pasó dos veces.
+    #
+    # Tiene los CINCO `kind` pendientes —no solo idear y evaluación— porque
+    # las capturas de «las dos caras» recorren la cara de configuración de
+    # cada tipo de módulo, y esa cara de evaluación/evolución pendiente no
+    # tenía ningún desafío sembrado que la ofreciera.
     Challenge.where(slug: "sin-formulario").destroy_all
     sin_formulario = Challenge.create!(
       slug: "sin-formulario",
@@ -372,9 +377,37 @@ Flow::Tenant.bypass! do
              "Buscamos ideas para repartir la demanda sin ampliar el espacio.",
       ai_default_mode: "ai_assisted"
     )
-    [["ideation", "Postulación"], ["evaluation", "Primera revisión"]].each do |kind, name|
+    [
+      ["ideation", "Postulación"],
+      ["evolution", "Ronda de feedback"],
+      ["evaluation", "Primera revisión"],
+      ["selection", "Selección para pilotear"],
+      ["reporting", "Reporte de cierre"]
+    ].each do |kind, name|
       sin_formulario.pipeline.insert(kind: kind, after: :end, name: name)
     end
+
+    # El de selección se siembra con un set INLINE de verdad —no de la
+    # biblioteca—: la captura `09-12-criterios-del-modulo` fotografía el
+    # editor de criterios embebido, y ese editor solo monta con un set propio
+    # (`step.criteria_set&.library? ? nil : step.criteria_set` en
+    # `steps/_criterios_editor.html.haml`). Va en el de SELECCIÓN y no en el
+    # de evaluación: ese último lo usa `03d-paso-a-paso-criterios` para
+    # verificar justo el estado VACÍO («Usar los tres genéricos…») — ponerle
+    # criterios propios ahí le taparía lo que esa captura prueba.
+    seleccion = sin_formulario.pipeline.steps.find { |s| s.kind == "selection" }
+    filtros_comedor = CriteriaSet.create!(
+      name: "Criterios de «#{seleccion.name}»", scope: "inline", owner_step_id: seleccion.id,
+      description: "Condiciones mínimas para que una idea se pueda pilotear en el comedor."
+    )
+    [
+      { name: "No requiere obra", key: "sin_obra", weight: 0.5, source: "manual",
+        scale_type: "boolean", description: "Se puede probar sin modificar el espacio físico." },
+      { name: "Piloteable en dos semanas", key: "piloteable_dos_semanas", weight: 0.5, source: "manual",
+        scale_type: "boolean", description: "Se arma un piloto en menos de dos semanas." }
+    ].each_with_index { |attrs, index| filtros_comedor.criteria.create!(**attrs, position: index) }
+    filtros_comedor.refresh_status!
+    seleccion.update!(criteria_set_id: filtros_comedor.id)
 
     # Un desafío SIN módulos, para la captura del selector de plantillas.
     # Antes el script de capturas creaba uno en cada corrida y no lo borraba:

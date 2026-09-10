@@ -391,7 +391,10 @@ async function shot(page, name, url, prepare) {
   // `step.touched?`). La de EJECUCIÓN (`steps/<kind>`) ya la recorre el loop
   // de más abajo sobre cada módulo tocado de `${CHALLENGE}`; la de
   // CONFIGURACIÓN (`steps/config/<kind>`) no tenía ningún módulo de
-  // evaluación ni de evolución fotografiado — deuda que dejó la Task 8.
+  // EVOLUCIÓN fotografiado en ningún desafío sembrado — deuda que dejó la
+  // Task 8. (La de evaluación pendiente ya se rozaba de rebote en
+  // `03d-paso-a-paso-criterios`, sobre su estado vacío; este bloque la cubre
+  // también, con datos, para las cinco por igual.)
   //
   // Se llega por LINK, no con un goto directo a `/steps/:id`: un goto monta
   // la isla `step-settings` igual y esconde el mismo bug que ya escondió una
@@ -404,10 +407,11 @@ async function shot(page, name, url, prepare) {
   // verifica ANTES de clickear para no confundir una cara con la otra si los
   // datos sembrados cambiaran.
   //
-  // «optimizacion-de-la-experiencia-de-onboarding» es un borrador con los
-  // cinco tipos pendientes (dos de evaluación, dos de evolución, dos de
-  // selección): se navega tal cual está, sin tocarlo — mismo trato que ya le
-  // da la captura de criterios de más abajo.
+  // «sin-formulario» y no un desafío hecho a mano: existe SOLO para las
+  // capturas (ver `db/seeds.rb`) y tiene los cinco `kind` pendientes. Un
+  // desafío que además se usa para probar la app rompió esto mismo dos veces
+  // (`3e437d6`) — cualquier `goto` a un slug que no siembra `db/seeds.rb`
+  // revienta en un entorno recién sembrado, no solo acá.
   //
   // El nombre de cada captura va por TIPO, no por posición: la posición es
   // mutable por diseño (`decimal(20,10)`, insertar entre A y B es `(a+b)/2`)
@@ -422,7 +426,7 @@ async function shot(page, name, url, prepare) {
   ];
 
   for (const [label, slug] of CARAS_DE_CONFIGURACION) {
-    await page.goto(`${BASE}/challenges/optimizacion-de-la-experiencia-de-onboarding/builder`, { waitUntil: 'networkidle' });
+    await page.goto(`${BASE}/challenges/sin-formulario/builder`, { waitUntil: 'networkidle' });
     await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
 
     const tarjeta = porTipo(page, label);
@@ -635,12 +639,15 @@ async function shot(page, name, url, prepare) {
   // isla sólo monta cuando hay `set` (ver `steps/_criterios_editor.html.haml`)
   // — sobre un módulo sin criterios propios la captura sólo prueba el estado
   // vacío, que es justo lo que NO justificaba reemplazar el click roto.
-  // «optimizacion-de-la-experiencia-de-onboarding» ya tiene cuatro módulos
-  // así (dos de evaluación, dos de selección); se navega tal cual está, sin
-  // tocarlo.
-  await page.goto(`${BASE}/challenges/optimizacion-de-la-experiencia-de-onboarding`, { waitUntil: 'networkidle' });
+  //
+  // «sin-formulario»: su módulo de SELECCIÓN («Selección para pilotear»)
+  // siembra un set inline (`db/seeds.rb`) sólo para esto. No es el de
+  // evaluación («Primera revisión») porque ESE lo usa
+  // `03d-paso-a-paso-criterios` para probar justo el estado vacío — ponerle
+  // criterios propios ahí taparía lo que esa otra captura verifica.
+  await page.goto(`${BASE}/challenges/sin-formulario`, { waitUntil: 'networkidle' });
   const seleccionLink = page
-    .locator('.step-table tr', { hasText: 'Selección de ideas más prometedoras para profundizar' })
+    .locator('.step-table tr', { hasText: 'Selección para pilotear' })
     .locator('.step-table__link');
   if (await seleccionLink.count()) {
     await Promise.all([
