@@ -39,11 +39,14 @@ RSpec.describe "formulario de postulación", type: :request do
   def api_path = "/api/v1/challenges/#{challenge.slug}/form"
   def json = JSON.parse(response.body)
 
+  # El editor vive embebido en la pantalla del módulo de idear
+  # (`StepsController#show`): la URL propia de acá abajo se borró y
+  # `challenge_form_path` quedó como redirect (ver "la pantalla vieja").
   describe "la pantalla" do
     before { sign_in(owner, company: company) }
 
     it "con el módulo vacío, dice que nadie puede postular y ofrece las dos salidas" do
-      get challenge_form_path(challenge)
+      get challenge_step_path(challenge, step)
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("Todavía no hay campos", "Usar los tres básicos",
@@ -53,7 +56,7 @@ RSpec.describe "formulario de postulación", type: :request do
     it "monta el editor con las props serializadas por el server" do
       as_company(company) { seed_form!(step) }
 
-      get challenge_form_path(challenge)
+      get challenge_step_path(challenge, step)
 
       expect(response.body).to include('data-island="form-editor"')
       expect(response.body).to include("¿Qué problema resuelve?")
@@ -75,18 +78,25 @@ RSpec.describe "formulario de postulación", type: :request do
     end
   end
 
-  describe "desde dónde se llega" do
-    before { sign_in(owner, company: company) }
+  # El formulario se editaba en una pantalla propia. Esta URL vivía en links,
+  # marcadores y `back_url`, así que redirige en vez de dar 404.
+  describe "la pantalla vieja del formulario" do
+    it "redirige a la pantalla del módulo" do
+      sign_in(owner, company: company)
+      get challenge_form_path(challenge)
 
-    it "la pantalla del módulo «Idear» lleva al editor" do
-      as_company(company) do
-        seed_form!(step)
-        challenge.pipeline.start!
-      end
+      expect(response).to redirect_to(challenge_step_path(challenge, step))
+    end
 
-      get challenge_step_path(challenge, step)
+    # `show?`, no `manage_form?`: el destino es la pantalla del módulo, que
+    # cualquiera de la empresa puede ver. Pedir un permiso más estricto que el
+    # del destino le daba 403 a un marcador viejo de alguien que sí puede ver
+    # a dónde lo manda.
+    it "quien participa también sigue el redirect: el candado vive en la pantalla del módulo" do
+      sign_in(participant, company: company)
+      get challenge_form_path(challenge)
 
-      expect(response.body).to include(challenge_form_path(challenge))
+      expect(response).to redirect_to(challenge_step_path(challenge, step))
     end
   end
 
@@ -103,7 +113,7 @@ RSpec.describe "formulario de postulación", type: :request do
     it "se ve en el formulario aunque todavía no haya campos" do
       proponer
 
-      get challenge_form_path(challenge)
+      get challenge_step_path(challenge, step)
       expect(response.body).to include("Propuestas de la IA")
     end
 
@@ -111,19 +121,21 @@ RSpec.describe "formulario de postulación", type: :request do
       as_company(company) { seed_form!(step) }
       proponer
 
-      get challenge_form_path(challenge)
+      get challenge_step_path(challenge, step)
       expect(response.body).to include("Propuestas de la IA")
     end
 
-    # Los campos cuelgan de un módulo, así que redirigir por tipo de objetivo
-    # sacaba del formulario justo al aceptar los campos nuevos.
-    it "aplicarla te deja en el formulario, no en la pantalla del módulo" do
+    # El destino es la pantalla del MÓDULO, no `challenge_form_path`: esa URL
+    # sólo redirige ahí desde que el editor se embebió (Task 7). Apuntar
+    # `accept` a la vieja encadenaba un 302 → 301 de más para llegar al mismo
+    # lugar.
+    it "aplicarla te deja en la pantalla del módulo" do
       proponer
       sugerencia = as_company(company) { AiSuggestion.pending_review.order(:created_at).last }
 
       post accept_ai_suggestion_path(sugerencia)
 
-      expect(response).to redirect_to(challenge_form_path(challenge))
+      expect(response).to redirect_to(challenge_step_path(challenge, step))
       expect(fields).not_to be_empty
     end
 
@@ -133,16 +145,7 @@ RSpec.describe "formulario de postulación", type: :request do
 
       post reject_ai_suggestion_path(sugerencia)
 
-      expect(response).to redirect_to(challenge_form_path(challenge))
-    end
-  end
-
-  describe "quién puede" do
-    it "quien participa, no: el formulario es del dueño del desafío" do
-      sign_in(participant, company: company)
-      get challenge_form_path(challenge)
-
-      expect(response).to have_http_status(:forbidden).or have_http_status(:found)
+      expect(response).to redirect_to(challenge_step_path(challenge, step))
     end
   end
 
@@ -213,7 +216,7 @@ RSpec.describe "formulario de postulación", type: :request do
     end
 
     it "avisa en la pantalla que lo estructural quedó cerrado" do
-      get challenge_form_path(challenge)
+      get challenge_step_path(challenge, step)
       expect(response.body).to include("Ya hay ideas postuladas")
     end
 

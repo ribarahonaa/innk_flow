@@ -145,7 +145,7 @@ class PipelinePresenter
       requiredCount: fields.count(&:required?),
       labels: fields.first(4).map(&:label),
       more: [fields.size - 4, 0].max,
-      editUrl: Rails.application.routes.url_helpers.challenge_form_path(challenge)
+      editUrl: Rails.application.routes.url_helpers.challenge_step_path(challenge, step)
     }
   end
 

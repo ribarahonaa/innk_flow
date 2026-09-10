@@ -2,3 +2,4 @@
 = render "steps/config/shell", step: @step
 = render "shared/setup_progress", challenge: @challenge, current: :form
 = render "steps/config/modulo", step: @step, props: @settings_props
+= render "steps/campos_editor", step: @step, suggestions: @pending_suggestions

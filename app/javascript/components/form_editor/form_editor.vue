@@ -99,7 +99,11 @@
       <span class="editor-actions__spacer"></span>
       <span v-if="dirty" class="muted">Sin guardar</span>
       <span v-else-if="saved" class="muted">Guardado</span>
-      <a :href="urls.back" class="btn btn-ghost">Volver al flujo</a>
+      <!-- Antes `urls.back` era el builder («Volver al flujo» tenía sentido
+           literal); embebido en la pantalla del módulo apunta a esa misma
+           pantalla, así que el texto genérico —igual que `criteria_editor`—
+           no queda desactualizado si el destino vuelve a cambiar. -->
+      <a :href="urls.back" class="btn btn-ghost">Volver</a>
       <button type="button" class="btn btn-primary" :disabled="saving || nothingToSave" @click="save">
         {{ saving ? 'Guardando…' : 'Guardar formulario' }}
       </button>

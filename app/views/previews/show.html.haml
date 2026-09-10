@@ -40,7 +40,7 @@
       - if fields.empty?
         %p.field-hint.field-hint--warn
           Sin campos: nadie puede postular.
-          = link_to "Definir el formulario", challenge_form_path(@challenge), class: "field-hint__link"
+          = link_to "Definir el formulario", challenge_step_path(@challenge, step), class: "field-hint__link"
       - else
         %p.muted Lo que responde quien postula una idea:
         %fieldset.preview-surface{ disabled: true }

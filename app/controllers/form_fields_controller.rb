@@ -9,21 +9,18 @@
 class FormFieldsController < ApplicationController
   before_action :set_context
 
+  # El formulario se edita en la pantalla del módulo de idear. Redirige en vez
+  # de dar 404 por el mismo motivo que los criterios: la URL vive en links y
+  # en marcadores.
+  #
+  # `show?`, no `manage_form?`: el destino es la pantalla del módulo, que
+  # cualquiera de la empresa puede ver. Pedir un permiso más estricto que el
+  # del destino le daba 403 a un marcador viejo de alguien que sí puede ver
+  # a dónde lo manda.
   def show
-    authorize @step, :manage_form?
-    @fields = @step.form_fields.ordered
-    @locked = ideas_submitted?
-    @pending_suggestions = AiSuggestion.pending_review.where(challenge_step_id: @step.id).recent
+    authorize @step, :show?
 
-    # Las props de la isla se serializan acá, con el mismo criterio que el
-    # builder: el server es dueño del payload inicial.
-    @props = {
-      fields: @fields.map { |field| serialize(field) },
-      fieldTypes: FormField::TYPES.map { |t| { value: t, label: I18n.t("flow.field_types.#{t}") } },
-      locked: @locked,
-      urls: { save: api_v1_challenge_form_fields_path(@challenge),
-              back: builder_challenge_path(@challenge) }
-    }
+    redirect_to challenge_step_path(@challenge, @step), status: :moved_permanently
   end
 
   # Siembra los tres campos básicos. Es un atajo, no un comportamiento
@@ -33,10 +30,10 @@ class FormFieldsController < ApplicationController
     authorize @step, :manage_form?
 
     unless FormField.seed_basics!(@step)
-      return redirect_to challenge_form_path(@challenge), alert: "El formulario ya tiene campos."
+      return redirect_to challenge_step_path(@challenge, @step), alert: "El formulario ya tiene campos."
     end
 
-    redirect_to challenge_form_path(@challenge), notice: "Listo: tres campos para empezar."
+    redirect_to challenge_step_path(@challenge, @step), notice: "Listo: tres campos para empezar."
   end
 
   private
@@ -45,13 +42,5 @@ class FormFieldsController < ApplicationController
     @challenge = policy_scope(Challenge).find_by!(slug: params[:challenge_id])
     @step = @challenge.pipeline.ideation_step
     raise ActiveRecord::RecordNotFound if @step.nil?
-  end
-
-  def ideas_submitted? = @challenge.ideas.submitted.exists?
-
-  def serialize(field)
-    { id: field.id, key: field.key, label: field.label, hint: field.hint,
-      fieldType: field.field_type, required: field.required,
-      isTitle: field.title?, options: field.options, answered: field.answered_count }
   end
 end

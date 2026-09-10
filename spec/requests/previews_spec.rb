@@ -89,14 +89,16 @@ RSpec.describe "previsualizar el desafío", type: :request do
   end
 
   it "avisa cuando «Idear» no tiene formulario, con el link para resolverlo" do
-    as_company(company) do
-      challenge.pipeline.ideation_step.form_fields.destroy_all
+    ideation = as_company(company) do
+      step = challenge.pipeline.ideation_step
+      step.form_fields.destroy_all
+      step
     end
 
     get challenge_preview_path(challenge)
 
     expect(response.body).to include("Sin campos: nadie puede postular")
-    expect(response.body).to include(challenge_form_path(challenge))
+    expect(response.body).to include(challenge_step_path(challenge, ideation))
   end
 
   it "un desafío sin módulos lo dice, en vez de mostrar una página vacía" do

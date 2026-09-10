@@ -1,0 +1,83 @@
+-# El editor de campos del formulario de postulación, embebido en la
+-# pantalla del módulo de idear.
+-#
+-# Antes era pantalla propia (`form_fields/show`). Vive acá por la misma razón
+-# que el editor de criterios: configurar un módulo exigía rebotar a una
+-# pantalla que no era la del módulo.
+-#
+-# La pantalla vieja la autorizaba el CONTROLLER con `manage_form?`, así que
+-# sólo la veía quien administra. Embebido en una pantalla que cualquiera de
+-# la empresa puede ver (`ChallengeStepPolicy#show?`), el permiso tiene que
+-# vivir en la VISTA: mismo criterio que `_criterios_editor`. Sin esto, un
+-# participante recibía la isla entera —con el botón «Usar los tres
+-# básicos»— y el panel de sugerencias de IA con «Aplicar»/«Descartar», que le
+-# rebotaban 403 al apretarlos. Por eso TODO lo que no sea el encabezado vive
+-# detrás de un único `if puede_configurar`.
+-#
+-# Su candado NO es `touched?` sino `ideas.submitted.exists?`, que es más fino
+-# y se conserva: con el módulo ya abierto pero sin ninguna postulación,
+-# corregir el label de un campo es sano y no reescribe nada. Por eso este
+-# partial también se renderiza en la cara de ejecución
+-# (`steps/ideation.html.haml`) y no sólo en la de configuración.
+- campos = step.form_fields.ordered
+- bloqueado = step.challenge.ideas.submitted.exists?
+- props = { fields: campos.map { |f| form_field_json(f) },
+            fieldTypes: FormField::TYPES.map { |k| { value: k, label: t("flow.field_types.#{k}") } },
+            locked: bloqueado,
+            urls: { save: api_v1_challenge_form_fields_path(step.challenge),
+                    back: challenge_step_path(step.challenge, step) } }
+- puede_configurar = policy(step).manage_form?
+
+.card
+  .section-head
+    %h2.section-title Formulario de postulación
+  %p.muted Estos son los campos que responde quien postula.
+
+- if puede_configurar
+  -# `form_fields/show` era una de las dos únicas pantallas que mostraban
+  -# esto para un módulo. Borrarla sin más dejaba una sugerencia PENDIENTE DE
+  -# REVISIÓN sobre un módulo sin ningún lugar donde verse. Sólo se pasa
+  -# `suggestions` desde la cara de configuración: la de ejecución
+  -# (`steps/ideation.html.haml`) ya renderiza el mismo marco con TODAS las
+  -# sugerencias del módulo, y repetirlo acá lo duplicaría.
+  - if local_assigns[:suggestions]
+    = render "shared/ai_suggestions", suggestions: suggestions
+
+  - if bloqueado
+    .flash.flash--warn
+      Ya hay ideas postuladas. Podés cambiar etiquetas, ayudas, obligatoriedad y orden, pero no el tipo ni la clave de un campo, ni quitarlo: las respuestas ya guardadas quedarían huérfanas.
+
+  - if campos.empty?
+    .card
+      %h2.section-title Todavía no hay campos
+      %p.muted Sin formulario nadie puede postular. Empezá con los básicos, pedile una propuesta a la IA, o armalo a mano.
+      .report-actions
+        = button_to "Usar los tres básicos", seed_defaults_challenge_form_path(step.challenge), class: "btn btn-primary btn-sm"
+        = render "shared/ai_actions", challenge: step.challenge, mode: step.effective_ai_mode, always: true,
+                 actions: [{ label: "Proponer campos con IA", purpose: "suggest_form_fields", step_id: step.id }]
+  - else
+    .card
+      = render "shared/ai_actions", challenge: step.challenge, mode: step.effective_ai_mode, always: true,
+               actions: [{ label: "Rehacer el formulario con IA", purpose: "suggest_form_fields", step_id: step.id }]
+
+  %div{ "data-island": "form-editor", data: { props: props.to_json } }
+    .card.island-placeholder
+      %p.muted Cargando el editor…
+
+  = javascript_include_tag "packs/form_editor", defer: true, nonce: content_security_policy_nonce
+- else
+  -# Sin `manage_form?`: la lista de campos tal cual la ve quien postula, sin
+  -# ningún control para actuar sobre ellos.
+  .card
+    - if campos.any?
+      %ul.field-list
+        - campos.each do |field|
+          %li.field-list__item
+            %span.field-list__label
+              = field.label
+              - if field.required
+                %span.field-list__req *
+            %span.field-list__type= field.type_label
+    - else
+      %p.muted Todavía no hay campos.
+    %p.field-hint.field-hint--warn 🔒 Sólo quien administra el desafío puede cambiar esto.

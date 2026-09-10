@@ -17,23 +17,7 @@
 
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 
-.card
-  .section-head
-    %div
-      %h2.section-title Formulario de postulación
-      %p.muted Estos son los campos que responde quien postula.
-    - if policy(@step).manage_form?
-      = link_to "Editar el formulario", challenge_form_path(@step.challenge), class: "btn btn-ghost btn-sm"
-  = render "shared/ai_actions", challenge: @step.challenge, mode: @step.effective_ai_mode,
-           actions: [{ label: "Proponer campos", purpose: "suggest_form_fields", step_id: @step.id }]
-  %ul.field-list
-    - @handler.form_fields.each do |field|
-      %li.field-list__item
-        %span.field-list__label
-          = field.label
-          - if field.required
-            %span.field-list__req *
-        %span.field-list__type= field.type_label
+= render "steps/campos_editor", step: @step
 
 .card
   %h2.section-title

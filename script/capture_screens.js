@@ -271,9 +271,11 @@ async function shot(page, name, url, prepare) {
     console.error('[ISLA] el builder no montó: quedó "Cargando el editor de flujo…"');
   }
 
-  // El formulario de postulación: se llega desde la PANTALLA del módulo
-  // «Idear» —ya no desde un panel del builder, que es lo que sacó esta
-  // tarea— por el link nuevo: la tarjeta ENTERA es el link a su pantalla
+  // El formulario de postulación: ya no vive en una pantalla propia
+  // (`form_fields/show`, que redirige a ésta) — la tarea «los campos del
+  // formulario, embebidos» lo sumó a la pantalla del módulo «Idear», la
+  // misma cara de ejecución que ya se estaba mirando. Ni un link ni un clic
+  // de más: se llega por la tarjeta ENTERA, que es el link a su pantalla
   // (`.step-card__link`).
   //
   // El click va sobre `.step-card__name`, adentro del link: es donde clickea
@@ -281,41 +283,43 @@ async function shot(page, name, url, prepare) {
   //
   // Se filtra por TIPO y no por nombre: el nombre de un módulo lo cambia
   // cualquiera —una propuesta de la IA lo renombra— y la captura se caía.
+  //
+  // Tiene que ser un módulo TOCADO con campos de verdad, no uno vacío: el
+  // «Idear» de este desafío ya arrancó y tiene ideas postuladas, así que la
+  // isla monta con campos reales, no con el estado vacío.
   const ideationCardName = porTipo(page, 'Idear').locator('.step-card__name');
   if (await ideationCardName.count()) {
     await Promise.all([
       page.waitForURL(/\/steps\/[^/]+$/, { timeout: 15000 }),
       ideationCardName.click()
     ]);
+    await page.waitForSelector('[data-island-mounted="true"] .field-edit', { timeout: 15000 });
+    await capturar(page, '05b-form');
 
-    const formLink = page.locator('a:has-text("Editar el formulario")');
-    if (await formLink.count()) {
-      await formLink.first().click();
-      await page.waitForSelector('[data-island-mounted="true"] .field-edit', { timeout: 15000 });
-      await capturar(page, '05b-form');
-
-      if (await page.locator('.setup').count()) {
-        failures++;
-        console.error('[SETUP] el paso a paso aparece en el formulario de un desafío en curso');
-      }
-
-      // Todo campo tiene que decir qué es: sin etiqueta hay dos cajas de texto
-      // seguidas y hay que deducir cuál es la pregunta y cuál la ayuda.
-      const campos = await page.locator('.field-edit').count();
-      const etiquetas = await page.locator('.field-edit .captioned__text').count();
-      if (etiquetas < campos * 3) {
-        failures++;
-        console.error(`[ETIQUETAS] el editor del formulario tiene campos sin etiqueta (${etiquetas} para ${campos} campos)`);
-      }
-
-      if (await page.locator('.island-placeholder').count()) {
-        failures++;
-        console.error('[ISLA] el editor del formulario no montó');
-      }
-    } else {
+    if (await page.locator('.setup').count()) {
       failures++;
-      console.error('[LINK] la pantalla de «Idear» no ofrece editar el formulario');
+      console.error('[SETUP] el paso a paso aparece en el formulario de un desafío en curso');
     }
+
+    // Todo campo tiene que decir qué es: sin etiqueta hay dos cajas de texto
+    // seguidas y hay que deducir cuál es la pregunta y cuál la ayuda.
+    const campos = await page.locator('.field-edit').count();
+    const etiquetas = await page.locator('.field-edit .captioned__text').count();
+    if (etiquetas < campos * 3) {
+      failures++;
+      console.error(`[ETIQUETAS] el editor del formulario tiene campos sin etiqueta (${etiquetas} para ${campos} campos)`);
+    }
+
+    if (await page.locator('.island-placeholder').count()) {
+      failures++;
+      console.error('[ISLA] el editor del formulario no montó');
+    }
+
+    // El editor de campos quedó FUERA del form del módulo (los dos conviven
+    // en la misma pantalla, uno detrás del otro): si quedara adentro, el
+    // navegador se comería el form interno y sus botones pasarían a
+    // pertenecer al externo.
+    await revisarFormsAnidados(page, '05b-form', new URL(page.url()).pathname);
   } else {
     failures++;
     console.error('[LINK] la tarjeta de «Idear» no ofrece ir a su pantalla');

@@ -122,6 +122,57 @@ RSpec.describe "las dos caras de un módulo", type: :request do
       expect(response.body).to include("Formulario completo")
     end
 
+    it "trae el editor de campos en Idear" do
+      get challenge_step_path(challenge, paso("ideation"))
+
+      expect(response.body).to include('data-island="form-editor"')
+    end
+
+    it "la pantalla suelta del formulario redirige al módulo de idear" do
+      get challenge_form_path(challenge)
+
+      expect(response).to redirect_to(challenge_step_path(challenge, paso("ideation")))
+    end
+
+    # `form_fields/show` era la otra pantalla que mostraba
+    # `shared/ai_suggestions` para un módulo. Borrarla sin más dejaba una
+    # sugerencia de campos pendiente de revisión sobre un módulo pendiente sin
+    # ningún lugar donde verse.
+    it "una sugerencia de IA de campos pendiente de revisión aparece en el módulo de idear" do
+      paso_ideacion = paso("ideation")
+      as_company(company) do
+        run = AiRun.create!(challenge: challenge, challenge_step: paso_ideacion, purpose: "suggest_form_fields",
+                            mode: "ai_assisted", status: "succeeded", provider: "fixture",
+                            idempotency_key: SecureRandom.uuid)
+        AiSuggestion.create!(ai_run: run, challenge_step: paso_ideacion, status: "pending",
+                             payload: { "fields" => [{ "key" => "titulo", "label" => "Campo nuevo propuesto",
+                                                        "field_type" => "text" }] })
+      end
+
+      get challenge_step_path(challenge, paso_ideacion)
+
+      expect(response.body).to include("Propuestas de la IA")
+      expect(response.body).to include("Campo nuevo propuesto")
+    end
+
+    # Mismo criterio que el bloque de criterios: sin `manage_form?` el
+    # participante recibía el editor completo —la isla y el botón «Usar los
+    # tres básicos»— y clickearlo le rebotaba 403.
+    it "sin `manage_form?`, el módulo de idear muestra los campos pero no ofrece editarlos" do
+      participante = without_tenant do
+        u = create(:user, email: "part-form@test.dev", name: "Pedro Participante")
+        create(:membership, company: company, user: u, role: "participant")
+        u
+      end
+      sign_in(participante, company: company)
+
+      get challenge_step_path(challenge, paso("ideation"))
+
+      expect(response.body).not_to include('data-island="form-editor"')
+      expect(response.body).not_to include("Usar los tres básicos")
+      expect(response.body).to include("Sólo quien administra el desafío puede cambiar esto")
+    end
+
     # H1 de la ronda 1: el panel de sugerencias vivía ANTES de `puede_configurar`
     # en el partial, así que un participante recibía el payload propuesto
     # completo y los `button_to` de «Aplicar»/«Descartar» — que le rebotaban
@@ -214,6 +265,15 @@ RSpec.describe "las dos caras de un módulo", type: :request do
       get challenge_step_path(challenge, paso("selection"))
 
       expect(response.body).to include('data-island="step-settings"')
+    end
+
+    # El formulario NO se congela con `touched?`: su candado es
+    # `ideas.submitted.exists?`, que es más fino. Con el módulo abierto pero
+    # sin postulaciones, corregir el label de un campo es sano.
+    it "en Idear sigue mostrando el editor de campos, con su propio candado" do
+      get challenge_step_path(challenge, paso("ideation"))
+
+      expect(response.body).to include('data-island="form-editor"')
     end
   end
 

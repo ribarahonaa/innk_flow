@@ -84,7 +84,11 @@ RSpec.describe "API del pipeline", type: :request do
       expect(json["validation"]["valid"]).to be(false)
       expect(json["validation"]["errors"].join).to include("no tiene formulario")
       expect(json["steps"].first["form"]).to include("count" => 0)
-      expect(json["steps"].first["form"]["editUrl"]).to eq("/challenges/#{challenge.slug}/form")
+      # El formulario se edita en la pantalla del módulo: `editUrl` deja de
+      # apuntar a `challenge_form_path`, que sólo redirige ahí desde que el
+      # editor se embebió (Task 7).
+      ideation = as_company(company) { challenge.steps.reload.find_by(kind: "ideation") }
+      expect(json["steps"].first["form"]["editUrl"]).to eq("/challenges/#{challenge.slug}/steps/#{ideation.id}")
     end
 
     it "y vuelve a ser válido una vez definidas las preguntas" do
