@@ -59,13 +59,13 @@
       "id": "islas",
       "type": "frontend",
       "label": "Islas Vue",
-      "sublabel": "builder · formulario · criterios",
+      "sublabel": "builder · campos · criterios · ajustes",
       "pos": [
         40,
         150
       ],
       "size": [
-        170,
+        200,
         66
       ],
       "tag": "props del server"
@@ -80,7 +80,7 @@
         330
       ],
       "size": [
-        170,
+        200,
         66
       ],
       "tag": "se morfea, no recarga"

@@ -81,7 +81,7 @@
       "col": 4,
       "type": "frontend",
       "label": "Formulario y criterios",
-      "sublabel": "qué se pregunta, con qué se puntúa",
+      "sublabel": "en la pantalla de cada módulo",
       "width": 168
     },
     {
@@ -267,7 +267,7 @@
         "En borrador el flujo se agrega, reordena y borra libre",
         "En curso solo se inserta DESPUÉS del último módulo tocado",
         "Al activarse, un módulo congela sus criterios y su configuración",
-        "El nombre y el modo de IA se siguen ajustando: son política, no historia"
+        "El nombre, el modo de IA y las asignaciones se siguen ajustando: son política, no historia"
       ]
     },
     {
