@@ -98,6 +98,19 @@ RSpec.describe Flow::Setup do
       expect(step(:criteria).path).to eq(challenge_step_path(challenge, tecnica))
     end
 
+    # Con dos módulos que puntúan, tiene que ganar el ORDEN DEL FLUJO, no el
+    # tipo ni el orden de creación: `scorers.first` viene de
+    # `pipeline.steps`, que es `challenge.steps.ordered` (por `position`, no
+    # por `id` ni por `created_at`). «Corte» se crea DESPUÉS de «Técnica» acá
+    # abajo, pero con una posición MENOR (1.5, entre Idear y Técnica) — si el
+    # código eligiera por cualquier otro eje (el primero creado, el primero
+    # por kind alfabético) este test lo pescaría igual.
+    it "con dos módulos que puntúan, va al primero en el ORDEN DEL FLUJO" do
+      corte = challenge.steps.create!(kind: "selection", position: 1.5, name: "Corte")
+
+      expect(step(:criteria).path).to eq(challenge_step_path(challenge, corte))
+    end
+
     it "y la pista habla de MÓDULOS, que es lo que se cuenta" do
       expect(step(:criteria).hint).to eq("0 de 1 módulos definidos")
     end

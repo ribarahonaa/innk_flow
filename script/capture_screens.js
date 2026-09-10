@@ -247,6 +247,15 @@ async function shot(page, name, url, prepare) {
   // builder —no con un `goto` directo a `/steps/:id`, que ni siquiera se
   // podría armar sin conocer el id— porque es la cara de configuración del
   // módulo, con su propia isla de ajustes.
+  //
+  // Esta captura verifica el DESTINO del paso a paso, no el editor de
+  // criterios: «sin-formulario» siembra el módulo de evaluación sin ningún
+  // set propio (`db/seeds.rb`), así que el bloque de criterios queda en su
+  // estado vacío («Usar los tres genéricos…») y la isla que monta acá es la
+  // de `step-settings` —la que trae TODO módulo pendiente—, no la de
+  // `criteria-editor` (esa ya se cubre en `09-12-criterios-del-modulo`, sobre
+  // un módulo que sí tiene un set). El selector lo pide explícito para no
+  // confundir una cosa con la otra.
   await page.goto(`${BASE}/challenges/sin-formulario/builder`, { waitUntil: 'networkidle' });
   await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
   const evaluacionCard = porTipo(page, 'Evaluación').locator('.step-card__name');
@@ -255,7 +264,7 @@ async function shot(page, name, url, prepare) {
       page.waitForURL(/\/steps\/[^/]+$/, { timeout: 15000 }),
       evaluacionCard.click()
     ]);
-    await page.waitForSelector('[data-island-mounted="true"]', { timeout: 15000 });
+    await page.waitForSelector('[data-island="step-settings"][data-island-mounted="true"]', { timeout: 15000 });
 
     if (await page.locator('.setup__step').count() !== 6) {
       failures++;
@@ -270,7 +279,7 @@ async function shot(page, name, url, prepare) {
       console.error('[SETUP] el módulo de evaluación perdió el pie del paso a paso (setup_nav)');
     }
 
-    await capturar(page, '03d-criterios-modulo');
+    await capturar(page, '03d-paso-a-paso-criterios');
   } else {
     failures++;
     console.error('[LINK] «sin-formulario» no tiene módulo de evaluación');

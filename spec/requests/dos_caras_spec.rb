@@ -103,19 +103,31 @@ RSpec.describe "las dos caras de un módulo", type: :request do
     # link con flecha — se prueba sobre un desafío SIN formulario todavía,
     # donde sigue habiendo algo pendiente antes de arrancar y el pie tiene que
     # decir a dónde seguir.
+    #
+    # Corre en LOS DOS kinds que embeben el bloque de criterios, no solo en
+    # evaluación: son dos renders distintos, uno por vista, y una ronda previa
+    # dejó `selection.html.haml` sin guarda porque el ejemplo solo pasaba por
+    # `evaluation.html.haml`. El texto del pie es el mismo en los dos —
+    # `after(:criteria)` da «Revisar» sin importar en cuál de los dos módulos
+    # que puntúan estés parado—, así que un solo `it` cubre ambos con el mismo
+    # desafío.
     it "el pie del paso a paso sigue ofreciendo el siguiente paso en los criterios" do
       sin_formulario = as_company(company) do
         c = create(:challenge, name: "Sin formulario todavía")
         c.steps.create!(kind: "ideation", position: 1)
         c.steps.create!(kind: "evaluation", position: 2, name: "Técnica")
+        c.steps.create!(kind: "selection", position: 3, name: "Corte")
         c
       end
-      tecnica = as_company(company) { sin_formulario.steps.reload.find(&:evaluation?) }
 
-      get challenge_step_path(sin_formulario, tecnica)
+      %w[evaluation selection].each do |kind|
+        paso = as_company(company) { sin_formulario.steps.reload.find { |s| s.kind == kind } }
 
-      expect(response.body).to include('<div class="setup-nav">')
-      expect(response.body).to include("→")
+        get challenge_step_path(sin_formulario, paso)
+
+        expect(response.body).to include('<div class="setup-nav">'), "faltó en #{kind}"
+        expect(response.body).to include("→"), "faltó en #{kind}"
+      end
     end
 
     it "la pantalla suelta de criterios redirige al módulo" do
