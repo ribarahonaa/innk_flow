@@ -317,5 +317,8 @@ algo que ninguna pantalla de módulo hace sola —y sí: comparaba de un vistazo
 qué puntúa cada módulo del desafío, cosa que hoy no se puede ver sin entrar
 módulo por módulo—. Se aceptó la pérdida a sabiendas, con la alternativa
 (conservarlo como índice de sólo lectura) puesta por escrito y descartada.
-Recuperarla es revertir el borrado de `ChallengeCriteriaController` y su
-vista.
+Recuperarla es revertir el borrado de `ChallengeCriteriaController`, su vista
+y la ruta que las servía (`resource :criteria, controller:
+"challenge_criteria"`) —las tres se fueron en el mismo commit, `711ed9b`— y
+volver a apuntar `Flow::Setup#criteria_path` al índice en vez de al primer
+módulo que puntúa.

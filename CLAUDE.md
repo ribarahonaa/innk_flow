@@ -55,17 +55,17 @@ Al escribir capturas nuevas en `script/capture_screens.js`:
   calma antes de que Turbo ponga el body nuevo, y la captura sale de la
   pantalla anterior.
 - Las islas exponen `data-island-mounted="true"` como señal determinista.
-- **Nunca apuntes una captura a un desafío que también se usa a mano**
-  (`onboarding-remoto`, `optimizacion-de-la-experiencia-de-onboarding`): no
-  vive en `db/seeds.rb`, así que un `goto` ahí revienta en cualquier entorno
-  recién sembrado, y aunque viva en el seed, compartirlo con pruebas manuales
-  rompe la corrida en cuanto alguien le toca algo (`3e437d6`, pagado dos
-  veces con `onboarding-remoto`). `sin-formulario` existe **solo** para el
-  recorrido —y esta rama reintrodujo el antipatrón de todas formas, dos veces
-  (`04f2d00`, y de nuevo en la Task 11 antes de que la revisión lo cortara)—.
-  Hoy siembra los cinco `kind` pendientes y un set de criterios inline en su
-  módulo de selección (`db/seeds.rb:360` en adelante), del que dependen varias
-  capturas de las dos caras.
+- **Nunca apuntes una captura a un desafío que también se usa a mano.**
+  `optimizacion-de-la-experiencia-de-onboarding` ni siquiera vive en
+  `db/seeds.rb` —es dato real armado a mano—, así que un `goto` ahí revienta
+  en cualquier entorno recién sembrado. `onboarding-remoto` sí está en el
+  seed, y aun así compartirlo con pruebas manuales rompió la corrida dos
+  veces en cuanto alguien le tocaba algo (`3e437d6`). `sin-formulario` existe
+  **solo** para el recorrido —y esta rama reintrodujo el antipatrón de todas
+  formas, dos veces (`04f2d00`, y de nuevo en la Task 11 antes de que la
+  revisión lo cortara)—. Hoy siembra los cinco `kind` pendientes y un set de
+  criterios inline en su módulo de selección (`db/seeds.rb:360` en
+  adelante), del que dependen varias capturas de las dos caras.
 
 **Los system specs con navegador no cubren el recorrido.** Los servicios usan
 `with_lock` (SELECT FOR UPDATE) y eso deadlockea contra el pool compartido de
@@ -119,7 +119,7 @@ opción es agregar una línea al esquema, sin tocar Vue.
 
 | Archivo | Qué declara | Quién lo consume |
 |---|---|---|
-| `Flow::StepSettings` | Qué configura cada `kind` de módulo | la cara de configuración del módulo, isla `step-settings` |
+| `Flow::StepSettings` | Qué configura cada `kind` de módulo | la cara de configuración (isla `step-settings`) y el resumen congelado de la cara de ejecución (`_config_congelada`, `steps/selection`) |
 | `Flow::CriterionSettings` | Qué parámetros pide cada verificación y cada escala | editor de criterios |
 | `Flow::FlowTemplates` | Puntos de partida del flujo | creación del desafío y builder vacío |
 
@@ -140,9 +140,17 @@ todos los desafíos que lo usan — por eso se copia (`StepCriteriaController`).
 **La biblioteca no se pisa: se versiona.** Guardar un set de biblioteca que ya
 usa algún módulo crea la versión siguiente (`family_id`, `version`,
 `superseded_at`) y deja la anterior intacta; los módulos que la usaban siguen
-con ella hasta que alguien los pase a la nueva desde el builder. Un set que no
-usa nadie se edita en el lugar: versionar lo que nadie tiene asignado no
-protege a nadie.
+con ella. **Pasarlos a la nueva versión ya no tiene ningún camino**: el
+control vivía en el panel del builder —`step_config.vue`, con el aviso «Hay
+una versión más nueva» y un botón que reasignaba `criteriaSetId`— y esta rama
+lo borró (`58bd076`) sin reponerlo en ningún lado. `PipelinePresenter` sigue
+calculando `newerVersion` y mandándolo en las props del builder, pero ninguna
+vista lo lee (`newerVersion` no aparece en ningún `.vue`); el único lugar que
+escribe `criteria_set_id` es `StepCriteriaController#create`, y siempre crea
+una copia `inline` nueva, nunca apunta a una versión existente. Un módulo que
+quedó en una versión vieja de la biblioteca se queda ahí. Un set que no usa
+nadie se edita en el lugar: versionar lo que nadie tiene asignado no protege a
+nadie.
 
 Esto reemplaza al candado por evaluaciones **solo en la biblioteca**: sobre una
 versión nueva nadie puntuó nada, así que peso y escala vuelven a ser editables.
@@ -453,19 +461,32 @@ encabezado**, no guardas sueltas por bloque — una guarda que se olvida se
 encuentra más fácil que dos. Cuál predicado según qué bloque:
 `configure?` para los ajustes del módulo y para sus criterios, `manage_form?`
 para los campos del formulario, `manage_assignments?` para quién evalúa y
-cuánto pesa.
+cuánto pesa, `update_pipeline?` para quién acompaña la evolución
+(`_asignaciones_gestores.html.haml`, que sólo envuelve `challenges/_gestores`
+con esa guarda y no tiene policy propia).
 
 **Borrar o mudar una pantalla de configuración le puede sacar el sonido a
-`Flow::Setup`.** El paso a paso apunta cada paso a una URL (`Flow::Setup::Step#path`)
-y `setup_nav`/`setup_progress` sólo los pinta si el que los renderiza declara
-el `current:` que les toca; mudar o borrar la pantalla que lo hacía deja el
-paso vivo en la lista pero sin ningún «siguiente →» que lo ofrezca. Pasó con
-el paso `:form` al mudarlo a la cara del módulo, y de nuevo con `:criteria` al
-borrar su índice — **las dos veces `make spec` y `make screens` quedaron en
-verde igual**, porque ninguna aserción existente miraba el pie del paso a
-paso en la pantalla que se había quedado sin su render. Quien borre o mude una
-pantalla de configuración tiene que revisar `Flow::Setup` y los renders de
-`setup_nav`/`setup_progress` a mano, no confiar en la suite para que avise.
+`Flow::Setup`.** El paso a paso apunta cada paso a una URL
+(`Flow::Setup::Step#path`). `setup_nav` necesita que quien lo renderiza le
+pase el `current:` que le toca para calcular anterior y siguiente
+(`setup.before(current)`, `setup.after(current)`): sin ese render no hay
+ningún «siguiente →» que ofrecer. `setup_progress` no depende de lo mismo —
+pinta los seis pasos siempre; `current` sólo resalta cuál está activo
+(`setup__step--current`)—, así que el paso sigue apareciendo en la lista
+aunque el pie que avanza haya desaparecido. Pasó de verdad con el paso
+`:form` al mudarlo a la cara del módulo: **`make spec` y `make screens`
+quedaron en verde igual**, porque ninguna aserción existente miraba el pie
+del paso a paso en la pantalla que se había quedado sin su render (`2029528`,
+recién notado en la ronda de revisión de Task 7). Con `:criteria` estuvo por
+repetirse al borrar su índice, y se atajó antes de embarcarse: `711ed9b`
+borra el índice y suma los dos renders de `setup_nav` en el mismo commit, así
+que nunca corrió huérfano. La ceguera de la suite es igual de real ahí, por
+otra vía: el test del pie sólo pasaba por `evaluation`, y sacar nada más que
+el render de `selection` (el otro kind que embebe el bloque de criterios)
+dejaba `make spec` y `make screens` en verde igual (`df0681d`). Quien borre o
+mude una pantalla de configuración tiene que revisar `Flow::Setup` y los
+renders de `setup_nav`/`setup_progress` a mano, no confiar en la suite para
+que avise.
 
 ### Islas Vue
 

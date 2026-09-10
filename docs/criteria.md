@@ -40,8 +40,17 @@ versión siguiente y deja la anterior intacta.
 | `version` | 1, 2, 3… `label` muestra «Nombre · v2» a partir de la segunda |
 | `superseded_at` | Cuándo dejó de ser la vigente. `scope :current` filtra por esto |
 
-Los módulos que usaban la versión anterior **siguen con ella** hasta que alguien
-los pase a la nueva desde el builder. Nadie se entera de un cambio que no pidió.
+Los módulos que usaban la versión anterior **siguen con ella**. Pasarlos a la
+nueva ya no tiene ningún camino: el control vivía en el panel del builder
+(`step_config.vue`, con el aviso «Hay una versión más nueva» y un botón que
+reasignaba `criteriaSetId`), y la tarea que le dio a cada módulo su propia
+pantalla de configuración lo borró sin reponerlo en ningún lado (`58bd076`).
+`PipelinePresenter` sigue calculando `newerVersion` y mandándolo en las props
+del builder, pero ninguna vista lo lee hoy: el único lugar que asigna
+`criteria_set_id` es `StepCriteriaController#create`, y siempre crea una
+copia `inline` nueva — nunca apunta a una versión existente de la biblioteca.
+Un módulo que quedó en una versión vieja se queda ahí; nadie se entera de un
+cambio que no pidió, pero tampoco hay cómo pedirlo.
 
 Un set que **no usa nadie** se edita en el lugar: versionar lo que ningún módulo
 tiene asignado no protege a nadie y llenaría la biblioteca de versiones muertas.
