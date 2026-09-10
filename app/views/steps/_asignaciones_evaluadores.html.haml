@@ -1,0 +1,69 @@
+-# Quién evalúa este módulo y cuánto pesa su voto.
+-#
+-# Va en las DOS caras: se puede sumar a alguien con el módulo en curso. Lo que
+-# no se puede es desasignar a quien ya puntuó —su nota quedaría sin respaldo—
+-# ni tocar nada con el módulo cerrado.
+-#
+-# La guarda de `manage_assignments?` vive ACÁ y no en el caller: la cara de
+-# configuración se sirve detrás de `ChallengeStepPolicy#show?` —cualquiera de
+-# la empresa—, así que sin ésta un participante recibía la tabla y sus
+-# controles, el mismo control-que-no-responde de siempre. A diferencia de
+-# `_criterios_editor` y `_campos_editor`, acá no hay rama de sólo lectura:
+-# quién evalúa y cuánto pesa no era algo que se mostrara sin el permiso antes
+-# de esta tarea, y no hay ninguna razón de producto para inventarlo ahora.
+- if policy(step).manage_assignments?
+  - challenge = step.challenge
+  - asignaciones = step.step_assignments.includes(:user).sort_by { |a| a.user.name }
+  - evaluaron = step.assessments.current.group(:evaluator_id).count
+  - hay_pesos = asignaciones.any?(&:weighted?)
+  - cerrado = step.completed? || step.skipped?
+  .card
+    .section-head
+      %h2.section-title
+        Quién evalúa
+        %span.muted= " · #{Flow::Texto.contar(asignaciones.size, "persona")}"
+      - if hay_pesos
+        %span.status-chip.status-chip--active con pesos
+    %p.muted.field-hint
+      - if cerrado
+        El módulo cerró: quién evaluó y cuánto pesó cada voto queda como está.
+      - else
+        Todas las voces pesan igual salvo que le pongas un peso distinto a alguna. Un peso
+        de 2 hace que esa nota cuente el doble que una de peso 1.
+
+    - if asignaciones.empty?
+      %p.muted Todavía no hay nadie asignado. Se asignan solos al activar el módulo.
+    - else
+      %ul.field-list
+        - asignaciones.each do |asignacion|
+          - notas = evaluaron[asignacion.user_id].to_i
+          %li.field-list__item.assignment-row
+            %span
+              = asignacion.user.name
+              - if notas.positive?
+                %span.muted= " · #{Flow::Texto.contar(notas, "evaluación")}"
+              - else
+                %span.muted · sin evaluar
+            - unless cerrado
+              .assignment-row__actions
+                = form_with url: challenge_step_step_assignment_path(challenge, step, asignacion),
+                            method: :patch, class: "assignment-weight" do
+                  = label_tag "peso_#{asignacion.id}", "Peso", class: "assignment-weight__label"
+                  = number_field_tag :weight, asignacion.weight&.to_f, step: 0.1, min: 0.1,
+                                     max: StepAssignment::MAX_WEIGHT, id: "peso_#{asignacion.id}",
+                                     placeholder: "1", class: "assignment-weight__input"
+                  = submit_tag "Guardar", class: "btn btn-ghost btn-sm"
+                -# Quien ya evaluó no se desasigna: su nota está puesta.
+                - if notas.zero?
+                  = button_to "Quitar", challenge_step_step_assignment_path(challenge, step, asignacion),
+                              method: :delete, class: "btn btn-ghost btn-sm",
+                              form: { data: { turbo_confirm: "¿Sacar a #{asignacion.user.name} de este módulo?" } }
+
+    - if !cerrado && assignable.any?
+      = form_with url: challenge_step_step_assignments_path(challenge, step), method: :post,
+                  class: "assignment-add" do
+        = select_tag :user_id, options_from_collection_for_select(assignable, :id, :name),
+                     include_blank: "Sumar a alguien…"
+        = number_field_tag :weight, nil, step: 0.1, min: 0.1, max: StepAssignment::MAX_WEIGHT,
+                           placeholder: "Peso (opcional)", class: "assignment-weight__input"
+        = submit_tag "Asignar", class: "btn btn-ghost btn-sm"

@@ -252,6 +252,34 @@ RSpec.describe "las dos caras de un módulo", type: :request do
       expect(response.body).not_to include("Rehacer los criterios con IA")
       expect(response.body).not_to include("Guardarlos también en la biblioteca")
     end
+
+    # Sumar a alguien con el módulo en curso ya era legítimo; lo nuevo es que
+    # también se puede ANTES de que arranque, para armar el comité sin
+    # esperar. «Elegí a quién sumar» —el texto real del form— es de
+    # GESTORES, no de evaluadores: el form de evaluadores usa «Sumar a
+    # alguien…» y «Asignar». Se prueba el marcador real de cada bloque, no
+    # sólo el título, porque el título solo no distingue mostrar la tabla de
+    # ofrecer el form de sumar.
+    it "deja asignar evaluadores antes de que el módulo arranque" do
+      get challenge_step_path(challenge, paso("evaluation"))
+
+      expect(response.body).to include("Quién evalúa")
+      expect(response.body).to include("Sumar a alguien…")
+      expect(response.body).to include('name="user_id"')
+    end
+
+    it "deja asignar gestores antes de que el módulo arranque" do
+      without_tenant do
+        u = create(:user, email: "gestora@test.dev", name: "Gina Gestora")
+        create(:membership, company: company, user: u, role: "gestor")
+      end
+
+      get challenge_step_path(challenge, paso("evolution"))
+
+      expect(response.body).to include("Quiénes acompañan")
+      expect(response.body).to include("Elegí a quién sumar")
+      expect(response.body).to include('name="user_id"')
+    end
   end
 
   describe "cara B: el módulo ya arrancó" do

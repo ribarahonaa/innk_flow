@@ -1,0 +1,15 @@
+-# Quiénes acompañan la evolución de las ideas de este desafío.
+-#
+-# Se configura ACÁ, que es donde un gestor tiene algo que hacer. Antes vivía
+-# en la ficha del desafío, donde se reclamaba un gestor incluso sobre un flujo
+-# vacío en el que todavía no se sabía si iba a haber evolución.
+-#
+-# Va en las DOS caras: se puede sumar un gestor con el módulo en curso, igual
+-# que un evaluador. El markup y la guarda de `update_pipeline?` viven en
+-# `challenges/_gestores` —que además renderiza la ficha del desafío cuando
+-# quedan gestores sin módulo de evolución donde administrarlos—: este partial
+-# es sólo el wrapper que la trae acá con `desde_modulo`, para no tener dos
+-# copias del mismo bloque.
+- if policy(step.challenge).update_pipeline?
+  = render "challenges/gestores", challenge: step.challenge, candidatos: candidates,
+           desde_modulo: true

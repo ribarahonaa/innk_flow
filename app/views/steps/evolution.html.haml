@@ -5,12 +5,7 @@
 
 = render "steps/ai_mode", step: @step
 
--# Quién acompaña la evolución se configura ACÁ, que es donde pasa. Antes vivía
--# en la ficha del desafío, donde se reclamaba un gestor incluso sobre un flujo
--# vacío en el que todavía no se sabía si iba a haber evolución.
-- if policy(@challenge).update_pipeline?
-  = render "challenges/gestores", challenge: @challenge, candidatos: @gestor_candidates,
-           desde_modulo: true
+= render "steps/asignaciones_gestores", step: @step, candidates: @gestor_candidates
 
 - progress = @handler.progress
 .card

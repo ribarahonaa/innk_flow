@@ -3,3 +3,4 @@
 = render "shared/setup_progress", challenge: @challenge, current: :criteria
 = render "steps/config/modulo", step: @step, props: @settings_props
 = render "steps/criterios_editor", step: @step, suggestions: @pending_suggestions
+= render "steps/asignaciones_evaluadores", step: @step, assignable: @assignable
