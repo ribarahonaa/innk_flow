@@ -128,6 +128,27 @@ RSpec.describe "las dos caras de un módulo", type: :request do
       expect(response.body).to include('data-island="form-editor"')
     end
 
+    # `form_fields/show` cerraba con `shared/setup_nav`. Embeber el editor en
+    # `steps/config/ideation` sin sumar ese render dejaba el paso a paso sin
+    # «siguiente →»: un indicador, no un recorrido. El desafío de arriba ya
+    # tiene flujo Y formulario, así que su paso a paso está `ready?` y el pie
+    # ofrece «Arrancar» en vez de un link con flecha — se prueba sobre un
+    # desafío SIN campos todavía, donde sigue habiendo algo pendiente antes de
+    # arrancar y el pie tiene que decir a dónde seguir.
+    it "el pie del paso a paso sigue ofreciendo el siguiente paso en el formulario" do
+      sin_campos = as_company(company) do
+        c = create(:challenge, name: "Sin campos todavía")
+        c.steps.create!(kind: "ideation", position: 1)
+        c
+      end
+      ideacion = as_company(company) { sin_campos.steps.reload.find(&:ideation?) }
+
+      get challenge_step_path(sin_campos, ideacion)
+
+      expect(response.body).to include('<div class="setup-nav">')
+      expect(response.body).to include("→")
+    end
+
     it "la pantalla suelta del formulario redirige al módulo de idear" do
       get challenge_form_path(challenge)
 
@@ -274,6 +295,25 @@ RSpec.describe "las dos caras de un módulo", type: :request do
       get challenge_step_path(challenge, paso("ideation"))
 
       expect(response.body).to include('data-island="form-editor"')
+    end
+
+    # La guarda de `manage_form?` se probó en cara A, pero el partial también
+    # se renderiza acá, y ésta es la cara donde vive quien participa de
+    # verdad: sin este ejemplo, la guarda de cara B queda sin probar aunque
+    # sea el mismo código.
+    it "sin `manage_form?`, en Idear muestra los campos pero no ofrece editarlos" do
+      participante = without_tenant do
+        u = create(:user, email: "part-form-b@test.dev", name: "Priscila Participante")
+        create(:membership, company: company, user: u, role: "participant")
+        u
+      end
+      sign_in(participante, company: company)
+
+      get challenge_step_path(challenge, paso("ideation"))
+
+      expect(response.body).not_to include('data-island="form-editor"')
+      expect(response.body).not_to include("Rehacer el formulario con IA")
+      expect(response.body).to include("Sólo quien administra el desafío puede cambiar esto")
     end
   end
 

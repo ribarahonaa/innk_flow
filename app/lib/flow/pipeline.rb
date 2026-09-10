@@ -176,7 +176,7 @@ module Flow
 
       if (ideation = list.find(&:ideation?)) && ideation.pending? && ideation.form_fields.empty?
         errors << "«#{ideation.name}» no tiene formulario: nadie podría postular una idea. " \
-                  "Definí las preguntas desde «Editar el formulario»."
+                  "Definí las preguntas desde la pantalla del módulo."
       end
 
       if (ideation = list.find(&:ideation?)) && list.first != ideation
