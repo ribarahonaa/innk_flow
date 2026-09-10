@@ -387,6 +387,79 @@ async function shot(page, name, url, prepare) {
   // criterios de verdad.
   await shot(page, '05d-preview-configurado', `/challenges/${CHALLENGE}/preview`);
 
+  // Las dos caras de un módulo (`StepsController#show` despacha por
+  // `step.touched?`). La de EJECUCIÓN (`steps/<kind>`) ya la recorre el loop
+  // de más abajo sobre cada módulo tocado de `${CHALLENGE}`; la de
+  // CONFIGURACIÓN (`steps/config/<kind>`) no tenía ningún módulo de
+  // evaluación ni de evolución fotografiado — deuda que dejó la Task 8.
+  //
+  // Se llega por LINK, no con un goto directo a `/steps/:id`: un goto monta
+  // la isla `step-settings` igual y esconde el mismo bug que ya escondió una
+  // vez. El click va sobre `.step-card__name`, adentro del link que es LA
+  // TARJETA ENTERA (`.step-card__link`, Task 5) — es donde clickea una
+  // persona, sobre contenido pintado, no sobre la caja que lo envuelve.
+  //
+  // `locked: step.touched?` (`PipelinePresenter#step_json`) es la única forma
+  // honesta de saber, desde el builder, cuál tarjeta todavía se configura: se
+  // verifica ANTES de clickear para no confundir una cara con la otra si los
+  // datos sembrados cambiaran.
+  //
+  // «optimizacion-de-la-experiencia-de-onboarding» es un borrador con los
+  // cinco tipos pendientes (dos de evaluación, dos de evolución, dos de
+  // selección): se navega tal cual está, sin tocarlo — mismo trato que ya le
+  // da la captura de criterios de más abajo.
+  //
+  // El nombre de cada captura va por TIPO, no por posición: la posición es
+  // mutable por diseño (`decimal(20,10)`, insertar entre A y B es `(a+b)/2`)
+  // y un índice numérico pasaría a significar un módulo distinto en cuanto
+  // alguien reordene el flujo.
+  const CARAS_DE_CONFIGURACION = [
+    ['Idear', 'idear'],
+    ['Evolución', 'evolucion'],
+    ['Evaluación', 'evaluacion'],
+    ['Selección', 'seleccion'],
+    ['Reportería', 'reporteria']
+  ];
+
+  for (const [label, slug] of CARAS_DE_CONFIGURACION) {
+    await page.goto(`${BASE}/challenges/optimizacion-de-la-experiencia-de-onboarding/builder`, { waitUntil: 'networkidle' });
+    await page.waitForSelector('[data-island-mounted="true"] .step-card', { timeout: 15000 });
+
+    const tarjeta = porTipo(page, label);
+    if (!(await tarjeta.count())) {
+      failures++;
+      console.error(`[LINK] no hay módulo de tipo «${label}» para fotografiar su cara de configuración`);
+      continue;
+    }
+    const clases = await tarjeta.evaluate((el) => el.className);
+    if (clases.includes('step-card--locked')) {
+      failures++;
+      console.error(`[LINK] el módulo de tipo «${label}» ya está tocado: no tiene cara de configuración que fotografiar`);
+      continue;
+    }
+
+    await Promise.all([
+      page.waitForURL(/\/steps\/[^/]+$/, { timeout: 15000 }),
+      tarjeta.locator('.step-card__name').click()
+    ]);
+    // Señal determinista de la cara de configuración: `data-island=
+    // "step-settings"` sólo lo renderiza `steps/config/_modulo`, nunca la
+    // cara de ejecución — si el click hubiera caído en la otra cara, esto
+    // se cuelga hasta el timeout en vez de fotografiar la pantalla que no es.
+    await page.waitForSelector('[data-island="step-settings"][data-island-mounted="true"]', { timeout: 15000 });
+    await capturar(page, `05e-config-${slug}`);
+
+    if (await page.locator('.island-placeholder').count()) {
+      failures++;
+      console.error(`[ISLA] la cara de configuración de «${label}» no montó`);
+    }
+
+    // Esta cara combina tres forms en la misma pantalla (el módulo, los
+    // criterios o el formulario, y las asignaciones): el mismo riesgo de
+    // form-dentro-de-form que ya se pagó una vez en la pantalla del corte.
+    await revisarFormsAnidados(page, `05e-config-${slug}`, new URL(page.url()).pathname);
+  }
+
   await shot(page, '06-ideas', `/challenges/${CHALLENGE}/ideas`);
 
   // Una idea que EVOLUCIONÓ, para que el diff tenga dos versiones que comparar.
