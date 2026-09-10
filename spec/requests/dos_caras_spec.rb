@@ -280,6 +280,25 @@ RSpec.describe "las dos caras de un módulo", type: :request do
       expect(response.body).to include("Elegí a quién sumar")
       expect(response.body).to include('name="user_id"')
     end
+
+    # Fix round 1: el evaluador tenía cobertura simétrica
+    # (`step_assignments_spec.rb`, «quien evalúa no la ve») y gestores no.
+    # Importa más después de esta tarea que antes: la cara A se sirve detrás
+    # de `ChallengeStepPolicy#show?` —cualquiera de la empresa—, así que sin
+    # esta guarda quien participa recibía el form de sumar gestores en un
+    # módulo todavía pendiente.
+    it "sin `update_pipeline?`, la cara A de evolución no ofrece asignar gestores" do
+      participante = without_tenant do
+        u = create(:user, email: "part-evolution@test.dev", name: "Pilar Participante")
+        create(:membership, company: company, user: u, role: "participant")
+        u
+      end
+      sign_in(participante, company: company)
+
+      get challenge_step_path(challenge, paso("evolution"))
+
+      expect(response.body).not_to include("Quiénes acompañan")
+    end
   end
 
   describe "cara B: el módulo ya arrancó" do
@@ -418,6 +437,33 @@ RSpec.describe "las dos caras de un módulo", type: :request do
 
       expect(response.body).to include("Sí")
       expect(response.body).not_to include(">true<")
+    end
+  end
+
+  # Fix round 1: asignar en cara A es un camino nuevo y cambia cómo arranca el
+  # módulo. `Flow::Handlers::Evaluation#assign_evaluators!` sólo autoasigna a
+  # todo el que puede evaluar cuando arranca SIN ninguna asignación explícita
+  # (`step.step_assignments.reload.any?`); nada probaba que sumar a alguien
+  # ANTES de arrancar frena ese autoasignado.
+  describe "asignar en cara A cambia cómo arranca el módulo" do
+    it "activar ya no autoasigna a todo el que puede evaluar" do
+      evaluadora = without_tenant do
+        u = create(:user, email: "evaluadora@test.dev", name: "Elena Evaluadora")
+        create(:membership, :evaluator, company: company, user: u)
+        u
+      end
+
+      post challenge_step_step_assignments_path(challenge, paso("evaluation")),
+           params: { user_id: evaluadora.id, weight: "2" }
+
+      as_company(company) { Flow::Handlers::Base.for(paso("evaluation")).activate! }
+
+      asignaciones = as_company(company) { paso("evaluation").step_assignments.to_a }
+      # `admin` también puede evaluar (rol admin) y se habría autoasignado si
+      # `assign_evaluators!` hubiera corrido: la única asignación tiene que
+      # ser la que se sumó a mano en cara A, con su peso intacto.
+      expect(asignaciones.map(&:user_id)).to contain_exactly(evaluadora.id)
+      expect(asignaciones.first.weight.to_f).to eq(2.0)
     end
   end
 end

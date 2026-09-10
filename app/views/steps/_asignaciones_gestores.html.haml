@@ -5,11 +5,12 @@
 -# vacío en el que todavía no se sabía si iba a haber evolución.
 -#
 -# Va en las DOS caras: se puede sumar un gestor con el módulo en curso, igual
--# que un evaluador. El markup y la guarda de `update_pipeline?` viven en
--# `challenges/_gestores` —que además renderiza la ficha del desafío cuando
--# quedan gestores sin módulo de evolución donde administrarlos—: este partial
--# es sólo el wrapper que la trae acá con `desde_modulo`, para no tener dos
--# copias del mismo bloque.
+-# que un evaluador. El markup vive en `challenges/_gestores` —la ficha del
+-# desafío también lo renderiza, cuando quedan gestores sin módulo de
+-# evolución donde administrarlos—; la guarda de `update_pipeline?` es de ESTE
+-# archivo, no de ese partial (que no tiene ninguna policy propia). Este
+-# archivo es sólo el wrapper que trae el markup acá con `desde_modulo`, para
+-# no tener dos copias del mismo bloque.
 - if policy(step.challenge).update_pipeline?
   = render "challenges/gestores", challenge: step.challenge, candidatos: candidates,
            desde_modulo: true
