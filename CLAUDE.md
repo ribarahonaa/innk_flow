@@ -119,7 +119,7 @@ opción es agregar una línea al esquema, sin tocar Vue.
 
 | Archivo | Qué declara | Quién lo consume |
 |---|---|---|
-| `Flow::StepSettings` | Qué configura cada `kind` de módulo | la cara de configuración (isla `step-settings`) y el resumen congelado de la cara de ejecución (`_config_congelada`, `steps/selection`) |
+| `Flow::StepSettings` | Qué configura cada `kind` de módulo | la cara de configuración (isla `step-settings`), el resumen congelado de la cara de ejecución (`_config_congelada`, `steps/selection`) y el schema con el que la IA propone un flujo (`json_schema`, en `ProposePipeline`) |
 | `Flow::CriterionSettings` | Qué parámetros pide cada verificación y cada escala | editor de criterios |
 | `Flow::FlowTemplates` | Puntos de partida del flujo | creación del desafío y builder vacío |
 
@@ -136,6 +136,25 @@ para sacar. Se lee con `StepSettings.efectivo(kind, settings)` y se filtra con
 la regla de corte en «manual», «Valor del corte» no describe nada). Ojo con la
 suite: el fixture que probaba esa tarjeta ponía `config:` a mano en los cinco
 kinds, que es justo el caso que no ocurre en la práctica.
+
+**Todo `config` que llega de afuera pasa por `StepSettings.filtrar`**, venga
+de un formulario (`steps#update`) o de un modelo (`ProposePipeline#apply!`).
+El JSON Schema de la tarea no alcanza: localmente no cierra los objetos, y una
+sugerencia editada a mano o un fixture pueden traer cualquier clave. Y el
+filtro no avisa: una clave mal escrita se descarta y el módulo corre con el
+default. El fixture de `propose_pipeline` mandaba `cut_mode` plano —nadie lo
+lee, la clave es `cut.mode`— y «Corte a top 10» nacía con el corte en manual;
+la guarda está en `spec/lib/flow/ai/fixtures_spec.rb`.
+
+**Y el modelo sólo puede proponer las claves que el schema declara.** El
+adapter de Anthropic cierra todo objeto con `additionalProperties: false`, así
+que un `config` declarado `object` a secas le llegaba a la API como un objeto
+donde no entra ninguna clave: con el proveedor real la propuesta nunca traía
+configuración. `StepSettings.json_schema(kind)` arma una variante por kind (un
+`anyOf` con `kind` como `const`), sin los campos `column:` ni los `source:`
+—eligen módulos que al proponer todavía no existen—, y pone en la descripción
+el rango y lo que significa cada valor: es lo único que el modelo ve, porque
+la API poda `minimum`/`maximum`.
 
 ### Criterios: dos ejes independientes
 

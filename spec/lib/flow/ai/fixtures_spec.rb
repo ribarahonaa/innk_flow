@@ -61,4 +61,20 @@ RSpec.describe "fixtures de IA" do
       next
     end
   end
+
+  # El schema de la tarea declara `config` como un objeto cualquiera, así que
+  # validar contra él no ve una clave mal escrita: `apply!` la descarta al
+  # filtrar y el módulo corre con el default sin que nadie se entere. Pasó con
+  # `cut_mode`/`cut_value` planos, que ningún handler lee: «Corte a top 10»
+  # nacía con el corte en manual.
+  Rails.root.glob("spec/fixtures/ai/propose_pipeline/*.json").each do |file|
+    it "#{file.basename} de propose_pipeline sólo propone config que el esquema declara" do
+      JSON.parse(file.read)["steps"].each do |paso|
+        config = paso["config"] || {}
+
+        expect(Flow::StepSettings.filtrar(paso["kind"], config))
+          .to eq(config), "#{paso["name"]} (#{paso["kind"]}): #{config}"
+      end
+    end
+  end
 end

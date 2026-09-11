@@ -363,6 +363,58 @@ RSpec.describe "tareas de IA" do
       expect(second.error_sentence).to match(/ya fue revisada/)
     end
   end
+  # El `config` que propone el modelo entra por el mismo filtro que el que
+  # llega por HTTP (`steps#update`): el JSON Schema de la tarea declara
+  # `config` como un objeto cualquiera, así que sin el filtro la IA escribía
+  # jsonb arbitrario en el módulo.
+  describe Flow::AI::Tasks::ProposePipeline do
+    it "guarda del config sólo lo que el esquema del kind declara, casteado" do
+      task = described_class.new(challenge: challenge)
+      challenge.steps.destroy_all
+      result = Flow::AI::Runner.call(task, mode: "ai_assisted", challenge: challenge)
+
+      propuesta = { "rationale" => "Con claves inventadas",
+                    "steps" => [
+                      { "kind" => "ideation", "name" => "Idear",
+                        "config" => { "min_ideas" => "5", "inventada" => { "lo" => "que sea" } } },
+                      { "kind" => "reporting", "name" => "Reporte",
+                        "config" => { "mode" => "latest", "min_ideas" => 3 } }
+                    ] }
+
+      Flow::AI::ApplySuggestion.new(result.suggestion, user: user, payload: propuesta).call
+
+      expect(challenge.steps.reload.sort_by(&:position).map(&:settings))
+        .to eq([{ "min_ideas" => 5 }, { "mode" => "latest" }])
+    end
+
+    # El adapter de Anthropic cierra todo objeto con `additionalProperties:
+    # false`. Un `config` sin propiedades declaradas le llega a la API como un
+    # objeto en el que no entra ninguna clave: el modelo real no podía
+    # proponer ninguna configuración.
+    it "declara las claves de config de cada kind" do
+      variantes = described_class.new(challenge: challenge).schema.dig("properties", "steps", "items", "anyOf")
+      config_por_kind = variantes.to_h do |variante|
+        [variante.dig("properties", "kind", "const"), variante.dig("properties", "config", "properties")]
+      end
+
+      expect(config_por_kind.keys).to match_array(ChallengeStep::KINDS)
+      expect(config_por_kind.values).to all(be_present)
+    end
+
+    it "valida el config de cada paso contra el esquema de SU kind" do
+      schema = described_class.new(challenge: challenge).schema
+      con = lambda do |paso|
+        { "rationale" => "x", "steps" => [{ "kind" => "ideation", "name" => "Idear" }, paso] }
+      end
+
+      corte = { "kind" => "selection", "name" => "Corte", "config" => { "cut" => { "mode" => "top_n", "value" => 5 } } }
+      al_azar = { "kind" => "selection", "name" => "Corte", "config" => { "cut" => { "mode" => "al_azar" } } }
+
+      expect(Flow::AI::SchemaValidator.errors_for(con.(corte), schema)).to be_empty
+      expect(Flow::AI::SchemaValidator.errors_for(con.(al_azar), schema)).not_to be_empty
+    end
+  end
+
   # Un filtro de sí/no sin responder deja a la idea en el limbo y traba el
   # cierre del módulo. Antes solo lo podía responder una persona: una selección
   # en «Solo IA» no tenía cómo cerrarse.

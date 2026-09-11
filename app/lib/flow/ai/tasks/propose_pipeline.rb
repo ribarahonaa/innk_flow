@@ -11,7 +11,10 @@ module Flow
               Sos un diseñador de procesos de innovación. Proponés un flujo de módulos
               para un desafío. Tipos disponibles: ideation (una sola vez, obligatorio),
               evolution, evaluation, selection, reporting. El flujo debe empezar por
-              ideation y toda selection debe tener una evaluation antes.
+              ideation y toda selection debe tener una evaluation antes. Cada paso
+              puede traer un config con las claves que el schema declara para su
+              tipo; lo que no pongas queda con el valor por defecto, así que incluí
+              solo lo que el brief justifique cambiar.
             TXT
             { role: "user", content: "Desafío: #{challenge.name}\n\nBrief: #{challenge.brief}" }
           ]
@@ -26,16 +29,12 @@ module Flow
               "steps" => {
                 "type" => "array",
                 "minItems" => 2,
-                "items" => {
-                  "type" => "object",
-                  "required" => %w[kind name],
-                  "properties" => {
-                    "kind" => { "enum" => ChallengeStep::KINDS },
-                    "name" => { "type" => "string" },
-                    "ai_mode" => { "enum" => Challenge::AI_MODES + [nil] },
-                    "config" => { "type" => "object" }
-                  }
-                }
+                # Una variante por kind, para que el `config` de cada paso sea el
+                # de SU kind. Declararlo `object` a secas no dejaba proponer
+                # nada con el proveedor real: el adapter de Anthropic cierra
+                # todo objeto con `additionalProperties: false`, y un objeto
+                # cerrado sin propiedades no admite ninguna clave.
+                "items" => { "anyOf" => ChallengeStep::KINDS.map { |kind| paso(kind) } }
               }
             }
           }
@@ -52,13 +51,18 @@ module Flow
           errors = []
           challenge.steps.destroy_all
 
+          # El `config` pasa por el mismo filtro que el de `steps#update`. El
+          # schema de arriba declara las claves de cada kind, pero sólo el
+          # pedido a Anthropic cierra los objetos: el schema local deja pasar
+          # claves de más, y una sugerencia editada a mano
+          # (`ApplySuggestion` con `payload:`) no se valida contra ninguno.
           payload["steps"].each do |attributes|
             result = pipeline.insert(
               kind: attributes["kind"],
               after: :end,
               name: attributes["name"],
               ai_mode: attributes["ai_mode"].presence,
-              config: attributes["config"] || {}
+              config: Flow::StepSettings.filtrar(attributes["kind"], attributes["config"])
             )
             errors << result.error_sentence unless result.ok?
           end
@@ -68,6 +72,21 @@ module Flow
 
         def preview(payload)
           payload["steps"].map { |s| s["name"] }.join(" → ")
+        end
+
+        private
+
+        def paso(kind)
+          {
+            "type" => "object",
+            "required" => %w[kind name],
+            "properties" => {
+              "kind" => { "const" => kind },
+              "name" => { "type" => "string" },
+              "ai_mode" => { "enum" => Challenge::AI_MODES + [nil] },
+              "config" => Flow::StepSettings.json_schema(kind)
+            }
+          }
         end
       end
     end

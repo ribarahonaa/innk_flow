@@ -144,6 +144,57 @@ RSpec.describe Flow::StepSettings do
     end
   end
 
+  # Lo que la IA puede proponer como `config` de un módulo. Sin esto la tarea
+  # declaraba `config` como un objeto cualquiera, y el adapter de Anthropic
+  # —que cierra todo objeto con `additionalProperties: false`— se lo mandaba
+  # a la API como un objeto sin ninguna clave permitida.
+  describe ".json_schema" do
+    it "anida las claves como en config y tipa cada una" do
+      schema = described_class.json_schema("selection")
+
+      expect(schema.dig("properties", "cut", "properties", "mode", "enum"))
+        .to eq(%w[manual top_n top_percent threshold])
+      expect(schema.dig("properties", "cut", "properties", "value", "type")).to eq("number")
+      expect(schema.dig("properties", "score_source", "properties", "combine", "enum"))
+        .to eq(%w[weighted_avg max min last])
+    end
+
+    # `source_step_id` y `step_slugs` apuntan a módulos por id o por slug, y al
+    # proponer un flujo esos módulos todavía no existen.
+    it "deja afuera las columnas y los campos que eligen otros módulos" do
+      expect(described_class.json_schema("selection")["properties"].keys).to contain_exactly("cut", "score_source")
+      expect(described_class.json_schema("reporting")["properties"].keys).to contain_exactly("mode", "include_eliminated")
+    end
+
+    # La API poda `minimum`/`maximum` del pedido: el rango le llega al modelo
+    # sólo por la descripción. El schema local los conserva y valida igual.
+    it "describe cada campo con su etiqueta, su ayuda y su rango" do
+      campo = described_class.json_schema("ideation").dig("properties", "generated_ideas")
+
+      expect(campo["description"]).to include("Cuántas ideas genera la IA", "Solo aplica cuando", "entre 1 y 20")
+      expect(campo).to include("minimum" => 1, "maximum" => 20, "default" => 5)
+    end
+
+    it "le traduce al modelo cada valor de un select a lo que significa" do
+      modo = described_class.json_schema("selection").dig("properties", "cut", "properties", "mode")
+
+      expect(modo["description"]).to include("`threshold` (Puntaje mínimo)", "`top_n` (Top N ideas)")
+    end
+
+    it "dice de qué otro campo depende uno que no siempre aplica" do
+      valor = described_class.json_schema("selection").dig("properties", "cut", "properties", "value")
+
+      expect(valor["description"]).to include("«Regla de corte»", "«Manual: el dueño decide»")
+    end
+
+    it "los defaults de cada kind validan contra su schema" do
+      ChallengeStep::KINDS.each do |kind|
+        errores = Flow::AI::SchemaValidator.errors_for(described_class.defaults(kind), described_class.json_schema(kind))
+        expect(errores).to be_empty, "#{kind}: #{errores.join('; ')}"
+      end
+    end
+  end
+
   # La cara de ejecución mostraba el valor tal cual sale de `config`: `false`,
   # `trimmed_mean` o `["ideation", "evaluation"]` con la sintaxis de
   # `Array#inspect`. `display_value` resuelve la etiqueta humana desde las

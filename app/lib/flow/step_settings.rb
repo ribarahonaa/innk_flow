@@ -217,9 +217,9 @@ module Flow
       # `resolved_config`, que `filtrar` no toca, y `FROZEN_ATTRIBUTES` no deja
       # escribir `config`. Que hoy no sea un problema es un hecho de los
       # datos, no del mecanismo: en `config` no las pone nadie —ni las
-      # plantillas, ni el seed, ni la base de desarrollo (0 filas)—. El único
-      # que podría es `Tasks::ProposePipeline#apply!`, que guarda el `config`
-      # del modelo sin pasarlo por acá. Declararlas NO es agregar dos líneas:
+      # plantillas, ni el seed, ni la base de desarrollo (0 filas)—, y la IA
+      # tampoco puede: `Tasks::ProposePipeline#apply!` pasa por acá el
+      # `config` que propone el modelo. Declararlas NO es agregar dos líneas:
       # `weights` es un mapa slug→peso y `filtrar` sólo sabe de escalares y de
       # arrays de `multi_select`, y `type` es una decisión de producto
       # (habilita «sin fuente de puntaje», que es lo que
@@ -239,6 +239,82 @@ module Flow
           next unless escalar_o_multi_select?(valor, campo[:type])
 
           write(acc, clave, castear(valor, campo[:type]))
+        end
+      end
+
+      # El JSON Schema del `config` de un kind: lo que la IA puede proponer
+      # (`Tasks::ProposePipeline`).
+      #
+      # Sale del mismo esquema que la UI, así que sumar una opción la suma acá
+      # sin tocar la tarea. Deja afuera los campos `column:` —no son config— y
+      # los de `source:`, que eligen otros módulos por id o por slug: al
+      # proponer un flujo esos módulos todavía no existen.
+      #
+      # `minimum`/`maximum` quedan a propósito aunque el modelo no los vea: el
+      # adapter de Anthropic los poda del pedido —la API los rechaza con 400—
+      # y `SchemaValidator` los aplica igual sobre la respuesta. Por eso el
+      # rango va también en la descripción, que es lo único que le llega.
+      def json_schema(kind)
+        campos = fields(kind).reject { |campo| campo[:column] || campo[:source] }
+
+        campos.each_with_object({ "type" => "object", "properties" => {} }) do |campo, schema|
+          *padres, hoja = campo[:key].to_s.split(".")
+          nodo = padres.reduce(schema) do |acc, segmento|
+            acc["properties"][segmento] ||= { "type" => "object", "properties" => {} }
+          end
+          nodo["properties"][hoja] = json_schema_de(campo, campos)
+        end
+      end
+
+      def json_schema_de(campo, campos)
+        schema =
+          case campo[:type].to_s
+          when "number" then { "type" => "number" }
+          when "boolean" then { "type" => "boolean" }
+          when "select" then { "type" => "string", "enum" => valores_de(campo) }
+          when "multi_select" then { "type" => "array", "items" => { "type" => "string", "enum" => valores_de(campo) } }
+          else raise ArgumentError, "el tipo de campo #{campo[:type].inspect} no tiene JSON Schema"
+          end
+
+        schema["minimum"] = campo[:min] if campo.key?(:min)
+        schema["maximum"] = campo[:max] if campo.key?(:max)
+        schema["default"] = campo[:default] if campo.key?(:default)
+        schema.merge("description" => descripcion_de(campo, campos))
+      end
+
+      def valores_de(campo) = campo[:options].map { |opcion| opcion[:value].to_s }
+
+      def descripcion_de(campo, campos)
+        partes = [campo[:label], campo[:hint]]
+        partes << opciones_de(campo) if campo[:options]
+        partes << rango_de(campo) if campo.key?(:min) || campo.key?(:max)
+        partes << condicion_de(campo[:depends_on], campos) if campo[:depends_on]
+        partes.compact.map { |parte| "#{parte.to_s.chomp('.')}." }.join(" ")
+      end
+
+      # El `enum` le da al modelo los valores; lo que significa cada uno está
+      # en la etiqueta que ve quien configura a mano.
+      def opciones_de(campo)
+        "Valores: " + campo[:options].map { |opcion| "`#{opcion[:value]}` (#{opcion[:label]})" }.join(", ")
+      end
+
+      def rango_de(campo)
+        if campo.key?(:min) && campo.key?(:max) then "Un número entre #{campo[:min]} y #{campo[:max]}"
+        elsif campo.key?(:min) then "Un número desde #{campo[:min]}"
+        else "Un número hasta #{campo[:max]}"
+        end
+      end
+
+      # Espeja `visible?`: «Valor del corte» no describe nada con la regla de
+      # corte en «manual», y el modelo sólo se entera si se lo dicen.
+      def condicion_de(regla, campos)
+        otro = campos.find { |campo| campo[:key].to_s == regla[:key].to_s }
+        return nil unless otro
+
+        if regla.key?(:not)
+          "Solo aplica cuando «#{otro[:label]}» no es «#{etiqueta_de(otro, regla[:not]) || regla[:not]}»"
+        else
+          "Solo aplica cuando «#{otro[:label]}» es «#{etiqueta_de(otro, regla[:is]) || regla[:is]}»"
         end
       end
 
@@ -271,7 +347,8 @@ module Flow
         campo[:options]&.find { |o| o[:value].to_s == valor.to_s }&.fetch(:label, nil)
       end
 
-      private :castear, :escalar_o_multi_select?, :etiqueta_de
+      private :castear, :escalar_o_multi_select?, :etiqueta_de,
+              :json_schema_de, :valores_de, :descripcion_de, :opciones_de, :rango_de, :condicion_de
     end
   end
 end

@@ -4,9 +4,9 @@
     { "kind": "ideation",   "name": "Postulación de ideas",  "config": { "min_ideas": 5 } },
     { "kind": "evolution",  "name": "Ronda de feedback",     "ai_mode": "ai_assisted", "config": {} },
     { "kind": "evaluation", "name": "Evaluación técnica",    "config": { "min_assessments": 2 } },
-    { "kind": "selection",  "name": "Corte a top 10",        "config": { "cut_mode": "top_n", "cut_value": 10 } },
+    { "kind": "selection",  "name": "Corte a top 10",        "config": { "cut": { "mode": "top_n", "value": 10 } } },
     { "kind": "evaluation", "name": "Evaluación de comité",  "ai_mode": "human", "config": { "min_assessments": 3 } },
-    { "kind": "selection",  "name": "Finalistas",            "config": { "cut_mode": "top_n", "cut_value": 3 } },
+    { "kind": "selection",  "name": "Finalistas",            "config": { "cut": { "mode": "top_n", "value": 3 } } },
     { "kind": "reporting",  "name": "Reporte de cierre",     "config": { "mode": "by_version" } }
   ]
 }
