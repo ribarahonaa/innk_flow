@@ -28,7 +28,6 @@ class PipelinePresenter
       steps: pipeline.steps.map { |step| step_json(step) },
       palette: palette,
       aiModes: ai_modes,
-      insertionFloor: pipeline.insertion_floor&.to_f,
       validation: validation_json,
       permissions: {
         canEdit: policy.update_pipeline?,
@@ -61,19 +60,17 @@ class PipelinePresenter
 
   def policy = @policy ||= ChallengePolicy.new(membership, challenge)
 
+  # Lo que el builder LEE del desafío, y nada más: el título de la página lo
+  # pinta el HAML de alrededor, no la isla.
   def challenge_json
     {
-      id: challenge.id,
       # El link «Configurar →» de cada tarjeta lo arma el cliente con esto:
       # la pantalla del módulo vive en `/challenges/:slug/steps/:id`.
       slug: challenge.slug,
-      name: challenge.name,
-      brief: challenge.brief,
-      status: challenge.status,
-      statusLabel: I18n.t("flow.challenge_statuses.#{challenge.status}"),
+      # El rótulo «(heredado)» de un módulo con `aiMode: nil`.
       aiDefaultMode: challenge.ai_default_mode,
-      lockVersion: challenge.lock_version,
-      draft: challenge.draft?
+      # Viaja de vuelta en el PUT: es el candado optimista del desafío.
+      lockVersion: challenge.lock_version
     }
   end
 
@@ -92,18 +89,16 @@ class PipelinePresenter
   def step_json(step)
     {
       id: step.id,
-      slug: step.slug,
       kind: step.kind,
       kindLabel: I18n.t("flow.kinds.#{step.kind}"),
       name: step.name,
-      status: step.status,
       statusLabel: I18n.t("flow.statuses.#{step.status}"),
       statusClass: chip_de_estado(step.status),
       aiMode: step.ai_mode,
       # La UI muestra la restricción, no solo la rechaza: los módulos bajo la
-      # línea de agua se dibujan sin handle de arrastre y en gris.
-      locked: step.touched?,
-      removable: pipeline.can_remove?(step)
+      # línea de agua se dibujan sin handle de arrastre y en gris, y sin la ✕
+      # de quitar.
+      locked: step.touched?
     }
   end
 

@@ -82,12 +82,9 @@
 
       -# Hermano de `.report-actions`, nunca adentro: cada `button_to` de arriba
       -# ya es un `<form>` y un form dentro de otro lo descarta el navegador,
-      -# reasignándole los botones al de afuera. `id:` explícito porque
-      -# `steps/config/_modulo` ya sirvió otro `form_with model: step` en esta
-      -# misma pantalla y los dos generarían el mismo id.
+      -# reasignándole los botones al de afuera.
       - if asignables.any?
-        = form_with model: step, url: challenge_step_path(step.challenge, step), method: :patch,
-                    id: "asignar-set-de-biblioteca" do |f|
+        = form_with model: step, url: challenge_step_path(step.challenge, step), method: :patch do |f|
           .field
             = f.label :criteria_set_id, step.selection? ? "O usá un set de filtros de la biblioteca" : "O usá un set de criterios de la biblioteca"
             = f.select :criteria_set_id,

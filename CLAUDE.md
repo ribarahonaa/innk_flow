@@ -173,6 +173,15 @@ textos de la app seguían instruyendo a hacerlo (`Flow::Pipeline#validate`,
 `CriteriaSetPresenter#version_notice`). Volvieron en HAML y no en la isla: el
 builder es dueño del armado, no de la configuración.
 
+**Con criterios propios no hay vuelta a la biblioteca.** Los dos controles
+aparecen solo mientras el módulo no tiene un set `inline` (el `set.nil?` del
+partial): en cuanto copia uno o empieza en blanco, desaparecen. «Guardarlos
+también en la biblioteca» (`promote_to_library!`) no es el camino de vuelta:
+crea una copia en la biblioteca y deja al módulo con la suya. Es paridad
+exacta con el panel del builder que se borró, no una regresión. La regla es de
+la pantalla y no del modelo —`criteria_set_belongs_to_challenge` acepta
+cualquier set de biblioteca—, así que abrir la vuelta sería solo de vista.
+
 Esto reemplaza al candado por evaluaciones **solo en la biblioteca**: sobre una
 versión nueva nadie puntuó nada, así que peso y escala vuelven a ser editables.
 En un set `inline` no hay a quién proteger copiando, y el candado sigue siendo

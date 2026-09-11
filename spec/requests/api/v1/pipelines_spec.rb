@@ -19,13 +19,12 @@ RSpec.describe "API del pipeline", type: :request do
   before { sign_in(owner, company: company) }
 
   describe "GET" do
-    it "devuelve steps, paleta, floor y permisos" do
+    it "devuelve steps y permisos" do
       as_company(company) { challenge.steps.create!(kind: "ideation", position: 1) }
 
       get pipeline_path
       expect(response).to have_http_status(:ok)
       expect(json["steps"].map { _1["kind"] }).to eq(%w[ideation])
-      expect(json["insertionFloor"]).to be_nil
       expect(json["permissions"]).to include("canEdit" => true, "canReorder" => true)
     end
 

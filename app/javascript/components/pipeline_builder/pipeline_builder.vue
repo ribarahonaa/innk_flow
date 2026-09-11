@@ -135,7 +135,6 @@ export default {
     steps: { type: Array, required: true },
     palette: { type: Array, required: true },
     aiModes: { type: Array, required: true },
-    insertionFloor: { type: Number, default: null },
     validation: { type: Object, required: true },
     permissions: { type: Object, required: true },
     urls: { type: Object, required: true }
@@ -219,14 +218,12 @@ export default {
         kind: item.kind,
         kindLabel: item.label,
         name: item.label,
-        status: 'pending',
         statusLabel: 'Pendiente',
         // Literal, como el rótulo de al lado: un módulo recién agregado nace
         // pendiente y el server le manda la suya en cuanto se guarda.
         statusClass: 'status-chip status-chip--pending',
         aiMode: null,
-        locked: false,
-        removable: true
+        locked: false
       };
 
       this.localSteps.push(step);

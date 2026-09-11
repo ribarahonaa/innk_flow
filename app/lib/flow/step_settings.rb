@@ -205,20 +205,26 @@ module Flow
       # descartan sin error, sanando la entrada.
       #
       # OJO: esto también descarta claves que el esquema NO declara y que algún
-      # handler SÍ lee. Hoy son las de `score_source` fuera de `combine`:
-      # `type`, `weights`, `step_slugs` y `step_ids`
-      # (`Flow::Handlers::Selection`). Que no sea un problema depende de dónde
-      # viven: en `resolved_config`, que las escribe `resolve_config!` al
-      # arrancar y que `filtrar` no toca nunca —`steps#update` sólo escribe
-      # `config`, y con el módulo tocado `FROZEN_ATTRIBUTES` ni eso—. En
-      # `config` no las pone nadie: ni las plantillas, ni el seed, ni la base
-      # de desarrollo (0 filas). El único que podría es
-      # `Tasks::ProposePipeline#apply!`, que guarda el `config` del modelo sin
-      # pasarlo por acá. Declararlas NO es agregar dos líneas: `weights` es un
-      # mapa slug→peso y `filtrar` sólo sabe de escalares y de arrays de
-      # `multi_select`, y `type` es una decisión de producto (habilita «sin
-      # fuente de puntaje», que es lo que `Flow::Pipeline#validate` mira para
-      # perdonar una selección sin evaluación previa).
+      # handler SÍ lee. Hoy son las de `score_source` fuera de `combine`
+      # (`Flow::Handlers::Selection`), y la lectura que importa es desde
+      # `config`: `resolve_config!` saca `type`, `step_slugs` y `weights` de
+      # `step.config` al arrancar para materializarlas —con `step_ids`— en
+      # `resolved_config`, y `manual_source?` vuelve a mirar `type` en
+      # `config`. Como `steps#update` reemplaza `config` entero por lo que
+      # devuelve este método, una de esas claves puesta en `config` se
+      # perdería en el siguiente guardado del módulo, antes de que nadie la
+      # materialice. Con el módulo tocado ya no corren riesgo: viven en
+      # `resolved_config`, que `filtrar` no toca, y `FROZEN_ATTRIBUTES` no deja
+      # escribir `config`. Que hoy no sea un problema es un hecho de los
+      # datos, no del mecanismo: en `config` no las pone nadie —ni las
+      # plantillas, ni el seed, ni la base de desarrollo (0 filas)—. El único
+      # que podría es `Tasks::ProposePipeline#apply!`, que guarda el `config`
+      # del modelo sin pasarlo por acá. Declararlas NO es agregar dos líneas:
+      # `weights` es un mapa slug→peso y `filtrar` sólo sabe de escalares y de
+      # arrays de `multi_select`, y `type` es una decisión de producto
+      # (habilita «sin fuente de puntaje», que es lo que
+      # `Flow::Pipeline#validate` mira para perdonar una selección sin
+      # evaluación previa).
       def filtrar(kind, hash)
         # La raíz tiene que ser un Hash: un `config` que llega escalar
         # (`challenge_step[config]=x`) o en array (`challenge_step[config][]=x`)
