@@ -3,25 +3,32 @@
 class AiSuggestionPolicy < ApplicationPolicy
   class Scope < ApplicationPolicy::Scope; end
 
-  # Aceptar o descartar lo que propuso la IA sigue exactamente la misma regla
-  # que pedirlo: depende de sobre QUÉ actúa la tarea, y eso lo declara la tarea.
+  # Aceptar o descartar lo que propuso la IA es la misma pregunta que pedirlo:
+  # depende de sobre QUÉ actúa la tarea, y eso lo declara la tarea.
   #
   # Antes era «quien administra, o el autor de la idea». Con esa regla quien
   # acompaña la evolución no podía aplicar el feedback que la IA propuso —que
   # es literalmente su trabajo— y quien colabora en una idea tampoco, aunque
   # la viera.
+  #
+  # Y no es sólo la misma regla: es el mismo método. `AiRequestsController`
+  # pregunta `request?` con una propuesta armada a partir del pedido. Tuvo el
+  # mapeo copiado allá y divergió: acá arrancaba con `return true if
+  # manager?`, así que quien administra aplicaba sobre un desafío cerrado una
+  # propuesta que ya no podía pedir.
   def accept?
     return false if membership.nil?
-    return true if manager?
 
-    case Flow::AI::Tasks::Base.scope_of(record.purpose)
-    when :idea then IdeaPolicy.new(membership, record.idea).update?
-    when :feedback then FeedbackItemPolicy.new(membership, comentario).create?
-    when :assessment then AssessmentPolicy.new(membership, evaluacion).create?
-    else false
-    end
+    alcance = Flow::AI::Tasks::Base.scope_of(record.purpose)
+
+    return IdeaPolicy.new(membership, record.idea).update? if alcance == :idea && record.idea
+    return FeedbackItemPolicy.new(membership, comentario).create? if alcance == :feedback && record.idea
+    return AssessmentPolicy.new(membership, evaluacion).create? if alcance == :assessment && paso
+
+    ChallengePolicy.new(membership, desafio).update_pipeline?
   end
 
+  def request? = accept?
   def reject? = accept?
   def index? = manager?
 
@@ -44,4 +51,8 @@ class AiSuggestionPolicy < ApplicationPolicy
   end
 
   def paso = record.challenge_step || record.ai_run&.challenge_step
+
+  # Una propuesta cuelga de UN objetivo —el desafío, el módulo o la idea—, así
+  # que el desafío hay que buscarlo en el que tenga.
+  def desafio = record.challenge || paso&.challenge || record.idea&.challenge
 end

@@ -411,11 +411,16 @@ eso lo declara la tarea** con `self.actua_sobre`:
 | `:feedback` | `suggest_feedback` | `FeedbackItemPolicy#create?` |
 | `:challenge` (default) | el resto | `ChallengePolicy#update_pipeline?` |
 
-`AiRequestsController` y `AiSuggestionPolicy` preguntan lo mismo
-(`Tasks::Base.scope_of`), así que pedir y aceptar no pueden divergir — que es
-justo lo que pasaba: era todo `update_pipeline?` para pedir y «admin o autor»
-para aceptar, así que quien participa no podía usar ninguna función de IA sobre
-su propia idea y quien acompaña no podía aplicar el feedback que es su trabajo.
+Pedir y aceptar son **el mismo método**: `AiRequestsController` arma una
+propuesta de mentira con lo que trae el pedido y pregunta
+`AiSuggestionPolicy#request?`, que es `accept?`. Divergieron dos veces
+mientras la tabla estuvo copiada en los dos lados. Primero era todo
+`update_pipeline?` para pedir y «admin o autor» para aceptar, así que quien
+participa no podía usar ninguna función de IA sobre su propia idea y quien
+acompaña no podía aplicar el feedback que es su trabajo. Después, con las dos
+copias ya alineadas por `Tasks::Base.scope_of`, la policy seguía arrancando con
+`return true if manager?`, y quien administra aplicaba sobre un desafío cerrado
+una propuesta que ya no podía pedir.
 
 Sumar una tarea es tocar **tres** lugares: la clase, `AiRun::PURPOSES` y el
 CHECK de Postgres sobre `ai_runs.purpose` (hace falta una migración; si no, el

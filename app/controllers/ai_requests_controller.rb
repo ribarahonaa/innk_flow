@@ -31,21 +31,19 @@ class AiRequestsController < ApplicationController
   # la tarea. Antes todo exigía `update_pipeline?` —solo administración—, así
   # que quien participa no podía usar ninguna función de IA sobre su propia
   # idea, y quien acompaña no podía pedir el feedback que es su trabajo.
+  #
+  # La regla vive en `AiSuggestionPolicy`: pedir es preguntar si podrías
+  # revisar lo que la IA va a proponer. Estuvo escrita acá también, y las
+  # dos copias divergieron.
+  #
+  # Se le pregunta con una propuesta de mentira armada con lo que trae el
+  # pedido. Nunca se guarda —tiene los tres objetivos a la vez, y una de
+  # verdad tiene uno—; el propósito viaja en su `AiRun` porque
+  # `AiSuggestion#purpose` delega ahí.
   def autorizar!(context)
-    idea = context[:idea]
-    alcance = Flow::AI::Tasks::Base.scope_of(params[:purpose])
-
-    return authorize(idea, :update?) if alcance == :idea && idea
-    if alcance == :feedback && idea
-      return authorize(FeedbackItem.new(idea: idea, challenge_step: context[:step]), :create?)
-    end
-    # Sin la idea a propósito: alcanza con evaluar en este módulo. Ver el
-    # comentario en AiSuggestionPolicy#evaluacion.
-    if alcance == :assessment && context[:step]
-      return authorize(Assessment.new(challenge_step: context[:step]), :create?)
-    end
-
-    authorize @challenge, :update_pipeline?
+    pedido = AiSuggestion.new(ai_run: AiRun.new(purpose: params[:purpose]), challenge: @challenge,
+                              challenge_step: context[:step], idea: context[:idea])
+    authorize pedido, :request?
   end
 
   def build_context

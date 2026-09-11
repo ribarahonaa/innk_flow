@@ -93,6 +93,29 @@ RSpec.describe "capa de IA", type: :request do
 
       expect(response).to have_http_status(:forbidden)
     end
+
+    # Pedir y aceptar tienen que preguntar lo mismo. Pedirla sobre un desafío
+    # cerrado ya rebotaba (`update_pipeline?`); aceptarla no, porque la policy
+    # le daba `true` a quien administra antes de mirar nada más, y una
+    # propuesta que quedó pendiente se aplicaba igual.
+    it "con el desafío cerrado, quien administra tampoco la aplica" do
+      as_company(company) { suggestion && challenge.pipeline.close! }
+      sign_in(owner, company: company)
+
+      post accept_ai_suggestion_path(suggestion)
+
+      expect(response).to have_http_status(:forbidden)
+      expect(as_company(company) { suggestion.reload }).to be_pending
+    end
+
+    it "y el panel no se la ofrece" do
+      as_company(company) { suggestion && challenge.pipeline.close! }
+      sign_in(owner, company: company)
+
+      get challenge_path(challenge)
+
+      expect(response.body).not_to include(accept_ai_suggestion_path(suggestion))
+    end
   end
 
   # El modo define cómo se trabaja DENTRO del desafío. Armar el flujo es una
