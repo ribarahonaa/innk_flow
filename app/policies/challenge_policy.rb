@@ -27,4 +27,13 @@ class ChallengePolicy < ApplicationPolicy
   # El pipeline solo se edita libremente en borrador; una vez arrancado, la
   # regla del insertion floor limita qué se puede tocar (Flow::Pipeline).
   def update_pipeline? = manager? && !record.closed? && !record.archived?
+
+  # Mirar el pool entero de ideas para decidir qué se fusiona o se descarta
+  # —hoy, detectar duplicados—: quien administra y quien acompaña el desafío.
+  #
+  # Quien participa no: la comparación devuelve títulos y resúmenes de ideas
+  # ajenas, y quien participa ve sólo las suyas. Quien evalúa tampoco: puntúa
+  # lo que se le asigna, no decide qué se fusiona. Y no mira si hay una ronda
+  # de evolución abierta, porque comparar no edita ninguna idea.
+  def curate_pool? = manager? || (membership.present? && membership.gestor? && reaches_challenge?(record))
 end

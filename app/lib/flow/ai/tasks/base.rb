@@ -78,6 +78,15 @@ module Flow
         # una confirmación extra sería burocracia.
         def applies_on_request? = false
 
+        # ¿Lo que produce es para LEER, no para aplicar?
+        #
+        # El opuesto de `applies_on_request?`: una tarea informativa no toca el
+        # dominio —su `apply!` no hace nada—, así que auto-aceptarla en «IA
+        # automática» no aplica nada y además la saca del panel, que es el
+        # único lugar donde se lee. El runner la corre siempre asistida, y el
+        # botón responde al marco de las propuestas (`marco_para_pedido_de_ia`).
+        def informativa? = false
+
         # Dos pedidos idénticos no deben producir dos llamadas.
         def idempotency_key
           Digest::SHA256.hexdigest([purpose, JSON.generate(messages)].join(":"))[0, 32]

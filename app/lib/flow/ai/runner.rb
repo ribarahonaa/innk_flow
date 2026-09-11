@@ -24,7 +24,11 @@ module Flow
 
       def initialize(task, mode:, requested_by: nil, challenge: nil, step: nil, idea: nil)
         @task = task
-        @mode = mode
+        # Lo que es para leer se lee: una tarea informativa no toca el dominio,
+        # así que en «IA automática» auto-aceptarla no aplicaba nada y la
+        # sacaba del panel, que es el único lugar donde se ve. Corre asistida
+        # en cualquier modo, y el run lo registra así.
+        @mode = task.informativa? ? "ai_assisted" : mode
         @requested_by = requested_by
         @challenge = challenge || step&.challenge || idea&.challenge
         @step = step

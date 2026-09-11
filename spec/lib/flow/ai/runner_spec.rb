@@ -60,6 +60,21 @@ RSpec.describe Flow::AI::Runner do
       expect(result.suggestion).to be_pending
       expect(result.suggestion.review_note).to match(/No se pudo aplicar/)
     end
+
+    # Lo que es para leer no se auto-acepta: su `apply!` no hace nada, y
+    # aceptarlo sólo lo sacaba del panel, que es donde se lee. Vale para
+    # cualquiera que llame al runner, no sólo para el botón.
+    it "una tarea informativa queda pendiente, y el run dice que fue asistido" do
+      paso = challenge.steps.create!(kind: "ideation", position: 1)
+      idea = create(:idea, challenge: challenge)
+      Flow::Ideas::PublishVersion.new(idea, payload: { "titulo" => "Sensores" }).call
+      informativa = Flow::AI::Tasks::DetectDuplicates.new(challenge: challenge, step: paso, idea: idea)
+
+      result = described_class.call(informativa, mode: "ai_auto", challenge: challenge, step: paso, idea: idea)
+
+      expect(result.suggestion).to be_pending
+      expect(result.run.mode).to eq("ai_assisted")
+    end
   end
 
   describe "idempotencia" do

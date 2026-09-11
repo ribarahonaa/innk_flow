@@ -193,13 +193,18 @@ feedback que es su trabajo.
 
 | Alcance | Tareas | Lo autoriza |
 |---|---|---|
-| `:idea` | `coauthor_field`, `evolve_idea`, `detect_duplicates` | `IdeaPolicy#update?` |
+| `:idea` | `coauthor_field`, `evolve_idea` | `IdeaPolicy#update?` |
 | `:feedback` | `suggest_feedback` | `FeedbackItemPolicy#create?` |
 | `:assessment` | `evaluate_idea` | `AssessmentPolicy#create?` |
+| `:pool` | `detect_duplicates` | `ChallengePolicy#curate_pool?` |
 | `:challenge` (default) | el resto | `ChallengePolicy#update_pipeline?` |
 
-`AiRequestsController` y `AiSuggestionPolicy` preguntan lo mismo
-(`Tasks::Base.scope_of`), así que **pedir y aceptar no pueden divergir**.
+**Pedir y aceptar son el mismo método**: `AiRequestsController` arma una
+propuesta de mentira con lo que trae el pedido y pregunta
+`AiSuggestionPolicy#request?`, que es `accept?`. Así no pueden divergir.
+
+`:pool` es de quien administra y de quien acompaña el desafío: comparar una idea
+contra las demás devuelve las demás, y quien participa ve sólo las suyas.
 
 Una vuelta de tuerca en `:assessment`: se pregunta **sin la idea**. Quien
 participa de una idea no la puntúa —ese es el conflicto de interés—, pero pedir

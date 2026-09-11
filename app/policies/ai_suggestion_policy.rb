@@ -24,6 +24,7 @@ class AiSuggestionPolicy < ApplicationPolicy
     return IdeaPolicy.new(membership, record.idea).update? if alcance == :idea && record.idea
     return FeedbackItemPolicy.new(membership, comentario).create? if alcance == :feedback && record.idea
     return AssessmentPolicy.new(membership, evaluacion).create? if alcance == :assessment && paso
+    return ChallengePolicy.new(membership, desafio).curate_pool? if alcance == :pool
 
     ChallengePolicy.new(membership, desafio).update_pipeline?
   end

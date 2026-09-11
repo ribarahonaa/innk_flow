@@ -27,7 +27,9 @@ module Flow
         # búsqueda con el índice HNSW y el prompt deja de crecer con el pool.
         NEIGHBOURS = 10
 
-        def self.actua_sobre = :idea
+        # Sobre el pool, no sobre la idea: lo que devuelve son las OTRAS ideas
+        # del desafío, que quien participa no ve. Ver `ChallengePolicy#curate_pool?`.
+        def self.actua_sobre = :pool
 
         def messages
           [
@@ -81,6 +83,8 @@ module Flow
         # Es puramente informativa: aceptarla no muta nada del dominio. La
         # decisión (fusionar, descartar, seguir) es de la persona.
         def apply!(payload, suggestion:) = [true, []]
+
+        def informativa? = true
 
         def preview(payload)
           matches = payload["matches"]

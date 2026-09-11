@@ -402,14 +402,29 @@ acepta. Y la IA **nunca pisa un veredicto que puso una persona**, ni con el
 módulo en automático: quien lo puso ya miró la idea (`pending_gates` en
 `Tasks::DecideVerdicts`).
 
+El caso opuesto es `informativa?`: lo que la tarea produce es para **leer**,
+no para aplicar (hoy, `detect_duplicates`). Su `apply!` no hace nada, así que
+en «IA automática» auto-aceptarla no aplicaba nada y además la sacaba del
+panel, el único lugar donde se lee: quien la pedía leía «se aplicó
+automáticamente» y ninguna coincidencia. El runner la corre asistida en
+cualquier modo —y el run lo registra así— y el botón responde al marco de las
+propuestas, porque no cambió nada más de la pantalla.
+
 **Quién puede pedirle algo a la IA —y aceptarlo— depende de sobre qué actúa, y
 eso lo declara la tarea** con `self.actua_sobre`:
 
 | Alcance | Tareas | Lo autoriza |
 |---|---|---|
-| `:idea` | `coauthor_field`, `evolve_idea`, `detect_duplicates` | `IdeaPolicy#update?` |
+| `:idea` | `coauthor_field`, `evolve_idea` | `IdeaPolicy#update?` |
 | `:feedback` | `suggest_feedback` | `FeedbackItemPolicy#create?` |
+| `:pool` | `detect_duplicates` | `ChallengePolicy#curate_pool?` |
 | `:challenge` (default) | el resto | `ChallengePolicy#update_pipeline?` |
+
+`detect_duplicates` actúa sobre el **pool**, no sobre la idea: lo que devuelve
+son títulos y resúmenes de las OTRAS ideas del desafío, que quien participa no
+ve. Lo piden y lo leen quien administra y quien acompaña ese desafío, haya o no
+una ronda abierta —comparar no edita nada—. Mientras colgó de `IdeaPolicy#update?`
+el autor lo pedía sobre su propio borrador y leía el pool entero.
 
 Pedir y aceptar son **el mismo método**: `AiRequestsController` arma una
 propuesta de mentira con lo que trae el pedido y pregunta

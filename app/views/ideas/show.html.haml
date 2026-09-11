@@ -29,7 +29,10 @@
 
 .idea-layout
   .idea-layout__main
-    - if @ideation_step
+    -# La misma pregunta que hace el pedido (`AiSuggestionPolicy`, alcance
+    -# `:pool`): sin esto el botón le salía a quien evalúa y a quien participa,
+    -# y apretarlo rebotaba en 403.
+    - if @ideation_step && policy(@challenge).curate_pool?
       = render "shared/ai_actions", challenge: @challenge, mode: @ideation_step.effective_ai_mode,
                actions: [{ label: "Detectar duplicados", purpose: "detect_duplicates", idea_id: @idea.id, step_id: @ideation_step.id }]
     .card

@@ -12,9 +12,13 @@ module ApplicationHelper
   # Ahí refrescar solo el marco deja el resto de la pantalla mostrando lo
   # viejo — la idea reescrita se seguía viendo como estaba hasta recargar a
   # mano.
+  #
+  # Una tarea informativa no cambia nada en ningún modo: el runner la corre
+  # siempre asistida, y su resultado aparece en el marco.
   def marco_para_pedido_de_ia(purpose, mode)
-    return "_top" if mode == "ai_auto"
-    return "_top" if Flow::AI::Tasks::Base.for(purpose).applies_on_request?
+    tarea = Flow::AI::Tasks::Base.for(purpose)
+    return "ai-suggestions" if tarea.informativa?
+    return "_top" if mode == "ai_auto" || tarea.applies_on_request?
 
     "ai-suggestions"
   rescue ArgumentError
