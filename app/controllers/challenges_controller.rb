@@ -16,7 +16,7 @@ class ChallengesController < ApplicationController
     @challenge = Challenge.new(challenge_params)
     authorize @challenge
 
-    return render(:new, status: :unprocessable_entity) unless @challenge.save
+    return render(:new, status: :unprocessable_content) unless @challenge.save
 
     redirect_to builder_challenge_path(@challenge), notice: start_from(params[:template])
   end

@@ -148,7 +148,7 @@ RSpec.describe "sets de criterios", type: :request do
                                                     output: { min: 0, max: 10 } })]
       }, as: :json
 
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response).to have_http_status(:unprocessable_content)
       expect(json["errors"].join).to include("inexistente")
     end
 
@@ -276,7 +276,7 @@ RSpec.describe "sets de criterios", type: :request do
         name: "Otro nombre", criteria: [criterion_params(id: first_criterion.id)]
       }, as: :json
 
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response).to have_http_status(:unprocessable_content)
       expect(json["errors"].join).to include("reemplazada")
     end
 
@@ -376,7 +376,7 @@ RSpec.describe "sets de criterios", type: :request do
     it "quitar un criterio tampoco, y lo dice" do
       put api_v1_criteria_set_path(set), params: { name: "Técnica", criteria: [] }, as: :json
 
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response).to have_http_status(:unprocessable_content)
       expect(json["errors"].join).to include("No se pueden quitar criterios")
       expect(reloaded_criteria.size).to eq(1)
     end

@@ -9,7 +9,7 @@ module Api
 
       private
 
-      def render_error(messages, status: :unprocessable_entity)
+      def render_error(messages, status: :unprocessable_content)
         render json: { errors: Array(messages) }, status: status
       end
     end

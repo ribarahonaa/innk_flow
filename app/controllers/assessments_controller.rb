@@ -37,7 +37,7 @@ class AssessmentsController < ApplicationController
     @handler = handler
     @ai_scores = ai_suggestion_scores
     flash.now[:alert] = e.record.errors.full_messages.to_sentence
-    render :new, status: :unprocessable_entity
+    render :new, status: :unprocessable_content
   end
 
   private

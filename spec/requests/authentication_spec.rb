@@ -29,7 +29,7 @@ RSpec.describe "autenticación", type: :request do
 
   it "rechaza credenciales inválidas" do
     post login_path, params: { email: "ana@test.dev", password: "incorrecta" }
-    expect(response).to have_http_status(:unprocessable_entity)
+    expect(response).to have_http_status(:unprocessable_content)
     expect(response.body).to include("incorrectos")
   end
 

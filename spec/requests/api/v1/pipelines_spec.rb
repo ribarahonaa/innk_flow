@@ -108,7 +108,7 @@ RSpec.describe "API del pipeline", type: :request do
         steps: [{ id: nil, kind: "ideation" }, { id: nil, kind: "ideation" }]
       }, as: :json
 
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response).to have_http_status(:unprocessable_content)
       expect(json["errors"].join).to match(/una sola vez/)
     end
 
@@ -133,7 +133,7 @@ RSpec.describe "API del pipeline", type: :request do
         steps: [{ id: steps[1].id, kind: "evaluation" }, { id: steps[0].id, kind: "ideation" }]
       }, as: :json
 
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response).to have_http_status(:unprocessable_content)
       expect(json["errors"].join).to match(/ya ejecutados no se pueden reordenar/)
     end
 
@@ -148,7 +148,7 @@ RSpec.describe "API del pipeline", type: :request do
         steps: []
       }, as: :json
 
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response).to have_http_status(:unprocessable_content)
       expect(json["errors"].join).to match(/no se puede quitar/)
     end
 
@@ -187,7 +187,7 @@ RSpec.describe "API del pipeline", type: :request do
         ]
       }, as: :json
 
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response).to have_http_status(:unprocessable_content)
       expect(as_company(company) { challenge.steps.count }).to eq(1)
     end
   end

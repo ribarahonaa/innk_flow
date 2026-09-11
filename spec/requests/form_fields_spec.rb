@@ -197,7 +197,7 @@ RSpec.describe "formulario de postulación", type: :request do
     it "rechaza el campo sin nombre en vez de guardarlo a medias" do
       put api_path, params: { fields: [{ id: nil, label: "", field_type: "text" }] }, as: :json
 
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response).to have_http_status(:unprocessable_content)
       expect(json["errors"].join).to include("campo sin nombre")
       expect(fields).to be_empty
     end
@@ -248,7 +248,7 @@ RSpec.describe "formulario de postulación", type: :request do
         fields: existing.take(1).map { |f| { id: f.id, label: f.label, field_type: f.field_type } }
       }, as: :json
 
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response).to have_http_status(:unprocessable_content)
       expect(json["errors"].join).to include("No se pueden quitar campos")
       expect(fields.size).to eq(3)
     end

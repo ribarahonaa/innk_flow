@@ -30,7 +30,7 @@ class IdeasController < ApplicationController
   rescue ActiveRecord::RecordInvalid => e
     @fields = ideation_step.form_fields.ordered
     flash.now[:alert] = e.record.errors.full_messages.to_sentence
-    render :new, status: :unprocessable_entity
+    render :new, status: :unprocessable_content
   end
 
   def show
@@ -68,7 +68,7 @@ class IdeasController < ApplicationController
     else
       @fields = ideation_step.form_fields.ordered
       flash.now[:alert] = result.error_sentence
-      render :edit, status: :unprocessable_entity
+      render :edit, status: :unprocessable_content
     end
   end
 

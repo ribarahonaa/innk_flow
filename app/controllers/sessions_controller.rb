@@ -30,7 +30,7 @@ class SessionsController < ApplicationController
     else
       # Mensaje único: no se distingue "email inexistente" de "clave incorrecta".
       flash.now[:alert] = t("auth.invalid_credentials")
-      render :new, layout: "auth", status: :unprocessable_entity
+      render :new, layout: "auth", status: :unprocessable_content
     end
   end
 
