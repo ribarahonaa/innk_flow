@@ -8,7 +8,17 @@
 -# Mientras espera, Turbo le pone `aria-busy` al marco y el CSS muestra el
 -# estado — con un proveedor real la respuesta tarda de 10 a 70 segundos, y sin
 -# eso la pantalla parece colgada.
-- suggestions = suggestions.to_a
+-#
+-# Sólo lo que quien mira puede revisar, con la MISMA pregunta que hace
+-# `AiSuggestionsController` al aplicar o descartar. Las pantallas que lo
+-# renderizan se le sirven a cualquiera que llegue al desafío, y cada una le
+-# pasaba todo lo pendiente de su objetivo: quien participa recibía la
+-# propuesta de flujo o las ideas generadas —de quien administra— y quien
+-# evalúa, lo que la IA le propone al autor de una idea, con «Aplicar» y
+-# «Descartar» que rebotaban en 403. Filtrar acá y no en cada controller es
+-# lo que la cubre en las diez pantallas, y la guarda es por propuesta porque
+-# el permiso depende de sobre qué actúa cada tarea.
+- suggestions = suggestions.to_a.select { |suggestion| policy(suggestion).accept? }
 
 %turbo-frame#ai-suggestions
   .ai-waiting

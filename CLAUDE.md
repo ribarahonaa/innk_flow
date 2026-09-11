@@ -528,6 +528,12 @@ cuánto pesa, `update_pipeline?` para quién acompaña la evolución
 (`_asignaciones_gestores.html.haml`, que sólo envuelve `challenges/_gestores`
 con esa guarda y no tiene policy propia).
 
+El panel de propuestas de la IA (`shared/_ai_suggestions`) es la excepción al
+«un solo `if`»: filtra propuesta por propuesta con `AiSuggestionPolicy#accept?`,
+porque quién revisa depende de sobre qué actúa cada tarea. Se sirve en diez
+pantallas, y sin ese filtro les mandaba a quien participa y a quien evalúa
+propuestas que no podían revisar, con la vista previa incluida.
+
 **Borrar o mudar una pantalla de configuración le puede sacar el sonido a
 `Flow::Setup`.** El paso a paso apunta cada paso a una URL
 (`Flow::Setup::Step#path`). `setup_nav` necesita que quien lo renderiza le
