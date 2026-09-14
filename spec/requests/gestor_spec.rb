@@ -252,7 +252,7 @@ RSpec.describe "el rol gestor", type: :request do
                                         step_id: evolucion.id, idea_id: idea.id)
       end.to change { as_company(demo) { AiRun.count } }.by(1)
 
-      expect(flash[:alert]).to be_nil
+      expect(flash[:ia]["tipo"]).to eq("ok")
     end
 
     it "y puede aplicar lo que la IA propuso" do

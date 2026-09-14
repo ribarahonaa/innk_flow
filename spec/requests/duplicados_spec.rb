@@ -107,7 +107,7 @@ RSpec.describe "detectar ideas duplicadas", type: :request do
       pedir(otra)
 
       expect(response).to have_http_status(:found)
-      expect(flash[:alert]).to be_nil
+      expect(flash[:ia]["tipo"]).to eq("ok")
       expect(corridas).to eq(1)
     end
   end
