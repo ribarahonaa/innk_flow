@@ -716,6 +716,109 @@ async function shot(page, name, url, prepare) {
     failures++;
     console.error('[LINK] la biblioteca de criterios no ofrece editar un set');
   }
+  // ── Los dos popups de la IA ────────────────────────────────────────────────
+  //
+  // Desarrollo usa el proveedor REAL (FLOW_AI_PROVIDER=anthropic): ninguna
+  // captura puede disparar un pedido que llame a la IA. Los dos caminos de acá
+  // pasan por el servidor de verdad y no cuestan un peso: un propósito que no
+  // existe se rechaza antes de llamar a nadie, y «Detectar duplicados» compara
+  // local porque el proveedor de VECTORES es el fixture.
+  //
+  // Sobre `recorrido-ia`, que existe sólo para esto: las capturas que
+  // dependieron de un desafío que también se usa a mano fallaron por datos dos
+  // veces.
+  await page.goto(BASE + '/challenges/recorrido-ia', { waitUntil: 'networkidle' });
+
+  // El pedido a la IA vive en la pantalla del módulo (Postulación), no en el
+  // resumen del desafío: se entra por link, como pide CLAUDE.md, para no
+  // esconder detrás de un `goto` un bug de Turbo al montar esa pantalla.
+  await Promise.all([
+    page.waitForURL(/\/steps\/[^/]+$/, { timeout: 15000 }),
+    page.click('.step-table__link:has-text("Postulación")')
+  ]);
+  await page.waitForSelector('form[action*="/ai_requests"]', { timeout: 15000 });
+
+  // 1 · La espera. El pedido se RETIENE para fotografiar el popup girando y
+  // comprobar que Escape no lo cierra; después se suelta y tiene que irse solo.
+  let soltar = null;
+  await page.route('**/ai_requests*', async (route) => {
+    await new Promise((resolve) => { soltar = resolve; });
+    await route.continue();
+  });
+
+  // Se reescribe la acción de un formulario de IA que ya está en la pantalla:
+  // así el pedido va con su token CSRF y por el mismo camino que un clic real.
+  const hayForm = await page.evaluate(() => {
+    const form = document.querySelector('form[action*="/ai_requests"]');
+    if (!form) return false;
+    const url = new URL(form.action);
+    url.searchParams.set('purpose', 'proposito-inexistente');
+    form.action = url.toString();
+    form.requestSubmit();
+    return true;
+  });
+  if (!hayForm) {
+    failures++;
+    console.error('[IA] recorrido-ia no ofrece ningún pedido a la IA');
+  }
+
+  await page.waitForSelector('dialog[data-ia="espera"][open]', { timeout: 5000 });
+  await capturar(page, '09-13-ia-espera');
+
+  // No se puede cerrar: es la razón de ser del popup.
+  await page.keyboard.press('Escape');
+  if (!(await page.locator('dialog[data-ia="espera"][open]').count())) {
+    failures++;
+    console.error('[IA] la espera se cerró con Escape');
+  }
+
+  if (soltar) soltar();
+  await page.waitForSelector('dialog[data-ia="respuesta"][open]', { timeout: 15000 });
+  if (await page.locator('dialog[data-ia="espera"]').count()) {
+    failures++;
+    console.error('[IA] la espera quedó puesta después de la respuesta');
+  }
+  const rojo = await page.locator('dialog[data-ia="respuesta"] .ia-respuesta--error').count();
+  if (!rojo) {
+    failures++;
+    console.error('[IA] un pedido rechazado no muestra el popup de error');
+  }
+  await page.click('dialog[data-ia="respuesta"] .ia-respuesta__cerrar');
+  await page.unroute('**/ai_requests*');
+
+  // 2 · El éxito, con la propuesta adentro del popup. «Detectar duplicados»
+  // vive en la ficha de una idea, y se llega por link: un `goto` monta la
+  // pantalla igual y esconde los bugs de Turbo.
+  //
+  // `.idea-list__link` y no `a[href*="/ideas/"]` a secas: esta misma pantalla
+  // ofrece «Postular una idea» (`/ideas/new`), que matchea el mismo patrón y
+  // aparece ANTES que la lista en el DOM — un selector más flojo hacía clic en
+  // el formulario nuevo y nunca llegaba a la ficha de una idea existente.
+  const aIdea = page.locator('a.idea-list__link').first();
+  if (!(await aIdea.count())) {
+    failures++;
+    console.error('[IA] recorrido-ia no ofrece ningún link a una idea');
+  }
+  await aIdea.click();
+  await page.waitForURL(/\/ideas\//);
+  await page.click('form[action*="detect_duplicates"] button');
+  await page.waitForSelector('dialog[data-ia="respuesta"][open]', { timeout: 30000 });
+
+  for (const texto of ['Aplicar', 'Descartar']) {
+    if (!(await page.locator(`dialog[data-ia="respuesta"] button:has-text("${texto}")`).count())) {
+      failures++;
+      console.error(`[IA] el popup de respuesta no ofrece «${texto}»`);
+    }
+  }
+  // Se captura CON el popup abierto: así la guarda de clases sin regla detrás
+  // que corre en `capturar()` revisa también las del modal.
+  await capturar(page, '09-14-ia-respuesta');
+
+  // Descartar, para no dejar una propuesta pendiente: la corrida siguiente la
+  // encontraría como «ya había una» y el camino de éxito dejaría de probarse.
+  await page.click('dialog[data-ia="respuesta"] button:has-text("Descartar")');
+  await page.waitForSelector('dialog[data-ia="respuesta"]', { state: 'detached', timeout: 10000 });
+
   await shot(page, '11-ai-runs', '/admin/ai_runs');
 
   await browser.close();

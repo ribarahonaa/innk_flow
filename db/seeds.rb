@@ -409,6 +409,58 @@ Flow::Tenant.bypass! do
     filtros_comedor.refresh_status!
     seleccion.update!(criteria_set_id: filtros_comedor.id)
 
+    # Un desafío EN CURSO que existe sólo para `make screens`, donde se
+    # fotografían los dos popups de la IA.
+    #
+    # Propio y no compartido, como manda CLAUDE.md: cuando las capturas
+    # dependieron de un desafío que además se usa a mano, bastó con que alguien
+    # le aplicara una propuesta para que la corrida fallara por datos. Pasó dos
+    # veces. `sin-formulario` tampoco sirve: está en borrador y sin ideas, y
+    # darle ideas le cambiaría lo que fotografían sus otras capturas.
+    #
+    # Idear ABIERTO y en modo asistido, con dos ideas postuladas: hace falta
+    # que haya al menos dos para que «Detectar duplicados» tenga contra qué
+    # comparar.
+    Challenge.where(slug: "recorrido-ia").destroy_all
+    recorrido = Challenge.create!(
+      slug: "recorrido-ia",
+      name: "Menos papel en la operación",
+      brief: "Cada despacho se imprime tres veces y nadie vuelve a mirar esas copias. " \
+             "Buscamos ideas para sacar el papel del circuito sin perder la trazabilidad.",
+      ai_default_mode: "ai_assisted"
+    )
+    recorrido.pipeline.insert(kind: "ideation", after: :end, name: "Postulación")
+    recorrido.pipeline.insert(kind: "evolution", after: :end, name: "Ronda de feedback")
+    recorrido_ideacion = recorrido.pipeline.ideation_step
+    [
+      ["titulo", "Título", "text", { "is_title" => true }, "Una frase que identifique la idea."],
+      ["problema", "¿Qué problema resuelve?", "textarea", {}, "La situación actual y su costo."],
+      ["solucion", "¿Cómo funcionaría?", "textarea", {}, "Qué se hace y quién lo hace."]
+    ].each_with_index do |(key, label, type, config, hint), index|
+      recorrido_ideacion.form_fields.create!(key: key, label: label, field_type: type, hint: hint,
+                                             required: true, position: index, config: config)
+    end
+    recorrido.pipeline.start!
+    recorrido_ideacion.reload
+
+    [
+      ["Guía de despacho digital",
+       "Cada despacho se imprime tres veces y las copias terminan en una caja que nadie revisa.",
+       "Firmar la guía en el celular del chofer y guardar el PDF contra el número de despacho."],
+      ["Firma en el celular del transportista",
+       "El papel sale de bodega sólo para que alguien firme, y después vuelve para archivarse.",
+       "Que el transportista firme en una app y que el sistema cierre el despacho con esa firma."]
+    ].each do |titulo, problema, solucion|
+      idea = Idea.create!(challenge: recorrido, author: User.find_by!(email: "part1@demo.test"),
+                          status: "draft", origin: "human")
+      Flow::Ideas::PublishVersion.new(
+        idea, payload: { "titulo" => titulo, "problema" => problema, "solucion" => solucion },
+        author: idea.author, actor_type: "human", source_step: recorrido_ideacion,
+        change_note: "Creación de la idea"
+      ).call
+      idea.update!(submitted_at: Time.current)
+    end
+
     # Un desafío SIN módulos, para la captura del selector de plantillas.
     # Antes el script de capturas creaba uno en cada corrida y no lo borraba:
     # la base de desarrollo terminó con dieciséis «desafio-de-prueba-N».
@@ -429,6 +481,7 @@ Flow::Tenant.bypass! do
     puts "  notas:     #{Assessment.where(idea_id: challenge.ideas.select(:id)).count}"
     puts "  decisiones: #{SelectionDecision.where(idea_id: challenge.ideas.select(:id)).count}"
     puts "Desafío en borrador: Mejorar el onboarding remoto"
+    puts "Desafío del recorrido: #{recorrido.name} (#{recorrido.ideas.count} ideas)"
   end
 
   puts ""
