@@ -69,6 +69,10 @@
         = render "layouts/flow_drawer", desafio: desafio
       %main.app-main
         - flash.each do |type, message|
+          -# `:ia` no se pinta acá: es el popup de respuesta y lo arma
+          -# `shared/_ia_respuesta`. Su valor además es un hash, así que
+          -# pintarlo como franja escupiría el hash entero en la pantalla.
+          - next if type.to_s == "ia"
           %div{ class: clase_de_flash(type) }= message
         = yield
       -# Después del `yield`: es el template el que llena la referencia.

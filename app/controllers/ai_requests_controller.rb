@@ -18,11 +18,11 @@ class AiRequestsController < ApplicationController
       challenge: @challenge, step: context[:step], idea: context[:idea]
     )
 
-    redirect_back fallback_location: challenge_path(@challenge),
-                  notice: result.ok? ? success_message(result) : nil,
-                  alert: result.ok? ? nil : "La IA no pudo responder: #{result.error_sentence}"
+    flash[:ia] = respuesta_de_ia(result)
+    redirect_back fallback_location: challenge_path(@challenge)
   rescue ArgumentError => e
-    redirect_back fallback_location: challenge_path(@challenge), alert: e.message
+    flash[:ia] = { "tipo" => "error", "mensaje" => e.message, "sugerencia_id" => nil }
+    redirect_back fallback_location: challenge_path(@challenge)
   end
 
   private
@@ -68,6 +68,37 @@ class AiRequestsController < ApplicationController
     mode == "human" ? "ai_assisted" : mode
   end
 
+  # Lo que el popup de respuesta va a decir.
+  #
+  # Un hash y no un `notice`: el popup necesita saber si salió bien o mal y,
+  # cuando quedó algo por revisar, cuál es la propuesta. Además el `notice` se
+  # perdía en los pedidos que responden al marco, porque el layout lo pinta
+  # AFUERA del marco y Turbo se queda sólo con el marco.
+  #
+  # Las claves van en STRING a propósito: el flash viaja en la cookie de
+  # sesión serializado a JSON, así que un símbolo vuelve como string y
+  # `flash[:ia][:tipo]` sería `nil` del otro lado del redirect.
+  #
+  # `sugerencia_id` sólo cuando la propuesta quedó PENDIENTE: una ya aceptada
+  # no tiene nada que revisar, y ofrecerle «Aplicar» a lo que ya se aplicó es
+  # el control fantasma que estamos sacando.
+  def respuesta_de_ia(result)
+    {
+      "tipo" => result.ok? ? "ok" : "error",
+      "mensaje" => result.ok? ? success_message(result) : error_message(result),
+      "sugerencia_id" => (result.suggestion&.id if result.suggestion&.pending?)
+    }
+  end
+
+  # La IA respondió y el dominio rechazó lo que propuso: son dos cosas
+  # distintas y antes se decían igual. «No pudo responder» era falso, y encima
+  # escondía que había una propuesta pendiente esperando a una persona.
+  def error_message(result)
+    return "La IA respondió, pero no se pudo aplicar: #{result.error_sentence}" if result.suggestion
+
+    "La IA no pudo responder: #{result.error_sentence}"
+  end
+
   def success_message(result)
     return "Listo: la evaluación de la IA ya está en la lista." if result.run&.purpose == "evaluate_idea"
     return "La IA respondió y se aplicó automáticamente." if result.suggestion&.accepted?
@@ -75,7 +106,7 @@ class AiRequestsController < ApplicationController
     # Un pedido repetido mientras la propuesta anterior sigue sin revisar no
     # llama de nuevo al proveedor: se dice con todas las letras, en vez de
     # anunciar una respuesta nueva que no existe.
-    return "Ya hay una propuesta esperando tu revisión más abajo." if result.reused?
+    return "Ya había una propuesta esperando tu revisión." if result.reused?
 
     "La IA respondió. Revisá la propuesta antes de aplicarla."
   end

@@ -34,7 +34,7 @@ RSpec.describe "capa de IA", type: :request do
         expect(AiSuggestion.pending_review.count).to eq(1)
         expect(challenge.steps.reload).to be_empty
       end
-      expect(flash[:notice]).to match(/Revisá la propuesta/)
+      expect(flash[:ia]["mensaje"]).to match(/Revisá la propuesta/)
     end
 
     it "en modo auto aplica sola" do
@@ -46,7 +46,7 @@ RSpec.describe "capa de IA", type: :request do
         expect(challenge.steps.reload.count).to eq(7)
         expect(AiSuggestion.first).to be_accepted
       end
-      expect(flash[:notice]).to match(/aplicó automáticamente/)
+      expect(flash[:ia]["mensaje"]).to match(/aplicó automáticamente/)
     end
 
     it "la propuesta aparece en el builder, que es donde se arma el flujo" do
@@ -300,7 +300,7 @@ RSpec.describe "capa de IA", type: :request do
                                       step_id: ideation.id, field_key: "titulo")
 
       expect(response).to have_http_status(:found)
-      expect(flash[:alert]).to be_nil
+      expect(flash[:ia]["tipo"]).to eq("ok")
     end
 
     it "sobre la idea de otra persona, no" do
