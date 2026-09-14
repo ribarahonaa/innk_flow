@@ -47,6 +47,8 @@
     = t("flow.cut_modes.#{@handler.cut_mode}")
     - unless @handler.manual_cut?
       = "· #{@handler.cut_value.to_i}"
+      - if @handler.cut_min.positive?
+        = "· mínimo #{Flow::Texto.contar(@handler.cut_min, "idea")}"
     - fuentes = @handler.expected_source_steps
     - if fuentes.any?
       %span.muted
@@ -57,6 +59,11 @@
             = "(#{fuentes.map { |s| "#{s.name} #{(weights[s.slug].to_f * 100).round}%" }.join(', ')})"
     - else
       %span.muted · sin fuente de puntaje: el orden es manual
+
+  - if @handler.piso_aplicado?(completo)
+    %p.rule-line
+      %strong Pasan por el mínimo:
+      = "el corte dejaba pasar menos de #{Flow::Texto.contar(@handler.cut_min, "idea")}, así que avanzan las mejores aunque no lo alcancen."
 
   - combine_campo = Flow::StepSettings.fields("selection").find { |c| c[:key] == "score_source.combine" }
   - combine_valor = @step.settings.dig("score_source", "combine")

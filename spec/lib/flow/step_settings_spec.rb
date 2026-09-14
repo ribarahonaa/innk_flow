@@ -38,7 +38,7 @@ RSpec.describe Flow::StepSettings do
     it "junta esencial y avanzado, en ese orden" do
       claves = described_class.fields("selection").map { |f| f[:key] }
 
-      expect(claves).to eq(%w[source_step_id cut.mode cut.value
+      expect(claves).to eq(%w[source_step_id cut.mode cut.value cut.min
                               score_source.combine])
     end
 
@@ -134,7 +134,7 @@ RSpec.describe Flow::StepSettings do
   describe "defaults" do
     it "arma la config inicial de un módulo desde el esquema" do
       expect(described_class.defaults("selection")).to eq(
-        "cut" => { "mode" => "manual", "value" => 10 },
+        "cut" => { "mode" => "manual", "value" => 10, "min" => 0 },
         "score_source" => { "combine" => "weighted_avg" }
       )
     end
@@ -252,6 +252,22 @@ RSpec.describe Flow::StepSettings do
         declaradas = described_class.fields(kind).map { _1[:key] }
         expect(declaradas).to include(*keys)
       end
+    end
+  end
+  # Una clave que no está en el esquema se descarta sin avisar y el módulo
+  # corre con el default: así nació «Corte a top 10» en manual una vez.
+  describe "el piso del corte de una selección" do
+    it "está declarado, así que sobrevive al filtro" do
+      filtrado = described_class.filtrar("selection", { "cut" => { "mode" => "threshold", "value" => 0.8, "min" => 3 } })
+
+      expect(filtrado.dig("cut", "min")).to eq(3)
+    end
+
+    it "no se muestra con el corte en manual, que lo decide una persona" do
+      campo = described_class.fields("selection").find { |f| f[:key] == "cut.min" }
+
+      expect(described_class.visible?(campo, { "cut" => { "mode" => "manual" } })).to be(false)
+      expect(described_class.visible?(campo, { "cut" => { "mode" => "threshold" } })).to be(true)
     end
   end
 end

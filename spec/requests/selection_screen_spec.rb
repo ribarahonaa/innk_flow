@@ -197,4 +197,56 @@ RSpec.describe "la pantalla de una selección", type: :request do
       expect(response.body).to include("quedó fijado")
     end
   end
+  # El piso GANA sobre la regla, así que existe el caso de una idea arriba de la
+  # línea de corte con un puntaje que no la alcanza. Sin decirlo en la pantalla,
+  # eso se lee como un error de la app.
+  describe "cuando el mínimo de ideas levanta el corte" do
+    let!(:otro) do
+      as_company(company) do
+        c = create(:challenge, name: "Piso", ai_default_mode: "human")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
+        evaluacion = c.steps.create!(kind: "evaluation", position: 2, name: "Técnica", slug: "tecnica")
+        c.steps.create!(kind: "selection", position: 3, name: "Corte",
+                        config: { "cut" => { "mode" => "threshold", "value" => 0.95, "min" => 2 } })
+
+        %w[Alta Media Baja].each_with_index do |titulo, index|
+          idea = create(:idea, challenge: c, author: paula, status: "active")
+          Flow::Ideas::PublishVersion.new(idea, payload: { "titulo" => titulo }, author: paula).call
+          idea.update!(submitted_at: Time.current)
+          evaluacion.step_entries.create!(idea: idea, status: "done",
+                                          result: { "score" => 0.6 - (index * 0.2) })
+        end
+
+        c.update!(status: "running")
+        evaluacion.update!(status: "completed")
+        c
+      end
+    end
+
+    def corte
+      as_company(company) do
+        paso = otro.steps.reload.find(&:selection?)
+        Flow::Handlers::Base.for(paso).activate!
+        paso.reload
+      end
+    end
+
+    it "la pantalla dice que pasaron por el mínimo y no por el puntaje" do
+      get challenge_step_path(otro, corte)
+
+      expect(response.body).to include("Pasan por el mínimo")
+      expect(response.body).to include("mínimo 2 ideas")
+    end
+
+    it "y no lo dice cuando la regla ya alcanzaba" do
+      as_company(company) do
+        paso = otro.steps.reload.find(&:selection?)
+        paso.update!(config: { "cut" => { "mode" => "top_n", "value" => 3, "min" => 2 } })
+      end
+
+      get challenge_step_path(otro, corte)
+
+      expect(response.body).not_to include("Pasan por el mínimo")
+    end
+  end
 end

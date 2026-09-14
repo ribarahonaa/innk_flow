@@ -229,6 +229,27 @@ module Flow
       def cut_value = settings.dig("cut", "value").to_f
       def manual_cut? = cut_mode == "manual"
 
+      # Cuántas ideas pasan como mínimo, pase lo que pase con la regla. 0 es
+      # sin piso, que es como se comportaba esto antes de que existiera.
+      def cut_min = settings.dig("cut", "min").to_i
+
+      # ¿El piso levantó el corte por encima de lo que daba la regla sola?
+      #
+      # Lo pregunta la pantalla: sin decirlo, una idea aparece arriba de la
+      # línea de corte con un puntaje que no alcanza y nadie entiende por qué.
+      #
+      # Recibe las filas ya calculadas porque `ranking` NO se memoiza a
+      # propósito —`record_verdict!` invalida en el medio— y la pantalla ya lo
+      # tiene: sin el parámetro, cada render lo calculaba dos veces, y ahí
+      # adentro hay una consulta por criterio y por idea.
+      def piso_aplicado?(filas = ranking)
+        return false if cut_min.zero? || manual_cut? || no_score_source?
+
+        elegibles = filas.select(&:passes_gates?)
+        evaluadas = elegibles.count(&:scored?)
+        cut_base(elegibles, evaluadas) < [cut_min, evaluadas].min
+      end
+
       protected
 
       def on_activate
@@ -271,7 +292,8 @@ module Flow
             "weights" => source["weights"] || {},
             "resolved_at" => Time.current.iso8601
           },
-          "cut" => { "mode" => cut_mode_from_config, "value" => cut_value_from_config }
+          "cut" => { "mode" => cut_mode_from_config, "value" => cut_value_from_config,
+                     "min" => cut_min_from_config }
         )
       end
 
@@ -314,6 +336,7 @@ module Flow
       end
 
       def cut_value_from_config = step.config.dig("cut", "value").to_f
+      def cut_min_from_config = step.config.dig("cut", "min").to_i
 
       def source_scores_for(idea_id)
         source_steps.each_with_object({}) do |source, acc|
@@ -344,11 +367,18 @@ module Flow
         sources.sum { |slug, score| score * (weights[slug] || 0).to_f } / total
       end
 
+      # La regla decide cuántas pasan; el piso sube ese número si quedó corto, y
+      # el total de evaluadas lo topea. El tope no es una precaución de más: sin
+      # él un piso de 99 prometería 99 ideas sobre un pool de cinco. Es la misma
+      # protección que `top_n` ya traía, ahora para los tres modos.
       def cut_size(ordered)
         return ordered.size if no_score_source?
 
         scored = ordered.count(&:scored?)
+        [[cut_base(ordered, scored), cut_min].max, scored].min
+      end
 
+      def cut_base(ordered, scored)
         case cut_mode
         when "top_n" then [cut_value.to_i, scored].min
         when "top_percent" then (scored * cut_value / 100.0).ceil

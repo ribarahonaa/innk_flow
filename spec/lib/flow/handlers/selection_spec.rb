@@ -99,6 +99,59 @@ RSpec.describe Flow::Handlers::Selection do
       expect(above.map { _1.score }).to all(be >= 0.5)
     end
 
+    # Con `threshold` el corte cuenta las que superan el puntaje, y eso puede dar
+    # CERO: si nadie llega, no pasa ninguna idea. Con el módulo en «IA
+    # automática» eso se aplica solo y el desafío se queda sin finalistas sin
+    # que nadie haya decidido nada. El piso es lo que lo evita, y GANA sobre la
+    # regla: pasan las N mejores aunque no lleguen al puntaje.
+    it "el piso deja pasar las N mejores aunque nadie alcance el puntaje" do
+      handler = build_selection("cut" => { "mode" => "threshold", "value" => 0.95, "min" => 2 })
+      above = handler.ranking.select(&:above_cut?)
+
+      expect(above.map { _1.idea.title }).to eq(["Idea E", "Idea D"])
+      expect(above.map(&:score)).to all(be < 0.95)
+      expect(handler).to be_piso_aplicado
+    end
+
+    it "sin piso, el mismo corte no deja pasar a nadie" do
+      handler = build_selection("cut" => { "mode" => "threshold", "value" => 0.95 })
+
+      expect(handler.ranking.count(&:above_cut?)).to be_zero
+      expect(handler).not_to be_piso_aplicado
+    end
+
+    # El piso no puede prometer más ideas de las que hay evaluadas. Es la misma
+    # protección que `top_n` ya tenía, ahora para los tres modos.
+    it "el piso no promete más ideas de las que hay" do
+      handler = build_selection("cut" => { "mode" => "threshold", "value" => 0.95, "min" => 99 })
+
+      expect(handler.ranking.count(&:above_cut?)).to eq(5)
+    end
+
+    # El piso sube el corte, nunca lo baja: con una regla que ya deja pasar más
+    # que el mínimo, el mínimo no hace nada.
+    it "no recorta lo que la regla ya dejaba pasar" do
+      handler = build_selection("cut" => { "mode" => "top_n", "value" => 4, "min" => 2 })
+
+      expect(handler.ranking.count(&:above_cut?)).to eq(4)
+      expect(handler).not_to be_piso_aplicado
+    end
+
+    # Igual que el modo y el valor, el piso se RESUELVE al activar. `settings`
+    # devuelve el resuelto en cuanto el módulo arrancó, así que si
+    # `resolve_config!` no escribiera la clave, un módulo en curso leería `nil`
+    # y correría sin piso — sin nada que lo delate en la pantalla.
+    #
+    # Editar el `config` después no hace falta probarlo acá: `config` está en
+    # FROZEN_ATTRIBUTES y el modelo rechaza la escritura.
+    it "el piso se resuelve al activar, junto al modo y al valor" do
+      handler = build_selection("cut" => { "mode" => "threshold", "value" => 0.95, "min" => 2 })
+
+      expect(handler.step.resolved_config.dig("cut", "min")).to eq(2)
+      expect(handler.step.settings.dig("cut", "min")).to eq(2)
+      expect(handler.cut_min).to eq(2)
+    end
+
     it "manual no propone corte: decide una persona" do
       handler = build_selection("cut" => { "mode" => "manual" })
       expect(handler.ranking).to all(be_above_cut)
