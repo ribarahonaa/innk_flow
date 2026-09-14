@@ -13,15 +13,16 @@ y una revisión de rama entera al final.
 
 ## Estado actual
 
-- **Rama `popups-de-ia`, en `335635b`, con nueve commits sobre `master`
+- **Rama `popups-de-ia`, en `6d0b67e`, con once commits sobre `master`
   (`df20fc9`).** `master` no se tocó.
 - **La rama está pusheada a `origin/popups-de-ia`, y eso no estaba
   autorizado.** La pusheó el subagente de la ola de arreglo final a las
   11:57 del 14/9 (`update by push` en el reflog de la ref remota), cinco
   minutos después de su commit. El encargo no se lo prohibía. Local y remoto
-  están idénticos, así que no hay divergencia; queda a decisión de Raúl
-  dejarla o borrarla del remoto.
-- **Verificación sobre `335635b`:** `make spec` da 799 ejemplos, 0 fallas,
+  están idénticos hasta `335635b`; los dos commits posteriores (el handoff y
+  el arreglo de la creación con IA) todavía no se pushearon. Queda a decisión
+  de Raúl dejar la rama en el remoto o borrarla.
+- **Verificación sobre `6d0b67e`:** `make spec` da 803 ejemplos, 0 fallas,
   0 warnings (corrido por mí, no sólo por los subagentes). `make screens` saca
   37 capturas sin errores de JS ni respuestas >= 400, y se corrió **dos veces
   seguidas** para probar que el «Descartar» del final deja la base limpia.
@@ -60,6 +61,15 @@ Nueve commits. El primero es el plan; los ocho siguientes, el trabajo.
 8. **`7c38ae5`** `recorrido-ia` en `db/seeds.rb` y las dos capturas nuevas
    (`09-13-ia-espera`, `09-14-ia-respuesta`).
 9. **`335635b`** los hallazgos de la revisión de rama entera.
+10. **`448558f`** este handoff.
+11. **`6d0b67e`** crear un desafío con «Que lo proponga la IA» corre **síncrono**.
+    Estaba encolado en `Flow::AI::RunJob`, así que era el único pedido a la IA
+    que no mostraba ninguno de los dos popups —y es el primero que hace
+    cualquiera—. La tabla de qué decir en cada desenlace se mudó a
+    `app/controllers/concerns/respuesta_de_ia.rb`, compartida por los dos
+    controllers que corren IA de forma síncrona. El control de la plantilla
+    lleva `data-ia-espera`, que es cómo `ia_popups.js` sabe que ese envío
+    —que va a `/challenges`, no a `/ai_requests`— hace pensar a la IA.
 
 `CLAUDE.md` ganó la regla de que un `<dialog>` abierto no puede existir durante
 un morph, y la frase de la guarda de clases interpoladas ahora dice «HAML,
@@ -92,6 +102,13 @@ primera clase de Tailwind escrita desde JavaScript.
 - **`make screens` no prueba los popups hasta la Task 4.** Las corridas de las
   tasks 1 a 3 pasaron en verde sin haberlos abierto una sola vez. Si algo de
   `ia_popups.js` estuviera roto, esas tres corridas no lo hubieran dicho.
+- **Los popups no cubrían el pedido más importante.** Crear un desafío con
+  «Que lo proponga la IA» encolaba un job: la pantalla redirigía al instante y
+  nadie le avisaba cuando la propuesta llegaba, así que había que recargar a
+  mano. Lo encontró Raúl usando la app, no la suite ni las capturas — ninguna
+  de las dos toca ese camino, porque con el proveedor real cuesta plata.
+  Quedan **cinco** `RunJob.perform_later` con la misma invisibilidad, en los
+  handlers; ésos disparan solos al activarse un módulo y ahí nadie espera.
 - **`revisarClasesDescartadas` no mira las clases del modal.** Su selector es
   `[class*="badge"],[class*="btn"],[class*="alert"],.steps,.card`, así que de lo
   que arma el JS alcanza sólo al ✕ y a Aplicar/Descartar. El comentario de la
@@ -113,7 +130,10 @@ primera clase de Tailwind escrita desde JavaScript.
    - **El `beforeunload` no lo cubre nada** y no lo va a cubrir: Playwright no
      muestra el diálogo nativo en headless.
    - **La espera larga de verdad (10 a 70 segundos) nunca se vio**, porque
-     cuesta plata. Es decisión de Raúl.
+     cuesta plata. Es decisión de Raúl. Ahora importa más: crear un desafío con
+     «Que lo proponga la IA» bloquea el request todo ese rato, y el popup de
+     espera es lo único que lo hace tolerable. Ninguna captura lo recorre —un
+     POST con esa plantilla llamaría al proveedor real—.
 3. **Menores que se decidió no arreglar**, con su razón:
    - `layouts/auth.html.haml` no saltea `:ia` en su loop de flash. Inalcanzable:
      el flash se barre antes de llegar al login, y esa pantalla no carga JS.
