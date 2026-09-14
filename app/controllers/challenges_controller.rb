@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class ChallengesController < ApplicationController
+  include RespuestaDeIa
+
   before_action :set_challenge, only: %i[show builder start close apply_template]
 
   def index
@@ -17,6 +19,7 @@ class ChallengesController < ApplicationController
     authorize @challenge
 
     return render(:new, status: :unprocessable_content) unless @challenge.save
+    return proponer_flujo_con_ia if params[:template] == "ai"
 
     redirect_to builder_challenge_path(@challenge), notice: start_from(params[:template])
   end
@@ -79,15 +82,39 @@ class ChallengesController < ApplicationController
         .order(:name).distinct
   end
 
-  # El flujo inicial: una plantilla, la propuesta de la IA, o nada.
+  # «Que lo proponga la IA» corre SÍNCRONO, igual que cualquier otro pedido a la
+  # IA, y deja lo que pasó en `flash[:ia]` para que lo cuenten los dos popups.
+  #
+  # Estuvo encolado en `Flow::AI::RunJob`, y desde afuera eso se veía como que
+  # no pasaba nada: la pantalla redirigía al builder al instante, el job tardaba
+  # de 10 a 70 segundos con el proveedor real, y nadie le avisaba a la pantalla
+  # cuando la propuesta llegaba. Había que recargar a mano para enterarse —y el
+  # `notice` que decía «la IA está armando una propuesta» era lo único que
+  # insinuaba que algo estaba pasando—.
+  #
+  # Síncrono no hace falta ni una línea de JavaScript nuevo: los popups cuelgan
+  # del `flash[:ia]`, no del endpoint. Lo único que hay que decirle al cliente es
+  # que ESTE envío hace pensar a la IA, y eso lo declara el `data-ia-espera` del
+  # control en `challenges/new` — el formulario postea a `/challenges`, no a
+  # `/ai_requests`, así que el JS no lo reconocería solo.
+  #
+  # Los otros cinco `RunJob.perform_later` siguen encolados a propósito: los
+  # disparan los handlers al activarse un módulo, y ahí no hay nadie esperando.
+  def proponer_flujo_con_ia
+    tarea = Flow::AI::Tasks::ProposePipeline.new(challenge: @challenge)
+    result = Flow::AI::Runner.call(
+      tarea, mode: modo_de_ia(tarea, challenge: @challenge),
+      requested_by: current_user, challenge: @challenge
+    )
+
+    flash[:ia] = flash_de_ia(result)
+    redirect_to builder_challenge_path(@challenge)
+  end
+
+  # El flujo inicial: una plantilla, o nada. La propuesta de la IA no pasa por
+  # acá: tiene su propio camino, porque no deja un `notice` sino un `flash[:ia]`.
   def start_from(template)
     return "Desafío creado. Armá su flujo." if template.blank? || template == "blank"
-
-    if template == "ai"
-      Flow::AI::RunJob.perform_later(@challenge.company_id, "propose_pipeline",
-                                     { "challenge_id" => @challenge.id })
-      return "Desafío creado. La IA está armando una propuesta: vas a poder revisarla acá."
-    end
 
     return "Desafío creado. Armá su flujo." unless Flow::FlowTemplates.apply!(@challenge, template)
 

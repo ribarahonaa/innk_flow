@@ -47,7 +47,10 @@
                 %span.muted= template[:description]
 
           %label.radio-card
-            = radio_button_tag :template, "ai"
+            -# `data-ia-espera` le dice a `ia_popups.js` que este envío hace pensar a
+            -# la IA: el formulario postea a `/challenges` y no a `/ai_requests`, así
+            -# que sin la marca no abriría el popup de espera.
+            = radio_button_tag :template, "ai", false, data: { ia_espera: true }
             %span.radio-card__body
               %strong Que lo proponga la IA
               %span.muted La IA lee el brief y arma un flujo. Lo revisás antes de que se aplique.

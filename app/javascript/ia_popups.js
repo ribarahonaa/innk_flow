@@ -42,11 +42,20 @@ let respuesta = null;
 // `turbo:submit-start` y sigue encendida durante esa ventana.
 let pedidoEnVuelo = false;
 
-// El único endpoint que hace pensar a la IA de forma síncrona. Un solo
-// listener cubre TODOS los botones —las acciones del panel, «Mejorar con IA»,
-// el «IA» de la evaluación, «Pedir la guía de la IA»— sin tocar ninguno.
+// ¿Este envío hace pensar a la IA? Dos formas, y las dos las declara el
+// servidor:
+//
+//   · el endpoint `/ai_requests`, que cubre TODOS los botones de IA —las
+//     acciones del panel, «Mejorar con IA», el «IA» de la evaluación, «Pedir
+//     la guía de la IA»— sin tocar ninguno;
+//   · un control marcado con `data-ia-espera` que quede ELEGIDO al enviar.
+//     Hoy es la plantilla «Que lo proponga la IA» de la creación de un
+//     desafío: corre síncrona, pero viaja en el formulario del desafío, que
+//     postea a `/challenges`. Sin la marca, ese pedido —el primero que hace
+//     cualquiera— era el único que no mostraba nada.
 function esPedidoDeIa(form) {
   if (!(form instanceof HTMLFormElement)) return false;
+  if (form.querySelector('[data-ia-espera]:checked')) return true;
   try {
     return new URL(form.action, location.href).pathname.endsWith(ENDPOINT);
   } catch {

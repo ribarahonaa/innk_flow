@@ -58,13 +58,61 @@ RSpec.describe "plantillas de flujo", type: :request do
       expect(kinds_of(last_challenge)).to be_empty
     end
 
-    it "«que lo proponga la IA» encola la propuesta en vez de armar un flujo" do
+    # «Que lo proponga la IA» corre SÍNCRONO, como cualquier otro pedido a la IA.
+    #
+    # Estuvo encolado en Sidekiq, y desde afuera eso se veía como que no pasaba
+    # nada: la pantalla redirigía al instante, el job tardaba de 10 a 70
+    # segundos con el proveedor real, y nadie le avisaba cuando la propuesta
+    # llegaba. Había que recargar a mano para enterarse. Síncrono, los dos
+    # popups —el de esperar y el de responder— funcionan sin una línea de
+    # JavaScript nuevo, porque cuelgan del `flash[:ia]` y no del endpoint.
+    it "«que lo proponga la IA» pide la propuesta en el acto, sin encolar nada" do
       expect do
         post challenges_path, params: { challenge: { name: "Con IA", brief: "b" }, template: "ai" }
-      end.to have_enqueued_job(Flow::AI::RunJob)
+      end.not_to have_enqueued_job(Flow::AI::RunJob)
+
+      as_company(company) do
+        expect(AiRun.where(purpose: "propose_pipeline").count).to eq(1)
+        expect(AiSuggestion.pending_review.count).to eq(1)
+      end
+    end
+
+    it "y lo cuenta por el mismo camino que el resto de los pedidos a la IA" do
+      post challenges_path, params: { challenge: { name: "Con IA", brief: "b" }, template: "ai" }
+
+      expect(flash[:notice]).to be_nil
+      expect(flash[:ia]["tipo"]).to eq("ok")
+      expect(flash[:ia]["mensaje"]).to match(/Revisá la propuesta/)
+      expect(flash[:ia]["sugerencia_id"]).to eq(as_company(company) { AiSuggestion.first.id })
+    end
+
+    # En modo asistido la propuesta espera: el flujo se arma cuando alguien la
+    # acepta, no al crear el desafío.
+    it "en modo asistido el flujo sigue vacío hasta que alguien acepte" do
+      post challenges_path, params: { challenge: { name: "Con IA", brief: "b",
+                                                   ai_default_mode: "ai_assisted" },
+                                      template: "ai" }
 
       expect(kinds_of(last_challenge)).to be_empty
-      expect(flash[:notice]).to include("La IA está armando una propuesta")
+    end
+
+    it "en modo automático se aplica sola y no deja nada que revisar" do
+      post challenges_path, params: { challenge: { name: "Con IA", brief: "b",
+                                                   ai_default_mode: "ai_auto" },
+                                      template: "ai" }
+
+      expect(kinds_of(last_challenge)).not_to be_empty
+      expect(flash[:ia]["mensaje"]).to match(/aplicó automáticamente/)
+      expect(flash[:ia]["sugerencia_id"]).to be_nil
+    end
+
+    # El popup de espera lo dispara `ia_popups.js` al enviar, y este formulario
+    # NO postea a `/ai_requests` sino a `/challenges`: la marca en el control es
+    # lo único que se lo dice.
+    it "la opción de la IA viene marcada para que el popup de espera la reconozca" do
+      get new_challenge_path
+
+      expect(response.body).to include("data-ia-espera")
     end
 
     it "sin plantilla se comporta como antes" do
