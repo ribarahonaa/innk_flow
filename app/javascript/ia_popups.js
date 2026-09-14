@@ -28,6 +28,20 @@ const ENDPOINT = '/ai_requests';
 let espera = null;
 let respuesta = null;
 
+// Bandera de «hay un pedido a la IA en vuelo», independiente de si el diálogo
+// de espera sigue abierto. En un 403 o un 500, Turbo dispara `turbo:submit-end`
+// (con `success:false`) ANTES que `turbo:frame-missing`: `FetchRequest#receive`
+// llama a `requestFailedWithResponse` sin esperarlo, así que
+// `FormSubmission#requestFinished` —que dispara `submit-end` en su
+// `finally`— corre y cierra la espera antes de que
+// `FrameController#loadResponse` termine de leer el body (`await
+// fetchResponse.responseHTML`) y recién ahí dispare `turbo:frame-missing`
+// desde `#willHandleFrameMissingFromResponse`. Si la guarda de `frame-missing`
+// mirara `espera`, ya estaría en `null` para cuando el evento llega y el popup
+// no se abriría. La bandera vive del pedido, no del diálogo: se enciende en
+// `turbo:submit-start` y sigue encendida durante esa ventana.
+let pedidoEnVuelo = false;
+
 // El único endpoint que hace pensar a la IA de forma síncrona. Un solo
 // listener cubre TODOS los botones —las acciones del panel, «Mejorar con IA»,
 // el «IA» de la evaluación, «Pedir la guía de la IA»— sin tocar ninguno.
@@ -95,6 +109,7 @@ function cerrarRespuesta() {
 // El cuerpo puede venir de un `<template>` del servidor o armado acá (los
 // errores que el servidor nunca llegó a contar).
 function abrirRespuesta(cuerpo, tipo) {
+  pedidoEnVuelo = false;
   cerrarEspera();
   cerrarRespuesta();
 
@@ -159,6 +174,8 @@ function mensajeSuelto(texto, extra) {
 // se borran TODOS —llegan hasta dos, el del marco y el del layout— para que la
 // próxima navegación no vuelva a abrir lo mismo.
 function mostrarLoQueDejoElServidor() {
+  pedidoEnVuelo = false;
+
   const plantillas = document.querySelectorAll('template[data-ia-respuesta]');
   if (!plantillas.length) return;
 
@@ -174,6 +191,7 @@ function mostrarLoQueDejoElServidor() {
 
 addEventListener('turbo:submit-start', (e) => {
   if (esPedidoDeIa(e.target)) {
+    pedidoEnVuelo = true;
     abrirEspera();
     return;
   }
@@ -207,10 +225,9 @@ addEventListener('turbo:load', mostrarLoQueDejoElServidor);
 // caída, ESO solo ya abriría «La IA no pudo» sin que nadie pidiera nada —y
 // sin ningún pedido de IA en vuelo no hay `turbo:submit-start` que lo tape
 // más adelante, así que quedaría ahí hasta que alguien lo cierre a mano. La
-// guarda lo acota a que haya una espera abierta, es decir, a que el fetch que
-// falló sea el de un pedido a la IA.
+// guarda lo acota a que haya un pedido a la IA en vuelo.
 addEventListener('turbo:fetch-request-error', () => {
-  if (!espera) return;
+  if (!pedidoEnVuelo) return;
   abrirRespuesta(mensajeSuelto('No se pudo hablar con el servidor. Revisá tu conexión y probá de nuevo.'), 'error');
 });
 
@@ -222,8 +239,18 @@ addEventListener('turbo:fetch-request-error', () => {
 // `turbo-frame` de la app, no sólo al de las propuestas de IA. Hoy da lo
 // mismo porque `#ai-suggestions` es el único marco que hay, pero eso es
 // accidente y no algo que este código pueda asumir — la misma guarda.
+//
+// Y tiene que mirar `pedidoEnVuelo`, no `espera`: en un 403 o un 500 Turbo
+// dispara `turbo:submit-end` (que cierra la espera) ANTES que este evento —
+// `FetchRequest#receive` llama a `requestFailedWithResponse` sin esperarlo, así
+// que `FormSubmission#requestFinished` corre y dispara `submit-end` mientras
+// `FrameController#loadResponse` todavía está en el `await
+// fetchResponse.responseHTML` que tiene que terminar antes de que
+// `#willHandleFrameMissingFromResponse` dispare `frame-missing`. Con `espera`
+// como guarda, para cuando este evento llega el diálogo ya se cerró y ya vale
+// `null`, y el popup nunca se abre.
 addEventListener('turbo:frame-missing', (e) => {
-  if (!espera) return;
+  if (!pedidoEnVuelo) return;
   e.preventDefault();
   const recargar = document.createElement('button');
   recargar.type = 'button';

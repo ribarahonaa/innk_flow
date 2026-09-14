@@ -83,6 +83,57 @@ RSpec.describe "lo que registra un pedido a la IA", type: :request do
     end
   end
 
+  # La única rama de `success_message` que faltaba: `evaluate_idea` es una
+  # tarea ADITIVA (`applies_on_request?` es `true`), así que corre en
+  # `ai_auto` sin importar el modo del desafío o del módulo —pedirla ya es
+  # aceptarla— y la propuesta queda aceptada: no hay nada que revisar.
+  describe "una tarea aditiva (evaluate_idea)" do
+    let!(:autora) { miembro("autora-eval@test.dev", "participant") }
+
+    let(:set) do
+      as_company(company) do
+        s = CriteriaSet.create!(name: "Técnica")
+        s.criteria.create!(key: "impacto", name: "Impacto", weight: 0.4, source: "manual",
+                           scale_type: "numeric", scale_config: { "min" => 1, "max" => 10 }, position: 0)
+        s.criteria.create!(key: "factibilidad", name: "Factibilidad", weight: 0.35, source: "manual",
+                           scale_type: "numeric", scale_config: { "min" => 1, "max" => 10 }, position: 1)
+        s.criteria.create!(key: "esfuerzo", name: "Esfuerzo", weight: 0.25, source: "manual",
+                           scale_type: "numeric", scale_config: { "min" => 1, "max" => 10 }, position: 2)
+        s.refresh_status!
+        s
+      end
+    end
+
+    let!(:evaluacion) do
+      as_company(company) do
+        seed_form!(challenge.steps.create!(kind: "ideation", position: 1, status: "completed"))
+        paso = challenge.steps.create!(kind: "evaluation", position: 2, criteria_set: set)
+        challenge.update!(status: "running")
+        paso
+      end
+    end
+
+    # La idea tiene que existir ANTES de activar el módulo: `activate!`
+    # sincroniza el cohorte con las ideas que hay en ese momento.
+    let!(:idea) do
+      as_company(company) do
+        i = create(:idea, challenge: challenge, author: autora, status: "active")
+        Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "Sensores" }, author: autora).call
+        i.update!(submitted_at: Time.current)
+        Flow::Handlers::Base.for(evaluacion).activate!
+        i
+      end
+    end
+
+    it "dice que ya está en la lista, sin propuesta que revisar" do
+      pedir!("evaluate_idea", step_id: evaluacion.id, idea_id: idea.id)
+
+      expect(flash[:ia]["tipo"]).to eq("ok")
+      expect(flash[:ia]["mensaje"]).to eq("Listo: la evaluación de la IA ya está en la lista.")
+      expect(flash[:ia]["sugerencia_id"]).to be_nil
+    end
+  end
+
   describe "cuando algo falla" do
     it "el proveedor caído se cuenta como tal" do
       allow_any_instance_of(Flow::AI::Providers::Fixture)

@@ -31,13 +31,18 @@ RSpec.describe "clases CSS interpoladas", type: :lint do
   # después. Lo que va entre medio no puede tener `>` ni pasar de 40 caracteres:
   # sin ese tope, un `<div class="x">{{ `${a}` }}</div>` —donde el literal no
   # arma ninguna clase— se marcaba igual.
+  # El de `.js` usa el mismo patrón que `.vue`: un `.js` plano no tiene sintaxis
+  # de binding propia, pero arma clases del mismo modo —un template literal— y
+  # con la misma trampa.
   PATRONES = {
     ".haml" => /class[:=][^,)]*"[^"]*\#\{/,
-    ".vue" => /class[^`\n>]{0,40}`[^`]*\$\{/
+    ".vue" => /class[^`\n>]{0,40}`[^`]*\$\{/,
+    ".js" => /class[^`\n>]{0,40}`[^`]*\$\{/
   }.freeze
 
   ARCHIVOS = Rails.root.glob("app/views/**/*.haml") +
-             Rails.root.glob("app/javascript/**/*.vue")
+             Rails.root.glob("app/javascript/**/*.vue") +
+             Rails.root.glob("app/javascript/**/*.js")
 
   it "ninguna vista ni isla arma una clase con interpolación" do
     culpables = ARCHIVOS.filter_map do |ruta|

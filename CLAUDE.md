@@ -480,8 +480,12 @@ Tres cosas que no son obvias:
   compara contra el HTML del servidor, y un diálogo que agregó el cliente es
   un nodo de más: se lo lleva puesto, o le saca el `open` y lo deja en el DOM
   sin verse. Por eso los dos popups de la IA los arma el JS y ninguno existe
-  durante un render: el de espera se cierra y se saca en `turbo:before-render`
-  y el de respuesta se arma recién en `turbo:render` (`ia_popups.js`).
+  durante un render: la espera se cierra y se saca en
+  `turbo:before-frame-render`, `turbo:before-render` y `turbo:submit-end`
+  (este último solo si no hubo éxito), y la de respuesta se arma recién
+  después de pintar, en `turbo:frame-render`, `turbo:render` y `turbo:load`
+  —el primero es el más frecuente, porque el modo asistido responde al
+  marco— (`ia_popups.js`).
 - **El morph no rompe las islas**, medido en la cara de configuración de
   Idear —la pantalla del módulo que hoy monta el editor de formulario,
   destino del redirect 301 que dejó `/challenges/:id/form`—: reemplaza el
@@ -695,10 +699,12 @@ esa clase no llega a la hoja, el elemento queda sin ninguna regla detrás y en
 el DOM se ve perfecto mientras en pantalla no se ve nada. De rebote, la
 traducción estado → estilo queda en un solo lugar.
 
-La guarda es `spec/lint/clases_interpoladas_spec.rb` y mira **HAML y `.vue`**:
-las islas son fuente de Tailwind igual que las vistas. En una isla el nombre lo
-manda el **presenter** en las props —`PipelinePresenter` resuelve el chip con
-el mismo `chip_de_estado` que el HAML— y el componente solo lo liga.
+La guarda es `spec/lint/clases_interpoladas_spec.rb` y mira **HAML, `.vue` y
+`.js`**: las islas son fuente de Tailwind igual que las vistas, y un `.js`
+plano como `ia_popups.js` arma sus diálogos con el mismo template literal que
+una isla. En una isla el nombre lo manda el **presenter** en las props
+—`PipelinePresenter` resuelve el chip con el mismo `chip_de_estado` que el
+HAML— y el componente solo lo liga.
 
 Cada mapeo se prueba **contra su enum**, y con `end_with` y no `include`: un
 helper que devolviera `--issued` pasaba el test de `issue`.

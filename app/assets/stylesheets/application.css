@@ -2259,10 +2259,14 @@ textarea:disabled {
 /* página inerte, que es lo que el aviso viejo no hacía. */
 .ia-espera { text-align: center; }
 
-/* El spinner sigue girando aunque esté activado `prefers-reduced-motion`, a */
-/* propósito: es la ÚNICA señal de que la IA sigue trabajando, y quieto se lee */
-/* como colgado. El aviso viejo podía quedarse quieto porque además decía el */
-/* texto; acá el texto está, pero la espera dura hasta un minuto. */
+/* El spinner sigue girando aunque esté activado `prefers-reduced-motion`, */
+/* pero eso no lo decide esta app: es el default de `.loading-spinner` de */
+/* DaisyUI, que emite la rotación con `dur='8s'` y sólo la baja a `dur='2s'` */
+/* bajo `@media (prefers-reduced-motion: no-preference)` (medido en la hoja */
+/* compilada). Sigue girando —que es lo que hace falta: es la ÚNICA señal */
+/* de que la IA sigue trabajando, y quieto se lee como colgado—, pero cuatro */
+/* veces más lento. El aviso viejo podía quedarse quieto porque además decía */
+/* el texto; acá el texto está, pero la espera dura hasta un minuto. */
 .ia-espera__spinner { color: var(--ia); margin-bottom: 12px; }
 
 .ia-respuesta { position: relative; }

@@ -810,8 +810,11 @@ async function shot(page, name, url, prepare) {
       console.error(`[IA] el popup de respuesta no ofrece «${texto}»`);
     }
   }
-  // Se captura CON el popup abierto: así la guarda de clases sin regla detrás
-  // que corre en `capturar()` revisa también las del modal.
+  // Se captura CON el popup abierto, pero `revisarClasesDescartadas` (la
+  // guarda de clases sin regla detrás que corre en `capturar()`) sólo mira
+  // `[class*="badge"],[class*="btn"],[class*="alert"],.steps,.card`: de lo
+  // que arma este JS eso alcanza al ✕ y a Aplicar/Descartar —son `btn`—, no a
+  // `modal`, `modal-box`, `modal-backdrop`, `loading` ni a ninguna `ia-*`.
   await capturar(page, '09-14-ia-respuesta');
 
   // Descartar, para no dejar una propuesta pendiente: la corrida siguiente la
