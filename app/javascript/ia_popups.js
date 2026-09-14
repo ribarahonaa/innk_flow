@@ -123,7 +123,19 @@ function abrirRespuesta(cuerpo, tipo) {
   respuesta.append(caja, fondo);
   // Escape y el clic afuera cierran el `<dialog>` pero no lo sacan del DOM, y
   // un nodo de más sobrevive hasta el próximo morph.
-  respuesta.addEventListener('close', () => { respuesta?.remove(); respuesta = null; });
+  //
+  // `close` no es síncrono: encola una tarea. Si en la misma macrotarea se
+  // cierra este popup y se abre uno nuevo —pasa en el camino de morph, entre
+  // el `cerrarRespuesta()` de `turbo:before-render` y el `abrirRespuesta()`
+  // de `turbo:render`, y también entre el `cerrarRespuesta()` inicial de esta
+  // misma función y el diálogo que arma después—, la tarea encolada por el
+  // viejo corre después de que ya haya uno nuevo en `respuesta`. Por eso actúa
+  // sobre `e.currentTarget` —el diálogo que disparó ESTE `close`— y no sobre
+  // la variable del módulo, y sólo vacía la variable si todavía apunta a él.
+  respuesta.addEventListener('close', (e) => {
+    e.currentTarget.remove();
+    if (respuesta === e.currentTarget) respuesta = null;
+  });
 
   document.body.appendChild(respuesta);
   respuesta.showModal();
@@ -187,14 +199,31 @@ addEventListener('turbo:load', mostrarLoQueDejoElServidor);
 
 // Se cayó la red: el servidor no contestó nada, así que el mensaje lo arma el
 // cliente. Sin esto la espera queda girando para siempre.
+//
+// Este evento NO es exclusivo de los pedidos a la IA: lo dispara CUALQUIER
+// `FetchRequest` que falle, y el layout no trae
+// `<meta name="turbo-prefetch" content="false">`, así que pasar el mouse por
+// encima de un link cualquiera arma uno (`LinkPrefetchObserver`). Con la red
+// caída, ESO solo ya abriría «La IA no pudo» sin que nadie pidiera nada —y
+// sin ningún pedido de IA en vuelo no hay `turbo:submit-start` que lo tape
+// más adelante, así que quedaría ahí hasta que alguien lo cierre a mano. La
+// guarda lo acota a que haya una espera abierta, es decir, a que el fetch que
+// falló sea el de un pedido a la IA.
 addEventListener('turbo:fetch-request-error', () => {
+  if (!espera) return;
   abrirRespuesta(mensajeSuelto('No se pudo hablar con el servidor. Revisá tu conexión y probá de nuevo.'), 'error');
 });
 
 // La respuesta no trae el marco que se pidió: un 403, un 500, o la sesión
 // vencida que devuelve el login. Turbo escribiría «Content missing» adentro
 // del marco y nada más.
+//
+// Mismo problema que el de arriba: el evento es global a cualquier
+// `turbo-frame` de la app, no sólo al de las propuestas de IA. Hoy da lo
+// mismo porque `#ai-suggestions` es el único marco que hay, pero eso es
+// accidente y no algo que este código pueda asumir — la misma guarda.
 addEventListener('turbo:frame-missing', (e) => {
+  if (!espera) return;
   e.preventDefault();
   const recargar = document.createElement('button');
   recargar.type = 'button';
