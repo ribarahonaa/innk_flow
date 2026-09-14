@@ -8,6 +8,10 @@
 - return unless challenge.draft? && policy(challenge).builder?
 
 - setup = Flow::Setup.new(challenge)
+-# El `current` sale de `ShellHelper` salvo que alguien lo pase a mano: es la
+-# MISMA fuente que usa el flujo de la izquierda para resaltar, así que no
+-# pueden discrepar.
+- current = local_assigns.fetch(:current) { paso_actual_del_setup }
 - actual = setup.find(current)
 - anterior = setup.before(current)
 - siguiente = setup.after(current)

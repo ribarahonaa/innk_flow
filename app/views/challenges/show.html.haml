@@ -18,8 +18,7 @@
 
 -# En borrador la ficha del desafío es el punto de partida: ahí va el camino.
 - if @challenge.draft? && policy(@challenge).builder?
-  = render "shared/setup_progress", challenge: @challenge
-  = render "shared/setup_nav", challenge: @challenge, current: :brief
+  = render "shared/setup_nav", challenge: @challenge
 
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 

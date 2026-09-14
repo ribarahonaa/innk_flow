@@ -652,6 +652,13 @@ body {
   opacity: 0.7;
 }
 .flow-drawer__name { flex: 1; min-width: 0; }
+/* Mientras el desafío está en borrador cada paso lleva, debajo del nombre, qué
+   le falta («nadie puede postular», «usa los criterios genéricos»). Va acá y no
+   en un `title` porque es lo que decide a dónde ir: esconderlo detrás del
+   cursor lo vuelve invisible en la lectura de un vistazo, que es para lo que
+   existe esta barra. */
+.flow-drawer__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.flow-drawer__hint { font-size: 11px; opacity: 0.7; line-height: 1.3; }
 /* El chip va sin rótulo: a 232px no entra, y el estado viaja en el `title`.
    Se pinta con su color de TEXTO y no con su fondo: los fondos de los chips
    son tonos «soft» pensados para una tarjeta clara, y sobre este panel oscuro
@@ -737,6 +744,10 @@ body {
   .flow-drawer__meta { flex: none; }
   .flow-drawer__steps { flex-flow: row nowrap; overflow-x: auto; min-width: 0; }
   .flow-drawer__name { white-space: nowrap; }
+  /* En la tira horizontal la pista no entra: son 40px de alto para todo el
+     flujo, y apilar dos líneas por paso lo duplica. El nombre alcanza; el
+     detalle está a un clic. */
+  .flow-drawer__hint { display: none; }
 }
 
 .card {

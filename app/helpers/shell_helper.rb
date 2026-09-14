@@ -34,4 +34,25 @@ module ShellHelper
 
     candidato if candidato&.persisted?
   end
+
+  # En qué paso del camino de configuración está la pantalla.
+  #
+  # Lo consultan el flujo de la izquierda —para resaltar— y el pie que avanza.
+  # Antes cada pantalla escribía su clave a mano al renderizar el paso a paso,
+  # y con cuatro claves fijas para cinco pantallas de módulo eso era imposible
+  # de acertar: evolución y reportería decían ser «El flujo», y los dos módulos
+  # que puntúan decían ser «Los criterios», así que configurar cualquiera de
+  # los dos resaltaba el mismo casillero.
+  #
+  # Devuelve `nil` en cualquier otra pantalla: nada resaltado es mejor que algo
+  # resaltado de más.
+  def paso_actual_del_setup
+    return @step.id if @step.is_a?(ChallengeStep)
+
+    case "#{controller_name}##{action_name}"
+    when "previews#show" then :finish
+    when "challenges#builder" then :flow
+    when "challenges#show" then :brief
+    end
+  end
 end

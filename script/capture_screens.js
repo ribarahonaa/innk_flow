@@ -225,11 +225,13 @@ async function shot(page, name, url, prepare) {
     console.error('[BUILDER] quitar un módulo no se ve en pantalla');
   }
 
-  // El paso a paso tiene que estar en TODAS las pantallas de configuración: si
-  // falta en una, ahí es donde se pierde quien está configurando.
+  // El camino tiene que estar en TODAS las pantallas de configuración: si falta
+  // en una, ahí es donde se pierde quien está configurando. Vive en el flujo de
+  // la izquierda —la tarjeta de arriba se fue: mostraba lo mismo, y con siete
+  // módulos se partía en dos filas y se comía la pantalla—.
   //
-  // Son OCHO casilleros y no un número cualquiera: el desafío, el flujo, un
-  // paso por cada uno de los cinco módulos que `sin-formulario` siembra, y el
+  // Son OCHO entradas y no un número cualquiera: el desafío, el flujo, un paso
+  // por cada uno de los cinco módulos que `sin-formulario` siembra, y el
   // cierre. El número va fijo a propósito —calcularlo desde la propia página
   // haría que la guarda se cumpla sola—, así que si el seed cambia cuántos
   // módulos tiene ese desafío, este número cambia con él.
@@ -239,7 +241,7 @@ async function shot(page, name, url, prepare) {
                      '/challenges/sin-formulario/form',
                      '/challenges/sin-formulario/preview']) {
     await page.goto(BASE + url, { waitUntil: 'networkidle' });
-    if (await page.locator('.setup__step').count() !== PASOS_DE_SIN_FORMULARIO) {
+    if (await page.locator('.flow-drawer__link').count() !== PASOS_DE_SIN_FORMULARIO) {
       failures++;
       console.error(`[SETUP] falta el paso a paso en ${url}`);
     }
@@ -273,7 +275,7 @@ async function shot(page, name, url, prepare) {
     ]);
     await page.waitForSelector('[data-island="step-settings"][data-island-mounted="true"]', { timeout: 15000 });
 
-    if (await page.locator('.setup__step').count() !== PASOS_DE_SIN_FORMULARIO) {
+    if (await page.locator('.flow-drawer__link').count() !== PASOS_DE_SIN_FORMULARIO) {
       failures++;
       console.error('[SETUP] falta el paso a paso en el módulo de evaluación');
     }

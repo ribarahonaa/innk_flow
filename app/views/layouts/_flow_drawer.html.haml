@@ -1,5 +1,17 @@
--# La barra lateral con el flujo del desafío. Responde «dónde estoy y qué
+-# La barra lateral con el camino del desafío. Responde «dónde estoy y qué
 -# sigue», que es la pregunta que la app no contestaba en ninguna pantalla.
+-#
+-# Tiene DOS caras, y la decide el estado del desafío:
+-#
+-#   en borrador  el camino de CONFIGURAR: el desafío, el flujo, un paso por
+-#                módulo con su ✓ y su pista, y «Revisar y arrancar».
+-#   arrancado    el mapa de lo que está CORRIENDO: los módulos con su estado
+-#                de ejecución.
+-#
+-# Eso estuvo repartido en dos listas —ésta y una tarjeta arriba del contenido—
+-# que mostraban lo mismo con distinto vocabulario. Con siete módulos la
+-# tarjeta se partía en dos filas y se comía la pantalla, así que se fue y esta
+-# barra absorbió lo que ella sabía.
 -#
 -# Es un `menu` de DaisyUI dentro de una región propia de la grilla del shell.
 -# NO es el componente `drawer`: ese pide un checkbox, dos labels y envolver el
@@ -10,7 +22,9 @@
 -# Los enlaces llevan clase propia a propósito: `a:not([class])` de `@layer
 -# base` le devuelve el subrayado del navegador al enlace pelado, y los de un
 -# menú saldrían todos subrayados.
-- pasos = desafio.steps.order(:position)
+- configurando = desafio.draft? && policy(desafio).builder?
+- setup = Flow::Setup.new(desafio) if configurando
+- actual = paso_actual_del_setup
 -# El `__panel` no es decoración: la columna oscura ocupa la fila entera
 -# —si no, el flujo se ve como una tarjeta flotando en una franja gris— y lo
 -# que se queda pegado al scroll es lo de adentro.
@@ -18,24 +32,29 @@
   .flow-drawer__panel
     .flow-drawer__head
       = link_to desafio.name, challenge_path(desafio), class: "flow-drawer__title"
-      %span.flow-drawer__meta= t("flow.challenge_statuses.#{desafio.status}")
+      %span.flow-drawer__meta
+        = t("flow.challenge_statuses.#{desafio.status}")
+        - if setup
+          = "· #{setup.done_count} de #{setup.total}"
     %ul.menu.flow-drawer__steps
-      - pasos.each_with_index do |paso, i|
-        - actual = @step&.id == paso.id
-        - estado = t("flow.statuses.#{paso.status}")
-        %li
-          = link_to challenge_step_path(desafio, paso), class: ["flow-drawer__link", ("menu-active" if actual)] do
-            %span.flow-drawer__num= i + 1
-            %span.flow-drawer__name= paso.name
-            -# El chip va vacío —a 232px no entra el rótulo— así que el estado
-            -# viaja en el `title`: un punto de color solo no dice nada.
-            %span{ class: chip_de_estado(paso.status), title: estado }
-      -# El cierre del camino, igual que en el paso a paso de arriba: las dos
-      -# listas muestran lo mismo. Sólo en borrador — una vez arrancado no hay
-      -# nada que revisar antes de abrir, y el flujo pasa a ser el mapa de lo
-      -# que está corriendo.
-      - if desafio.draft? && policy(desafio).builder?
-        %li
-          = link_to challenge_preview_path(desafio), class: ["flow-drawer__link", ("menu-active" if controller_name == "previews")] do
-            %span.flow-drawer__num= pasos.size + 1
-            %span.flow-drawer__name Revisar y arrancar
+      - if setup
+        - setup.steps.each_with_index do |paso, i|
+          %li
+            = link_to paso.path, class: ["flow-drawer__link", ("menu-active" if paso.key.to_s == actual.to_s)] do
+              -# El ✓ reemplaza al número cuando el paso está hecho: dos
+              -# marcas distintas en la misma columna se leen de un vistazo.
+              %span.flow-drawer__num= paso.done? ? "✓" : i + 1
+              %span.flow-drawer__body
+                %span.flow-drawer__name= paso.label
+                - if paso.hint.present?
+                  %span.flow-drawer__hint= paso.hint
+      - else
+        - desafio.steps.order(:position).each_with_index do |paso, i|
+          - estado = t("flow.statuses.#{paso.status}")
+          %li
+            = link_to challenge_step_path(desafio, paso), class: ["flow-drawer__link", ("menu-active" if @step&.id == paso.id)] do
+              %span.flow-drawer__num= i + 1
+              %span.flow-drawer__name= paso.name
+              -# El chip va vacío —a 232px no entra el rótulo— así que el estado
+              -# viaja en el `title`: un punto de color solo no dice nada.
+              %span{ class: chip_de_estado(paso.status), title: estado }

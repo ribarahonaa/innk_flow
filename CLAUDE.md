@@ -578,15 +578,26 @@ opcionales, no calificaciones—; evolución y reportería nacen hechas.
 En una selección eso se lee de `config` y no de `settings`: ahí el hueco vale,
 porque una clave ausente no es «manual», es «nadie lo decidió todavía».
 
+**El camino se dibuja en UN solo lugar: el flujo de la izquierda.** Estuvo en
+dos —esa barra y una tarjeta arriba del contenido (`shared/_setup_progress`,
+borrada)— que mostraban lo mismo con distinto vocabulario; con siete módulos
+la tarjeta se partía en dos filas y se comía la pantalla. El drawer tiene dos
+caras: **en borrador** es el camino de configurar (con el ✓ y la pista de cada
+paso, y el «N de M» al lado del estado) y **arrancado** vuelve a ser el mapa de
+lo que corre, con el chip de estado de ejecución.
+
+**Dónde estoy lo decide `ShellHelper#paso_actual_del_setup`, y sólo él.** Lo
+consultan el drawer —para resaltar— y `setup_nav` —que por eso ya no necesita
+que le pasen `current:`—. Antes cada pantalla escribía su clave a mano, y con
+cuatro claves fijas para cinco pantallas de módulo era imposible de acertar:
+evolución y reportería decían ser «El flujo», y los dos módulos que puntúan,
+«Los criterios».
+
 **Borrar o mudar una pantalla de configuración le puede sacar el sonido a
 `Flow::Setup`.** El paso a paso apunta cada paso a una URL
-(`Flow::Setup::Step#path`). `setup_nav` necesita que quien lo renderiza le
-pase el `current:` que le toca para calcular anterior y siguiente
-(`setup.before(current)`, `setup.after(current)`): sin ese render no hay
-ningún «siguiente →» que ofrecer. `setup_progress` no depende de lo mismo —
-pinta la lista entera siempre; `current` sólo resalta cuál está activo
-(`setup__step--current`)—, así que el paso sigue apareciendo en la lista
-aunque el pie que avanza haya desaparecido. Pasó de verdad con el paso
+(`Flow::Setup::Step#path`). `setup_nav` es lo ÚNICO que avanza: sin su render
+en una pantalla, ahí se corta el recorrido — y el paso sigue apareciendo en el
+drawer igual, así que no se nota mirando. Pasó de verdad con el paso
 `:form` al mudarlo a la cara del módulo: **`make spec` y `make screens`
 quedaron en verde igual**, porque ninguna aserción existente miraba el pie
 del paso a paso en la pantalla que se había quedado sin su render (`2029528`,
