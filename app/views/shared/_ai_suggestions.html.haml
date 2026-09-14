@@ -5,9 +5,9 @@
 -# algo a la IA reemplaza solo este marco, sin recargar la pantalla ni perder
 -# lo que estabas editando.
 -#
--# Mientras espera, Turbo le pone `aria-busy` al marco y el CSS muestra el
--# estado — con un proveedor real la respuesta tarda de 10 a 70 segundos, y sin
--# eso la pantalla parece colgada.
+-# La espera dejó de vivir acá: era una franja más en la pantalla, no bloqueaba
+-# nada y sólo existía cuando el pedido respondía a este marco. Ahora es un
+-# popup modal que arma `app/javascript/ia_popups.js`.
 -#
 -# Sólo lo que quien mira puede revisar, con la MISMA pregunta que hace
 -# `AiSuggestionsController` al aplicar o descartar. Las pantallas que lo
@@ -21,9 +21,7 @@
 - suggestions = suggestions.to_a.select { |suggestion| policy(suggestion).accept? }
 
 %turbo-frame#ai-suggestions
-  .ai-waiting
-    %span.ai-waiting__dot
-    La IA está pensando. Puede tardar un minuto.
+  = render "shared/ia_respuesta"
 
   - if suggestions.any?
     .card.ai-panel
@@ -31,20 +29,4 @@
         Propuestas de la IA
         %span.ai-chip= suggestions.size
       - suggestions.each do |suggestion|
-        - task = Flow::AI::Tasks::Base.for(suggestion.purpose, challenge: suggestion.ai_run.challenge, step: suggestion.ai_run.challenge_step, idea: suggestion.ai_run.idea) rescue nil
-        .ai-suggestion
-          .ai-suggestion__head
-            %span.ai-suggestion__purpose= t("flow.ai_purposes.#{suggestion.purpose}", default: suggestion.purpose.humanize)
-            %span.muted= l(suggestion.created_at, format: :short)
-          .ai-suggestion__body
-            - if task
-              = task.preview(suggestion.payload)
-            - else
-              %code= suggestion.payload.to_json.truncate(240)
-          .ai-suggestion__actions
-            -# Aplicar y descartar SÍ recargan: cambian el dominio, y lo que se
-            -# ve alrededor (los campos, el flujo, las ideas) deja de ser cierto.
-            = button_to "Aplicar", accept_ai_suggestion_path(suggestion),
-                        class: "btn btn-primary btn-sm", form: { data: { turbo_frame: "_top" } }
-            = button_to "Descartar", reject_ai_suggestion_path(suggestion),
-                        class: "btn btn-ghost btn-sm", form: { data: { turbo_frame: "_top" } }
+        = render "shared/ai_suggestion", suggestion: suggestion

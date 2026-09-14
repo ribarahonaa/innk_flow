@@ -1,0 +1,26 @@
+-# Una propuesta de la IA: qué propone, y los dos botones para decidir.
+-#
+-# Vive en un partial propio porque la usan DOS lugares: el panel de revisión
+-# (`shared/_ai_suggestions`) y el popup de respuesta (`shared/_ia_respuesta`).
+-#
+-# NO filtra permisos: quien lo renderiza ya decidió que esta persona puede
+-# revisarla —el panel filtra la lista, el popup pregunta por la única que
+-# muestra—. Poner la guarda acá además la haría por partida doble.
+- task = Flow::AI::Tasks::Base.for(suggestion.purpose, challenge: suggestion.ai_run.challenge, step: suggestion.ai_run.challenge_step, idea: suggestion.ai_run.idea) rescue nil
+
+.ai-suggestion
+  .ai-suggestion__head
+    %span.ai-suggestion__purpose= t("flow.ai_purposes.#{suggestion.purpose}", default: suggestion.purpose.humanize)
+    %span.muted= l(suggestion.created_at, format: :short)
+  .ai-suggestion__body
+    - if task
+      = task.preview(suggestion.payload)
+    - else
+      %code= suggestion.payload.to_json.truncate(240)
+  .ai-suggestion__actions
+    -# Aplicar y descartar SÍ recargan: cambian el dominio, y lo que se ve
+    -# alrededor (los campos, el flujo, las ideas) deja de ser cierto.
+    = button_to "Aplicar", accept_ai_suggestion_path(suggestion),
+                class: "btn btn-primary btn-sm", form: { data: { turbo_frame: "_top" } }
+    = button_to "Descartar", reject_ai_suggestion_path(suggestion),
+                class: "btn btn-ghost btn-sm", form: { data: { turbo_frame: "_top" } }

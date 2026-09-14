@@ -1,0 +1,24 @@
+-# La respuesta del último pedido a la IA, esperando a que `ia_popups.js` la
+-# ponga en un popup.
+-#
+-# Va en un `<template>` y no en un div escondido: el contenido de un template
+-# es INERTE —no se ve, sus formularios no se envían, y el parser ni siquiera
+-# aplana un form dentro de otro, porque se parsea en un fragmento aparte—.
+-# Por eso renderizarlo dos veces no hace daño.
+-#
+-# Y hacen falta las dos veces. Sin la gema `turbo-rails` Rails pinta el layout
+-# completo también cuando el pedido es de un marco, y Turbo se queda SÓLO con
+-# el marco: lo de afuera se descarta. Al revés, un pedido que responde a la
+-# pantalla entera puede venir de una pantalla que no tiene marco (la ficha de
+-# evaluación, donde vive «Pedir la guía de la IA»). Cuando llegan los dos, el
+-# JS abre uno solo y borra los dos.
+- respuesta = respuesta_de_ia
+- return if respuesta.nil?
+
+%template{ data: { ia_respuesta: true, tipo: respuesta[:tipo] } }
+  %h2.section-title{ id: "ia-respuesta-titulo" }= respuesta[:tipo] == "error" ? "La IA no pudo" : "La IA respondió"
+  %p.ia-respuesta__mensaje= respuesta[:mensaje]
+  -# La misma pregunta que hace el panel, y la misma que hizo el controller al
+  -# aceptar el pedido: pedir y aceptar son el mismo método.
+  - if respuesta[:sugerencia] && policy(respuesta[:sugerencia]).accept?
+    = render "shared/ai_suggestion", suggestion: respuesta[:sugerencia]

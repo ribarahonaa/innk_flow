@@ -1,6 +1,24 @@
 # frozen_string_literal: true
 
 module ApplicationHelper
+  # Lo que dejó el último pedido a la IA, listo para el popup de respuesta.
+  #
+  # La propuesta se busca ACÁ y no en un controller porque el partial se
+  # renderiza también desde el layout, donde no hay ivar que valga: el layout
+  # lo sirven las treinta pantallas y ninguna sabe de esto.
+  #
+  # Por `find_by` y no `find`: entre el redirect y este render alguien pudo
+  # descartarla desde otra pestaña, y el popup igual tiene que poder decir qué
+  # pasó en vez de tirar un 404 sobre una pantalla que está bien.
+  def respuesta_de_ia
+    datos = flash[:ia]
+    return nil if datos.blank?
+
+    id = datos["sugerencia_id"]
+    { tipo: datos["tipo"], mensaje: datos["mensaje"],
+      sugerencia: id.present? ? AiSuggestion.find_by(id: id) : nil }
+  end
+
   # A qué marco tiene que responder un pedido a la IA.
   #
   # Por defecto al de las propuestas: la respuesta reemplaza ese marco y nada

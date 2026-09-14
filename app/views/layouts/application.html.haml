@@ -74,6 +74,9 @@
           -# pintarlo como franja escupiría el hash entero en la pantalla.
           - next if type.to_s == "ia"
           %div{ class: clase_de_flash(type) }= message
+        -# El popup de respuesta, para los pedidos que responden a la pantalla
+        -# entera y para las pantallas que no tienen marco de propuestas.
+        = render "shared/ia_respuesta"
         = yield
       -# Después del `yield`: es el template el que llena la referencia.
       - if content_for?(:referencia)

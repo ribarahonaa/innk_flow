@@ -115,4 +115,58 @@ RSpec.describe "lo que registra un pedido a la IA", type: :request do
     expect(response.body).not_to include("flash--notice")
     expect(response.body).not_to include("tipo&quot;=&gt;")
   end
+
+  describe "el <template> que el popup va a leer" do
+    # Hacen falta LOS DOS renders. Este repo no tiene la gema `turbo-rails`,
+    # así que Rails pinta el layout completo también cuando el pedido es de un
+    # marco, y Turbo recorta el marco de esa respuesta: lo que está afuera del
+    # marco se pierde. Y al revés, hay pantallas que ni siquiera tienen marco.
+    it "aparece dentro del marco y en el layout, con la propuesta y sus botones" do
+      pedir!("propose_pipeline")
+      follow_redirect!
+
+      expect(response.body.scan(/<template[^>]*data-ia-respuesta/).size).to eq(2)
+      expect(response.body).to include('data-tipo="ok"')
+      expect(response.body).to include("Revisá la propuesta")
+      expect(response.body).to include("Aplicar")
+      expect(response.body).to include("Descartar")
+    end
+
+    # Este es el caso que hoy se pierde entero: en modo asistido el pedido
+    # responde al marco, y el error viajaba en un `alert` que el layout pinta
+    # afuera del marco.
+    it "el error en modo asistido llega adentro del marco" do
+      allow_any_instance_of(Flow::AI::Providers::Fixture)
+        .to receive(:complete).and_raise(StandardError, "se cayó")
+
+      pedir!("propose_pipeline")
+      follow_redirect!
+
+      marco = response.body[/<turbo-frame id="ai-suggestions".*?<\/turbo-frame>/m]
+      expect(marco).to include("data-ia-respuesta")
+      expect(marco).to include('data-tipo="error"')
+      expect(marco).to include("La IA no pudo responder: se cayó")
+    end
+
+    it "sin pedido de por medio no hay ningún template" do
+      get challenge_path(challenge)
+
+      expect(response.body).not_to include("data-ia-respuesta")
+    end
+  end
+
+  # La ficha de evaluación —donde vive «Pedir la guía de la IA»— no tiene
+  # `turbo-frame#ai-suggestions`, y hasta ahora no mostraba absolutamente nada.
+  # Lo único que la cubre es el render del LAYOUT, que es incondicional: basta
+  # con probar que esa copia vive afuera del marco. Montar la ficha entera acá
+  # ataría el ejemplo a que el módulo de evaluación esté activo y a que haya
+  # asignación, que no es lo que se está probando.
+  it "el del layout vive afuera del marco, que es lo que cubre a una pantalla sin marco" do
+    pedir!("propose_pipeline")
+    follow_redirect!
+
+    afuera = response.body.sub(/<turbo-frame id="ai-suggestions".*?<\/turbo-frame>/m, "")
+    expect(afuera).to include("data-ia-respuesta")
+    expect(afuera).to include("Revisá la propuesta")
+  end
 end
