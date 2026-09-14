@@ -169,4 +169,18 @@ RSpec.describe "lo que registra un pedido a la IA", type: :request do
     expect(afuera).to include("data-ia-respuesta")
     expect(afuera).to include("Revisá la propuesta")
   end
+
+  # Las pantallas de 404/403 se renderizan DESPUÉS del `Current.reset` del
+  # `around_action` —`rescue_from` corre afuera de la cadena de callbacks—,
+  # así que ahí no hay tenant. Si una propuesta quedó pendiente en el flash,
+  # `respuesta_de_ia` consultaba `AiSuggestion` sin tenant en contexto:
+  # `MissingTenant`, que agarra el mismo `rescue_from` que pinta el 404, y
+  # vuelve a pintar el layout, y vuelve a reventar.
+  it "una pantalla de error no revienta si el flash trae una propuesta pendiente" do
+    pedir!("propose_pipeline")
+
+    get challenge_path("no-existe")
+
+    expect(response).to have_http_status(:not_found)
+  end
 end

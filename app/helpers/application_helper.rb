@@ -11,6 +11,21 @@ module ApplicationHelper
   # descartarla desde otra pestaña, y el popup igual tiene que poder decir qué
   # pasó en vez de tirar un 404 sobre una pantalla que está bien.
   def respuesta_de_ia
+    # Las pantallas de 404 y 403 se renderizan DESPUÉS del `Current.reset` del
+    # around_action —`rescue_from` corre afuera de la cadena de callbacks—, así
+    # que ahí no hay tenant. Si el flash trae una propuesta pendiente, buscarla
+    # es una consulta del dominio: sin este guard, cualquier 404 con un pedido
+    # de IA de por medio revienta con MissingTenant al pintar el error, y el
+    # mismo `rescue_from` que pinta el 404 lo vuelve a agarrar. Y una pantalla
+    # de error tampoco tiene una respuesta de la IA que mostrar: no llegaste a
+    # ninguna parte.
+    #
+    # Pregunta por `Current.company` y no por el `current_company` del
+    # controller a propósito: lo que hay que saber es si la consulta que viene
+    # abajo puede correr, y eso lo decide el mismo lugar que mira el
+    # `default_scope` de TenantScoped.
+    return nil if Current.company.nil?
+
     datos = flash[:ia]
     return nil if datos.blank?
 
