@@ -2,139 +2,141 @@
 
 ## Objetivo
 
-Esta sesión cerró los pendientes del handoff anterior, integró
-`rediseno-tailwind` en `master` y diseñó los **popups de la IA**. El diseño
-pide dos cosas: que mientras la IA piensa aparezca un modal con spinner, que no
-se puede cerrar y bloquea la pantalla, y que la respuesta también llegue en un
-modal, con la propuesta completa. Lo que sigue es implementar esos popups.
+Esta sesión implementó los **popups de la IA** que la sesión anterior dejó
+diseñados: mientras la IA piensa aparece un modal con spinner que no se puede
+cerrar y bloquea la pantalla, y la respuesta llega en otro modal, con la
+propuesta entera y sus botones. De paso arregla el error que en modo asistido
+**no se veía nunca**.
+
+El plan se ejecutó con subagentes: uno por task, revisión después de cada una,
+y una revisión de rama entera al final.
 
 ## Estado actual
 
-- **`master` está en `df20fc9`, pusheado, 0/0 con `origin`.**
-  - `rediseno-tailwind` entró por fast-forward (74 commits) y se borró la rama
-    local. `origin/rediseno-tailwind` sigue en GitHub en `beb9a50` y está
-    entera en `master`.
-  - `origin/configurar-vs-ejecutar` se borró.
-- **Rama actual: `popups-de-ia`, que sale de `master`.** Tiene el commit del
-  spec (`56bfc76`) y el de este handoff, ninguno pusheado. No tiene código.
-- **El diseño de los popups** lo aprobó Raúl sección por sección en el chat. El
-  archivo del spec escrito **todavía no lo revisó**: es el último paso del
-  brainstorming y quedó pendiente.
-- **Verificación sobre `df20fc9`:** `make spec` dio 786 ejemplos, 0 fallas y
-  0 warnings (eran 21 por corrida). `make screens` sacó las 35 capturas sin
-  errores de JS ni respuestas >= 400.
-- **Hechos del entorno que muerden:**
-  - **El push por SSH no anda desde esta shell:** `~/.ssh` no tiene clave y no
-    hay agente. Se pushea por HTTPS con el token de `gh`, sin tocar la
-    configuración:
+- **Rama `popups-de-ia`, en `335635b`, con nueve commits sobre `master`
+  (`df20fc9`).** `master` no se tocó.
+- **La rama está pusheada a `origin/popups-de-ia`, y eso no estaba
+  autorizado.** La pusheó el subagente de la ola de arreglo final a las
+  11:57 del 14/9 (`update by push` en el reflog de la ref remota), cinco
+  minutos después de su commit. El encargo no se lo prohibía. Local y remoto
+  están idénticos, así que no hay divergencia; queda a decisión de Raúl
+  dejarla o borrarla del remoto.
+- **Verificación sobre `335635b`:** `make spec` da 799 ejemplos, 0 fallas,
+  0 warnings (corrido por mí, no sólo por los subagentes). `make screens` saca
+  37 capturas sin errores de JS ni respuestas >= 400, y se corrió **dos veces
+  seguidas** para probar que el «Descartar» del final deja la base limpia.
+- **Hechos del entorno que muerden** (siguen valiendo):
+  - **El push por SSH no anda desde esta shell:** `~/.ssh` no tiene clave.
+    `git ls-remote` por SSH da `Permission denied (publickey)`. Se pushea por
+    HTTPS con el token de `gh`:
     `git -c credential.helper= -c credential.helper='!gh auth git-credential' push https://github.com/ribarahonaa/innk_flow.git <ref>`.
-    Raúl autorizó los pushes de esta sesión. Para la próxima, preguntar.
   - **Desarrollo usa el proveedor real:** `FLOW_AI_PROVIDER=anthropic` en
-    `.env`, así que cada pedido a la IA cuesta plata. Los vectores, en cambio,
-    son del fixture, y por eso `detect_duplicates` compara local y no llama a
-    nadie.
+    `.env`. El de **embeddings** es el fixture, y por eso «Detectar duplicados»
+    compara local y no cuesta plata — eso es lo que hace posible la captura del
+    camino de éxito, y se verificó al arrancar la Task 4.
 
 ## Archivos y cambios
 
-Esta sesión dejó siete commits. Los seis primeros están en `master` y el
-último, en `popups-de-ia`:
+Nueve commits. El primero es el plan; los ocho siguientes, el trabajo.
 
-1. **`b87c781` Los cuatro minors de la revisión final.**
-   - El comentario de `StepSettings.filtrar` ahora describe la lectura real,
-     que se hace desde `config`.
-   - Se fue el `id:` sin uso del form de biblioteca en `_criterios_editor`.
-     `form_with` no genera id en Rails 7.1: lo verifiqué renderizando.
-   - Barrido de `PipelinePresenter`: del módulo salieron `slug`, `status` y
-     `removable`; de la raíz, `insertionFloor`; y del desafío, seis claves.
-     Del desafío quedan solo `slug`, `aiDefaultMode` y `lockVersion`.
-   - La regla «con criterios propios no hay vuelta a la biblioteca» quedó en
-     `CLAUDE.md`.
-2. **`1329d99` `:unprocessable_entity` → `:unprocessable_content`**, en cinco
-   controllers y cuatro specs.
-3. **`85fa023` `ProposePipeline`.**
-   - Filtra el `config` con `StepSettings.filtrar`.
-   - Método nuevo, `StepSettings.json_schema(kind)`: el schema de la propuesta
-     es un `anyOf` con una variante por kind. Antes era `config: object`, y el
-     adapter de Anthropic lo cerraba, así que el modelo real no podía proponer
-     ninguna configuración.
-   - Se arregló el fixture: mandaba `cut_mode` plano y la clave es `cut.mode`.
-     La guarda está en `fixtures_spec`.
-4. **`695d37e` `shared/_ai_suggestions` filtra cada propuesta con
-   `AiSuggestionPolicy#accept?`.** Spec: `spec/requests/panel_de_propuestas_spec.rb`.
-5. **`beb9a50` Pedir y aceptar son el mismo método.** `AiRequestsController#autorizar!`
-   arma una propuesta de mentira y pregunta `request?`, que es `accept?`. La
-   policy perdió el atajo `return true if manager?`, que dejaba aplicar
-   propuestas sobre desafíos cerrados.
-6. **`df20fc9` Duplicados.**
-   - Alcance nuevo, `:pool`, resuelto por `ChallengePolicy#curate_pool?`: quien
-     administra, o el gestor asignado. El botón de `ideas/show` pregunta lo
-     mismo.
-   - Hook nuevo, `Tasks::Base#informativa?`: el Runner corre esas tareas
-     asistidas en cualquier modo, y `marco_para_pedido_de_ia` las manda al
-     marco de propuestas.
-   - Specs: `spec/requests/duplicados_spec.rb` y `runner_spec`.
-7. **`56bfc76` (en `popups-de-ia`): el spec**
-   `docs/superpowers/specs/2026-09-11-popups-de-ia-design.md`.
+1. **`7875788`** el plan: `docs/superpowers/plans/2026-09-14-popups-de-ia.md`.
+2. **`227187f`** el pedido a la IA registra qué pasó en `flash[:ia]`.
+   Un hash con claves **string** (`tipo`, `mensaje`, `sugerencia_id`), porque el
+   flash viaja en la cookie como JSON. `sugerencia_id` sólo cuando la propuesta
+   quedó pendiente. El layout saltea `:ia` en su loop de flash.
+3. **`853d3e2`** dos aserciones que habían quedado siempre verdaderas
+   (`duplicados_spec.rb:110`, `gestor_spec.rb:255`) pasan a mirar `flash[:ia]`.
+4. **`97219d2`** la respuesta viaja en un `<template data-ia-respuesta>`, que se
+   renderiza **dos veces**: adentro del `turbo-frame#ai-suggestions` y en el
+   layout. Hacen falta las dos porque sin la gema `turbo-rails` Rails pinta el
+   layout completo y Turbo se queda sólo con el marco. La tarjeta de una
+   propuesta salió a `shared/_ai_suggestion`, que ahora usan el panel y el popup.
+5. **`b7f481d`** `ApplicationHelper#respuesta_de_ia` no consulta `AiSuggestion`
+   sin tenant. Ver «Intentos fallidos».
+6. **`7c8885e`** `app/javascript/ia_popups.js`: los dos popups, armados por JS
+   desde los eventos de Turbo. Se fue `.ai-waiting` con todo su CSS.
+7. **`4ae9685`** se acotan los dos listeners globales y se arregla el handler de
+   `close`, que cerraba sobre la variable del módulo en vez del elemento.
+8. **`7c38ae5`** `recorrido-ia` en `db/seeds.rb` y las dos capturas nuevas
+   (`09-13-ia-espera`, `09-14-ia-respuesta`).
+9. **`335635b`** los hallazgos de la revisión de rama entera.
 
-Fuera de git: se borró `.superpowers/sdd/2026-09-09-configurar-vs-ejecutar/`,
-que estaba en `.gitignore`. Queda `.superpowers/sdd/2026-09-08-rediseno-tailwind-fase-1/`
-sin tocar.
+`CLAUDE.md` ganó la regla de que un `<dialog>` abierto no puede existir durante
+un morph, y la frase de la guarda de clases interpoladas ahora dice «HAML,
+`.vue` y `.js`» — porque el lint se amplió a los `.js`, que es donde vive la
+primera clase de Tailwind escrita desde JavaScript.
 
 ## Intentos fallidos
 
-- **Diagnostiqué mal el panel de propuestas.** Supuse que `challenges/show`
-  mostraba propuestas sobre ideas ajenas, y el primer spec falló incluso para
-  el admin. Pero cada `AiSuggestion` cuelga de **un** objetivo (el
-  `target_attributes` de la tarea: desafío, módulo o idea), y cada pantalla
-  filtra por esa columna. Antes de suponer dónde aparece una propuesta, hay
-  que mirar el `target_attributes` de la tarea.
-- **`AiSuggestion.new(purpose: …)` revienta** con `UnknownAttributeError`,
-  porque `purpose` se delega al `ai_run`, y la suite dio 26 fallas hasta
-  arreglarlo. Se arma así: `AiSuggestion.new(ai_run: AiRun.new(purpose: …), …)`.
-- **La regla de `informativa?` estuvo primero en `resolved_mode` del
-  controller.** Funcionaba, pero dejaba afuera a cualquier otro que llamara al
-  Runner, así que se movió a `Runner#initialize`.
-- **`git fetch`/`push` por SSH dan `Permission denied (publickey)`.** Ver el
-  comando HTTPS en «Estado actual».
-- **`git branch -d rediseno-tailwind` se negó antes del push,** porque el
-  upstream no tenía los últimos commits. Después del push pasó. No se forzó.
-- **`bin/rails runner '…'` con código Ruby inline se rompe por las comillas.**
-  Hay que pasar un script por stdin: `bin/rails runner - < script.rb`.
-- **Dos afirmaciones del handoff anterior eran falsas:**
-  - que el `id:` del form de biblioteca «sigue siendo necesario»;
-  - que el próximo paso literal era `finishing-a-development-branch`, que era un
-    resto del orden del ledger.
-- **La salida estructurada de Anthropic no documenta topes de complejidad.**
-  El schema por kind de `ProposePipeline` (3,4 KB) no se probó contra la API
-  real.
+- **El layout nuevo rompía la pantalla de 404 en bucle.**
+  `respuesta_de_ia` consultaba `AiSuggestion`, que es `TenantScoped`, y
+  `rescue_from` corre **afuera** del `around_action`: `render_not_found` pinta
+  `layout: "application"` con `Current` ya reseteado → `MissingTenant` → lo
+  atrapa el mismo `rescue_from` → vuelve a pintar. Es la misma trampa que
+  `ShellHelper#desafio_del_shell` ya documentaba. Guarda:
+  `return nil if Current.company.nil?`.
+- **Acotar `turbo:fetch-request-error` con `if (!espera)` mató el popup de
+  `turbo:frame-missing` en 403 y 500.** El evento es global y el prefetch de
+  Turbo lo dispara al pasar el mouse por un link, así que había que acotarlo;
+  pero con una respuesta 4xx/5xx `turbo:submit-end` llega con `success:false`,
+  cierra la espera y pone `espera` en `null` **antes** de que se dispare
+  `frame-missing`. El caso 200-sin-marco (sesión vencida) sí andaba, y la
+  re-revisión miró sólo ése. Lo encontró la revisión de rama entera. Se
+  reemplazó por una bandera de pedido en vuelo.
+- **Tres pedazos del código del plan estaban mal y se corrigieron al
+  ejecutarlo:** `Flow::Pipeline#insert` devuelve un `Result`, no el
+  `ChallengeStep`; el selector `a[href*="/ideas/"]` agarraba «Postular una idea»
+  (`/ideas/new`) y no una idea, así que va `a.idea-list__link`; y faltaba el
+  clic por link hasta la pantalla del módulo, porque el resumen del desafío no
+  tiene ni los formularios de IA ni links a ideas.
+- **`make screens` no prueba los popups hasta la Task 4.** Las corridas de las
+  tasks 1 a 3 pasaron en verde sin haberlos abierto una sola vez. Si algo de
+  `ia_popups.js` estuviera roto, esas tres corridas no lo hubieran dicho.
+- **`revisarClasesDescartadas` no mira las clases del modal.** Su selector es
+  `[class*="badge"],[class*="btn"],[class*="alert"],.steps,.card`, así que de lo
+  que arma el JS alcanza sólo al ✕ y a Aplicar/Descartar. El comentario de la
+  captura decía lo contrario y se corrigió.
 
 ## Próximos pasos
 
-1. **Que Raúl revise el spec escrito:**
-   `docs/superpowers/specs/2026-09-11-popups-de-ia-design.md`.
-2. **Con el spec aprobado, `superpowers:writing-plans`** para armar el plan de
-   implementación, en la rama `popups-de-ia`.
-3. **Ejecutar el plan** con test primero. En cada transición, avisar «task N en
-   ejecución» y pedir permiso antes de pasar a la siguiente. Lo que ya sabemos
-   y el plan tiene que respetar:
-   - Sembrar el desafío `recorrido-ia` en `db/seeds.rb`: en curso, Idear
-     abierto en modo asistido y dos ideas postuladas. No usar `sin-formulario`,
-     `onboarding-remoto` ni `optimizacion-de-la-experiencia-de-onboarding`.
-   - `make screens` no puede llamar a la IA real. Para el camino de error, un
-     pedido con un propósito inexistente, que se rechaza antes del proveedor.
-     Para el de éxito, «Detectar duplicados», que compara local. Al final del
-     recorrido hay que apretar Descartar para no dejar la propuesta pendiente.
-   - Rails renderiza el layout completo también en los pedidos de marco (no
-     está la gema `turbo-rails`): por eso el `<template>` va en el marco **y**
-     en el layout.
-4. **Anotados, sin decidir:**
+1. **Decidir qué pasa con la rama**, que es lo único abierto: mergear a
+   `master`, abrir un PR, o dejarla. Y decidir si `origin/popups-de-ia` se
+   queda o se borra, dado que se pusheó sin autorización.
+2. **Lo que la rama deja sin verificar**, por si vale cerrarlo:
+   - **El camino `_top` no lo recorre ninguna captura.** Las dos nuevas
+     responden al marco (el propósito inexistente cae ahí por el rescue, y
+     «Detectar duplicados» es informativa). El camino de «Mejorar con IA», el
+     «IA» de la evaluación y cualquier módulo en `ai_auto` —que es donde el
+     popup convive con el morph, el riesgo central del diseño— no se fotografía.
+     Una tercera captura con el pedido retenido lo cerraría, y sigue siendo
+     gratis.
+   - **El `beforeunload` no lo cubre nada** y no lo va a cubrir: Playwright no
+     muestra el diálogo nativo en headless.
+   - **La espera larga de verdad (10 a 70 segundos) nunca se vio**, porque
+     cuesta plata. Es decisión de Raúl.
+3. **Menores que se decidió no arreglar**, con su razón:
+   - `layouts/auth.html.haml` no saltea `:ia` en su loop de flash. Inalcanzable:
+     el flash se barre antes de llegar al login, y esa pantalla no carga JS.
+   - `esPedidoDeIa` usa `form.action`, que un control `name="action"`
+     sombrearía. Ningún formulario de la app tiene uno, y el resultado `false`
+     sería el correcto igual.
+   - El `waitForSelector(state:'detached')` tras «Descartar» se resuelve por el
+     cierre del cliente, no por la confirmación del servidor. La propiedad que
+     importa la prueba la segunda corrida de `make screens`.
+   - El filtro por permiso del popup (`policy(sugerencia).accept?`) no tiene
+     test propio. No se puede violar: `AiSuggestionPolicy#request?` **es**
+     `accept?`, así que quien pidió siempre puede revisar.
+   - `pedidoEnVuelo` no tiene red de seguridad en `turbo:submit-end` como sí la
+     tiene `espera`. Sólo importaría con un pedido abortado a mitad de camino, y
+     el `showModal()` deja la página inerte, así que no hay cómo dispararlo.
+4. **Anotados de antes, sin decidir:**
    - Borrar `origin/rediseno-tailwind`.
    - Cambiar «Aplicar/Descartar» por un solo «Listo» en las propuestas
      informativas: en duplicados, «Aplicar» no aplica nada.
    - `gestor@demo.test` está sembrado como admin (`db/seeds.rb:38`).
    - `CLAUDE.md` dice «404, nunca 403», pero un `authorize` rechazado devuelve
      403 (`tenant_resolution.rb:18,70`).
-   - **Visto de pasada, sin verificar:** en `assessments/new`, el botón «Pedir la
-     guía de la IA» se muestra con `update_pipeline?`, pero el pedido lo
-     autoriza `AssessmentPolicy#create?`. Un evaluador asignado podría pedirlo
-     y no ve el botón.
+   - **Sin verificar:** en `assessments/new`, el botón «Pedir la guía de la IA»
+     se muestra con `update_pipeline?`, pero el pedido lo autoriza
+     `AssessmentPolicy#create?`. Un evaluador asignado podría pedirlo y no ve el
+     botón.
