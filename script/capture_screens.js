@@ -227,12 +227,19 @@ async function shot(page, name, url, prepare) {
 
   // El paso a paso tiene que estar en TODAS las pantallas de configuración: si
   // falta en una, ahí es donde se pierde quien está configurando.
+  //
+  // Son OCHO casilleros y no un número cualquiera: el desafío, el flujo, un
+  // paso por cada uno de los cinco módulos que `sin-formulario` siembra, y el
+  // cierre. El número va fijo a propósito —calcularlo desde la propia página
+  // haría que la guarda se cumpla sola—, así que si el seed cambia cuántos
+  // módulos tiene ese desafío, este número cambia con él.
+  const PASOS_DE_SIN_FORMULARIO = 2 + 5 + 1;
   for (const url of ['/challenges/sin-formulario',
                      '/challenges/sin-formulario/builder',
                      '/challenges/sin-formulario/form',
                      '/challenges/sin-formulario/preview']) {
     await page.goto(BASE + url, { waitUntil: 'networkidle' });
-    if (await page.locator('.setup__step').count() !== 6) {
+    if (await page.locator('.setup__step').count() !== PASOS_DE_SIN_FORMULARIO) {
       failures++;
       console.error(`[SETUP] falta el paso a paso en ${url}`);
     }
@@ -266,7 +273,7 @@ async function shot(page, name, url, prepare) {
     ]);
     await page.waitForSelector('[data-island="step-settings"][data-island-mounted="true"]', { timeout: 15000 });
 
-    if (await page.locator('.setup__step').count() !== 6) {
+    if (await page.locator('.setup__step').count() !== PASOS_DE_SIN_FORMULARIO) {
       failures++;
       console.error('[SETUP] falta el paso a paso en el módulo de evaluación');
     }

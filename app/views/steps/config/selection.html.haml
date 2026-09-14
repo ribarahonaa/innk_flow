@@ -1,6 +1,6 @@
 - content_for :title, "Configurar · #{@step.name}"
 = render "steps/config/shell", step: @step
-= render "shared/setup_progress", challenge: @challenge, current: :criteria
+= render "shared/setup_progress", challenge: @challenge, current: @step.id
 = render "steps/config/modulo", step: @step, props: @settings_props
 = render "steps/criterios_editor", step: @step, suggestions: @pending_suggestions
-= render "shared/setup_nav", challenge: @challenge, current: :criteria
+= render "shared/setup_nav", challenge: @challenge, current: @step.id

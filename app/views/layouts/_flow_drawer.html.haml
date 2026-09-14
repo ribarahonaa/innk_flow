@@ -30,3 +30,12 @@
             -# El chip va vacío —a 232px no entra el rótulo— así que el estado
             -# viaja en el `title`: un punto de color solo no dice nada.
             %span{ class: chip_de_estado(paso.status), title: estado }
+      -# El cierre del camino, igual que en el paso a paso de arriba: las dos
+      -# listas muestran lo mismo. Sólo en borrador — una vez arrancado no hay
+      -# nada que revisar antes de abrir, y el flujo pasa a ser el mapa de lo
+      -# que está corriendo.
+      - if desafio.draft? && policy(desafio).builder?
+        %li
+          = link_to challenge_preview_path(desafio), class: ["flow-drawer__link", ("menu-active" if controller_name == "previews")] do
+            %span.flow-drawer__num= pasos.size + 1
+            %span.flow-drawer__name Revisar y arrancar

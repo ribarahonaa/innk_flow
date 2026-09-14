@@ -25,7 +25,7 @@
 
   - if challenge.draft? && setup.ready? && policy(challenge).start?
     = button_to "Arrancar el desafío", start_challenge_path(challenge), class: "btn btn-primary"
-  - elsif siguiente&.key == :start
+  - elsif siguiente&.key == :finish
     -# El último paso no se ofrece si algo bloquea: se dice qué falta y se
     -# lleva ahí, en vez de un botón que va a rebotar.
     - falta = setup.blockers.first

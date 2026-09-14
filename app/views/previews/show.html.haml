@@ -11,7 +11,7 @@
     %p.muted Las pantallas reales de este desafío, con la configuración de ahora. Acá no se puede escribir.
   = link_to "Volver al flujo", builder_challenge_path(@challenge), class: "btn btn-ghost"
 
-= render "shared/setup_progress", challenge: @challenge, current: :review
+= render "shared/setup_progress", challenge: @challenge, current: :finish
 
 - if @report.errors.any?
   .flash.flash--alert
@@ -99,4 +99,4 @@
           Cada puntaje dice qué versión se evaluó: nunca promedia entre versiones distintas.
 
 - if @challenge.draft? && policy(@challenge).builder?
-  = render "shared/setup_nav", challenge: @challenge, current: :review
+  = render "shared/setup_nav", challenge: @challenge, current: :finish

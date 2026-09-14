@@ -24,8 +24,14 @@ module Flow
 
     attr_reader :challenge, :pipeline
 
+    # Los pasos son los MÓDULOS del flujo, no una lista fija. Eran dos listas
+    # distintas —la barra del flujo a la izquierda y los pasos de arriba— y
+    # había que traducir de una a la otra. «El formulario» y «Los criterios»
+    # eran además agregaciones de algo que se configura adentro de cada
+    # módulo: dos módulos que puntúan compartían un casillero, así que al
+    # configurar cualquiera de los dos se resaltaba el mismo.
     def steps
-      @steps ||= [brief_step, flow_step, form_step, criteria_step, review_step, start_step]
+      @steps ||= [brief_step, flow_step, *module_steps, finish_step]
     end
 
     # El primero sin hacer: es donde continúa quien vuelve a la pantalla.
@@ -62,9 +68,8 @@ module Flow
     # el paso 1 y tiene que poder dibujar el camino igual.
     def self.outline
       [["El desafío", "nombre y brief"], ["El flujo", "qué módulos y en qué orden"],
-       ["El formulario", "qué se le pregunta a quien postula"],
-       ["Los criterios", "con qué se puntúa"], ["Revisar", "lo que van a ver las personas"],
-       ["Arrancar", "abrir la postulación"]]
+       ["Cada módulo", "qué configura cada uno, uno por uno"],
+       ["Revisar y arrancar", "lo que van a ver las personas, y abrir la postulación"]]
     end
 
     private
@@ -89,74 +94,73 @@ module Flow
                status: done ? :done : :pending, blocking: true)
     end
 
-    def form_step
-      ideation = pipeline.ideation_step
-      fields = ideation ? ideation.form_fields.size : 0
-
-      Step.new(key: :form, label: "El formulario",
-               hint: fields.positive? ? "#{Flow::Texto.contar(fields, "campo")}" : "nadie puede postular",
-               path: ideation ? routes.challenge_step_path(challenge, ideation) : routes.builder_challenge_path(challenge),
-               status: fields.positive? ? :done : :pending, blocking: ideation.present?)
+    # Un paso por módulo, en el orden del flujo.
+    #
+    # La clave es el ID y no el slug: el slug es legible pero podría chocar con
+    # `brief`, `flow` o `finish` —los nombres los escribe una persona— y acá no
+    # se persiste nada, así que no hace falta que sea estable entre renders.
+    # Cada pantalla de configuración pasa el suyo como `current:`.
+    def module_steps
+      pipeline.steps.map { |modulo| module_step(modulo) }
     end
 
-    # Los criterios NO bloquean: sin set propio se usan los genéricos, que es
-    # una decisión válida. Pero el paso existe para que sea una decisión y no
-    # un descubrimiento a mitad de la evaluación.
-    def criteria_step
-      scorers = pipeline.steps.select { |s| s.evaluation? || s.selection? }
-      propios = scorers.count { |s| s.criteria_set.present? }
+    def module_step(modulo)
+      listo, pista = estado_de(modulo)
 
-      Step.new(key: :criteria, label: "Los criterios",
-               hint: criteria_hint(scorers, propios),
-               path: criteria_path(scorers),
-               status: criteria_status(scorers, propios),
-               blocking: false)
+      Step.new(key: modulo.id, label: modulo.name, hint: pista,
+               path: routes.challenge_step_path(challenge, modulo),
+               status: listo ? :done : :pending,
+               blocking: modulo.ideation?)
     end
 
-    # Al primer módulo que puntúa, que es donde los criterios se configuran de
-    # verdad (`steps/config/evaluation` y `.../selection`). Un índice aparte
-    # sería una sexta pantalla de configuración —lo que este paso a paso
-    # existe para evitar—, y apuntar al builder en su lugar (como hace
-    # `flow_step`) deja al paso a paso en un ida y vuelta: el pie del
-    # formulario ofrece «Los criterios →» hacia el builder, y el del builder
-    # ofrece «El formulario →» de vuelta. Revisar nunca se alcanza. Por eso
-    # el builder queda solo como el fallback de `form_step`, para cuando
-    # todavía no hay módulo que puntúe.
-    def criteria_path(scorers)
-      primero = scorers.first
-      primero ? routes.challenge_step_path(challenge, primero) : routes.builder_challenge_path(challenge)
+    # Qué necesita cada tipo de módulo para contarse como configurado, y si su
+    # ausencia traba el arranque. Es la misma regla que antes estaba repartida
+    # entre `form_step` y `criteria_step`, ahora por módulo.
+    #
+    # Solo IDEAR traba: sin campos nadie puede postular. Los criterios de una
+    # evaluación no traban —sin set propio se usan los genéricos, que es una
+    # decisión válida— y la regla de corte de una selección tampoco.
+    def estado_de(modulo)
+      case modulo.kind
+      when "ideation" then estado_de_ideacion(modulo)
+      when "evaluation" then estado_de_evaluacion(modulo)
+      when "selection" then estado_de_seleccion(modulo)
+      else [true, "nada obligatorio que configurar"]
+      end
     end
 
-    # Sin flujo este paso todavía no se puede contestar: los criterios son de
-    # los módulos que puntúan, y no hay módulos. Darlo por HECHO era aprobarlo
-    # por vacío —un tilde verde en algo que nadie decidió— y encima confundía:
-    # el paso a paso decía «2 de 6» con el 4 en verde y el 2 en rojo.
-    def criteria_status(scorers, propios)
-      return :pending if pipeline.steps.empty?
+    def estado_de_ideacion(modulo)
+      campos = modulo.form_fields.size
+      return [false, "nadie puede postular"] if campos.zero?
 
-      scorers.empty? || propios == scorers.size ? :done : :pending
+      [true, Flow::Texto.contar(campos, "campo")]
     end
 
-    # «3 de 4» a secas se lee como «3 de 4 criterios». Son MÓDULOS.
-    def criteria_hint(scorers, propios)
-      return "cuando el flujo tenga módulos" if pipeline.steps.empty?
-      return "ningún módulo puntúa ni filtra" if scorers.empty?
-      return "#{propios} de #{scorers.size} módulos definidos" if propios < scorers.size
+    def estado_de_evaluacion(modulo)
+      criterios = modulo.criteria_set&.active_criteria&.size.to_i
+      return [false, "usa los criterios genéricos"] if criterios.zero?
 
-      "#{Flow::Texto.contar(scorers.size, "módulo")} definidos"
+      [true, criterios == 1 ? "1 criterio propio" : "#{criterios} criterios propios"]
     end
 
-    def review_step
-      Step.new(key: :review, label: "Revisar",
-               hint: "lo que van a ver las personas",
+    # Los criterios de una selección son FILTROS y son opcionales; lo que hay
+    # que decidir es la regla de corte. Se lee de `config` y no de `settings`
+    # porque el hueco vale: una clave ausente no es «manual», es «nadie lo
+    # decidió todavía» —y «manual: el dueño decide» sí es una decisión—.
+    def estado_de_seleccion(modulo)
+      modo = modulo.config.dig("cut", "mode").presence
+      return [false, "sin regla de corte"] if modo.nil?
+
+      [true, "corte: #{I18n.t("flow.cut_modes.#{modo}", default: modo)}"]
+    end
+
+    # Revisar y arrancar eran dos pasos que se completaban con el mismo hecho
+    # —que el desafío deje de estar en borrador—, así que nunca se los veía en
+    # estados distintos.
+    def finish_step
+      Step.new(key: :finish, label: "Revisar y arrancar",
+               hint: challenge.draft? ? "lo que van a ver las personas" : I18n.t("flow.challenge_statuses.#{challenge.status}"),
                path: routes.challenge_preview_path(challenge),
-               status: challenge.draft? ? :pending : :done, blocking: false)
-    end
-
-    def start_step
-      Step.new(key: :start, label: "Arrancar",
-               hint: challenge.draft? ? "cuando esté todo listo" : I18n.t("flow.challenge_statuses.#{challenge.status}"),
-               path: routes.challenge_path(challenge),
                status: challenge.draft? ? :pending : :done, blocking: false)
     end
   end

@@ -564,13 +564,27 @@ porque quién revisa depende de sobre qué actúa cada tarea. Se sirve en diez
 pantallas, y sin ese filtro les mandaba a quien participa y a quien evalúa
 propuestas que no podían revisar, con la vista previa incluida.
 
+**Los pasos del paso a paso son los MÓDULOS del flujo**, no una lista fija:
+el desafío, el flujo, un paso por cada módulo —con su nombre, en el orden del
+flujo, identificado por el id del módulo— y «Revisar y arrancar». Es la misma
+lista que dibuja el drawer de la izquierda, que es de dónde salió el cambio:
+eran dos listas de cosas distintas y había que traducir de una a la otra.
+Qué necesita cada módulo para contarse configurado lo decide `estado_de` por
+`kind`: idear pide campos de formulario **y es el único que traba el
+arranque**; una evaluación pide criterios propios y una selección, que la
+regla de corte esté decidida, pero ninguna de las dos traba —sin set propio
+se usan los genéricos, y los criterios de una selección son FILTROS
+opcionales, no calificaciones—; evolución y reportería nacen hechas.
+En una selección eso se lee de `config` y no de `settings`: ahí el hueco vale,
+porque una clave ausente no es «manual», es «nadie lo decidió todavía».
+
 **Borrar o mudar una pantalla de configuración le puede sacar el sonido a
 `Flow::Setup`.** El paso a paso apunta cada paso a una URL
 (`Flow::Setup::Step#path`). `setup_nav` necesita que quien lo renderiza le
 pase el `current:` que le toca para calcular anterior y siguiente
 (`setup.before(current)`, `setup.after(current)`): sin ese render no hay
 ningún «siguiente →» que ofrecer. `setup_progress` no depende de lo mismo —
-pinta los seis pasos siempre; `current` sólo resalta cuál está activo
+pinta la lista entera siempre; `current` sólo resalta cuál está activo
 (`setup__step--current`)—, así que el paso sigue apareciendo en la lista
 aunque el pie que avanza haya desaparecido. Pasó de verdad con el paso
 `:form` al mudarlo a la cara del módulo: **`make spec` y `make screens`
