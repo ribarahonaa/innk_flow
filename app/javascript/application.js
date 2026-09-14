@@ -1,6 +1,9 @@
 // Chrome compartido. Las islas Vue NO se importan acá: cada una es su propio
 // pack (app/javascript/packs/*.js) y la vista que la necesita la incluye.
 import '@hotwired/turbo-rails';
+// Los dos popups de la IA: el de esperar y el de responder. Chrome compartido
+// porque los botones de IA viven en diez pantallas.
+import './ia_popups';
 
 // Conservar el scroll cuando la pantalla se actualiza sin recargarse.
 //

@@ -2252,45 +2252,26 @@ textarea:disabled {
   color: var(--muted);
 }
 
-/* ── Espera de la IA ───────────────────────────────────────────────────────── */
+/* ── Los dos popups de la IA ───────────────────────────────────────────────── */
 /*  */
-/* Turbo marca el `turbo-frame` con `aria-busy` mientras hay un pedido en */
-/* vuelo. Con un proveedor real la respuesta tarda de 10 a 70 segundos: sin */
-/* esto la pantalla se ve congelada y la gente vuelve a apretar el botón. */
-.ai-waiting {
-  display: none;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
-  margin-bottom: 16px;
-  border: 1px dashed var(--ia-borde);
-  border-radius: var(--radius);
-  background: var(--ia-panel);
-  color: var(--ia);
-  font-size: 13px;
-}
+/* El armazón es el `modal` de DaisyUI (que NO está excluido: sólo `card` lo */
+/* está) sobre un `<dialog>` de verdad: `showModal()` deja el resto de la */
+/* página inerte, que es lo que el aviso viejo no hacía. */
+.ia-espera { text-align: center; }
 
-turbo-frame[aria-busy="true"] .ai-waiting { display: flex; }
+/* El spinner sigue girando aunque esté activado `prefers-reduced-motion`, a */
+/* propósito: es la ÚNICA señal de que la IA sigue trabajando, y quieto se lee */
+/* como colgado. El aviso viejo podía quedarse quieto porque además decía el */
+/* texto; acá el texto está, pero la espera dura hasta un minuto. */
+.ia-espera__spinner { color: var(--ia); margin-bottom: 12px; }
 
-/* Lo que ya estaba se atenúa: sigue legible, pero se lee que está por cambiar. */
-turbo-frame[aria-busy="true"] .ai-panel { opacity: .45; }
-
-.ai-waiting__dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 99px;
-  background: currentColor;
-  animation: ai-pulse 1s ease-in-out infinite;
-}
-
-@keyframes ai-pulse {
-  0%, 100% { opacity: .25; transform: scale(.8); }
-  50%      { opacity: 1;   transform: scale(1.15); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ai-waiting__dot { animation: none; opacity: .7; }
-}
+.ia-respuesta { position: relative; }
+.ia-respuesta__cerrar { position: absolute; top: 8px; right: 8px; }
+.ia-respuesta__mensaje { margin: 0 0 12px; font-size: 14px; line-height: 1.55; }
+.ia-respuesta--error .ia-respuesta__mensaje { color: var(--danger); }
+/* La propuesta dentro del popup es la última fila: la línea de abajo que la */
+/* separa de la siguiente en el panel acá no separa de nada. */
+.ia-respuesta .ai-suggestion { border-bottom: 0; padding-bottom: 0; }
 
 /* ── Paso a paso de configuración ──────────────────────────────────────────── */
 .setup {

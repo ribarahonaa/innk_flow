@@ -476,6 +476,12 @@ Tres cosas que no son obvias:
   (`shouldCacheSnapshot = formSubmission.isSafe`), así que `turbo:before-cache`
   no se dispara y no sirve para desmontar nada en el camino que importa.
   `islands.js` también escucha `turbo:before-render`.
+- **Un `<dialog>` abierto no puede existir durante un morph.** Idiomorph
+  compara contra el HTML del servidor, y un diálogo que agregó el cliente es
+  un nodo de más: se lo lleva puesto, o le saca el `open` y lo deja en el DOM
+  sin verse. Por eso los dos popups de la IA los arma el JS y ninguno existe
+  durante un render: el de espera se cierra y se saca en `turbo:before-render`
+  y el de respuesta se arma recién en `turbo:render` (`ia_popups.js`).
 - **El morph no rompe las islas**, medido en la cara de configuración de
   Idear —la pantalla del módulo que hoy monta el editor de formulario,
   destino del redirect 301 que dejó `/challenges/:id/form`—: reemplaza el
