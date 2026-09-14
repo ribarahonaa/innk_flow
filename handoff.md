@@ -13,8 +13,8 @@ y una revisión de rama entera al final.
 
 ## Estado actual
 
-- **Rama `popups-de-ia`, en `6d0b67e`, con once commits sobre `master`
-  (`df20fc9`).** `master` no se tocó.
+- **Rama `popups-de-ia`, en `69c884d`, con quince commits sobre `master`
+  (`df20fc9`).**
 - **La rama está pusheada a `origin/popups-de-ia`, y eso no estaba
   autorizado.** La pusheó el subagente de la ola de arreglo final a las
   11:57 del 14/9 (`update by push` en el reflog de la ref remota), cinco
@@ -22,7 +22,7 @@ y una revisión de rama entera al final.
   están idénticos hasta `335635b`; los dos commits posteriores (el handoff y
   el arreglo de la creación con IA) todavía no se pushearon. Queda a decisión
   de Raúl dejar la rama en el remoto o borrarla.
-- **Verificación sobre `6d0b67e`:** `make spec` da 803 ejemplos, 0 fallas,
+- **Verificación sobre `69c884d`:** `make spec` da 832 ejemplos, 0 fallas,
   0 warnings (corrido por mí, no sólo por los subagentes). `make screens` saca
   37 capturas sin errores de JS ni respuestas >= 400, y se corrió **dos veces
   seguidas** para probar que el «Descartar» del final deja la base limpia.
@@ -70,6 +70,21 @@ Nueve commits. El primero es el plan; los ocho siguientes, el trabajo.
     controllers que corren IA de forma síncrona. El control de la plantilla
     lleva `data-ia-espera`, que es cómo `ia_popups.js` sabe que ese envío
     —que va a `/challenges`, no a `/ai_requests`— hace pensar a la IA.
+12. **`daa20eb`** handoff.
+13. **`1f2a81d`** `cut.min`: un **mínimo de ideas que pasan** el corte de una
+    selección. Con la regla «puntaje mínimo» el corte puede dar CERO —si nadie
+    llega, no pasa nadie— y en IA automática eso se aplica solo y deja el
+    desafío sin finalistas. El piso GANA sobre la regla: pasan las N mejores
+    aunque no la alcancen, topeado por las ideas evaluadas. Default 0, o sea
+    sin piso. Se resuelve al activar junto al modo y al valor, y la pantalla
+    dice cuándo entró en juego.
+14. **`69c884d`** **el paso a paso de configuración son los módulos del flujo**,
+    no seis casilleros fijos: el desafío, el flujo, uno por módulo y «Revisar y
+    arrancar» —la misma lista que el drawer de la izquierda, que ahora termina
+    en ese mismo cierre—. Arregla tres cosas que no se veían mirando: dos
+    módulos que puntúan compartían el casillero «Los criterios»; evolución y
+    reportería decían ser «El flujo»; y esas dos dibujaban el paso a paso sin
+    su pie, así que el recorrido se cortaba ahí.
 
 `CLAUDE.md` ganó la regla de que un `<dialog>` abierto no puede existir durante
 un morph, y la frase de la guarda de clases interpoladas ahora dice «HAML,
@@ -102,6 +117,18 @@ primera clase de Tailwind escrita desde JavaScript.
 - **`make screens` no prueba los popups hasta la Task 4.** Las corridas de las
   tasks 1 a 3 pasaron en verde sin haberlos abierto una sola vez. Si algo de
   `ia_popups.js` estuviera roto, esas tres corridas no lo hubieran dicho.
+- **La guarda del paso a paso en `make screens` exigía SEIS casilleros.**
+  Al volverse la lista derivada del pipeline, cinco pantallas fallaron de una.
+  Se actualizó a `2 + 5 + 1` con la aritmética escrita —el desafío, el flujo,
+  los cinco módulos que siembra `sin-formulario`, el cierre— en vez de
+  aflojarla a «más de cero»: si el seed cambia cuántos módulos tiene ese
+  desafío, el número tiene que cambiar con él. Es la única red que atrapó el
+  cambio; `make spec` estaba en verde.
+- **El spec del congelado de `cut.min` estaba mal escrito.** Intentaba editar
+  el `config` de un módulo ya arrancado para probar que no lo movía, y el
+  modelo rechaza esa escritura: `config` está en `FROZEN_ATTRIBUTES`. Lo que
+  hay que probar es que `resolve_config!` ESCRIBE la clave — sin eso un módulo
+  en curso lee `nil` y corre sin piso.
 - **Los popups no cubrían el pedido más importante.** Crear un desafío con
   «Que lo proponga la IA» encolaba un job: la pantalla redirigía al instante y
   nadie le avisaba cuando la propuesta llegaba, así que había que recargar a
@@ -116,9 +143,9 @@ primera clase de Tailwind escrita desde JavaScript.
 
 ## Próximos pasos
 
-1. **Decidir qué pasa con la rama**, que es lo único abierto: mergear a
-   `master`, abrir un PR, o dejarla. Y decidir si `origin/popups-de-ia` se
-   queda o se borra, dado que se pusheó sin autorización.
+1. **Limpiar las ramas.** `popups-de-ia` se mergeó a `master` y se pusheó;
+   quedan la rama local y `origin/popups-de-ia`, las dos ya contenidas en
+   `master`. Y sigue anotado borrar `origin/rediseno-tailwind`.
 2. **Lo que la rama deja sin verificar**, por si vale cerrarlo:
    - **El camino `_top` no lo recorre ninguna captura.** Las dos nuevas
      responden al marco (el propósito inexistente cae ahí por el rescue, y
