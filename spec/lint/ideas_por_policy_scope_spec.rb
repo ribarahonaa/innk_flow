@@ -37,8 +37,16 @@ require "rails_helper"
 #   · Lo que no nombra `Idea` ni `ideas` literal: `public_send(:ideas)`, una
 #     variable que ya trae la relación (`rel = @challenge.ideas` en otro método
 #     y después `rel.find`), `%Q{}` y heredocs.
-#   · Una cadena partida da falso POSITIVO —marca `@challenge.ideas` aunque el
-#     `policy_scope(` esté en la línea de arriba—, que obliga a mirarla.
+#   · Desarmar el scope con algo que no sea `unscope`: `.except(:where)`,
+#     `.rewhere(...)`.
+#   · Sintaxis que confunde a un detector de texto y le esconde el resto de la
+#     línea: una comilla doble dentro de un texto entre comillas simples, un
+#     literal `?"`, una regex con `#` adentro, una interpolación con llaves y
+#     comillas anidadas.
+#   · Da falsos POSITIVOS, que obligan a mirar la línea y son la dirección
+#     segura: una cadena partida (marca `@challenge.ideas` aunque el
+#     `policy_scope(` esté en la línea de arriba) y una variable local llamada
+#     `ideas`.
 #
 # Lo que prueba el comportamiento de verdad son los `[404, 404]` de
 # `spec/requests/participant_rules_spec.rb`, ruta por ruta. Esto cuida que una
@@ -50,8 +58,8 @@ RSpec.describe "las ideas se tocan por policy_scope", type: :lint do
     /\bwhen Idea\b/ => "un `case` sobre la clase del objetivo no busca nada",
     /\.ideas\.new\(/ => "construir una idea nueva no busca ninguna existente",
     # Sin argumentos: `exists?(id: params[:id])` sí es una búsqueda, y un
-    # oráculo.
-    /\.ideas\.submitted\.exists\?(?!\()/ => "«¿hay alguna postulada?» no busca por id ni devuelve una"
+    # oráculo. Con o sin paréntesis: `exists? id: x` también.
+    /\.ideas\.submitted\.exists\?(?![ \t]*[(\w:@])/ => "«¿hay alguna postulada?» no busca por id ni devuelve una"
   }.freeze
 
   # Lo que va por el scope y después lo desarma.
@@ -89,6 +97,7 @@ RSpec.describe "las ideas se tocan por policy_scope", type: :lint do
       "when Idea then Idea.find(id)",
       "@idea = @challenge.ideas.new(Idea.find(params[:origen]).payload)",
       "hay = @challenge.ideas.submitted.exists?(id: params[:id])",
+      "hay = @challenge.ideas.submitted.exists? id: params[:id]",
       "flash[:notice] = \"Listo: \#{@challenge.ideas.find(params[:id]).title}\"",
       "      ideas.find(params[:id])",
       "@idea = policy_scope(Idea).unscoped.find(params[:id])",
