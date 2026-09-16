@@ -305,25 +305,33 @@ ahora.
    El 403 existe —`Pundit::NotAuthorizedError` lo devuelve— y es correcto
    para lo que SÍ se ve pero no se puede hacer: ver un desafío y no poder
    editarlo no confirma nada que no supieras. Esta línea decía «404, nunca
-   403», y el código nunca hizo eso: 25 specs esperan 403.
+   403», y el código nunca hizo eso.
 
    **La trampa es el orden, no el `authorize`.** Buscar con el scope de
    tenencia y autorizar DESPUÉS devuelve 403 sobre algo que no se debería
    ver: a quien participa, una idea ajena le daba 403 y un id inexistente
    404, y esa diferencia confirma que existe. Pasó en cuatro de los seis
    controllers que buscaban una idea —cada uno con su `authorize` escrito—.
-   Por eso desafíos **e ideas** se buscan por `policy_scope`, y lo cuida
-   `spec/lint/ideas_por_policy_scope_spec.rb`.
+   Por eso las ideas se buscan por `policy_scope`, y los desafíos también.
+   `spec/lint/ideas_por_policy_scope_spec.rb` cuida **sólo las ideas y sólo
+   en controllers**, y es texto: su comentario dice qué no ve. Lo que prueba
+   el comportamiento son los `[404, 404]` ruta por ruta de
+   `spec/requests/participant_rules_spec.rb`. La primera versión de la guarda
+   listaba formas prohibidas de buscar y la revisión la evadió de cinco
+   maneras; ahora marca todo uso de `Idea` o `.ideas` fuera de un
+   `policy_scope(...)` y prueba su propio detector.
 
    **Y lo que cuelga de una idea hereda su visibilidad.** Comentarios y
    propuestas de la IA se buscaban por id en toda la empresa, con el mismo
    403-contra-404. Un comentario se busca dentro del paso de la URL y sobre
    una idea visible (`FeedbackItemsController#comentario`). Una propuesta se
-   ve si se ve su **objetivo** —el desafío para el gestor, la idea para quien
-   participa— (`AiSuggestionsController#objetivo_visible?`), y NO si se
-   puede revisar, aunque el panel filtre así: quien administra ve todas en
-   `/admin/ai_runs`, y no poder aplicar una sobre un desafío cerrado es un
-   403 legítimo. La guarda de lint no cubre estos dos: busca `ideas.find`.
+   ve **donde aparece** (`AiSuggestionPolicy#visible?`): el panel filtra por
+   `accept?` y la auditoría le muestra todas a quien administra, así que es
+   `manager? || accept?`. Costó dos intentos equivocados: `accept?` a secas
+   volvía 404 el 403 legítimo de quien administra un desafío cerrado, y «se
+   ve si se ve su objetivo» le dejaba 403 a quien participa por una
+   propuesta del flujo que no le aparece en ningún lado. La guarda de lint no
+   cubre estos dos.
 
    **Una policy sin nada propio hereda `show? = membership.present?`**, o sea
    «cualquiera de la empresa lee esto». `CriteriaSetPolicy` estaba vacía, y
@@ -333,6 +341,16 @@ ahora.
    biblioteca a la vista de la empresa y cada set `inline` a la de su
    desafío. Antes de dejar una policy vacía, preguntate de qué desafío cuelga
    lo que protege.
+
+   **Sin membresía, `none`.** La sesión guarda la empresa elegida y no
+   vuelve a pedir la membresía: a quien se la sacaron le queda el tenant
+   puesto y `current_membership` en `nil`. `ChallengePolicy::Scope` hacía
+   `scope.all unless gestor?`, y quien acababa de perder el acceso listaba
+   todos los desafíos —un gestor removido, más que antes—. El default de
+   `ApplicationPolicy::Scope#resolve` devuelve `none` sin membresía, y todo
+   `Scope` que lo sobreescriba tiene que hacer la misma pregunta primero
+   (`spec/tenancy/sin_membresia_spec.rb`). **La sesión sigue viva igual**:
+   esto cierra lo que se ve, no la puerta.
 4. FKs compuestas `(x_id, company_id)`: Postgres rechaza atar una fila de la
    empresa A a un padre de la B.
 
