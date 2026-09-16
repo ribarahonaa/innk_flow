@@ -24,7 +24,7 @@
 
   - downloadable = @handler.reports.select { |r| r.format != "dashboard" }
   - if downloadable.any?
-    %table.step-table{ id: "reports-table" }
+    %table.table{ id: "reports-table" }
       %thead
         %tr
           %th Formato
@@ -83,7 +83,7 @@
 - if data["ranking"].any?
   .panel
     %h2.section-title Ranking
-    %table.step-table
+    %table.table
       %thead
         %tr
           %th #
@@ -126,7 +126,7 @@
 - if data["evaluators"].any?
   .panel
     %h2.section-title Participación de evaluadores
-    %table.step-table
+    %table.table
       %thead
         %tr
           %th Módulo
@@ -149,7 +149,7 @@
       - if data["mode"] == "by_version"
         %span.muted · cada celda con la versión que se evaluó
     .table-scroll
-      %table.step-table
+      %table.table
         %thead
           %tr
             %th Idea

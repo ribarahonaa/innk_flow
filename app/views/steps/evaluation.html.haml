@@ -49,7 +49,7 @@
   - if @step.step_entries.empty?
     %p.muted Todavía no hay ideas en este módulo.
   - else
-    %table.step-table
+    %table.table
       %thead
         %tr
           %th Idea
@@ -68,7 +68,7 @@
           - desglose = @handler.breakdown_visible_for?(entry.idea_id, user: current_user, manager: manda)
           %tr
             %td
-              = link_to entry.idea.title, challenge_idea_path(@challenge, entry.idea), class: "step-table__link"
+              = link_to entry.idea.title, challenge_idea_path(@challenge, entry.idea), class: "table-link"
               %span.muted= " · #{entry.idea.author.name}"
             %td.muted
               = "#{result['assessments_count'] || 0} / #{@handler.min_assessments_for(entry.idea)}"
@@ -111,7 +111,7 @@
     - hechas.group_by(&:idea).each do |idea, lista|
       .assessment-group
         %h3.assessment-group__title
-          = link_to idea.title, challenge_idea_path(@challenge, idea), class: "step-table__link"
+          = link_to idea.title, challenge_idea_path(@challenge, idea), class: "table-link"
         - lista.each do |assessment|
           .assessment-detail{ class: ("assessment-detail--ai" if assessment.by_ai?) }
             .assessment-detail__head

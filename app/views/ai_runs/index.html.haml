@@ -22,7 +22,7 @@
   - if @runs.empty?
     %p.muted Todavía no se llamó a la IA.
   - else
-    %table.step-table
+    %table.table
       %thead
         %tr
           %th Propósito
@@ -36,7 +36,7 @@
         - @runs.each do |run|
           %tr
             %td
-              = link_to t("flow.ai_purposes.#{run.purpose}", default: run.purpose.humanize), ai_run_path(run), class: "step-table__link"
+              = link_to t("flow.ai_purposes.#{run.purpose}", default: run.purpose.humanize), ai_run_path(run), class: "table-link"
             %td.muted= [run.challenge&.name, run.challenge_step&.name, run.idea&.title].compact.join(" · ").truncate(48)
             %td.muted= t("flow.ai_modes.#{run.mode}")
             %td

@@ -79,7 +79,7 @@ RSpec.describe "isla del builder", type: :system, js: true do
 
     click_link_settled "Ver desafío"
     expect(page).to have_current_path(challenge_path(challenge), wait: 10)
-    expect(page).to have_css(".step-table", wait: 10)
+    expect(page).to have_css("table.table", wait: 10)
 
     click_link_settled "Editar flujo"
     expect(page).to have_current_path(builder_challenge_path(challenge), wait: 10)

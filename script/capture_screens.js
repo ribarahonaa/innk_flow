@@ -129,7 +129,12 @@ async function revisarRitmo(page, name) {
 async function revisarClasesDescartadas(page, name) {
   const huerfanas = await page.evaluate(() => {
     const sospechosas = [];
-    for (const el of document.querySelectorAll('[class*="badge"],[class*="btn"],[class*="alert"],.steps,.panel')) {
+    for (const el of document.querySelectorAll('[class*="badge"],[class*="btn"],[class*="alert"],.steps,.panel,.table :is(th,td)')) {
+      // `.table :is(th,td)` no exige que la celda tenga clase propia: agarra
+      // también la del `.cut-line` (línea de corte del ranking), que anula
+      // padding y borde a propósito con `!important` — sin clase no hay nada
+      // descartado que reportar.
+      if (!el.className) continue;
       const cs = getComputedStyle(el);
       const sinFondo = cs.backgroundColor === 'rgba(0, 0, 0, 0)' || cs.backgroundColor === 'transparent';
       const sinRelleno = parseFloat(cs.paddingLeft) === 0 && parseFloat(cs.paddingTop) === 0;
@@ -521,7 +526,7 @@ async function shot(page, name, url, prepare) {
 
   // Una pantalla por tipo de módulo, tomando el primero de cada kind.
   await page.goto(`${BASE}/challenges/${CHALLENGE}`, { waitUntil: 'networkidle' });
-  const stepLinks = await page.locator('.step-table__link').evaluateAll(
+  const stepLinks = await page.locator('.table-link').evaluateAll(
     (nodes) => nodes.map((n) => ({ href: n.getAttribute('href'), text: n.textContent.trim() }))
   );
 
@@ -640,8 +645,8 @@ async function shot(page, name, url, prepare) {
   // de criterios propia. La de configuración se captura aparte, más abajo.
   await page.goto(`${BASE}/challenges/${CHALLENGE}`, { waitUntil: 'networkidle' });
   const evaluacionLink = page
-    .locator('.step-table tr', { hasText: 'Evaluación de comité' })
-    .locator('.step-table__link');
+    .locator('.table tr', { hasText: 'Evaluación de comité' })
+    .locator('.table-link');
   if (await evaluacionLink.count()) {
     await Promise.all([
       page.waitForURL(/\/steps\/[^/]+$/, { timeout: 15000 }),
@@ -670,8 +675,8 @@ async function shot(page, name, url, prepare) {
   // criterios propios ahí taparía lo que esa otra captura verifica.
   await page.goto(`${BASE}/challenges/sin-formulario`, { waitUntil: 'networkidle' });
   const seleccionLink = page
-    .locator('.step-table tr', { hasText: 'Selección para pilotear' })
-    .locator('.step-table__link');
+    .locator('.table tr', { hasText: 'Selección para pilotear' })
+    .locator('.table-link');
   if (await seleccionLink.count()) {
     await Promise.all([
       page.waitForURL(/\/steps\/[^/]+$/, { timeout: 15000 }),
@@ -757,7 +762,7 @@ async function shot(page, name, url, prepare) {
   // esconder detrás de un `goto` un bug de Turbo al montar esa pantalla.
   await Promise.all([
     page.waitForURL(/\/steps\/[^/]+$/, { timeout: 15000 }),
-    page.click('.step-table__link:has-text("Postulación")')
+    page.click('.table-link:has-text("Postulación")')
   ]);
   await page.waitForSelector('form[action*="/ai_requests"]', { timeout: 15000 });
 

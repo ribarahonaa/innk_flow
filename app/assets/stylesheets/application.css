@@ -456,7 +456,7 @@ body {
 
 /* Una columna de números con ancho por dígito baila al actualizarse y no se
    puede comparar de un vistazo. Las tablas de esta app son de puntajes. */
-.step-table td, .step-table th { font-variant-numeric: tabular-nums; }
+.table td, .table th { font-variant-numeric: tabular-nums; }
 
 .app-header {
   display: flex;
@@ -1019,20 +1019,20 @@ input:focus, textarea:focus, select:focus {
 .radio-card__body .muted { font-size: 12px; }
 
 /* ── Tabla de módulos ───────────────────────────────────────────────────── */
-.step-table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 13px; }
-.step-table th {
-  text-align: left;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--borde);
+/* La tabla la pinta `table` de DaisyUI: ancho, relleno de celdas y bordes de
+   fila. Acá queda sólo lo que es vocabulario de esta app: la separación del
+   título de la tarjeta, y los encabezados de columna en mayúsculas chicas —que
+   es donde CLAUDE.md dice que van las mayúsculas chicas—. */
+.table { margin-top: 18px; }
+.table th {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: .05em;
   color: var(--muted);
 }
-.step-table td { padding: 10px; border-bottom: 1px solid var(--borde); }
 /* Lo ya ejecutado se marca en gris: si compite con el acento, el módulo en */
 /* curso deja de destacarse y la tabla queda con un riel azul de punta a punta. */
-.step-table tr.is-touched td:first-child { border-left: 2px solid var(--borde); }
+.table tr.is-touched td:first-child { border-left: 2px solid var(--borde); }
 
 /* ── Builder ────────────────────────────────────────────────────────────── */
 .builder {
@@ -1318,8 +1318,8 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
   .diff-row__panes { grid-template-columns: 1fr; }
 }
 
-.step-table__link { text-decoration: none; color: inherit; }
-.step-table__link:hover strong { color: var(--accent); }
+.table-link { text-decoration: none; color: inherit; }
+.table-link:hover strong { color: var(--accent); }
 
 /* ── Capa de IA ─────────────────────────────────────────────────────────── */
 .ai-actions {
@@ -2525,8 +2525,8 @@ textarea:disabled {
 }
 
 /* Dónde está parado el flujo: la fila en curso, y no todas las tocadas. */
-.step-table tr.is-active td { background: var(--accent-soft); }
-.step-table tr.is-active td:first-child { border-left: 3px solid var(--accent); }
+.table tr.is-active td { background: var(--accent-soft); }
+.table tr.is-active td:first-child { border-left: 3px solid var(--accent); }
 .here-chip {
   margin-left: 8px;
   padding: 1px 8px;

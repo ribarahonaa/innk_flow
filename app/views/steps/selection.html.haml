@@ -107,7 +107,7 @@
   %h2.section-title
     Ranking
     %span.muted= " · #{above.size} de #{completo.size} avanzan"
-  %table.step-table.ranking-table
+  %table.table.ranking-table
     %thead
       %tr
         %th.ranking-table__check= decidible ? "Avanza" : "Resultado"
@@ -139,7 +139,7 @@
               %span.gate.gate--pass{ title: "Avanzó" } ✓
           %td.muted= row.rank
           %td
-            = link_to row.idea.title, challenge_idea_path(@challenge, row.idea), class: "step-table__link"
+            = link_to row.idea.title, challenge_idea_path(@challenge, row.idea), class: "table-link"
             %span.muted= " · #{row.idea.author.name}"
             -# Una idea con mejor puntaje puede quedar debajo de otra peor
             -# porque no pasó un filtro. Sin decirlo, el ranking parece roto.
