@@ -200,6 +200,19 @@ async function medirContraste(page, selector) {
       for (let i = capas.length - 1; i >= 0; i--) color = sobre(capas[i], color);
       return color;
     };
+    // La opacidad de un ancestro atenúa el grupo entero —texto y fondo— sobre
+    // lo que hay DETRÁS de ese ancestro. Un chip adentro de un comentario ya
+    // atendido (`.feedback-item.is-addressed`, `opacity: .72`) se ve con menos
+    // contraste del que da medirlo a opacidad plena.
+    const atenuacion = (el) => {
+      let o = 1;
+      let exterior = null;
+      for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+        const op = parseFloat(getComputedStyle(n).opacity);
+        if (op < 1) { o *= op; exterior = n; }
+      }
+      return { o, detras: exterior && exterior.parentElement ? fondoDe(exterior.parentElement) : null };
+    };
     const luminancia = ([r, g, b]) => {
       const f = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
       return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
@@ -208,8 +221,13 @@ async function medirContraste(page, selector) {
     return [...document.querySelectorAll(sel)]
       .filter((el) => el.getClientRects().length > 0 && el.textContent.trim())
       .map((el) => {
-        const fondo = fondoDe(el);
-        const texto = sobre(rgba(getComputedStyle(el).color), fondo);
+        let fondo = fondoDe(el);
+        let texto = sobre(rgba(getComputedStyle(el).color), fondo);
+        const { o, detras } = atenuacion(el);
+        if (o < 1 && detras) {
+          fondo = sobre([...fondo.slice(0, 3), o], detras);
+          texto = sobre([...texto.slice(0, 3), o], detras);
+        }
         const [claro, oscuro] = [luminancia(texto), luminancia(fondo)].sort((a, b) => b - a);
         return { clase: el.className, texto: el.textContent.trim().slice(0, 40), ratio: (claro + 0.05) / (oscuro + 0.05) };
       });
@@ -222,6 +240,13 @@ async function medirContraste(page, selector) {
 // 3,97 con 0,05 de tolerancia. Un medidor de contraste que compone mal el alfa infla los
 // números —pasó en la fase 1: un 1.49:1 se leyó como 13.56:1— y una guarda que
 // siempre pasa es peor que ninguna.
+// Los casos de arriba son todos acromáticos (R=G=B): con pesos por canal que
+// suman 1, cualquier combinación de pesos —aunque estén cambiados de canal—
+// da el mismo resultado ahí. `rojo puro` y `azul puro` son los que detectan
+// un peso de canal invertido: con los pesos cambiados darían 8,59 y 4,00 en
+// vez de 4,00 y 8,59. Y `atenuado a la mitad` prueba que la opacidad de un
+// ancestro atenúa el contraste: negro sobre blanco a través de un grupo con
+// `opacity:.5` se ve como un gris de 127,5, no como negro puro.
 async function probarMedidorDeContraste(page) {
   await page.setContent(`
     <body style="margin:0;background:#fff">
@@ -232,6 +257,11 @@ async function probarMedidorDeContraste(page) {
         <span data-esperado="3.97" style="color:#fff;background:rgba(255,255,255,.5)">fondo con alfa sobre negro</span>
       </div>
       <span data-esperado="21" style="color:oklch(0% 0 0);background:oklch(100% 0 0)">oklch</span>
+      <span data-esperado="4.00" style="color:#f00;background:#fff">rojo puro</span>
+      <span data-esperado="8.59" style="color:#00f;background:#fff">azul puro</span>
+      <div style="background:#fff"><div style="opacity:.5">
+        <span data-esperado="3.98" style="color:#000;background:#fff">atenuado a la mitad</span>
+      </div></div>
     </body>`);
   const medidos = await medirContraste(page, '[data-esperado]');
   const esperados = await page.$$eval('[data-esperado]', (els) => els.map((e) => Number(e.dataset.esperado)));
