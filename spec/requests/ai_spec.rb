@@ -215,6 +215,21 @@ RSpec.describe "capa de IA", type: :request do
       get ai_runs_path
       expect(response).to have_http_status(:forbidden)
     end
+
+    # La pantalla existe y no puede entrar: eso es un 403 legítimo. Pero una
+    # corrida por id no la ve, y un 403 le confirmaría que existe —el scope
+    # estaba vacío, así que la encontraba y rebotaba recién en el `authorize`—.
+    it "ni le confirma que existe una corrida" do
+      run = as_company(company) { AiRun.first }
+      sign_in(participant, company: company)
+
+      estados = [run.id, SecureRandom.uuid].map do |id|
+        get ai_run_path(id)
+        response.status
+      end
+
+      expect(estados).to eq([404, 404])
+    end
   end
 
   describe "aislamiento entre empresas" do
