@@ -49,12 +49,9 @@ module ApplicationHelper
   # Una tarea informativa no cambia nada en ningún modo: el runner la corre
   # siempre asistida, y su resultado aparece en el marco.
   def marco_para_pedido_de_ia(purpose, mode)
-    tarea = Flow::AI::Tasks::Base.for(purpose)
-    return "ai-suggestions" if tarea.informativa?
-    return "_top" if mode == "ai_auto" || tarea.applies_on_request?
+    return "ai-suggestions" if Flow::AI::Tasks::Base.informativa?(purpose)
+    return "_top" if mode == "ai_auto" || Flow::AI::Tasks::Base.aplica_al_pedirse?(purpose)
 
-    "ai-suggestions"
-  rescue ArgumentError
     "ai-suggestions"
   end
 

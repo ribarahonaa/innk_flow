@@ -6,7 +6,7 @@
 -# NO filtra permisos: quien lo renderiza ya decidió que esta persona puede
 -# revisarla —el panel filtra la lista, el popup pregunta por la única que
 -# muestra—. Poner la guarda acá además la haría por partida doble.
-- task = Flow::AI::Tasks::Base.for(suggestion.purpose, challenge: suggestion.ai_run.challenge, step: suggestion.ai_run.challenge_step, idea: suggestion.ai_run.idea) rescue nil
+- task = suggestion.tarea
 
 .ai-suggestion
   .ai-suggestion__head

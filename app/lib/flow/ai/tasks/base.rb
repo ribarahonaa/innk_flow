@@ -39,16 +39,25 @@ module Flow
           # tragaría igual el «missing keyword» del día que una tarea pida
           # contexto en su `initialize`, y la tarjeta volvería a ofrecer
           # «Aplicar» sin que nada avise.
-          def informativa?(purpose)
-            klass = "Flow::AI::Tasks::#{purpose.to_s.camelize}".safe_constantize
-            klass.present? && klass.new.informativa?
-          end
+          def informativa?(purpose) = por_proposito(purpose, :informativa?)
+
+          # Igual, para `#applies_on_request?`: lo pregunta
+          # `marco_para_pedido_de_ia`, que es quien decide si el pedido
+          # refresca la pantalla entera o sólo el marco.
+          def aplica_al_pedirse?(purpose) = por_proposito(purpose, :applies_on_request?)
 
           def for(purpose, **context)
             klass = "Flow::AI::Tasks::#{purpose.to_s.camelize}".safe_constantize
             raise ArgumentError, "propósito desconocido: #{purpose}" if klass.nil?
 
             klass.new(**context)
+          end
+
+          private
+
+          def por_proposito(purpose, predicado)
+            klass = "Flow::AI::Tasks::#{purpose.to_s.camelize}".safe_constantize
+            klass.present? && klass.new.public_send(predicado)
           end
         end
 

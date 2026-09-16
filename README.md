@@ -133,7 +133,7 @@ Se regeneran desde su `.json` con la skill `archify`; el comando exacto está en
 ### Verificación
 
 ```
-make spec       # 743 ejemplos
+make spec       # 848 ejemplos
 make screens    # 38 capturas; falla si alguna pantalla tira error JS o HTTP >= 400
 ```
 

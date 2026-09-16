@@ -38,6 +38,21 @@ class AiSuggestion < ApplicationRecord
   # `apply!` no hizo.
   def informativa? = Flow::AI::Tasks::Base.informativa?(purpose)
 
+  # La tarea que produjo esta propuesta, con el contexto de su run: la tarjeta
+  # la necesita para el `preview`. `nil` si el propósito no existe —ahí se
+  # muestra el payload crudo, que es mejor que una pantalla caída—.
+  #
+  # Acá y no en el partial porque el rescue tiene que ir acotado, y un
+  # `begin/rescue/end` no entra en HAML —no acepta `- end`—: el modificador
+  # `rescue nil` que había atrapaba `StandardError` entero y taparía un error
+  # de verdad.
+  def tarea
+    Flow::AI::Tasks::Base.for(purpose, challenge: ai_run.challenge,
+                                       step: ai_run.challenge_step, idea: ai_run.idea)
+  rescue ArgumentError
+    nil
+  end
+
   private
 
   # Espeja el CHECK de la base. La restricción real vive en Postgres; esto es

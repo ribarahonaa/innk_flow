@@ -148,11 +148,11 @@ async function revisarClasesDescartadas(page, name) {
 
 // La captura y las revisiones que solo piden la pantalla ya pintada.
 //
-// Nueve de las treinta pantallas no se abren por URL —se llega a ellas con un
-// clic, esperando que monte una isla— y por eso no pasan por `shot()`. La
-// revisión de clases descartadas corría en tres pantallas sueltas y el spec
-// dice «en cada pantalla del recorrido»: acá adentro corre en las treinta,
-// incluidas las que solo existen después de navegar.
+// Veinticinco de las treinta y ocho pantallas no se abren por URL —se llega a
+// ellas con un clic, esperando que monte una isla— y por eso no pasan por
+// `shot()`. La revisión de clases descartadas corría en tres pantallas
+// sueltas y el spec dice «en cada pantalla del recorrido»: acá adentro corre
+// en las treinta y ocho, incluidas las que solo existen después de navegar.
 async function capturar(page, name) {
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
   await revisarClasesDescartadas(page, name);
@@ -862,12 +862,19 @@ async function shot(page, name, url, prepare) {
   // lleva puesto, o le saca el `open` y lo deja en el DOM sin verse. Por eso
   // se comprueba que hubo morph de verdad y no sólo que el popup aparece.
   //
-  // Va por el camino de ÉXITO y no por uno rechazado: lo que hay que ver
-  // sobrevivir al morph es el popup CON la tarjeta de propuesta adentro, que
-  // es un `<dialog>` con un `<form>` dentro. Es el mismo «Detectar
-  // duplicados» de recién —la propuesta anterior ya se aceptó, así que el
-  // runner arranca una corrida nueva— y sigue sin costar un peso: compara
-  // local porque el proveedor de VECTORES es el fixture.
+  // Va por el camino de ÉXITO y no por uno rechazado: así la respuesta trae la
+  // TARJETA de la propuesta, o sea un `<form>` adentro del `<dialog>`, y de
+  // paso se ejercitan `shared/_ia_respuesta` en el camino de pantalla entera
+  // y el filtro de permiso por propuesta. Es el mismo «Detectar duplicados»
+  // de recién —la anterior ya se aceptó, así que el runner arranca una
+  // corrida nueva— y sigue sin costar un peso: compara local porque el
+  // proveedor de VECTORES es el fixture.
+  //
+  // Ojo con lo que NO prueba: el popup de respuesta no sobrevive a nada. Se
+  // cierra en `turbo:before-render` y se arma de nuevo en `turbo:render`, o
+  // sea DESPUÉS del morph y a propósito —un `<dialog open>` que el cliente
+  // agregó es un nodo de más para idiomorph—. Lo que tiene que no sobrevivir
+  // es la ESPERA, y eso lo mira la guarda de abajo.
   await page.evaluate(() => {
     window.__morphs = 0;
     addEventListener('turbo:morph', () => { window.__morphs += 1; });
@@ -893,20 +900,31 @@ async function shot(page, name, url, prepare) {
     failures++;
     console.error('[IA] la espera sobrevivió al morph de la pantalla entera');
   }
-  // El popup que sobrevivió al morph tiene que estar VISIBLE, no sólo en el
-  // DOM: idiomorph puede dejar el `<dialog>` puesto y sacarle el `open`. Y con
-  // su tarjeta adentro: el `<form>` de «Listo» es lo que este camino suma.
+  // El popup rearmado después del morph tiene que estar VISIBLE, no sólo en el
+  // DOM —idiomorph puede dejar un `<dialog>` puesto y sacarle el `open`— y
+  // tiene que traer su tarjeta: el `<form>` de «Listo» es lo que este camino
+  // suma sobre los dos de arriba.
   const listoTrasMorph = page.locator('dialog[data-ia="respuesta"] button:has-text("Listo")');
   if (!(await listoTrasMorph.isVisible())) {
     failures++;
-    console.error('[IA] la tarjeta de la propuesta no sobrevivió al morph de la pantalla entera');
+    console.error('[IA] el popup de la pantalla entera no trae la tarjeta de la propuesta');
   }
   await capturar(page, '09-15-ia-respuesta-pantalla-entera');
 
   // Se acepta de nuevo, por lo mismo que la vez anterior: dejarla pendiente
   // haría que la corrida siguiente la reúse y este camino dejaría de probarse.
-  if (await listoTrasMorph.count()) await listoTrasMorph.click();
-  else await page.click('dialog[data-ia="respuesta"] .ia-respuesta__cerrar');
+  //
+  // Y se ESPERA a que se vaya, igual que arriba. `shot()` arranca con un
+  // `goto`, que cancela el pedido que este clic acaba de largar: la propuesta
+  // quedaría pendiente y el camino dejaría de probarse en silencio, que es lo
+  // que este bloque existe para evitar.
+  if (await listoTrasMorph.count()) {
+    const formDeListoTrasMorph = await page.getAttribute('dialog[data-ia="respuesta"] form', 'action');
+    await listoTrasMorph.click();
+    await page.waitForSelector(`form[action="${formDeListoTrasMorph}"]`, { state: 'detached', timeout: 10000 });
+  } else {
+    await page.click('dialog[data-ia="respuesta"] .ia-respuesta__cerrar');
+  }
 
   await shot(page, '11-ai-runs', '/admin/ai_runs');
 
