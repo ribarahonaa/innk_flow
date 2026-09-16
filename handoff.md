@@ -2,126 +2,148 @@
 
 ## Objetivo
 
-Los **cuatro puntos** que la sesión anterior dejó recomendados, en el orden en
-que los dejó: un botón que no se le ofrecía a quien podía usarlo, un «Aplicar»
-que no aplicaba nada, una cuenta de demo que mentía sobre su rol, y el camino
-`_top` del popup de la IA sin ninguna captura que lo recorriera.
+Tres trabajos en una sesión, en este orden:
 
-Los cuatro son el mismo defecto de la rama anterior en distintas formas: un
-control que promete lo que no hace, o que no aparece donde tendría que
-aparecer.
-
-Se hizo inline con test primero, y dos rondas de revisión: la de rama entera y
-una re-revisión de los arreglos.
+1. **Los cuatro puntos del handoff anterior** (botón de guía de IA, «Listo» en
+   propuestas informativas, la cuenta de demo que mentía, la captura del camino
+   `_top`). Mergeados y ya documentados en el handoff de `95a42f9`.
+2. **El 404 contra 403.** Empezó como corregir una línea de `CLAUDE.md` y la
+   auditoría encontró oráculos de existencia en ideas, comentarios, propuestas,
+   corridas y membresías, y **dos fugas de lectura**: un gestor leía los
+   criterios de desafíos que no le asignaron, y quien perdía la membresía con
+   la sesión abierta seguía listando todos los desafíos. Rama `doc-404-403`,
+   mergeada por Raúl.
+3. **El plan 2a del rediseño**: el vocabulario visual que se repite pasa a
+   componentes de DaisyUI —tarjetas, tablas, avisos, chips, nodos del flujo—,
+   con una guarda de contraste nueva en `make screens`. Spec, plan y ejecución
+   con subagentes (implementador y revisor por tarea, revisión final de rama
+   entera). Rama `rediseno-2a`, mergeada.
 
 ## Estado actual
 
-- **Rama `arreglos-de-permisos-y-demo`, ocho commits sobre `ad56dde`,
-  `9a7fbaa` la punta. SIN PUSHEAR y sin mergear.** `master` quedó donde
-  estaba.
-- **Verificación sobre `9a7fbaa`:** `make spec` da 848 ejemplos, 0 fallas
-  (eran 840). `make screens` saca 38 capturas sin errores de JS ni respuestas
-  >= 400.
-- **El seed se corrió contra la base de desarrollo** para verificar el
-  renombre de la cuenta: conservó sus 2 ideas, la identidad viajó con ella y
-  no quedó nada con el correo viejo. La base quedó sembrada.
-- **Hechos del entorno que siguen valiendo** (de la sesión anterior, todos
-  confirmados):
-  - El push por SSH no anda: `~/.ssh` no tiene clave. Va por HTTPS con el
-    token de `gh`:
+- **`master` en `0269b31`**, igual que `origin/master`. Sin ramas locales
+  además de `master`.
+- **Verificación sobre `0269b31`:** `make spec` 880 ejemplos, 0 fallas.
+  `make screens` 42 capturas sin errores, y sin ninguna guarda disparada
+  (`[CLASES]`, `[CONTRASTE]`, `[PANEL]`, `[RITMO]`).
+- **Ramas remotas ya mergeadas que siguen en `origin`:** `doc-404-403` y
+  `rediseno-2a`. No se borraron: las pusheó Raúl.
+- **Queda en `.superpowers/sdd/2026-09-08-rediseno-tailwind-fase-1/`** el
+  espacio de trabajo de la fase 1, de otra sesión. El del 2a se borró al
+  terminar; su registro de decisiones está resumido abajo.
+- **Hechos del entorno que muerden:**
+  - El push por SSH no anda; va por HTTPS con el token de `gh`:
     `git -c credential.helper= -c credential.helper='!gh auth git-credential' push https://github.com/ribarahonaa/innk_flow.git <ref>`.
-  - Desarrollo usa el proveedor real (`FLOW_AI_PROVIDER=anthropic` en `.env`).
-    El de **embeddings** no está declarado, así que cae al fixture: por eso
-    «Detectar duplicados» compara local y las capturas lo pueden pedir dos
-    veces sin gastar un peso.
+  - Desarrollo usa el proveedor real (`FLOW_AI_PROVIDER=anthropic`); el de
+    embeddings es el fixture, por eso «Detectar duplicados» es gratis.
+  - **El contenedor `app` no recompila CSS ni JS solo:** después de tocar la
+    hoja, un `.vue` o una clase literal en un helper, `make yarn-build` antes
+    de `make screens`, o las capturas prueban la hoja vieja.
 
 ## Archivos y cambios
 
-Ocho commits: cuatro de los puntos, cuatro de lo que encontraron las
-revisiones.
+**El 404 contra 403 (`doc-404-403`, 13 commits)**
 
-**Los cuatro puntos**
+- Ideas, comentarios, propuestas de IA, corridas y membresías se buscan por
+  `policy_scope` o por visibilidad antes de autorizar: lo que no se ve da 404.
+  `CLAUDE.md` decía «404, nunca 403», y el código nunca hizo eso: el 403 es
+  correcto para lo que se ve y no se puede hacer.
+- `ApplicationPolicy::Scope#resolve` devuelve `none` sin membresía.
+- `CriteriaSetPolicy::Scope`: la biblioteca, a la vista de la empresa; cada set
+  `inline`, a la de su desafío.
+- `AiSuggestionPolicy#visible?`: le aparece en un panel **y** ve aquello sobre
+  lo que actúa. `AssessmentPolicy#create?` pregunta si se llega al desafío, con
+  el primer spec de policy directo del repo.
+- Una evaluación de IA no se edita antes de aplicarla
+  (`Tasks::EvaluateIdea#editable?`).
+- `spec/lint/ideas_por_policy_scope_spec.rb`: guarda que prueba su propio
+  detector y lista en su comentario lo que no ve.
 
-- `d89572c` — **el botón «Pedir la guía de la IA»**. La ficha de evaluación lo
-  mostraba con `update_pipeline?`, pero `evaluate_idea` declara
-  `actua_sobre = :assessment` y el pedido lo autoriza `AssessmentPolicy#create?`.
-  Un evaluador asignado podía pedirlo y nunca lo veía. Es la misma expresión
-  que `steps/evaluation.html.haml:23` ya usaba para el lote, escrita a mano en
-  la otra pantalla. La tabla de alcances de `CLAUDE.md` no listaba
-  `:assessment`.
-- `2aec5e9` — **un solo «Listo» en las propuestas informativas**. Detectar
-  duplicados no aplica nada, y ofrecía igual «Aplicar» y «Descartar». Quién lo
-  decide es la tarea, vía `AiSuggestion#informativa?`.
-- `2e5a3bb` — **`gestor@demo.test` → `admin2@demo.test`**. Estaba sembrada con
-  rol `admin`; la única con rol `gestor` es Gina. Se renombra EN EL LUGAR
-  (usuario e identidad), porque `upsert_user!` busca por correo y una base ya
-  sembrada quedaría con las dos. Guarda nueva: `spec/lint/cuentas_de_demo_spec.rb`.
-- `b3f4620` — **la captura del camino `_top`**, con contador de `turbo:morph`.
+**Plan 2a (`rediseno-2a`, 17 commits)**
 
-**Lo que encontraron las revisiones**
-
-- `985acab` — el aviso `"Sugerencia aplicada."` quedó sin una sola aserción al
-  bifurcarse. `Tasks::Base.informativa?` reemplaza dos resoluciones a mano del
-  propósito. Los tres helpers del aviso bajan a `private`.
-- `bbad996` — la captura `_top` pasa a ir por el **éxito** y no por un
-  propósito inventado: así el popup trae la tarjeta, que es un `<form>` dentro
-  del `<dialog>`. Y el wait espera al form concreto en vez de a que no quede
-  ninguna `.ai-suggestion`.
-- `ab52780` — `puede_pedir` inline y último en el `&&`; `FILA_DE_CUENTA`; la
-  nota de que el renombre del seed es una migración de datos.
-- `9a7fbaa` — el accept final de la captura no se esperaba y el `goto` de
-  `shot()` lo cancelaba; el mensaje de la guarda mentía sobre lo que prueba;
-  `marco_para_pedido_de_ia` y `_ai_suggestion` seguían con rescues anchos; los
-  tres conteos.
-
-`CLAUDE.md` ganó tres cosas: la fila `:assessment`, el párrafo del «Listo» de
-las informativas, y la lección de la guarda que cuenta eventos.
+- `docs/superpowers/specs/2026-09-16-rediseno-2a-vocabulario-design.md` y
+  `docs/superpowers/plans/2026-09-16-rediseno-2a-vocabulario.md`.
+- `.card` → `.panel`, y `card` de DaisyUI habilitada; guarda `[PANEL]` contra
+  un `card` sin `card-body`.
+- `step-table` → `table`; `step-table__link` → `table-link`.
+- Avisos → `alert alert-soft`, incluidos 7 en islas Vue.
+- Chips (estado, origen, tipo de feedback, IA) → `badge badge-soft` vía
+  `EstilosHelper`; nace `chip_de_ia`. Nodos del flujo → `badge`.
+- **Guarda de contraste en `make screens`:** medidor con autoprueba (grises,
+  color puro y opacidad), medición en cada pantalla, **muestrario** de cada
+  variante inyectado y medido en claro y en oscuro, y un spec que ata el
+  muestrario al helper.
+- Los comentarios atendidos y las rondas cerradas **dejaron de usar
+  `opacity`**: dejaba sus chips en 3:1. Ahora pesan menos sin leerse peor.
+- `CLAUDE.md`: cuatro trampas nuevas en «Lo que más fácil se rompe».
+- ~70 líneas de CSS muerto borradas.
 
 ## Intentos fallidos
 
-- **La guarda del morph pasaba por la razón equivocada.** Cuenta
-  `turbo:morph` para probar que el pedido refrescó la pantalla entera, pero el
-  clic anterior —«Listo»— también sale a `_top` y su diálogo se saca en
-  `turbo:submit-start`, o sea ANTES del morph: esperar a que el diálogo se
-  detache dejaba esa navegación en vuelo y el contador registraba ÉSE. **No se
-  descubrió leyendo la guarda: se descubrió apuntando el pedido al marco a
-  propósito y viendo que pasaba igual.** Está en `CLAUDE.md`.
-- **El `private` dentro de `class << self` de `Tasks::Base` se llevó puesto
-  `.for`**, que venía después. 50 specs en rojo de una. El método privado va
-  al final del bloque, no en el medio.
-- **Un `begin/rescue/end` no entra en HAML**: «You don't need to use "- end"».
-  Intentar acotar ahí el `rescue nil` del partial puso 50 specs en rojo. El
-  lugar del rescue acotado es el modelo (`AiSuggestion#tarea`).
-- **Puse 39 capturas antes de contarlas**, cuando eran 38. Y el conteo de
-  `capturar()` decía «nueve de las treinta»: son 25 de 38, contadas con `comm`
-  contra los nombres que pasan por `shot()`.
-- **La primera revisión no vio dos de los tres conteos desactualizados**,
-  incluido el `make spec # 743 ejemplos` de la línea de arriba de la que sí
-  arregló. Los encontró la re-revisión.
+- **La regla de visibilidad de las propuestas se escribió cuatro veces.**
+  `accept?` a secas convertía en 404 el 403 legítimo de quien administra un
+  desafío cerrado. «Se ve si se ve su objetivo» le dejaba 403 a quien participa
+  por una propuesta del flujo. `manager? || accept?` **reabrió una escritura**:
+  un gestor dado de baja con la asignación intacta aplicaba una evaluación
+  sobre un desafío que le daba 404. La encontró la re-revisión con un probe;
+  la cuarta combina las dos mitades.
+- **La auditoría del 403 descartó el oráculo de membresías** con que «las
+  membresías no son secretas»; lo que no se ve es el id. Y **la fuga de quien
+  perdió la membresía no la encontró la auditoría: la encontró la revisión.**
+- **La guarda de lint se evadió dos veces**, y probar su detector encontró dos
+  bugs: `#.*\z` no llega al final con el `\n` de `readlines`, y sacar
+  `.ideas.new(` sin dejar un espacio pegaba `@challengeIdea`.
+- **Un `private` en medio de `class << self` se llevó puesto `.for`**, y un
+  `begin/rescue/end` en HAML (no acepta `- end`): 50 specs en rojo cada uno.
+- **El plan 2a traía defectos míos que corrigieron las revisiones:**
+  - las capturas navegan por clases que el plan renombraba, y la Tarea 2 colgó
+    `make screens`;
+  - los valores de prueba del medidor eran todos grises y no podían detectar
+    pesos de canal invertidos;
+  - el medidor ignoraba la opacidad de los ancestros;
+  - **la pasada oscura midió cero avisos y dio verde**: sus cuatro pantallas no
+    tienen ninguno. De ahí nació el muestrario;
+  - la guarda del muestrario buscaba cada clase en el archivo entero, no en el
+    arreglo.
+- **La Tarea 5 rompió dos cosas que ninguna guarda veía**: los puntos de estado
+  del drawer y el borde por tipo de feedback, las dos por reglas CSS que usaban
+  las clases viejas desde afuera de su bloque. Las encontré leyendo, no
+  corriendo nada.
+- **El nodo de un módulo salteado quedó negro** (`badge-dash` sin variante) y
+  pasó a ser el más pesado del mapa. Ningún seed tiene un módulo salteado, y el
+  17,5:1 que midió el muestrario era el síntoma. Lo encontró la revisión final.
 
 ## Próximos pasos
 
-1. **Pushear y mergear la rama.** Las dos revisiones dan «listo para
-   mergear»; no quedó ningún hallazgo sin atender.
-2. **`CLAUDE.md` dice «404, nunca 403», y un `authorize` rechazado devuelve
-   403** (`tenant_resolution.rb:70`). Sigue sin decidir desde la sesión
-   anterior: o la doc no describe el código, o el código no cumple la regla.
-   Vale mirarlo con la tabla de alcances a mano, porque esta rama movió
-   justamente quién puede pedir qué.
-3. **El conteo de pantallas vive en tres lugares** (`README.md:137`,
-   `CLAUDE.md:45`, `script/capture_screens.js:151`) y se desactualizó en los
-   tres. Se pueden derivar del propio script, o aceptar que envejecen.
-4. **La espera larga real de 10 a 70 segundos sigue sin verse de punta a
-   punta**, porque cuesta plata. Decisión de Raúl, de la sesión anterior.
-5. **El `beforeunload` sigue sin cubrir nada** y no lo va a cubrir: Playwright
-   no muestra el diálogo nativo en headless.
+1. **Plan 2b** (pantalla por pantalla), escrito recién ahora que 2a está
+   mergeado. Lo que ya se sabe que le toca:
+   - pasar `.panel` a `card` + `card-body`; la guarda `[PANEL]` ya lo admite;
+   - seis familias de chip escritas a mano (`version-chip`, `stale-chip`,
+     `here-chip`, `out-chip`, `evaluator-chip`, `derived-chip`) que la guarda
+     de contraste no mide;
+   - una captura permanente del estado salteado del flujo, sin romper el seed
+     `sin-formulario`;
+   - desacoplar del color del `badge` el borde por tipo de feedback
+     (`data-kind`) y el selector de los puntos del drawer;
+   - `toast`, si se quiere.
+2. **Plan 2c:** las islas Vue.
+3. **Tres temas de seguridad preexistentes, sin arreglar**, que son cambios de
+   flujo y no de visibilidad:
+   - la sesión de quien perdió la membresía sigue viva: esto cerró lo que ve,
+     no la puerta (`require_company` no pide membresía);
+   - los links de los adjuntos (Active Storage) no vencen y quedan fuera de
+     Pundit;
+   - se puede asignar a evaluar a alguien con rol `participant` por POST
+     directo, y dar de baja a alguien deja sus asignaciones.
+4. Borrar del remoto `doc-404-403` y `rediseno-2a`, si se quiere.
 
-**Ruido documentado, se decidió dejarlo:** `puede_pedir` en
-`assessments/new.html.haml` no puede dar `false` —el controller ya autorizó
-`create?` con la idea real, y sin idea la policy es más permisiva—, se
-pregunta igual porque la vista no puede depender de lo que autorizó el
-controller; el renombre del seed es una migración de datos que corre en cada
-`make setup` sin hacer nada (dice cuándo se puede borrar); y `FILA_DE_CUENTA`
-sigue siendo una constante en el namespace global, que es lo que pasa con
-cualquier constante dentro de un bloque de RSpec y la convención del
-directorio.
+**Decisiones del plan 2a que quedaron tomadas** (las 21 están en los mensajes
+de commit y la revisión final las dio por buenas); las que cambian lo que se ve
+o condicionan al 2b:
+
+- Los comentarios atendidos se ven menos desvaídos que antes: sin opacidad,
+  contorno punteado y texto en gris. Reversible.
+- `master` se integró a mitad del plan por merge y no por rebase, para no
+  reescribir los commits del registro.
+- El estado salteado se verificó con una captura temporal y no con un seed
+  nuevo.
