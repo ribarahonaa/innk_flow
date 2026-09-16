@@ -77,6 +77,17 @@ RSpec.describe "capa de IA", type: :request do
       end
     end
 
+    # Lo que sí se aplicó lo dice así. El aviso se bifurcó cuando las
+    # propuestas informativas pasaron a decir «Listo.» —no aplican nada— y
+    # esta mitad se quedó sin una sola aserción: invertir el predicado dejaba
+    # la suite entera en verde.
+    it "y lo dice" do
+      sign_in(owner, company: company)
+      post accept_ai_suggestion_path(suggestion)
+
+      expect(flash[:notice]).to eq("Sugerencia aplicada.")
+    end
+
     it "descartar no toca nada" do
       sign_in(owner, company: company)
       post reject_ai_suggestion_path(suggestion)

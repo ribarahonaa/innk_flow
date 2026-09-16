@@ -29,6 +29,21 @@ module Flow
             klass.respond_to?(:actua_sobre) ? klass.actua_sobre : :challenge
           end
 
+          # `#informativa?` por propósito, para quien tiene el propósito y no
+          # la tarea: el modelo —de ahí sale que la tarjeta ofrezca un solo
+          # «Listo»— y el controller, que si no anuncia que aplicó algo que el
+          # `apply!` no hizo.
+          #
+          # Un propósito desconocido no es informativo, y eso NO se resuelve
+          # con un `rescue ArgumentError` alrededor de `.for`: ese rescue se
+          # tragaría igual el «missing keyword» del día que una tarea pida
+          # contexto en su `initialize`, y la tarjeta volvería a ofrecer
+          # «Aplicar» sin que nada avise.
+          def informativa?(purpose)
+            klass = "Flow::AI::Tasks::#{purpose.to_s.camelize}".safe_constantize
+            klass.present? && klass.new.informativa?
+          end
+
           def for(purpose, **context)
             klass = "Flow::AI::Tasks::#{purpose.to_s.camelize}".safe_constantize
             raise ArgumentError, "propósito desconocido: #{purpose}" if klass.nil?

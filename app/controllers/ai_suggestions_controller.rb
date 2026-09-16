@@ -17,6 +17,14 @@ class AiSuggestionsController < ApplicationController
     )
   end
 
+  def reject
+    authorize @suggestion, :reject?
+    Flow::AI::ApplySuggestion.new(@suggestion, user: current_user).reject!(note: params[:note])
+    redirect_back_to_target(notice: "Sugerencia descartada.")
+  end
+
+  private
+
   # Una propuesta informativa no se aplicó: se leyó. Su `apply!` no toca el
   # dominio, y anunciar que se aplicó algo es la misma promesa vacía que el
   # botón «Aplicar» que dejó de ofrecerse.
@@ -31,14 +39,6 @@ class AiSuggestionsController < ApplicationController
 
     "Se aplicó parcialmente: #{result.error_sentence}"
   end
-
-  def reject
-    authorize @suggestion, :reject?
-    Flow::AI::ApplySuggestion.new(@suggestion, user: current_user).reject!(note: params[:note])
-    redirect_back_to_target(notice: "Sugerencia descartada.")
-  end
-
-  private
 
   def set_suggestion
     @suggestion = AiSuggestion.find(params[:id])
