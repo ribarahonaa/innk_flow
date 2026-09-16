@@ -148,11 +148,15 @@ async function revisarClasesDescartadas(page, name) {
 
 // La captura y las revisiones que solo piden la pantalla ya pintada.
 //
-// Veinticinco de las treinta y ocho pantallas no se abren por URL —se llega a
-// ellas con un clic, esperando que monte una isla— y por eso no pasan por
-// `shot()`. La revisión de clases descartadas corría en tres pantallas
-// sueltas y el spec dice «en cada pantalla del recorrido»: acá adentro corre
-// en las treinta y ocho, incluidas las que solo existen después de navegar.
+// La mayoría de las pantallas no se abren por URL —se llega a ellas con un
+// clic, esperando que monte una isla— y por eso no pasan por `shot()`. La
+// revisión de clases descartadas corría en tres pantallas sueltas y el spec
+// dice «en cada pantalla del recorrido»: acá adentro corre en todas,
+// incluidas las que solo existen después de navegar.
+//
+// Sin números a propósito: este comentario, `README.md` y `CLAUDE.md` los
+// tenían, y los tres se desactualizaron cada vez que se sumó una captura. El
+// número real lo imprime la corrida al terminar.
 async function capturar(page, name) {
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
   await revisarClasesDescartadas(page, name);
