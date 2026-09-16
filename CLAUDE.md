@@ -418,6 +418,7 @@ eso lo declara la tarea** con `self.actua_sobre`:
 | `:idea` | `coauthor_field`, `evolve_idea` | `IdeaPolicy#update?` |
 | `:feedback` | `suggest_feedback` | `FeedbackItemPolicy#create?` |
 | `:pool` | `detect_duplicates` | `ChallengePolicy#curate_pool?` |
+| `:assessment` | `evaluate_idea` | `AssessmentPolicy#create?` |
 | `:challenge` (default) | el resto | `ChallengePolicy#update_pipeline?` |
 
 `detect_duplicates` actúa sobre el **pool**, no sobre la idea: lo que devuelve

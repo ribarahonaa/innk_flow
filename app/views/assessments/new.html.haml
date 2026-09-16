@@ -55,7 +55,14 @@
           = submit_tag "Guardar evaluación", class: "btn btn-primary"
 
   %aside.idea-layout__side
-    - if @ai_scores.empty? && @step.effective_ai_mode != "human" && policy(@challenge).update_pipeline?
+    -# Quién puede pedirlo no es quien administra: lo autoriza
+    -# `AssessmentPolicy#create?`, porque `evaluate_idea` declara
+    -# `actua_sobre = :assessment`. Va SIN idea, igual que el lote de
+    -# `steps/evaluation` y que `AiSuggestionPolicy#evaluacion`: pedirle a la IA
+    -# que evalúe no es evaluar. Escrito a mano con `update_pipeline?`, un
+    -# evaluador asignado podía pedirlo y nunca veía el botón.
+    - puede_pedir = policy(Assessment.new(challenge_step: @step)).create?
+    - if @ai_scores.empty? && @step.effective_ai_mode != "human" && puede_pedir
       .card
         %h2.section-title ¿Querés que la IA te guíe?
         %p.muted.field-hint Evalúa con los mismos criterios y te muestra qué pondría en cada uno, con su razón.

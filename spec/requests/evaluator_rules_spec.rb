@@ -204,4 +204,29 @@ RSpec.describe "reglas de quien evalúa", type: :request do
       expect(response).to have_http_status(:forbidden)
     end
   end
+
+  # El mismo botón, de a una, en la ficha de evaluación.
+  #
+  # Es la regla de arriba en la otra pantalla, y ahí se escribió a mano con
+  # `update_pipeline?`: un evaluador asignado PODÍA pedirlo —lo autoriza
+  # `AssessmentPolicy#create?`, igual que el lote— y nunca veía el botón.
+  describe "pedir la guía de la IA para una idea" do
+    before do
+      as_company(company) { step.update!(ai_mode: "ai_assisted") }
+    end
+
+    it "se lo ofrece a quien evalúa, no solo a quien administra" do
+      sign_in(elena, company: company)
+      get new_challenge_step_assessment_path(challenge, step, idea_id: ajena.id)
+
+      expect(response.body).to include("Pedir la guía de la IA")
+    end
+
+    it "y también a quien administra" do
+      sign_in(admin, company: company)
+      get new_challenge_step_assessment_path(challenge, step, idea_id: ajena.id)
+
+      expect(response.body).to include("Pedir la guía de la IA")
+    end
+  end
 end
