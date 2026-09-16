@@ -22,6 +22,10 @@ module Flow
         return Result.new(ok: false, errors: ["esta sugerencia ya fue revisada"]) if @suggestion.resolved?
 
         edited = @payload.present? && @payload != @suggestion.payload
+        if edited && !task.editable?
+          return Result.new(ok: false, errors: ["esta propuesta no se edita: se aplica como la dio la IA o se descarta"])
+        end
+
         payload = edited ? @payload : @suggestion.payload
 
         # `apply!` puede aplicar PARTE: crear tres criterios de cinco, por

@@ -258,6 +258,31 @@ RSpec.describe "reglas de quien evalúa", type: :request do
     end
   end
 
+  # Pedirle a la IA que evalúe la idea propia está permitido porque la nota es
+  # de la IA, no de quien la pide (`AiSuggestionPolicy#evaluacion`). Pero
+  # aceptar una propuesta pendiente dejaba mandar un payload editado, y ahí la
+  # nota ya no es de la IA: quien evalúa se ponía puntaje a sí mismo con el
+  # nombre de la IA encima.
+  describe "la nota de la IA no se edita al aceptarla" do
+    it "ni quien evalúa la cambia sobre su propia idea" do
+      propuesta = as_company(company) do
+        task = Flow::AI::Tasks::EvaluateIdea.new(challenge: challenge, step: step, idea: propia)
+        Flow::AI::Runner.call(task, mode: "ai_assisted", challenge: challenge, step: step, idea: propia).suggestion
+      end
+      editado = propuesta.payload.deep_dup
+      editado["overall_comment"] = "Excelente, la mejor de todas."
+      antes = as_company(company) { Assessment.where(idea_id: propia.id).count }
+
+      sign_in(elena, company: company)
+      post accept_ai_suggestion_path(propuesta), params: { payload: editado }
+
+      as_company(company) do
+        expect(propuesta.reload).to be_pending
+        expect(Assessment.where(idea_id: propia.id).count).to eq(antes)
+      end
+    end
+  end
+
   # El mismo botón, de a una, en la ficha de evaluación.
   #
   # Es la regla de arriba en la otra pantalla, y ahí se escribió a mano con

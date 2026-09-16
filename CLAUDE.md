@@ -258,6 +258,11 @@ Dos reglas que no viven en el rol:
   no puede. La regla está en un solo lugar y las tres puertas la consultan
   (`AiSuggestionPolicy#evaluacion`, `AiRequestsController#autorizar!`,
   `StepsController#evaluate_all`).
+  **Y por eso no se edita al aceptarla** (`Tasks::EvaluateIdea#editable?`):
+  aceptar una propuesta pendiente admitía un payload editado, y quien evaluaba
+  se ponía puntaje en su propia idea con el nombre de la IA encima. Ninguna
+  pantalla edita un payload antes de aceptar; era una capacidad del dominio
+  sin interfaz.
 - **El puntaje y el desglose son cosas distintas.** Quien participa de una idea
   ve su resultado agregado cuando el módulo cierra; **quién puso qué** lo ven
   solo quien administra y quien evaluó esa idea. Por eso hay dos predicados en
