@@ -40,8 +40,13 @@ class AiSuggestionsController < ApplicationController
     "Se aplicó parcialmente: #{result.error_sentence}"
   end
 
+  # Se buscaba por id en toda la empresa: a quien participa, una propuesta
+  # sobre una idea ajena le daba 403 y un id inexistente 404, y esa diferencia
+  # confirma que existe. Qué propuestas ve cada quien lo dice
+  # `AiSuggestionPolicy#visible?`.
   def set_suggestion
     @suggestion = AiSuggestion.find(params[:id])
+    raise ActiveRecord::RecordNotFound unless policy(@suggestion).visible?
   end
 
   # Editar antes de aceptar: la sugerencia queda con status "edited" y el

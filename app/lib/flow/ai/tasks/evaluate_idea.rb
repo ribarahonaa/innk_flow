@@ -67,6 +67,12 @@ module Flow
         # ver lo que acabás de pedir no protege de nada.
         def applies_on_request? = true
 
+        # La nota es de la IA, y por eso puede pedirla hasta quien participa de
+        # la idea (`AiSuggestionPolicy#evaluacion`). Editada antes de aplicarla,
+        # quien la acepta se pone puntaje a sí mismo con el nombre de la IA.
+        # Se aplica como vino o se descarta.
+        def editable? = false
+
         def context_snapshot
           { "criteria_keys" => answerable_criteria.map { _1["key"] }, "pass" => pass }
         end

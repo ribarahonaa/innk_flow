@@ -56,7 +56,10 @@ class AiRequestsController < ApplicationController
 
   def build_context
     step = params[:step_id].present? ? @challenge.steps.find(params[:step_id]) : nil
-    idea = params[:idea_id].present? ? @challenge.ideas.find(params[:idea_id]) : nil
+    # Por `policy_scope`: el contexto se arma ANTES de `autorizar!`, así que a
+    # quien participa una idea ajena le daba 403 y un id inexistente 404 — y
+    # esa diferencia confirma que existe.
+    idea = params[:idea_id].present? ? policy_scope(@challenge.ideas).find(params[:idea_id]) : nil
     field = params[:field_key].present? ? step&.form_fields&.find_by(key: params[:field_key]) : nil
 
     { challenge: @challenge, step: step, idea: idea, field: field,

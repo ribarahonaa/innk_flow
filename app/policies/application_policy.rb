@@ -52,7 +52,12 @@ class ApplicationPolicy
     end
 
     # El scope de tenancy ya lo aplica TenantScoped; acá solo van reglas de rol.
-    def resolve = scope.all
+    #
+    # Sin membresía, nada. La sesión guarda la empresa elegida y no vuelve a
+    # pedir la membresía, así que a quien se la sacaron le queda el tenant
+    # puesto y `membership` en `nil`: con `scope.all` a secas, todo `Scope`
+    # que no sobreescribiera esto le mostraba la empresa entera.
+    def resolve = membership.nil? ? scope.none : scope.all
 
     def gestor? = membership.present? && membership.gestor?
   end

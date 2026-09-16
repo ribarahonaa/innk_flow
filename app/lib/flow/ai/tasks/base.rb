@@ -111,6 +111,14 @@ module Flow
         # botón responde al marco de las propuestas (`marco_para_pedido_de_ia`).
         def informativa? = false
 
+        # ¿Se puede editar lo que propuso antes de aplicarlo?
+        #
+        # Por defecto sí: un criterio, un campo del formulario o el feedback
+        # propuesto son un borrador que una persona corrige. La excepción es
+        # lo que vale POR SER de la IA —hoy, su evaluación—: editado, deja de
+        # serlo y sigue diciendo que lo es.
+        def editable? = true
+
         # Dos pedidos idénticos no deben producir dos llamadas.
         def idempotency_key
           Digest::SHA256.hexdigest([purpose, JSON.generate(messages)].join(":"))[0, 32]

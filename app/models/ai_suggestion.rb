@@ -30,6 +30,14 @@ class AiSuggestion < ApplicationRecord
     challenge_step || idea || challenge
   end
 
+  # El desafío del que cuelga, sea cual sea su objetivo. Lo pregunta la
+  # policy, para quién puede revisarla y quién la ve.
+  #
+  # El último recurso es el run: `TARGETS` todavía admite `criteria_set`, que
+  # no trae desafío, y un `nil` acá dejaría la propuesta invisible hasta para
+  # quien administra. Hoy ninguna tarea apunta a un set.
+  def desafio = challenge || challenge_step&.challenge || idea&.challenge || ai_run&.challenge
+
   def resolved? = !pending?
 
   # ¿Lo que propone es para LEER y no para aplicar? Lo declara la tarea.

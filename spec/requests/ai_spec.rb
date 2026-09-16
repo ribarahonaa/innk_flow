@@ -98,11 +98,15 @@ RSpec.describe "capa de IA", type: :request do
       end
     end
 
+    # 404 y no 403: una propuesta del flujo no le aparece en ningún lado —el
+    # panel filtra por `accept?` y la auditoría es de quien administra—, así
+    # que un 403 le confirmaría que existe. Ver el desafío no alcanza.
     it "un participante NO puede aplicar propuestas del desafío" do
       sign_in(participant, company: company)
       post accept_ai_suggestion_path(suggestion)
 
-      expect(response).to have_http_status(:forbidden)
+      expect(response).to have_http_status(:not_found)
+      expect(as_company(company) { suggestion.reload }).to be_pending
     end
 
     # Pedir y aceptar tienen que preguntar lo mismo. Pedirla sobre un desafío
@@ -215,6 +219,21 @@ RSpec.describe "capa de IA", type: :request do
       get ai_runs_path
       expect(response).to have_http_status(:forbidden)
     end
+
+    # La pantalla existe y no puede entrar: eso es un 403 legítimo. Pero una
+    # corrida por id no la ve, y un 403 le confirmaría que existe —el scope
+    # estaba vacío, así que la encontraba y rebotaba recién en el `authorize`—.
+    it "ni le confirma que existe una corrida" do
+      run = as_company(company) { AiRun.first }
+      sign_in(participant, company: company)
+
+      estados = [run.id, SecureRandom.uuid].map do |id|
+        get ai_run_path(id)
+        response.status
+      end
+
+      expect(estados).to eq([404, 404])
+    end
   end
 
   describe "aislamiento entre empresas" do
@@ -314,11 +333,13 @@ RSpec.describe "capa de IA", type: :request do
       expect(flash[:ia]["tipo"]).to eq("ok")
     end
 
+    # 404 y no 403: la idea ajena no la ve, y un 403 le confirmaría que
+    # existe. Este spec aceptaba 403, que era justamente el oráculo.
     it "sobre la idea de otra persona, no" do
       post challenge_ai_requests_path(challenge, purpose: "coauthor_field", idea_id: ajena.id,
                                       step_id: ideation.id, field_key: "titulo")
 
-      expect(response).to have_http_status(:forbidden).or have_http_status(:found)
+      expect(response).to have_http_status(:not_found)
       expect(as_company(company) { AiRun.where(idea_id: ajena.id).count }).to be_zero
     end
 
