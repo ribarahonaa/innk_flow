@@ -20,39 +20,60 @@ require "rails_helper"
 # controller que no esté adentro de un `policy_scope(...)`, y lo que no busca
 # nada va en una lista con su razón.
 #
+# La revisión de esa versión la evadió otra vez, de más formas. Tres eran
+# errores honestos y están cerradas: una excepción eximía la LÍNEA entera
+# (`when Idea then Idea.find(id)` pasaba), borrar los textos borraba también
+# lo interpolado adentro (`"#{@challenge.ideas.find(x).title}"` pasaba), y una
+# cadena con el punto al final de la línea dejaba `ideas.find` sin marcar.
+#
 # Lo que todavía no ve, dicho para que nadie le crea de más:
 #
 #   · Sólo mira `app/controllers`. Un helper o un presenter que busque una
 #     idea por id no está cubierto.
 #   · Sólo mira ideas. Los desafíos se buscan por `policy_scope` en todos los
 #     controllers, pero esto no lo verifica.
-#   · Es texto, línea por línea. Una cadena partida da falso POSITIVO (marca
-#     la línea de `.ideas` aunque el `policy_scope(` esté en la de arriba), no
-#     falso negativo: obliga a mirarla, que es la dirección segura.
-#   · Una variable que ya trae una relación de ideas (`rel = @challenge.ideas`
-#     en otro método) y después `rel.find` no la ve.
+#   · Una idea a la que se llega por OTRO registro: `IdeaVersion.find(id).idea`,
+#     `StepEntry.find(id).idea`.
+#   · Lo que no nombra `Idea` ni `ideas` literal: `public_send(:ideas)`, una
+#     variable que ya trae la relación (`rel = @challenge.ideas` en otro método
+#     y después `rel.find`), `%Q{}` y heredocs.
+#   · Una cadena partida da falso POSITIVO —marca `@challenge.ideas` aunque el
+#     `policy_scope(` esté en la línea de arriba—, que obliga a mirarla.
 #
 # Lo que prueba el comportamiento de verdad son los `[404, 404]` de
 # `spec/requests/participant_rules_spec.rb`, ruta por ruta. Esto cuida que una
 # ruta NUEVA no nazca con el orden al revés.
 RSpec.describe "las ideas se tocan por policy_scope", type: :lint do
-  # Lo que menciona una idea sin buscarla, cada uno con por qué.
+  # Lo que menciona una idea sin buscarla, cada uno con por qué. Se saca de la
+  # línea lo que matchea, no la línea: lo que quede se sigue mirando.
   SIN_BUSCAR_UNA_IDEA = {
     /\bwhen Idea\b/ => "un `case` sobre la clase del objetivo no busca nada",
     /\.ideas\.new\(/ => "construir una idea nueva no busca ninguna existente",
-    /\.ideas\.submitted\.exists\?/ => "«¿hay alguna postulada?» no busca por id ni devuelve una"
+    # Sin argumentos: `exists?(id: params[:id])` sí es una búsqueda, y un
+    # oráculo.
+    /\.ideas\.submitted\.exists\?(?!\()/ => "«¿hay alguna postulada?» no busca por id ni devuelve una"
   }.freeze
+
+  # Lo que va por el scope y después lo desarma.
+  DESARMA_EL_SCOPE = /policy_scope\((?:Idea|[^()]*\bideas\b[^()]*)\)\s*\.\s*unscope/
 
   def infraccion?(linea)
     codigo = linea
              .chomp # `readlines` deja el `\n`, y con él `#.*\z` no llega al final
-             .gsub(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/, '""') # los textos no son código
-             .sub(/#.*\z/, "")                                   # ni los comentarios
-             .gsub(/policy_scope\((?:Idea|[^()]*\bideas\b[^()]*)\)/, "") # lo que ya va por el scope
+             # Un texto no es código, pero lo interpolado adentro sí.
+             .gsub(/"(?:[^"\\]|\\.)*"/) { |texto| texto.scan(/#\{([^}]*)\}/).flatten.join(" ") }
+             .gsub(/'(?:[^'\\]|\\.)*'/, " ")
+             .sub(/#.*\z/, "") # ni los comentarios
 
-    return false unless codigo.match?(/\bIdea\b|\.ideas\b/)
+    return true if codigo.match?(DESARMA_EL_SCOPE)
 
-    SIN_BUSCAR_UNA_IDEA.keys.none? { |permitido| codigo.match?(permitido) }
+    # Con un espacio y no con nada: `@challenge.ideas.new(Idea.find(x))` sin
+    # `.ideas.new(` quedaba `@challengeIdea.find`, y `\bIdea\b` no encuentra
+    # el borde de la palabra.
+    codigo = codigo.gsub(/policy_scope\((?:Idea|[^()]*\bideas\b[^()]*)\)/, " ")
+    SIN_BUSCAR_UNA_IDEA.each_key { |permitido| codigo = codigo.gsub(permitido, " ") }
+
+    codigo.match?(/\bIdea\b|\.ideas\b|^\s*ideas\b/)
   end
 
   it "marca las formas de buscar una idea sin policy_scope" do
@@ -63,7 +84,15 @@ RSpec.describe "las ideas se tocan por policy_scope", type: :lint do
       "idea = @challenge.ideas.where(id: params[:id]).first!",
       "idea = Idea.find_sole_by(id: params[:id])",
       "idea = policy_scope(Challenge).first.ideas.find(params[:id])",
-      "      .ideas"
+      "      .ideas",
+      # Las que evadieron la segunda versión.
+      "when Idea then Idea.find(id)",
+      "@idea = @challenge.ideas.new(Idea.find(params[:origen]).payload)",
+      "hay = @challenge.ideas.submitted.exists?(id: params[:id])",
+      "flash[:notice] = \"Listo: \#{@challenge.ideas.find(params[:id]).title}\"",
+      "      ideas.find(params[:id])",
+      "@idea = policy_scope(Idea).unscoped.find(params[:id])",
+      "@idea = policy_scope(@challenge.ideas).unscope(:where).find(params[:id])"
     ].each do |linea|
       expect(infraccion?(linea)).to be(true), "no la marcó: #{linea}"
     end

@@ -9,6 +9,12 @@ class AssessmentPolicy < ApplicationPolicy
   # sigue permitido; lo que no se puede es puntuarse a uno mismo.
   def create?
     return false if membership.nil?
+    # Llegar al desafío, que un gestor sólo hace con los que le asignaron. Los
+    # controllers de evaluar ya lo filtraban con `policy_scope(Challenge)`,
+    # pero aceptar una propuesta de evaluación de la IA pregunta esto sin pasar
+    # por ningún scope, y una asignación que sobrevivió a la baja del gestor
+    # alcanzaba para escribir una evaluación sobre un desafío que le da 404.
+    return false unless reaches_challenge?(record.challenge_step&.challenge)
     return false if record.idea&.participates?(membership.user)
     return true if manager?
 

@@ -205,6 +205,59 @@ RSpec.describe "reglas de quien evalúa", type: :request do
     end
   end
 
+  # Una propuesta de evaluación de la IA que quedó pendiente, revisada por
+  # alguien que ya no tiene acceso a lo que evalúa pero conserva su asignación.
+  #
+  # `accept?` para una evaluación termina en `AssessmentPolicy#create?` sin
+  # idea, que sólo preguntaba por la asignación: ni si llega al desafío, ni si
+  # ve la idea. Y el camino de las propuestas no pasa por el `policy_scope`
+  # que sí tienen los de evaluar a mano. Aplicar una propuesta así escribe una
+  # evaluación —con el payload que quien acepta quiera mandar— sobre algo que
+  # para esa persona da 404.
+  describe "revisar una propuesta de evaluación sin acceso a lo que evalúa" do
+    def propuesta_pendiente(idea)
+      as_company(company) do
+        task = Flow::AI::Tasks::EvaluateIdea.new(challenge: challenge, step: step, idea: idea)
+        Flow::AI::Runner.call(task, mode: "ai_assisted", challenge: challenge, step: step, idea: idea).suggestion
+      end
+    end
+
+    it "quien acompañaba el desafío y ya no, no la aplica" do
+      gina = without_tenant do
+        u = create(:user, email: "gina@test.dev")
+        create(:membership, :gestor, company: company, user: u)
+        u
+      end
+      as_company(company) do
+        gestora = ChallengeGestor.create!(challenge: challenge, user: gina)
+        StepAssignment.create!(challenge_step: step, user: gina, role: "evaluator")
+        gestora.destroy!
+      end
+      propuesta = propuesta_pendiente(ajena)
+      antes = as_company(company) { Assessment.where(idea_id: ajena.id).count }
+
+      sign_in(gina, company: company)
+      post accept_ai_suggestion_path(propuesta)
+
+      expect(response).to have_http_status(:not_found)
+      as_company(company) do
+        expect(propuesta.reload).to be_pending
+        expect(Assessment.where(idea_id: ajena.id).count).to eq(antes)
+      end
+    end
+
+    it "quien evaluaba y pasó a participar, no la descarta sobre una idea que no ve" do
+      propuesta = propuesta_pendiente(ajena)
+      without_tenant { Membership.find_by!(company: company, user: elena).update!(role: "participant") }
+
+      sign_in(elena, company: company)
+      post reject_ai_suggestion_path(propuesta)
+
+      expect(response).to have_http_status(:not_found)
+      expect(as_company(company) { propuesta.reload }).to be_pending
+    end
+  end
+
   # El mismo botón, de a una, en la ficha de evaluación.
   #
   # Es la regla de arriba en la otra pantalla, y ahí se escribió a mano con

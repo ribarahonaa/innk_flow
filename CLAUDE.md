@@ -316,22 +316,29 @@ ahora.
    `spec/lint/ideas_por_policy_scope_spec.rb` cuida **sólo las ideas y sólo
    en controllers**, y es texto: su comentario dice qué no ve. Lo que prueba
    el comportamiento son los `[404, 404]` ruta por ruta de
-   `spec/requests/participant_rules_spec.rb`. La primera versión de la guarda
-   listaba formas prohibidas de buscar y la revisión la evadió de cinco
-   maneras; ahora marca todo uso de `Idea` o `.ideas` fuera de un
-   `policy_scope(...)` y prueba su propio detector.
+   `spec/requests/participant_rules_spec.rb`. La guarda marca los usos de
+   `Idea` o `.ideas` que queden fuera de un `policy_scope(...)` y prueba su
+   propio detector; las dos revisiones la evadieron, y lo que todavía no ve
+   —ideas a las que se llega por otro registro, `public_send`, heredocs— está
+   listado en su comentario. No le creas más que eso.
 
    **Y lo que cuelga de una idea hereda su visibilidad.** Comentarios y
    propuestas de la IA se buscaban por id en toda la empresa, con el mismo
    403-contra-404. Un comentario se busca dentro del paso de la URL y sobre
-   una idea visible (`FeedbackItemsController#comentario`). Una propuesta se
-   ve **donde aparece** (`AiSuggestionPolicy#visible?`): el panel filtra por
-   `accept?` y la auditoría le muestra todas a quien administra, así que es
-   `manager? || accept?`. Costó dos intentos equivocados: `accept?` a secas
-   volvía 404 el 403 legítimo de quien administra un desafío cerrado, y «se
-   ve si se ve su objetivo» le dejaba 403 a quien participa por una
-   propuesta del flujo que no le aparece en ningún lado. La guarda de lint no
-   cubre estos dos.
+   una idea visible (`FeedbackItemsController#comentario`). Una propuesta la
+   ve (`AiSuggestionPolicy#visible?`) quien administra, y cualquier otra
+   persona si **le aparece en un panel Y ve aquello sobre lo que actúa**: el
+   panel filtra por `accept?`, pero vive en pantallas que ya filtraron por
+   desafío e idea, y la regla tiene que filtrar igual. Tres intentos fallaron
+   por una mitad cada uno: `accept?` a secas volvía 404 el 403 legítimo de
+   quien administra un desafío cerrado; «se ve si se ve su objetivo» le dejaba
+   403 a quien participa por una propuesta del flujo; y `manager? || accept?`
+   dejaba a un gestor dado de baja —con la asignación intacta— **aplicar una
+   evaluación** sobre un desafío que le da 404, porque `accept?` de una
+   evaluación sólo miraba la asignación. `AssessmentPolicy#create?` ahora
+   pregunta si llega al desafío (`spec/policies/assessment_policy_spec.rb`,
+   el único spec de policy directo: por request, esa línea la tapan otros).
+   La guarda de lint no cubre comentarios ni propuestas.
 
    **Una policy sin nada propio hereda `show? = membership.present?`**, o sea
    «cualquiera de la empresa lee esto». `CriteriaSetPolicy` estaba vacía, y
