@@ -410,6 +410,14 @@ automáticamente» y ninguna coincidencia. El runner la corre asistida en
 cualquier modo —y el run lo registra así— y el botón responde al marco de las
 propuestas, porque no cambió nada más de la pantalla.
 
+**Y su tarjeta no se aplica ni se descarta: se lee.** Un solo «Listo»
+(`shared/_ai_suggestion`, detrás de `AiSuggestion#informativa?`), que la da
+por recibida y la saca del panel. «Aplicar» prometía lo que el `apply!` no
+hace —el mismo control fantasma de siempre— y «Descartar» decía que la IA se
+equivocó, que de una observación es falso. El aviso va con el botón:
+`aviso_de_exito` dice «Listo.» y no «Sugerencia aplicada.», porque no se
+aplicó nada.
+
 **Quién puede pedirle algo a la IA —y aceptarlo— depende de sobre qué actúa, y
 eso lo declara la tarea** con `self.actua_sobre`:
 

@@ -162,5 +162,27 @@ RSpec.describe "detectar ideas duplicadas", type: :request do
 
       expect(response.body).to include(accept_ai_suggestion_path(resultado))
     end
+
+    # Una propuesta informativa no se aplica ni se descarta: se lee. Su
+    # `apply!` no hace nada, así que «Aplicar» prometía algo que no pasaba y
+    # «Descartar» sugería que la IA se había equivocado. Un solo «Listo».
+    describe "no se aplica: se lee" do
+      before { sign_in(admin, company: company) }
+
+      it "ofrece un solo «Listo», ni «Aplicar» ni «Descartar»" do
+        get challenge_idea_path(challenge, borrador)
+
+        tarjeta = Nokogiri::HTML(response.body).at_css(".ai-suggestion")
+        expect(tarjeta.text).to include("Listo")
+        expect(tarjeta.text).not_to include("Aplicar", "Descartar")
+      end
+
+      it "«Listo» la da por recibida, sin decir que se aplicó nada" do
+        post accept_ai_suggestion_path(resultado)
+
+        expect(as_company(company) { resultado.reload }).to be_accepted
+        expect(flash[:notice]).to eq("Listo.")
+      end
+    end
   end
 end

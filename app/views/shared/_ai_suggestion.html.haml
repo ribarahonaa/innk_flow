@@ -20,7 +20,16 @@
   .ai-suggestion__actions
     -# Aplicar y descartar SÍ recargan: cambian el dominio, y lo que se ve
     -# alrededor (los campos, el flujo, las ideas) deja de ser cierto.
-    = button_to "Aplicar", accept_ai_suggestion_path(suggestion),
-                class: "btn btn-primary btn-sm", form: { data: { turbo_frame: "_top" } }
-    = button_to "Descartar", reject_ai_suggestion_path(suggestion),
-                class: "btn btn-ghost btn-sm", form: { data: { turbo_frame: "_top" } }
+    -#
+    -# Salvo cuando lo que propone es para LEER: ahí el `apply!` de la tarea no
+    -# hace nada, así que «Aplicar» prometía algo que no pasaba y «Descartar»
+    -# decía que la IA se había equivocado. Un solo «Listo», que la da por
+    -# recibida y la saca del panel.
+    - if suggestion.informativa?
+      = button_to "Listo", accept_ai_suggestion_path(suggestion),
+                  class: "btn btn-primary btn-sm", form: { data: { turbo_frame: "_top" } }
+    - else
+      = button_to "Aplicar", accept_ai_suggestion_path(suggestion),
+                  class: "btn btn-primary btn-sm", form: { data: { turbo_frame: "_top" } }
+      = button_to "Descartar", reject_ai_suggestion_path(suggestion),
+                  class: "btn btn-ghost btn-sm", form: { data: { turbo_frame: "_top" } }

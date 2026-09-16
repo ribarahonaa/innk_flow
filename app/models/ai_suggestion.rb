@@ -32,6 +32,17 @@ class AiSuggestion < ApplicationRecord
 
   def resolved? = !pending?
 
+  # ¿Lo que propone es para LEER y no para aplicar? Lo declara la tarea
+  # (`Tasks::Base#informativa?`). Acá porque lo preguntan dos lugares que no
+  # comparten nada más: la tarjeta —que ofrece un solo «Listo» en vez de
+  # «Aplicar» y «Descartar»— y el controller, que si no anuncia que aplicó
+  # algo que su `apply!` no hizo.
+  def informativa?
+    Flow::AI::Tasks::Base.for(purpose).informativa?
+  rescue ArgumentError
+    false
+  end
+
   private
 
   # Espeja el CHECK de la base. La restricción real vive en Postgres; esto es

@@ -12,10 +12,15 @@ class AiSuggestionsController < ApplicationController
     result = Flow::AI::ApplySuggestion.new(@suggestion, user: current_user, payload: edited_payload).call
 
     redirect_back_to_target(
-      notice: (aplicada_del_todo?(result) ? "Sugerencia aplicada." : nil),
+      notice: (aplicada_del_todo?(result) ? aviso_de_exito : nil),
       alert: result.ok? ? parcial(result) : result.error_sentence
     )
   end
+
+  # Una propuesta informativa no se aplicó: se leyó. Su `apply!` no toca el
+  # dominio, y anunciar que se aplicó algo es la misma promesa vacía que el
+  # botón «Aplicar» que dejó de ofrecerse.
+  def aviso_de_exito = @suggestion.informativa? ? "Listo." : "Sugerencia aplicada."
 
   def aplicada_del_todo?(result) = result.ok? && result.errors.empty?
 
