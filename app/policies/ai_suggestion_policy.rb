@@ -55,5 +55,5 @@ class AiSuggestionPolicy < ApplicationPolicy
 
   # Una propuesta cuelga de UN objetivo —el desafío, el módulo o la idea—, así
   # que el desafío hay que buscarlo en el que tenga.
-  def desafio = record.challenge || paso&.challenge || record.idea&.challenge
+  def desafio = record.desafio
 end

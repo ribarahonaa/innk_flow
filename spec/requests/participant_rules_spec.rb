@@ -220,6 +220,68 @@ RSpec.describe "reglas de quien participa", type: :request do
 
         expect(estados).to eq([404, 404])
       end
+
+      # Lo que cuelga de la idea tampoco: un comentario o una propuesta de la IA
+      # sobre ella. Los dos se buscaban por id a secas, en toda la empresa.
+      describe "ni lo que cuelga de ella" do
+        let!(:comentario_ajeno) do
+          as_company(company) do
+            FeedbackItem.create!(challenge_step: step_named("Ronda"), idea: ajena,
+                                 idea_version_id: ajena.current_version_id, author: admin,
+                                 actor_type: "human", kind: "suggestion", body: "Falta el costeo.")
+          end
+        end
+
+        let!(:propuesta_ajena) do
+          as_company(company) do
+            ideacion = challenge.steps.reload.find(&:ideation?)
+            task = Flow::AI::Tasks::DetectDuplicates.new(challenge: challenge, step: ideacion, idea: ajena)
+            Flow::AI::Runner.call(task, mode: "ai_assisted", challenge: challenge, step: ideacion,
+                                        idea: ajena).suggestion
+          end
+        end
+
+        def con_ajeno_y_con_inexistente(ajeno, &pedido)
+          [ajeno.id, SecureRandom.uuid].map do |id|
+            instance_exec(id, &pedido)
+            response.status
+          end
+        end
+
+        it "cerrar un comentario sobre ella" do
+          estados = con_ajeno_y_con_inexistente(comentario_ajeno) do |id|
+            post resolve_challenge_step_feedback_item_path(challenge, step_named("Ronda"), id)
+          end
+
+          expect(estados).to eq([404, 404])
+        end
+
+        it "reabrirlo" do
+          estados = con_ajeno_y_con_inexistente(comentario_ajeno) do |id|
+            post reopen_challenge_step_feedback_item_path(challenge, step_named("Ronda"), id)
+          end
+
+          expect(estados).to eq([404, 404])
+        end
+
+        # El panel ya filtra por `accept?`: una propuesta que no podés revisar
+        # no la ves en ningún lado, así que tampoco existe.
+        it "revisar una propuesta de la IA sobre ella" do
+          estados = con_ajeno_y_con_inexistente(propuesta_ajena) do |id|
+            post accept_ai_suggestion_path(id)
+          end
+
+          expect(estados).to eq([404, 404])
+        end
+
+        it "ni descartarla" do
+          estados = con_ajeno_y_con_inexistente(propuesta_ajena) do |id|
+            post reject_ai_suggestion_path(id)
+          end
+
+          expect(estados).to eq([404, 404])
+        end
+      end
     end
   end
 end

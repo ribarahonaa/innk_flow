@@ -85,6 +85,22 @@ RSpec.describe "el rol gestor", type: :request do
       get challenge_step_path(otro_de_demo, step)
       expect(response).to have_http_status(:not_found)
     end
+
+    # Por la URL de SU desafío con el id de un comentario del otro. El
+    # comentario se buscaba por id en toda la empresa y `resolve?` miraba el
+    # desafío del comentario: 403, que confirma que existe.
+    it "ni cerrando un comentario del otro desde la URL del suyo" do
+      ajena = idea_en(otro_de_demo, demo)
+      comentario = as_company(demo) do
+        ronda = otro_de_demo.steps.reload.find_by(name: "Ronda")
+        FeedbackItem.create!(challenge_step: ronda, idea: ajena, idea_version_id: ajena.current_version_id,
+                             author: admin, actor_type: "human", kind: "suggestion", body: "x")
+      end
+      mi_ronda = as_company(demo) { acompanado.steps.reload.find_by(name: "Ronda") }
+
+      post resolve_challenge_step_feedback_item_path(acompanado, mi_ronda, comentario)
+      expect(response).to have_http_status(:not_found)
+    end
   end
 
   describe "lo que sí puede hacer" do

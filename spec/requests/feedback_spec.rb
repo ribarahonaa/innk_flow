@@ -167,12 +167,15 @@ RSpec.describe "resolver feedback", type: :request do
       expect(as_company(company) { item.reload }).not_to be_open
     end
 
+    # 404 y no 403: quien participa no ve la idea de otra persona, y un 403
+    # le confirmaría que existe —y que tiene comentarios—. Este spec aceptaba
+    # 403, que era justamente el oráculo.
     it "un tercero NO: quien comenta no decide si quedó atendido" do
       item = feedback!
       sign_in(ajeno, company: company)
       post resolve_challenge_step_feedback_item_path(challenge, step, item), params: { resolution: "dismissed" }
 
-      expect(response).to have_http_status(:forbidden)
+      expect(response).to have_http_status(:not_found)
       expect(as_company(company) { item.reload }).to be_open
     end
   end

@@ -314,6 +314,16 @@ ahora.
    controllers que buscaban una idea —cada uno con su `authorize` escrito—.
    Por eso desafíos **e ideas** se buscan por `policy_scope`, y lo cuida
    `spec/lint/ideas_por_policy_scope_spec.rb`.
+
+   **Y lo que cuelga de una idea hereda su visibilidad.** Comentarios y
+   propuestas de la IA se buscaban por id en toda la empresa, con el mismo
+   403-contra-404. Un comentario se busca dentro del paso de la URL y sobre
+   una idea visible (`FeedbackItemsController#comentario`). Una propuesta se
+   ve si se ve su **objetivo** —el desafío para el gestor, la idea para quien
+   participa— (`AiSuggestionsController#objetivo_visible?`), y NO si se
+   puede revisar, aunque el panel filtre así: quien administra ve todas en
+   `/admin/ai_runs`, y no poder aplicar una sobre un desafío cerrado es un
+   403 legítimo. La guarda de lint no cubre estos dos: busca `ideas.find`.
 4. FKs compuestas `(x_id, company_id)`: Postgres rechaza atar una fila de la
    empresa A a un padre de la B.
 

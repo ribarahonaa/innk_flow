@@ -30,6 +30,11 @@ class AiSuggestion < ApplicationRecord
     challenge_step || idea || challenge
   end
 
+  # El desafío del que cuelga, sea cual sea su objetivo. Lo preguntan la
+  # policy —quién puede revisarla— y el controller —quién la ve—, que tienen
+  # que llegar al mismo desafío por el mismo camino.
+  def desafio = challenge || challenge_step&.challenge || idea&.challenge
+
   def resolved? = !pending?
 
   # ¿Lo que propone es para LEER y no para aplicar? Lo declara la tarea.
