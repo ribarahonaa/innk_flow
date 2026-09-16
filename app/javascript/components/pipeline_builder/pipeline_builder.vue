@@ -25,13 +25,13 @@
 
     <!-- Lista ordenada -->
     <section class="builder__flow">
-      <div v-if="localValidation.errors.length" class="flash flash--alert">
+      <div v-if="localValidation.errors.length" class="alert alert-soft alert-error">
         <ul><li v-for="(e, i) in localValidation.errors" :key="i">{{ e }}</li></ul>
       </div>
-      <div v-if="localValidation.warnings.length" class="flash flash--warn">
+      <div v-if="localValidation.warnings.length" class="alert alert-soft alert-warning">
         <ul><li v-for="(w, i) in localValidation.warnings" :key="i">{{ w }}</li></ul>
       </div>
-      <div v-if="serverErrors.length" class="flash flash--alert">
+      <div v-if="serverErrors.length" class="alert alert-soft alert-error">
         <ul><li v-for="(e, i) in serverErrors" :key="i">{{ e }}</li></ul>
       </div>
 

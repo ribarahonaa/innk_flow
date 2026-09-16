@@ -44,7 +44,7 @@
     = render "shared/ai_suggestions", suggestions: suggestions
 
   - if bloqueado
-    .flash.flash--warn
+    .alert.alert-soft.alert-warning
       Ya hay ideas postuladas. Podés cambiar etiquetas, ayudas, obligatoriedad y orden, pero no el tipo ni la clave de un campo, ni quitarlo: las respuestas ya guardadas quedarían huérfanas.
 
   - if campos.empty?

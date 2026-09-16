@@ -2,10 +2,11 @@
 .panel.narrow
   %p.breadcrumb= link_to @idea.title, challenge_idea_path(@challenge, @idea)
   %h1.page-title Editar idea
-  .flash.flash--warn
-    Guardar no pisa el contenido: publica la versión
-    %strong= "v#{(@idea.versions.maximum(:number) || 0) + 1}"
-    y la anterior queda en el historial.
+  .alert.alert-soft.alert-warning
+    %div
+      Guardar no pisa el contenido: publica la versión
+      %strong= "v#{(@idea.versions.maximum(:number) || 0) + 1}"
+      y la anterior queda en el historial.
 
   = form_with url: challenge_idea_path(@challenge, @idea), method: :patch, multipart: true do
     = render "ideas/form_fields", fields: @fields, payload: @idea.payload,

@@ -303,7 +303,7 @@
 
   /* La única lista de la app que dependía de la viñeta del navegador: todas
      las demás declaran `list-style: none`. */
-  .flash ul { list-style: disc; }
+  .alert ul { list-style: disc; }
 
   /* El Preflight deja los enlaces sin subrayar. La app lo apaga
      explícitamente en cada enlace que tiene clase propia —455 de 456 en la
@@ -944,7 +944,7 @@ input:focus, textarea:focus, select:focus {
 }
 .form-doble__col { min-width: 0; }
 /* Lo que es del formulario entero y no de una mitad. */
-.form-doble > .flash,
+.form-doble > .alert,
 .form-doble > .form-actions { grid-column: 1 / -1; }
 
 @media (max-width: 900px) {
@@ -1207,7 +1207,16 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
 }
 
 .flash--warn { border-color: var(--warn-borde); background: var(--warn-soft); color: var(--warn); }
-.flash ul { margin: 0; padding-left: 18px; }
+.alert ul { margin: 0; padding-left: 18px; }
+
+/* `alert-soft` pinta el texto con el color puro del tema, y en las tres
+   variantes no llega a 4,5:1 en el tema claro (lo mide `make screens`). Se
+   oscurece con el mismo token que usaba el aviso antes de ser `alert`. Dos
+   clases: le gana a `.alert-soft` por especificidad sin pelear la capa. */
+.alert-soft.alert-success { color: var(--ok); }
+.alert-soft.alert-warning { color: var(--warn); }
+.alert-soft.alert-error { color: var(--danger); }
+
 .island-placeholder { text-align: center; padding: 40px; }
 
 @media (max-width: 1040px) {

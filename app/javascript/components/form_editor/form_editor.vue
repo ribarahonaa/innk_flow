@@ -1,6 +1,6 @@
 <template>
   <div class="form-editor">
-    <div v-if="serverErrors.length" class="flash flash--alert">
+    <div v-if="serverErrors.length" class="alert alert-soft alert-error">
       <ul><li v-for="(e, i) in serverErrors" :key="i">{{ e }}</li></ul>
     </div>
 

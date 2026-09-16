@@ -8,7 +8,7 @@
       %span= " · #{t("flow.ai_modes.#{@run.mode}")} · #{@run.provider}/#{@run.model} · #{@run.latency_ms} ms · #{@run.tokens_total} tokens"
 
 - if @run.error.present?
-  .flash.flash--alert= @run.error
+  .alert.alert-soft.alert-error= @run.error
 
 .panel
   %h2.section-title Prompt

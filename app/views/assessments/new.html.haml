@@ -25,7 +25,7 @@
     .panel
       %h2.section-title Ficha de evaluación
       - if @prefill
-        .flash.flash--warn
+        .alert.alert-soft.alert-warning
           Precargado con los valores de la IA. Revisá cada criterio antes de guardar: la evaluación queda a tu nombre.
       = form_with url: challenge_step_assessments_path(@challenge, @step), method: :post do
         = hidden_field_tag :idea_id, @idea.id
@@ -41,10 +41,11 @@
 
         - derived = @handler.criteria_snapshot.select { _1["scale_type"] == "formula" }
         - if derived.any?
-          .flash.flash--warn
-            %strong Criterios derivados:
-            = derived.map { _1["name"] }.join(", ")
-            se calculan solos al guardar, a partir de los anteriores.
+          .alert.alert-soft.alert-warning
+            %div
+              %strong Criterios derivados:
+              = derived.map { _1["name"] }.join(", ")
+              se calculan solos al guardar, a partir de los anteriores.
 
         .field
           = label_tag :overall_comment, "Comentario general"

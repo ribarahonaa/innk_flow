@@ -43,13 +43,14 @@
   = render "challenges/flow_strip", challenge: @challenge
 
   - if @report.errors.any?
-    .flash.flash--alert
-      %strong Falta resolver:
-      %ul
-        - @report.errors.each do |error|
-          %li= error
+    .alert.alert-soft.alert-error
+      %div
+        %strong Falta resolver:
+        %ul
+          - @report.errors.each do |error|
+            %li= error
   - if @report.warnings.any?
-    .flash.flash--warn
+    .alert.alert-soft.alert-warning
       %ul
         - @report.warnings.each do |warning|
           %li= warning

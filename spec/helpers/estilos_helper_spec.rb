@@ -86,4 +86,12 @@ RSpec.describe EstilosHelper, type: :helper do
         "«#{estado}» cae al fallback: es un color equivocado que nadie ve fallar"
     end
   end
+
+  # El flash de un redirect. `alert-soft` y no la variante sólida: los avisos
+  # de hoy son suaves, y la sólida los volvería bloques de color. El contraste
+  # de la suave lo mide `make screens`.
+  it "pinta el flash de un redirect como alert" do
+    expect(helper.clase_de_flash("notice")).to eq("alert alert-soft alert-success")
+    expect(helper.clase_de_flash("alert")).to eq("alert alert-soft alert-error")
+  end
 end

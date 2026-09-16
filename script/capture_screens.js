@@ -860,7 +860,7 @@ async function shot(page, name, url, prepare) {
     //
     // Acá no se aprieta guardar a propósito: cada corrida dejaría una versión
     // nueva en la demo. El guardado en sí lo cubren los request specs.
-    const aviso = await page.locator('.flash--warn').first().textContent().catch(() => '');
+    const aviso = await page.locator('.alert-warning').first().textContent().catch(() => '');
     if (!/Al guardar se crea la v\d/.test(aviso || '')) {
       failures++;
       console.error('[VERSIONADO] el editor no avisa que guardar crea una versión nueva:', aviso);

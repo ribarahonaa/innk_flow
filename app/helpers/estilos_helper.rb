@@ -38,8 +38,8 @@ module EstilosHelper
   }.freeze
 
   CLASE_DE_FLASH = {
-    "notice" => "flash flash--notice",
-    "alert" => "flash flash--alert"
+    "notice" => "alert alert-soft alert-success",
+    "alert" => "alert alert-soft alert-error"
   }.freeze
 
   # Las claves son FeedbackItem::KINDS tal cual las declara el modelo

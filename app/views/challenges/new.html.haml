@@ -11,7 +11,7 @@
 
   = form_with model: @challenge, class: "form-doble" do |f|
     - if @challenge.errors.any?
-      .flash.flash--alert= @challenge.errors.full_messages.to_sentence
+      .alert.alert-soft.alert-error= @challenge.errors.full_messages.to_sentence
 
     -# Qué se pregunta, y quién trabaja.
     .form-doble__col

@@ -1,12 +1,12 @@
 <template>
   <div class="criteria-editor-island">
-    <div v-if="serverErrors.length" class="flash flash--alert">
+    <div v-if="serverErrors.length" class="alert alert-soft alert-error">
       <ul><li v-for="(e, i) in serverErrors" :key="i">{{ e }}</li></ul>
     </div>
 
-    <div v-if="locked || versionsOnSave" class="flash flash--warn">{{ lockedReason }}</div>
+    <div v-if="locked || versionsOnSave" class="alert alert-soft alert-warning">{{ lockedReason }}</div>
 
-    <div v-if="versionCreated" class="flash flash--notice">{{ versionCreated }}</div>
+    <div v-if="versionCreated" class="alert alert-soft alert-success">{{ versionCreated }}</div>
 
     <div class="panel">
       <div class="field">

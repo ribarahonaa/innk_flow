@@ -94,10 +94,11 @@
           .form-actions
             = f.submit "Usar ese set", class: "btn btn-ghost btn-sm"
   - else
-    .flash.flash--notice
-      Estos criterios son de este módulo: no afectan a otros desafíos.
-      = link_to "Guardarlos también en la biblioteca", promote_criteria_set_path(set),
-                data: { turbo_method: :post }, class: "field-hint__link"
+    .alert.alert-soft.alert-success
+      %div
+        Estos criterios son de este módulo: no afectan a otros desafíos.
+        = link_to "Guardarlos también en la biblioteca", promote_criteria_set_path(set),
+                  data: { turbo_method: :post }, class: "field-hint__link"
 
     .panel
       = render "shared/ai_actions", challenge: step.challenge, mode: step.effective_ai_mode, always: true,

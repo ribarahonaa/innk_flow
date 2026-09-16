@@ -159,11 +159,16 @@ RSpec.describe "lo que registra un pedido a la IA", type: :request do
 
   # El flash de la IA ya no es una franja: es el popup. Pintarlo además arriba
   # de `.app-main` sería decir dos veces lo mismo, y encima escupiendo el hash.
+  #
+  # Se mira el hijo directo de `.app-main`, que es donde el layout pinta el
+  # flash de un redirect. No el nombre de la clase en el body: con los avisos
+  # en `alert`, `flash--notice` no aparece nunca y esa aserción pasaba sin
+  # probar nada.
   it "no se pinta como franja de flash" do
     pedir!("propose_pipeline")
     follow_redirect!
 
-    expect(response.body).not_to include("flash--notice")
+    expect(Nokogiri::HTML(response.body).css(".app-main > .alert")).to be_empty
     expect(response.body).not_to include("tipo&quot;=&gt;")
   end
 
