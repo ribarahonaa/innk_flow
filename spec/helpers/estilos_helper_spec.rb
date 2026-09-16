@@ -94,11 +94,20 @@ RSpec.describe EstilosHelper, type: :helper do
   # temas. Un chip que el helper devuelve y el muestrario no tiene nunca se
   # mide en el tema en que ninguna pantalla lo muestre, y la guarda pasa en
   # verde sin haberlo mirado.
+  #
+  # Se lee el arreglo `MUESTRARIO` y no el archivo entero: buscando en todo el
+  # script, un chip borrado del muestrario seguía «presente» porque la misma
+  # cadena estaba en `MUESTRARIO_ATENUADO`, que es el subconjunto atenuado y no
+  # cubre a los demás.
   it "el muestrario de las capturas tiene cada chip del helper" do
     script = File.read(Rails.root.join("script/capture_screens.js"))
+    arreglo = script[/^const MUESTRARIO = \[(.*?)^\];/m, 1]
+    expect(arreglo).not_to be_nil, "No se encontró `const MUESTRARIO = [...]` en script/capture_screens.js"
+
+    muestrario = arreglo.scan(/'([^']+)'/).flatten
     chips = [EstilosHelper::CHIP_DE_ESTADO, EstilosHelper::CHIP_DE_ORIGEN, EstilosHelper::CLASE_DE_FEEDBACK]
             .flat_map(&:values) << EstilosHelper::CHIP_DE_IA
-    faltan = chips.uniq.reject { |clase| script.include?("'#{clase}'") }
+    faltan = chips.uniq - muestrario
     expect(faltan).to be_empty, "El muestrario no mide: #{faltan.join(" · ")}"
   end
 end
