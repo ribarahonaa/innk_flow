@@ -38,8 +38,8 @@ RSpec.describe EstilosHelper, type: :helper do
   # viejo (`status-chip`, `source-chip`…) se ve bien mientras la hoja todavía
   # tiene su regla, y se rompe en silencio el día que la Tarea 7 la borra.
   it "todos los chips son badge" do
-    chips = [EstilosHelper::CHIP_DE_ESTADO, EstilosHelper::CHIP_DE_ORIGEN, EstilosHelper::CLASE_DE_FEEDBACK]
-            .flat_map(&:values) << EstilosHelper::CHIP_DE_IA
+    chips = [EstilosHelper::CHIP_DE_ESTADO, EstilosHelper::CHIP_DE_ORIGEN, EstilosHelper::CLASE_DE_FEEDBACK,
+             EstilosHelper::CLASE_DE_NODO_DE_FLUJO].flat_map(&:values) << EstilosHelper::CHIP_DE_IA
     chips.each { |clase| expect(clase).to start_with("badge "), "«#{clase}» no es un badge" }
   end
 
@@ -105,9 +105,16 @@ RSpec.describe EstilosHelper, type: :helper do
     expect(arreglo).not_to be_nil, "No se encontró `const MUESTRARIO = [...]` en script/capture_screens.js"
 
     muestrario = arreglo.scan(/'([^']+)'/).flatten
-    chips = [EstilosHelper::CHIP_DE_ESTADO, EstilosHelper::CHIP_DE_ORIGEN, EstilosHelper::CLASE_DE_FEEDBACK]
-            .flat_map(&:values) << EstilosHelper::CHIP_DE_IA
+    chips = [EstilosHelper::CHIP_DE_ESTADO, EstilosHelper::CHIP_DE_ORIGEN, EstilosHelper::CLASE_DE_FEEDBACK,
+             EstilosHelper::CLASE_DE_NODO_DE_FLUJO].flat_map(&:values) << EstilosHelper::CHIP_DE_IA
     faltan = chips.uniq - muestrario
     expect(faltan).to be_empty, "El muestrario no mide: #{faltan.join(" · ")}"
+  end
+
+  # Los nodos pintan los mismos estados que los chips, pero NO con los mismos
+  # colores: el chip `skipped` es amarillo; el nodo `skipped` es neutro con el
+  # borde punteado. Se respeta lo que pintaba cada uno.
+  it "el nodo salteado es punteado, no amarillo" do
+    expect(helper.clase_de_nodo_de_flujo("skipped")).to eq("badge badge-dash badge-sm")
   end
 end

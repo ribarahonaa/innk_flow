@@ -85,12 +85,19 @@ module EstilosHelper
     "outline" => "setup__step setup__step--outline"
   }.freeze
 
+  # El mapa compacto del flujo. Mismos estados que los chips, otros colores:
+  # cada nodo conserva lo que pintaba antes de ser `badge`.
+  #
+  #   pending · activating   neutro, con borde
+  #   active                 acento, en negrita
+  #   completed              ok
+  #   skipped                neutro, borde punteado → badge-dash
   CLASE_DE_NODO_DE_FLUJO = {
-    "pending" => "flow-strip__node flow-strip__node--pending",
-    "active" => "flow-strip__node flow-strip__node--active",
-    "activating" => "flow-strip__node flow-strip__node--activating",
-    "completed" => "flow-strip__node flow-strip__node--completed",
-    "skipped" => "flow-strip__node flow-strip__node--skipped"
+    "pending" => "badge badge-soft badge-sm",
+    "activating" => "badge badge-soft badge-sm",
+    "active" => "badge badge-soft badge-primary badge-sm font-semibold",
+    "completed" => "badge badge-soft badge-success badge-sm",
+    "skipped" => "badge badge-dash badge-sm"
   }.freeze
 
   # Las claves son StepEntry::STATUSES. El brief original traía "skipped"

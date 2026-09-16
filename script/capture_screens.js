@@ -313,7 +313,13 @@ const MUESTRARIO = [
   'badge badge-soft badge-primary badge-xs font-bold uppercase',
   'badge badge-soft badge-warning badge-xs font-bold uppercase',
   'badge badge-soft badge-error badge-xs font-bold uppercase',
-  'badge badge-soft badge-secondary badge-xs font-bold tracking-wide'
+  'badge badge-soft badge-secondary badge-xs font-bold tracking-wide',
+  // Los nodos del mapa del flujo (`CLASE_DE_NODO_DE_FLUJO`). `badge-dash`
+  // no tiene fondo propio: se mide sobre el `.panel` donde vive el mapa.
+  'badge badge-soft badge-sm',
+  'badge badge-soft badge-primary badge-sm font-semibold',
+  'badge badge-soft badge-success badge-sm',
+  'badge badge-dash badge-sm'
 ];
 
 // Los chips de un comentario ya atendido —el tipo, la resolución y la marca
