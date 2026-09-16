@@ -314,11 +314,13 @@ RSpec.describe "capa de IA", type: :request do
       expect(flash[:ia]["tipo"]).to eq("ok")
     end
 
+    # 404 y no 403: la idea ajena no la ve, y un 403 le confirmaría que
+    # existe. Este spec aceptaba 403, que era justamente el oráculo.
     it "sobre la idea de otra persona, no" do
       post challenge_ai_requests_path(challenge, purpose: "coauthor_field", idea_id: ajena.id,
                                       step_id: ideation.id, field_key: "titulo")
 
-      expect(response).to have_http_status(:forbidden).or have_http_status(:found)
+      expect(response).to have_http_status(:not_found)
       expect(as_company(company) { AiRun.where(idea_id: ajena.id).count }).to be_zero
     end
 

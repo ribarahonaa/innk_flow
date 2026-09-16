@@ -301,8 +301,19 @@ ahora.
    escape: explícita y greppable (jobs, seeds, tasks).
 2. `TenantScoped` tiene un `default_scope` que **revienta** con `MissingTenant`
    sin tenant en contexto, en vez de devolver todo.
-3. Los controllers devuelven **404, nunca 403**: un 403 es un oráculo de
-   existencia.
+3. **Lo que no se ve da 404, no 403**: un 403 es un oráculo de existencia.
+   El 403 existe —`Pundit::NotAuthorizedError` lo devuelve— y es correcto
+   para lo que SÍ se ve pero no se puede hacer: ver un desafío y no poder
+   editarlo no confirma nada que no supieras. Esta línea decía «404, nunca
+   403», y el código nunca hizo eso: 25 specs esperan 403.
+
+   **La trampa es el orden, no el `authorize`.** Buscar con el scope de
+   tenencia y autorizar DESPUÉS devuelve 403 sobre algo que no se debería
+   ver: a quien participa, una idea ajena le daba 403 y un id inexistente
+   404, y esa diferencia confirma que existe. Pasó en cuatro de los seis
+   controllers que buscaban una idea —cada uno con su `authorize` escrito—.
+   Por eso desafíos **e ideas** se buscan por `policy_scope`, y lo cuida
+   `spec/lint/ideas_por_policy_scope_spec.rb`.
 4. FKs compuestas `(x_id, company_id)`: Postgres rechaza atar una fila de la
    empresa A a un padre de la B.
 

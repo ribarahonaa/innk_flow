@@ -56,6 +56,9 @@ class FeedbackItemsController < ApplicationController
   def set_context
     @challenge = policy_scope(Challenge).find_by!(slug: params[:challenge_id])
     @step = @challenge.steps.find(params[:step_id])
-    @idea = @challenge.ideas.find(params[:idea_id]) if params[:idea_id].present?
+    # Por `policy_scope` y no `@challenge.ideas`: a quien participa, una idea
+    # ajena le daba 403 y un id inexistente 404, y esa diferencia confirma que
+    # existe. Lo que no ve, no existe.
+    @idea = policy_scope(@challenge.ideas).find(params[:idea_id]) if params[:idea_id].present?
   end
 end

@@ -49,7 +49,10 @@ class AssessmentsController < ApplicationController
 
   def handler = @handler ||= @step.handler
 
-  def idea = @idea_record ||= @challenge.ideas.find(params[:idea_id])
+  # Por `policy_scope`: se resuelve dentro de `existing_assessment`, ANTES del
+  # `authorize`, así que a quien participa una idea ajena le daba 403 y un id
+  # inexistente 404 — y esa diferencia confirma que existe.
+  def idea = @idea_record ||= policy_scope(@challenge.ideas).find(params[:idea_id])
 
   def existing_assessment
     @step.assessments.current.find_by(idea_id: idea.id, evaluator_id: current_user.id)

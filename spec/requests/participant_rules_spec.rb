@@ -174,6 +174,53 @@ RSpec.describe "reglas de quien participa", type: :request do
 
       expect(response.body).to include("La idea de Paula", "La idea de Pedro")
     end
+
+    # Lo que no ve tampoco se lo confirma una ruta que ACTÚA sobre una idea.
+    # Buscándola con `@challenge.ideas.find` y autorizando después, la ajena
+    # daba 403 y un id que no existe daba 404: esa diferencia dice que la idea
+    # existe, que es el oráculo que la ficha ya cerraba. Cada ruta se pide con
+    # las dos, y tienen que responder igual.
+    describe "ninguna ruta le confirma que existe una idea ajena" do
+      def con_ajena_y_con_inexistente(&pedido)
+        [ajena.id, SecureRandom.uuid].map do |id|
+          instance_exec(id, &pedido)
+          response.status
+        end
+      end
+
+      it "comentarla" do
+        estados = con_ajena_y_con_inexistente do |id|
+          post challenge_step_feedback_items_path(challenge, step_named("Ronda")),
+               params: { idea_id: id, kind: "suggestion", body: "Cambiala." }
+        end
+
+        expect(estados).to eq([404, 404])
+      end
+
+      it "sumarse como colaboradora" do
+        estados = con_ajena_y_con_inexistente do |id|
+          post challenge_idea_contributors_path(challenge, id), params: { user_id: paula.id, role: "contributor" }
+        end
+
+        expect(estados).to eq([404, 404])
+      end
+
+      it "abrir su ficha de evaluación" do
+        estados = con_ajena_y_con_inexistente do |id|
+          get new_challenge_step_assessment_path(challenge, step_named("Técnica"), idea_id: id)
+        end
+
+        expect(estados).to eq([404, 404])
+      end
+
+      it "pedirle algo a la IA sobre ella" do
+        estados = con_ajena_y_con_inexistente do |id|
+          post challenge_ai_requests_path(challenge, purpose: "coauthor_field", idea_id: id)
+        end
+
+        expect(estados).to eq([404, 404])
+      end
+    end
   end
 end
 

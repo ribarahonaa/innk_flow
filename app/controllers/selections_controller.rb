@@ -17,7 +17,7 @@ class SelectionsController < ApplicationController
   # Un filtro de sí/no resuelto por una persona.
   def verdict
     authorize @step, :advance?
-    idea = @challenge.ideas.find(params[:idea_id])
+    idea = policy_scope(@challenge.ideas).find(params[:idea_id])
 
     @step.handler.record_verdict!(
       idea: idea,
@@ -33,7 +33,7 @@ class SelectionsController < ApplicationController
 
   def reinstate
     authorize @step, :advance?
-    idea = @challenge.ideas.find(params[:idea_id])
+    idea = policy_scope(@challenge.ideas).find(params[:idea_id])
 
     @step.handler.reinstate!(idea, decided_by: current_user, reason: params[:reason])
 
