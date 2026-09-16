@@ -286,6 +286,47 @@ async function revisarContraste(page, name) {
   }
 }
 
+// Las variantes que la app usa, medidas en el tema activo aunque ninguna
+// pantalla del recorrido las muestre en ese tema. Se inyectan en un `.panel`
+// de una pantalla real —con la hoja y el tema de verdad—, se miden y se
+// sacan. Sin esto la pasada oscura midió CERO avisos y dio verde: las cuatro
+// pantallas que recorre no tienen ninguno.
+//
+// Falla también si mide menos muestras de las que declara, para que no
+// vuelva a pasar en verde sin haber medido nada.
+const MUESTRARIO = [
+  'alert alert-soft alert-success',
+  'alert alert-soft alert-warning',
+  'alert alert-soft alert-error'
+];
+
+async function revisarMuestrario(page, tema) {
+  await page.evaluate((clases) => {
+    const destino = document.querySelector('.panel') || document.querySelector('.app-main') || document.body;
+    const caja = document.createElement('div');
+    caja.dataset.muestrario = '';
+    for (const clase of clases) {
+      const muestra = document.createElement('div');
+      muestra.className = clase;
+      muestra.textContent = 'Muestra de contraste';
+      caja.appendChild(muestra);
+    }
+    destino.appendChild(caja);
+  }, MUESTRARIO);
+  const medidos = await medirContraste(page, '[data-muestrario] > *');
+  await page.evaluate(() => document.querySelector('[data-muestrario]')?.remove());
+
+  if (medidos.length !== MUESTRARIO.length) {
+    failures++;
+    console.error(`[CONTRASTE] muestrario ${tema}: se midieron ${medidos.length} de ${MUESTRARIO.length} muestras`);
+  }
+  const bajos = medidos.filter((m) => m.ratio < 4.5);
+  if (bajos.length) {
+    failures++;
+    console.error(`[CONTRASTE] muestrario ${tema}: ${bajos.map((m) => `${m.clase} ${m.ratio.toFixed(2)}:1`).join(' · ')}`);
+  }
+}
+
 // La captura y las revisiones que solo piden la pantalla ya pintada.
 //
 // Veinticinco de las treinta y ocho pantallas no se abren por URL —se llega a
@@ -1072,6 +1113,11 @@ async function shot(page, name, url, prepare) {
 
   await shot(page, '11-ai-runs', '/admin/ai_runs');
 
+  // El muestrario en claro: ninguna pantalla del recorrido garantiza mostrar
+  // las tres variantes, así que se miden a mano acá, con la hoja y el tema de
+  // verdad, antes de pasar a oscuro.
+  await revisarMuestrario(page, 'claro');
+
   // ── Tema oscuro ──────────────────────────────────────────────────────────
   //
   // El contraste se mide en los dos temas: una variante que pasa en claro
@@ -1087,6 +1133,7 @@ async function shot(page, name, url, prepare) {
     ['93-oscuro-ia', '/admin/ai_runs']
   ]) {
     await page.goto(BASE + url, { waitUntil: 'networkidle' });
+    if (nombre === '90-oscuro-desafios') await revisarMuestrario(page, 'oscuro');
     await capturar(page, nombre);
   }
   await page.emulateMedia({ colorScheme: 'light' });
