@@ -316,11 +316,14 @@ const MUESTRARIO = [
   'badge badge-soft badge-secondary badge-xs font-bold tracking-wide'
 ];
 
-// Los chips que se ven ATENUADOS: los de un comentario ya atendido
-// (`shared/_feedback_item`: el tipo, la resolución y la marca de IA), adentro
-// de `.feedback-item.is-addressed`, que tiene `opacity: .72`. Se inyectan
-// dentro de un elemento con esa misma clase, así la opacidad y el fondo son
-// los de verdad y no una copia.
+// Los chips de un comentario ya atendido —el tipo, la resolución y la marca
+// de IA— dentro de la peor ronda real: una ronda CERRADA (`.feedback-round
+// .feedback-round--cerrada`, abierta con `open` para que se renderice) con
+// un item `.is-addressed` adentro. Ya no se atenúan (ver el comentario en
+// `.feedback-item.is-addressed` de `application.css`), pero la guarda arma
+// la misma estructura que `ideas/show` y `shared/_feedback_item` así que si
+// alguien vuelve a poner una opacidad sobre cualquiera de los dos
+// contenedores, estas muestras bajan y la guarda lo marca.
 const MUESTRARIO_ATENUADO = [
   'badge badge-soft badge-primary badge-xs font-bold uppercase',
   'badge badge-soft badge-warning badge-xs font-bold uppercase',
@@ -342,10 +345,21 @@ async function revisarMuestrario(page, tema) {
       padre.appendChild(el);
     };
     for (const clase of plenas) muestra(clase, caja);
-    const atenuado = document.createElement('div');
-    atenuado.className = 'feedback-item is-addressed';
-    for (const clase of atenuadas) muestra(clase, atenuado);
-    caja.appendChild(atenuado);
+    // El peor caso real: un comentario atendido adentro de una ronda cerrada.
+    // Con los mismos elementos y clases que `ideas/show` y
+    // `shared/_feedback_item`, así cualquier atenuación que se les vuelva a
+    // poner baja estas muestras y la guarda lo marca.
+    const ronda = document.createElement('details');
+    ronda.className = 'feedback-round feedback-round--cerrada';
+    ronda.open = true;
+    const lista = document.createElement('ul');
+    lista.className = 'feedback-list';
+    const item = document.createElement('li');
+    item.className = 'feedback-item is-addressed';
+    for (const clase of atenuadas) muestra(clase, item);
+    lista.appendChild(item);
+    ronda.appendChild(lista);
+    caja.appendChild(ronda);
     destino.appendChild(caja);
   }, { plenas: MUESTRARIO, atenuadas: MUESTRARIO_ATENUADO });
   const medidos = await medirContraste(page, '[data-muestrario] [data-muestra]');
