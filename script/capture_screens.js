@@ -169,6 +169,93 @@ async function revisarTarjetasViejas(page, name) {
   }
 }
 
+// Contraste WCAG del texto contra su fondo EFECTIVO: el fondo del elemento
+// compuesto sobre el de cada ancestro hasta el primero opaco, y el texto
+// compuesto sobre ese resultado. Un color con alfa medido sin componer da un
+// número que en pantalla no existe.
+//
+// Los colores se leen pintándolos en un canvas: `getComputedStyle` devuelve
+// `oklab(…)` o `color(srgb …)` según cómo se declaró el color, y el canvas
+// los resuelve todos a sRGB de 8 bits.
+async function medirContraste(page, selector) {
+  return page.evaluate((sel) => {
+    const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+    const rgba = (css) => {
+      ctx.clearRect(0, 0, 1, 1);
+      ctx.fillStyle = '#000';
+      ctx.fillStyle = css;
+      ctx.fillRect(0, 0, 1, 1);
+      const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+      return [r, g, b, a / 255];
+    };
+    const sobre = (arriba, abajo) => [0, 1, 2].map((i) => arriba[i] * arriba[3] + abajo[i] * (1 - arriba[3])).concat(1);
+    const fondoDe = (el) => {
+      const capas = [];
+      for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+        const c = rgba(getComputedStyle(n).backgroundColor);
+        if (c[3] > 0) capas.push(c);
+        if (c[3] >= 1) break;
+      }
+      let color = [255, 255, 255, 1];
+      for (let i = capas.length - 1; i >= 0; i--) color = sobre(capas[i], color);
+      return color;
+    };
+    const luminancia = ([r, g, b]) => {
+      const f = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+    };
+
+    return [...document.querySelectorAll(sel)]
+      .filter((el) => el.getClientRects().length > 0 && el.textContent.trim())
+      .map((el) => {
+        const fondo = fondoDe(el);
+        const texto = sobre(rgba(getComputedStyle(el).color), fondo);
+        const [claro, oscuro] = [luminancia(texto), luminancia(fondo)].sort((a, b) => b - a);
+        return { clase: el.className, texto: el.textContent.trim().slice(0, 40), ratio: (claro + 0.05) / (oscuro + 0.05) };
+      });
+  }, selector);
+}
+
+// El medidor se prueba contra valores conocidos ANTES de creerle a lo que dice
+// de las pantallas. Los dos con alfa valen 3,98 exactos; el canvas guarda el
+// alfa en 8 bits (128/255 y no 0,5) y da entre 3,95 y 4,00, así que se espera
+// 3,97 con 0,05 de tolerancia. Un medidor de contraste que compone mal el alfa infla los
+// números —pasó en la fase 1: un 1.49:1 se leyó como 13.56:1— y una guarda que
+// siempre pasa es peor que ninguna.
+async function probarMedidorDeContraste(page) {
+  await page.setContent(`
+    <body style="margin:0;background:#fff">
+      <span data-esperado="21" style="color:#000;background:#fff">negro sobre blanco</span>
+      <span data-esperado="4.54" style="color:#767676;background:#fff">el gris justo de WCAG</span>
+      <span data-esperado="3.97" style="color:rgba(0,0,0,.5);background:#fff">texto con alfa</span>
+      <div style="background:#000">
+        <span data-esperado="3.97" style="color:#fff;background:rgba(255,255,255,.5)">fondo con alfa sobre negro</span>
+      </div>
+      <span data-esperado="21" style="color:oklch(0% 0 0);background:oklch(100% 0 0)">oklch</span>
+    </body>`);
+  const medidos = await medirContraste(page, '[data-esperado]');
+  const esperados = await page.$$eval('[data-esperado]', (els) => els.map((e) => Number(e.dataset.esperado)));
+  medidos.forEach((m, i) => {
+    if (Math.abs(m.ratio - esperados[i]) > 0.05) {
+      failures++;
+      console.error(`[CONTRASTE] el medidor está mal: «${m.texto}» dio ${m.ratio.toFixed(2)} y es ${esperados[i]}`);
+    }
+  });
+}
+
+// Los componentes suaves de DaisyUI (`badge-soft`, `alert-soft`) pintan el
+// texto con el color PURO del tema, y los colores que la hoja usaba para el
+// texto de un chip (`--ok`, `--warn`, `--danger`) están oscurecidos justamente
+// porque puros no llegaban. Esto dice cuál hay que ajustar, en cada pantalla.
+async function revisarContraste(page, name) {
+  const bajos = (await medirContraste(page, '.badge, .alert')).filter((m) => m.ratio < 4.5);
+  const unicos = [...new Map(bajos.map((m) => [m.clase, m])).values()].slice(0, 6);
+  if (unicos.length) {
+    failures++;
+    console.error(`[CONTRASTE] ${name}: ${unicos.map((m) => `«${m.texto}» (${m.clase}) ${m.ratio.toFixed(2)}:1`).join(' · ')}`);
+  }
+}
+
 // La captura y las revisiones que solo piden la pantalla ya pintada.
 //
 // Veinticinco de las treinta y ocho pantallas no se abren por URL —se llega a
@@ -180,6 +267,7 @@ async function capturar(page, name) {
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
   await revisarClasesDescartadas(page, name);
   await revisarTarjetasViejas(page, name);
+  await revisarContraste(page, name);
   shots.push(name);
 }
 
@@ -201,6 +289,8 @@ async function shot(page, name, url, prepare) {
 
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+
+  await probarMedidorDeContraste(page);
 
   page.on('pageerror', (e) => { failures++; console.error(`[JS ERROR] ${e.message}`); });
   page.on('response', (r) => {
@@ -951,6 +1041,25 @@ async function shot(page, name, url, prepare) {
   }
 
   await shot(page, '11-ai-runs', '/admin/ai_runs');
+
+  // ── Tema oscuro ──────────────────────────────────────────────────────────
+  //
+  // El contraste se mide en los dos temas: una variante que pasa en claro
+  // puede no pasar en oscuro. Se emula `prefers-color-scheme` y se vuelve a
+  // las pantallas donde viven los chips y los avisos. Por URL y no por link:
+  // esto no prueba navegación, prueba colores, y el recorrido por link ya
+  // corrió en claro.
+  await page.emulateMedia({ colorScheme: 'dark' });
+  for (const [nombre, url] of [
+    ['90-oscuro-desafios', '/challenges'],
+    ['91-oscuro-desafio', `/challenges/${CHALLENGE}`],
+    ['92-oscuro-criterios', '/criteria_sets'],
+    ['93-oscuro-ia', '/admin/ai_runs']
+  ]) {
+    await page.goto(BASE + url, { waitUntil: 'networkidle' });
+    await capturar(page, nombre);
+  }
+  await page.emulateMedia({ colorScheme: 'light' });
 
   await browser.close();
 
