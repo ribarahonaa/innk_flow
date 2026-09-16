@@ -43,6 +43,9 @@ Flow::Tenant.bypass! do
   # autora y evaluadora del desafío —borrarla se llevaría sus ideas—. La
   # identidad va con ella: su `uid` es el correo, y dejarla mantendría abierto
   # el login viejo.
+  #
+  # Es una migración de datos, no parte del seed: se puede borrar en cuanto no
+  # queden bases sembradas antes del 16-09-2026.
   vieja = User.find_by(email: "gestor@demo.test")
   if vieja
     vieja.update!(email: "admin2@demo.test")

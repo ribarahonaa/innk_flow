@@ -61,8 +61,13 @@
     -# `steps/evaluation` y que `AiSuggestionPolicy#evaluacion`: pedirle a la IA
     -# que evalúe no es evaluar. Escrito a mano con `update_pipeline?`, un
     -# evaluador asignado podía pedirlo y nunca veía el botón.
-    - puede_pedir = policy(Assessment.new(challenge_step: @step)).create?
-    - if @ai_scores.empty? && @step.effective_ai_mode != "human" && puede_pedir
+    -#
+    -# Hoy no puede dar `false`: el controller ya autorizó `create?` con la idea
+    -# REAL, y sin idea la policy es estrictamente más permisiva —se saltea el
+    -# `participates?`—. Se pregunta igual porque la vista no puede depender de
+    -# lo que autorizó el controller, y va ÚLTIMO en el `&&` para que el EXISTS
+    -# sobre `step_assignments` no corra cuando el bloque ni se muestra.
+    - if @ai_scores.empty? && @step.effective_ai_mode != "human" && policy(Assessment.new(challenge_step: @step)).create?
       .card
         %h2.section-title ¿Querés que la IA te guíe?
         %p.muted.field-hint Evalúa con los mismos criterios y te muestra qué pondría en cada uno, con su razón.

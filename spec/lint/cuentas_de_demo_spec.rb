@@ -16,10 +16,10 @@ require "rails_helper"
 # que auditar es lo que está escrito ahí, no lo que quedó en una base.
 RSpec.describe "las cuentas de demo", type: :lint do
   # Las filas del hash `people`: "correo" => ["Nombre", "rol"].
-  FILA = /"([^"@]+)@demo\.test"\s*=>\s*\[[^\]]*"(\w+)"\s*\]/.freeze
+  FILA_DE_CUENTA = /"([^"@]+)@demo\.test"\s*=>\s*\[[^\]]*"(\w+)"\s*\]/.freeze
 
   let(:cuentas) do
-    File.read(Rails.root.join("db/seeds.rb")).scan(FILA).map { |local, rol| [local, rol] }
+    File.read(Rails.root.join("db/seeds.rb")).scan(FILA_DE_CUENTA).map { |local, rol| [local, rol] }
   end
 
   it "el seed siembra cuentas de demo" do
