@@ -130,11 +130,16 @@ async function revisarClasesDescartadas(page, name) {
   const huerfanas = await page.evaluate(() => {
     const sospechosas = [];
     for (const el of document.querySelectorAll('[class*="badge"],[class*="btn"],[class*="alert"],.steps,.panel,.table :is(th,td)')) {
-      // `.table :is(th,td)` no exige que la celda tenga clase propia: agarra
-      // también la del `.cut-line` (línea de corte del ranking), que anula
-      // padding y borde a propósito con `!important` — sin clase no hay nada
-      // descartado que reportar.
-      if (!el.className) continue;
+      // Única excepción: la celda de `tr.cut-line` (línea de corte del
+      // ranking, `steps/selection.html.haml`) anula padding y borde a
+      // propósito con `!important` (`.cut-line td` en application.css) — no
+      // es una clase que no llegó a la hoja, es la regla haciendo su trabajo.
+      // Cualquier otra celda sin clase SÍ tiene que pasar el chequeo: si
+      // `.table th`/`.table td` de DaisyUI dejara de compilar, una tabla con
+      // todas sus celdas sin clase (como la de «Matriz por módulo» en
+      // `steps/reporting.html.haml`) es exactamente el caso que esto tiene
+      // que atrapar.
+      if (el.closest('tr.cut-line')) continue;
       const cs = getComputedStyle(el);
       const sinFondo = cs.backgroundColor === 'rgba(0, 0, 0, 0)' || cs.backgroundColor === 'transparent';
       const sinRelleno = parseFloat(cs.paddingLeft) === 0 && parseFloat(cs.paddingTop) === 0;
