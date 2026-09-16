@@ -22,7 +22,7 @@
 -# en AiSuggestionPolicy#evaluacion.
 - puede_pedir = policy(Assessment.new(challenge_step: @step)).create?
 - if @step.active? && @step.effective_ai_mode != "human" && pendientes.any? && puede_pedir
-  .card
+  .panel
     %h2.section-title Pedirle una evaluación a la IA
     %p.muted
       La IA evalúa con los mismos criterios y su nota entra al promedio como una más, con su
@@ -40,7 +40,7 @@
     = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode,
              actions: pendientes.first(1).map { |e| { label: "Evaluar solo «#{e.idea.title.truncate(28)}»", purpose: "evaluate_idea", step_id: @step.id, idea_id: e.idea_id } }
 
-.card
+.panel
   %h2.section-title Ideas a evaluar
   - unless manda
     %p.muted.field-hint
@@ -100,7 +100,7 @@
 -# Idem: solo se ven las de las ideas que ya evaluaste.
 - hechas = hechas.select { |a| @handler.breakdown_visible_for?(a.idea_id, user: current_user, manager: manda) }
 - if hechas.any?
-  .card
+  .panel
     %h2.section-title
       Evaluaciones hechas
       %span.muted= " (#{hechas.size})"

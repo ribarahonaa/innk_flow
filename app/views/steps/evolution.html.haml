@@ -8,7 +8,7 @@
 = render "steps/asignaciones_gestores", step: @step, candidates: @gestor_candidates
 
 - progress = @handler.progress
-.card
+.panel
   .step-progress
     %div
       %strong= progress.done
@@ -27,12 +27,12 @@
   -# evolución es la vista de quien acompaña, no la del resto del desafío.
   - visibles = @step.step_entries.includes(idea: %i[current_version author]).select { |e| @ideas_visibles.include?(e.idea_id) }
   - if visibles.empty?
-    .card
+    .panel
       %p.muted Todavía no hay ideas tuyas en este módulo.
   - visibles.each do |entry|
     - items = @handler.feedback_for(entry.idea_id)
     - open_items = items.reject(&:addressed)
-    .card.feedback-card
+    .panel.feedback-card
       .feedback-card__head
         %div
           = link_to entry.idea.title, challenge_idea_path(@challenge, entry.idea), class: "feedback-card__title"

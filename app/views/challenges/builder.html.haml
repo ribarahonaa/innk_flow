@@ -13,7 +13,7 @@
 -# Un desafío sin módulos puede haber nacido en blanco. Armar seis módulos a
 -# mano por haberse arrepentido no es razonable: las plantillas siguen ahí.
 - if @challenge.draft? && @challenge.steps.empty? && policy(@challenge).update_pipeline?
-  .card
+  .panel
     %h2.section-title Empezar de una plantilla
     %p.muted Un flujo armado que después editás entero.
     .template-picker
@@ -29,7 +29,7 @@
 -# desafío: elegir "solo personas" define cómo se trabaja dentro de cada
 -# módulo, no si su dueño puede pedir ayuda para diseñarlo.
 - if policy(@challenge).update_pipeline?
-  .card
+  .panel
     %h2.section-title Armar el flujo con IA
     - if @challenge.draft?
       %p.muted La IA lee el brief y propone qué módulos usar, en qué orden y con qué configuración. Revisás la propuesta antes de que se aplique.
@@ -44,7 +44,7 @@
 -# de un fetch al montar: una vuelta de red menos y la tenencia la garantiza
 -# el scope de Ruby.
 %div{ "data-island": "pipeline-builder", data: { props: @props.to_json } }
-  .card.island-placeholder
+  .panel.island-placeholder
     %p.muted Cargando el editor de flujo…
 
 = javascript_include_tag "packs/pipeline_builder", defer: true, nonce: content_security_policy_nonce

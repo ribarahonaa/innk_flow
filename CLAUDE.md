@@ -679,7 +679,8 @@ Sass se jubiló entero. El archivo de salida conserva el nombre, así que el
 Esta fase migró la plomería, las clases dinámicas, el tema y el shell. Lo que
 sigue —los 18 partials compartidos, pantalla por pantalla y los componentes
 Vue— es el plan 2. Por eso `status-chip`, `.step-card` y compañía todavía son
-CSS escrito a mano y no `badge` ni `card` de DaisyUI.
+CSS escrito a mano; el plan 2a (`docs/superpowers/plans/2026-09-16-rediseno-2a-vocabulario.md`)
+los pasa a componentes.
 
 #### Lo que más fácil se rompe
 
@@ -719,10 +720,14 @@ el vocabulario que es de esta app y se repite (`.flow-strip`, `.step-card`,
 `.empty-state`) · utilidades sueltas solo para lo irrepetible. **Si una clase
 aparece en más de dos vistas, es un componente, no doce utilidades.**
 
-`card` de DaisyUI está **excluida** (`exclude: card` en el `@plugin`): además
-de pintar declara `display: flex`, y eso convertiría en columna flex las 101
-tarjetas de la app, que nunca lo pidieron. Entra en el plan 2, cuando las
-pantallas se reescriban con `card-body`.
+`card` de DaisyUI está **habilitada**, y ninguna tarjeta la usa todavía. Estuvo
+excluida porque declara `display: flex`, y habilitarla convertía de golpe todas
+las tarjetas de la app en columnas flex. Para poder habilitarla sin tocar
+ninguna, las tarjetas de la app se llaman **`.panel`**: mismo CSS que tenía
+`.card`. Cada pantalla pasa de `.panel` a `card` + `card-body` cuando le toca
+(plan 2b). `make screens` falla si aparece un elemento con la clase `card`
+vieja (`revisarTarjetasViejas`), porque sin el `exclude` esa tarjeta se vuelve
+flex en silencio.
 
 **La capa decide quién gana, y no es la especificidad.** Las clases propias de
 la app van **sin capa**, y una regla sin capa le gana a cualquier `@layer` —o

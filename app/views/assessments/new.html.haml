@@ -13,7 +13,7 @@
 .idea-layout
   .idea-layout__main
     - if @ai_scores.any? && !@prefill
-      .card.ai-guide-banner
+      .panel.ai-guide-banner
         %h2.section-title
           La IA ya evaluó esta idea
           %span.ai-chip IA
@@ -22,7 +22,7 @@
                   new_challenge_step_assessment_path(@challenge, @step, idea_id: @idea.id, prefill: "ai"),
                   class: "btn btn-ghost btn-sm"
 
-    .card
+    .panel
       %h2.section-title Ficha de evaluación
       - if @prefill
         .flash.flash--warn
@@ -68,7 +68,7 @@
     -# lo que autorizó el controller, y va ÚLTIMO en el `&&` para que el EXISTS
     -# sobre `step_assignments` no corra cuando el bloque ni se muestra.
     - if @ai_scores.empty? && @step.effective_ai_mode != "human" && policy(Assessment.new(challenge_step: @step)).create?
-      .card
+      .panel
         %h2.section-title ¿Querés que la IA te guíe?
         %p.muted.field-hint Evalúa con los mismos criterios y te muestra qué pondría en cada uno, con su razón.
         = button_to "Pedir la guía de la IA",
@@ -76,13 +76,13 @@
                     class: "btn btn-ghost btn-sm btn-block"
 
     - if @ai_assessment&.overall_comment.present?
-      .card.assessment-detail--ai
+      .panel.assessment-detail--ai
         %h2.section-title
           Comentario general de la IA
           %span.ai-chip IA
         %p.assessment-detail__comment= @ai_assessment.overall_comment
 
-    .card
+    .panel
       %h2.section-title La idea
       %dl.answer-list
         - (@challenge.pipeline.ideation_step&.form_fields&.ordered || []).each do |field|

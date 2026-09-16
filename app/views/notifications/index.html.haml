@@ -7,7 +7,7 @@
     = button_to "Marcar todo como leído", read_all_notifications_path, class: "btn btn-ghost"
 
 - if @notifications.empty?
-  .card.empty-state
+  .panel.empty-state
     %p.muted No hay avisos todavía.
 - else
   %ul.notification-list

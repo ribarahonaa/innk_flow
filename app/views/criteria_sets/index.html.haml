@@ -6,14 +6,14 @@
   = link_to "Nuevo set", new_criteria_set_path, class: "btn btn-primary"
 
 - if @sets.empty?
-  .card.empty-state
+  .panel.empty-state
     %h2 Todavía no hay sets
     %p.muted Un set define con qué criterios y qué pesos se puntúan las ideas.
     = link_to "Crear el primero", new_criteria_set_path, class: "btn btn-primary"
 - else
   .challenge-grid
     - @sets.each do |set|
-      .card
+      .panel
         .challenge-card__head
           %h2.challenge-card__name
             = set.name

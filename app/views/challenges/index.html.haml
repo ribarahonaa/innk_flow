@@ -7,7 +7,7 @@
     = link_to "Nuevo desafío", new_challenge_path, class: "btn btn-primary"
 
 - if @challenges.empty?
-  .card.empty-state
+  .panel.empty-state
     %h2 Todavía no hay desafíos
     %p.muted El primero define su flujo eligiendo módulos y ordenándolos.
     - if current_membership&.manages_challenges?
@@ -15,7 +15,7 @@
 - else
   .challenge-grid
     - @challenges.each do |challenge|
-      = link_to challenge_path(challenge), class: "card challenge-card" do
+      = link_to challenge_path(challenge), class: "panel challenge-card" do
         .challenge-card__head
           %h2.challenge-card__name= challenge.name
           %span{ class: chip_de_estado(challenge.status) }

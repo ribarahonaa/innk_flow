@@ -104,11 +104,11 @@ async function revisarFormsAnidados(page, name, url) {
 // mirando —a simple vista el borde doble parece una separación—.
 async function revisarRitmo(page, name) {
   const pegadas = await page.evaluate(() => {
-    const cards = [...document.querySelectorAll('.app-main > .card')];
+    const paneles = [...document.querySelectorAll('.app-main > .panel')];
     let juntas = 0;
-    for (let i = 1; i < cards.length; i++) {
-      const anterior = cards[i - 1].getBoundingClientRect();
-      const actual = cards[i].getBoundingClientRect();
+    for (let i = 1; i < paneles.length; i++) {
+      const anterior = paneles[i - 1].getBoundingClientRect();
+      const actual = paneles[i].getBoundingClientRect();
       if (actual.top - anterior.bottom < 8) juntas++;
     }
     return juntas;
@@ -129,7 +129,7 @@ async function revisarRitmo(page, name) {
 async function revisarClasesDescartadas(page, name) {
   const huerfanas = await page.evaluate(() => {
     const sospechosas = [];
-    for (const el of document.querySelectorAll('[class*="badge"],[class*="btn"],[class*="alert"],.steps,.card')) {
+    for (const el of document.querySelectorAll('[class*="badge"],[class*="btn"],[class*="alert"],.steps,.panel')) {
       const cs = getComputedStyle(el);
       const sinFondo = cs.backgroundColor === 'rgba(0, 0, 0, 0)' || cs.backgroundColor === 'transparent';
       const sinRelleno = parseFloat(cs.paddingLeft) === 0 && parseFloat(cs.paddingTop) === 0;
@@ -146,6 +146,19 @@ async function revisarClasesDescartadas(page, name) {
   }
 }
 
+// Ningún elemento puede tener la clase `card` de esta app: se renombró a
+// `.panel` para poder habilitar el `card` de DaisyUI, que declara
+// `display: flex` y convertiría en columna flex a cualquier tarjeta vieja que
+// haya quedado. Se mira en el DOM y no en el fuente porque una clase la puede
+// armar un `.js` o una isla en tiempo de ejecución, donde un `grep` no llega.
+async function revisarTarjetasViejas(page, name) {
+  const viejas = await page.evaluate(() => document.querySelectorAll('.card').length);
+  if (viejas > 0) {
+    failures++;
+    console.error(`[PANEL] ${name}: ${viejas} elementos con la clase \`card\` vieja; tienen que ser \`panel\``);
+  }
+}
+
 // La captura y las revisiones que solo piden la pantalla ya pintada.
 //
 // Veinticinco de las treinta y ocho pantallas no se abren por URL —se llega a
@@ -156,6 +169,7 @@ async function revisarClasesDescartadas(page, name) {
 async function capturar(page, name) {
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
   await revisarClasesDescartadas(page, name);
+  await revisarTarjetasViejas(page, name);
   shots.push(name);
 }
 
@@ -829,7 +843,7 @@ async function shot(page, name, url, prepare) {
   }
   // Se captura CON el popup abierto, pero `revisarClasesDescartadas` (la
   // guarda de clases sin regla detrás que corre en `capturar()`) sólo mira
-  // `[class*="badge"],[class*="btn"],[class*="alert"],.steps,.card`: de lo
+  // `[class*="badge"],[class*="btn"],[class*="alert"],.steps,.panel`: de lo
   // que arma este JS eso alcanza al ✕ y a «Listo» —es `btn`—, no a `modal`,
   // `modal-box`, `modal-backdrop`, `loading` ni a ninguna `ia-*`.
   await capturar(page, '09-14-ia-respuesta');

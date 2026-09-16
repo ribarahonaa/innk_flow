@@ -25,7 +25,7 @@
 - props = set ? CriteriaSetPresenter.new(set, membership: current_membership, back_url: challenge_step_path(step.challenge, step)).as_json : nil
 - puede_configurar = policy(step).configure?
 
-.card
+.panel
   .section-head
     %h2.section-title= step.selection? ? "Los filtros" : "Los criterios"
   %p.muted= step.selection? ? "Condiciones que la idea tiene que cumplir para avanzar. Se aplican antes del corte." : "Con qué se puntúa cada idea en este módulo."
@@ -51,7 +51,7 @@
     -# único camino de escritura de la configuración de un módulo.
     - nueva_version = step.criteria_set&.newer_version
     - asignables = CriteriaSet.asignables_para(step)
-    .card
+    .panel
       %h2.section-title Este módulo todavía no tiene criterios propios
       - if step.criteria_set
         %p.muted
@@ -99,12 +99,12 @@
       = link_to "Guardarlos también en la biblioteca", promote_criteria_set_path(set),
                 data: { turbo_method: :post }, class: "field-hint__link"
 
-    .card
+    .panel
       = render "shared/ai_actions", challenge: step.challenge, mode: step.effective_ai_mode, always: true,
                actions: [{ label: "Rehacer los criterios con IA", purpose: "suggest_criteria", step_id: step.id }]
 
     %div{ "data-island": "criteria-editor", data: { props: props.to_json } }
-      .card.island-placeholder
+      .panel.island-placeholder
         %p.muted Cargando el editor de criterios…
 
     = javascript_include_tag "packs/criteria_editor", defer: true, nonce: content_security_policy_nonce
@@ -116,7 +116,7 @@
   -# porque acá no importa si es de la biblioteca o propio del módulo — sólo
   -# qué corre.
   - efectivo = step.criteria_set
-  .card
+  .panel
     - if efectivo
       %p.muted
         = efectivo.inline? ? "Criterios propios de este módulo" : "De la biblioteca: #{efectivo.name}"

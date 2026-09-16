@@ -8,7 +8,7 @@
 - data = @handler.dashboard
 - narrative = @handler.reports.detect { |r| r.kind == "narrative" && r.ready? }
 
-.card
+.panel
   %h2.section-title Generar
   %p.muted
     Modo
@@ -50,7 +50,7 @@
                 = link_to "Descargar", rails_blob_path(report.file, disposition: "attachment"), class: "btn btn-ghost btn-sm"
 
 - if narrative
-  .card.narrative-card
+  .panel.narrative-card
     %h2.section-title
       Resumen narrativo
       %span.ai-chip IA
@@ -67,7 +67,7 @@
         %strong Lo que quedó afuera:
         = narrative.data["left_behind"]
 
-.card
+.panel
   %h2.section-title Embudo
   .funnel
     - data["funnel"].each do |stage|
@@ -81,7 +81,7 @@
             %span.funnel__lost= "−#{stage['eliminated']}"
 
 - if data["ranking"].any?
-  .card
+  .panel
     %h2.section-title Ranking
     %table.step-table
       %thead
@@ -112,7 +112,7 @@
                 = t("flow.idea_statuses.#{row['status']}")
 
 - if data["distribution"].any?
-  .card
+  .panel
     %h2.section-title Distribución de puntajes
     .histogram
       - max = data["distribution"].map { _1["count"] }.max.to_f
@@ -124,7 +124,7 @@
           %span.histogram__count= bucket["count"]
 
 - if data["evaluators"].any?
-  .card
+  .panel
     %h2.section-title Participación de evaluadores
     %table.step-table
       %thead
@@ -143,7 +143,7 @@
 
 - matrix = data["matrix"]
 - if matrix["columns"].any?
-  .card
+  .panel
     %h2.section-title
       Matriz por módulo
       - if data["mode"] == "by_version"

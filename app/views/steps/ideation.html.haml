@@ -5,7 +5,7 @@
 = render "steps/ai_mode", step: @step
 
 - progress = @handler.progress
-.card
+.panel
   .step-progress
     %div
       %strong= progress.done
@@ -19,7 +19,7 @@
 
 = render "steps/campos_editor", step: @step
 
-.card
+.panel
   %h2.section-title
     Ideas postuladas
     %span.muted= " (#{@handler.submitted_ideas.count})"

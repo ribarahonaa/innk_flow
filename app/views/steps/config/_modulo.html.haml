@@ -10,7 +10,7 @@
 -# arregla. Sin `configure?`, se muestra en modo lectura.
 - if policy(step).configure?
   = form_with model: step, url: challenge_step_path(step.challenge, step), method: :patch do |f|
-    .card
+    .panel
       %h2.section-title El módulo
       .field
         = f.label :name, "Nombre"

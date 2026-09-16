@@ -13,7 +13,7 @@
 -# nombres en las dos columnas.
 - desafio = step.challenge
 - progress = handler.progress
-.card
+.panel
   %h3.section-title Progreso
   .step-progress
     %div
@@ -22,7 +22,7 @@
     .progress-bar
       .progress-bar__fill{ style: "width: #{[progress.pct, 100].min}%" }
 
-.card
+.panel
   %h3.section-title
     Criterios
     - if step.criteria_set

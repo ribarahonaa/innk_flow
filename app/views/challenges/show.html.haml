@@ -23,13 +23,13 @@
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 
 - if @challenge.brief.present?
-  .card
+  .panel
     %h2.section-title Brief
     %p= simple_format(@challenge.brief)
 
 - hechos = @challenge.steps.count { |s| %w[completed skipped].include?(s.status) }
 - actual = @challenge.steps.find(&:active?)
-.card
+.panel
   .section-head
     %h2.section-title Flujo
     -# Dónde está el proceso, sin tener que leer la tabla fila por fila.

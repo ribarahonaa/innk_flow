@@ -17,7 +17,7 @@
   - evaluaron = step.assessments.current.group(:evaluator_id).count
   - hay_pesos = asignaciones.any?(&:weighted?)
   - cerrado = step.completed? || step.skipped?
-  .card
+  .panel
     .section-head
       %h2.section-title
         Quién evalúa

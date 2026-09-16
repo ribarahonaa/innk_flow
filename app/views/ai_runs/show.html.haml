@@ -10,16 +10,16 @@
 - if @run.error.present?
   .flash.flash--alert= @run.error
 
-.card
+.panel
   %h2.section-title Prompt
   %pre.code-block= JSON.pretty_generate(@run.prompt)
 
-.card
+.panel
   %h2.section-title Respuesta
   %pre.code-block= @run.response ? JSON.pretty_generate(@run.response) : "—"
 
 - if @run.ai_suggestions.any?
-  .card
+  .panel
     %h2.section-title Sugerencias derivadas
     %table.step-table
       %thead

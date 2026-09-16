@@ -5,7 +5,7 @@
     %h1.page-title Cambios entre versiones
     %p.muted= @diff.summary
 
-.card
+.panel
   = form_with url: diff_challenge_idea_path(@challenge, @idea), method: :get, class: "diff-picker" do
     .field
       = label_tag :a, "Desde"
@@ -15,7 +15,7 @@
       = select_tag :b, options_for_select(@versions.map { |v| ["#{v.label} · #{l(v.created_at, format: :short)}", v.id] }, @to.id)
     = submit_tag "Comparar", class: "btn btn-ghost"
 
-.card
+.panel
   - if @diff.changes.empty?
     %p.muted No hay diferencias entre #{@from.label} y #{@to.label}.
   - else

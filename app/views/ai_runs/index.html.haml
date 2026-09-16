@@ -18,7 +18,7 @@
     %span.stat-card__value= "#{@stats[:avg_latency] || 0} ms"
     %span.stat-card__label latencia media
 
-.card
+.panel
   - if @runs.empty?
     %p.muted Todavía no se llamó a la IA.
   - else

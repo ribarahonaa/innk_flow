@@ -19,12 +19,12 @@
         %li= error
 
 - if @pipeline.steps.empty?
-  .card.empty-state
+  .panel.empty-state
     %p.muted El desafío todavía no tiene módulos. Armá el flujo y volvé.
 
 - @pipeline.steps.each_with_index do |step, index|
   - handler = step.handler
-  .card
+  .panel
     .section-head
       %div
         %h2.section-title

@@ -8,7 +8,7 @@
 
     <div v-if="versionCreated" class="flash flash--notice">{{ versionCreated }}</div>
 
-    <div class="card">
+    <div class="panel">
       <div class="field">
         <label>Nombre del set</label>
         <input v-model="form.name" type="text" placeholder="Evaluación técnica" />
@@ -19,7 +19,7 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="panel">
       <div class="section-head">
         <div>
           <h2 class="section-title">Criterios</h2>

@@ -1,7 +1,7 @@
 <template>
   <div class="builder" :class="{ 'builder--dirty': dirty }">
     <!-- Paleta -->
-    <aside class="builder__palette card">
+    <aside class="builder__palette panel">
       <h2 class="section-title">Módulos</h2>
       <p class="muted builder__hint">Hacé clic para agregarlo al final del flujo.</p>
 
@@ -35,7 +35,7 @@
         <ul><li v-for="(e, i) in serverErrors" :key="i">{{ e }}</li></ul>
       </div>
 
-      <div v-if="!localSteps.length" class="card empty-state">
+      <div v-if="!localSteps.length" class="panel empty-state">
         <p class="muted">El flujo está vacío. Empezá agregando <strong>Idear</strong>.</p>
       </div>
 

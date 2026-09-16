@@ -4,7 +4,7 @@
     %h1.page-title Quiénes están en #{current_company.name}
     %p.muted Una persona puede estar en varias empresas: su rol acá no toca el que tenga en otra.
 
-.card
+.panel
   %h2.section-title Sumar a alguien
   = form_with url: members_path, method: :post, class: "invite-form" do
     = email_field_tag :email, nil, placeholder: "email@empresa.com", required: true
@@ -15,7 +15,7 @@
     Si la persona ya existe se le suma esta empresa; si no, se crea. Todavía no hay envío de
     invitaciones por mail: quien la crea le pasa el acceso.
 
-.card
+.panel
   %h2.section-title
     Miembros
     %span.muted= " (#{@memberships.size})"
@@ -34,7 +34,7 @@
         = button_to "Sacar", member_path(membership), method: :delete, class: "btn btn-ghost btn-sm",
                     form: { data: { turbo_confirm: "¿Sacar a #{membership.user.name} de #{current_company.name}?" } }
 
-.card
+.panel
   %h2.section-title Qué hace cada rol
   %ul.field-list
     - Membership::ROLES.each do |role|

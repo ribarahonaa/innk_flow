@@ -12,7 +12,7 @@
 - ve_todo = ranking.size == completo.size
 
 - gates = @handler.gate_criteria
-.card
+.panel
   .section-head
     %h2.section-title Cómo se decide
     - if @step.criteria_set && policy(@challenge).update_pipeline?
@@ -82,7 +82,7 @@
 -# módulo. Acá se le puede pedir a la IA que los responda, idea por idea.
 - sin_veredicto = ranking.select { |r| r.pending_gates.any? }
 - if @step.active? && @handler.verdict_gates.any? && sin_veredicto.any? && policy(@step).advance?
-  .card
+  .panel
     %h2.section-title Pedirle los veredictos a la IA
     %p.muted
       La IA lee la idea y responde cada filtro con su justificación. A diferencia de una
@@ -103,7 +103,7 @@
 - corte_id = "corte-#{@step.id}"
 - fuera_aca = @handler.eliminated_ideas.index_by(&:id)
 
-.card
+.panel
   %h2.section-title
     Ranking
     %span.muted= " · #{above.size} de #{completo.size} avanzan"
@@ -211,7 +211,7 @@
 -# le atan por `form=`, así el botón de veredicto de una fila no vive adentro.
 - if decidible
   = form_with url: challenge_step_selection_path(@challenge, @step), method: :patch, id: corte_id do
-    .card
+    .panel
       %h2.section-title Confirmar el corte
       %p.muted Avanzan las ideas tildadas arriba. Las que no pasan un filtro no se pueden tildar.
       .field
@@ -222,7 +222,7 @@
 
 - decisions = SelectionDecision.where(challenge_step_id: @step.id).latest_first.includes(:idea, :decided_by).limit(30)
 - if decisions.any?
-  .card
+  .panel
     %h2.section-title Registro de decisiones
     -# Una llamada a `decide!` escribe una fila por idea, con el mismo quién,
     -# el mismo motivo y el mismo momento. La tabla los repetía en cada fila:

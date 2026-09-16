@@ -14,12 +14,12 @@
   - elsif ideacion
     %p.muted.page-head__note La postulación abre cuando arranque el desafío.
 
-.card
+.panel
   %h2.section-title En carrera
   = render "ideas/list", ideas: @alive, challenge: @challenge
 
 - if @eliminated.any?
-  .card
+  .panel
     %h2.section-title No avanzaron
     %p.muted Quedaron fuera en un módulo de selección. Siguen consultables y pueden repescarse.
     = render "ideas/list", ideas: @eliminated, challenge: @challenge

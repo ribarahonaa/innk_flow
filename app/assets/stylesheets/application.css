@@ -1,19 +1,14 @@
 @import "tailwindcss";
 
-/* `card` queda AFUERA. Medido: el `.card` de DaisyUI no solo pinta —declara
-   `display: flex`, `flex-direction: column` y `position: relative`—, y esas
-   tres el `.card` de esta app nunca las declaró, así que no había conflicto
-   que ganar por orden de fuente: entraban igual. Con 101 usos eso convierte
-   cada tarjeta en una columna flex y a sus hijos en items (un enlace suelto
-   pasa de `inline` a `block` y se come el ancho entero). Y su
-   `.card > :is([type=checkbox],[type=radio]) { appearance: none }` haría
-   desaparecer una casilla que cuelgue directo de una tarjeta.
-   Excluirla es más honesto que taparla regla por regla: el `card` de DaisyUI
-   entra en el plan 2, cuando las pantallas se reescriban con `card-body`, y
-   ahí se saca esta línea. */
+/* `card` de DaisyUI está HABILITADA, pero ninguna tarjeta la usa todavía.
+   Estuvo excluida porque además de pintar declara `display: flex`,
+   `flex-direction: column` y `position: relative`, y habilitarla convertía de
+   golpe todas las tarjetas de la app en columnas flex. Para poder habilitarla
+   sin tocar ninguna, las tarjetas de la app se renombraron a `.panel`. Cada
+   pantalla pasa de `.panel` a `card` + `card-body` cuando le toca (plan 2b),
+   y `.panel` se borra cuando no quede ninguna. */
 @plugin "daisyui" {
   themes: false;
-  exclude: card;
 }
 
 /* ── Las dos familias ───────────────────────────────────────────────────── */
@@ -528,9 +523,9 @@ body {
    Y la prosa lleva su propia medida: un párrafo a 1.440px de línea no se lee
    por más que la tarjeta sí quiera ese ancho. */
 .app-main { max-width: var(--trabajo); width: 100%; margin-inline: auto; }
-.app-main > .card p:not([class]),
-.app-main > .card .muted,
-.app-main > .card .field-hint,
+.app-main > .panel p:not([class]),
+.app-main > .panel .muted,
+.app-main > .panel .field-hint,
 .app-main > .page-head p,
 .app-main > p { max-width: var(--prosa); }
 
@@ -750,7 +745,7 @@ body {
   .flow-drawer__hint { display: none; }
 }
 
-.card {
+.panel {
   background: var(--surface);
   border: 1px solid var(--borde);
   border-radius: var(--radius);
@@ -826,8 +821,9 @@ input:focus, textarea:focus, select:focus {
    `btn` se migró: es autocontenida y el mapeo es directo. Las reglas propias
    se borraron y las de DaisyUI toman su lugar.
 
-   `card` NO se migró, y no alcanzaba con dejarla después del @plugin: se
-   excluye del plugin, arriba, con la medición que lo justifica.
+   `card` tampoco colisiona ya: la tarjeta de esta app pasó a llamarse
+   `.panel`, y el `card` de DaisyUI quedó habilitada sin que nada la use
+   todavía. Ver el comentario del @plugin, arriba.
 
    `btn-link` tampoco: el de DaisyUI es una variante de botón con la altura de
    `btn`, y el de acá es una acción en medio de una frase, sin padding ni
@@ -2265,8 +2261,8 @@ textarea:disabled {
 
 /* ── Los dos popups de la IA ───────────────────────────────────────────────── */
 /*  */
-/* El armazón es el `modal` de DaisyUI (que NO está excluido: sólo `card` lo */
-/* está) sobre un `<dialog>` de verdad: `showModal()` deja el resto de la */
+/* El armazón es el `modal` de DaisyUI sobre un `<dialog>` de verdad: */
+/* `showModal()` deja el resto de la */
 /* página inerte, que es lo que el aviso viejo no hacía. */
 .ia-espera { text-align: center; }
 
