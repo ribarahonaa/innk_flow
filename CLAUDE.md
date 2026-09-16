@@ -42,7 +42,7 @@ No hay linter configurado.
 **`make screens` es la verificación end-to-end real**, no un extra. Recorre la
 app corriendo con un navegador y falla si hay error de JS, HTTP >= 400, si
 queda un `.island-placeholder` sin montar o si una clase quedó **sin ninguna
-regla detrás** porque Tailwind no la vio al escanear —eso se revisa en las 35
+regla detrás** porque Tailwind no la vio al escanear —eso se revisa en las 38
 pantallas, no en algunas: vive en `capturar()`—. Corrélo después de tocar
 vistas, islas o CSS — un bug de Vue no lo atrapa ningún spec de Ruby (un
 `__VUE_OPTIONS_API__` mal puesto dejó el builder en blanco y la suite en verde).

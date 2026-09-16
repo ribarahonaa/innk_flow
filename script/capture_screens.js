@@ -836,6 +836,13 @@ async function shot(page, name, url, prepare) {
 
   // «Listo», para no dejar una propuesta pendiente: la corrida siguiente la
   // encontraría como «ya había una» y el camino de éxito dejaría de probarse.
+  //
+  // Se anota ANTES el `action` del form de «Listo» para poder esperar a que se
+  // vaya ESA propuesta. Esperar a que no quede ninguna `.ai-suggestion` daría
+  // lo mismo hoy, pero el panel lista todo lo pendiente de la idea: una
+  // propuesta de otro propósito colgaría la corrida diez segundos y la
+  // abortaría sin resumen.
+  const formDeListo = await page.getAttribute('dialog[data-ia="respuesta"] form', 'action');
   await page.click('dialog[data-ia="respuesta"] button:has-text("Listo")');
   await page.waitForSelector('dialog[data-ia="respuesta"]', { state: 'detached', timeout: 10000 });
   // «Listo» también sale a `_top`, y el diálogo se saca en
@@ -844,7 +851,7 @@ async function shot(page, name, url, prepare) {
   // aceptada se vaya del panel, que es lo que sólo puede pasar una vez
   // pintada la pantalla nueva: sin esto el contador de morphs de acá abajo
   // registra ÉSTE y la guarda pasa aunque el pedido no vaya a `_top`.
-  await page.waitForSelector('.ai-suggestion', { state: 'detached', timeout: 10000 });
+  await page.waitForSelector(`form[action="${formDeListo}"]`, { state: 'detached', timeout: 10000 });
 
   // 3 · El camino `_top`: el pedido que refresca la PANTALLA ENTERA.
   //
@@ -855,29 +862,29 @@ async function shot(page, name, url, prepare) {
   // lleva puesto, o le saca el `open` y lo deja en el DOM sin verse. Por eso
   // se comprueba que hubo morph de verdad y no sólo que el popup aparece.
   //
-  // Se reescribe un form de IA de esta misma pantalla a un propósito que no
-  // existe y a `_top`: el servidor lo rechaza antes de llamar a nadie, así
-  // que este camino tampoco cuesta un peso.
+  // Va por el camino de ÉXITO y no por uno rechazado: lo que hay que ver
+  // sobrevivir al morph es el popup CON la tarjeta de propuesta adentro, que
+  // es un `<dialog>` con un `<form>` dentro. Es el mismo «Detectar
+  // duplicados» de recién —la propuesta anterior ya se aceptó, así que el
+  // runner arranca una corrida nueva— y sigue sin costar un peso: compara
+  // local porque el proveedor de VECTORES es el fixture.
   await page.evaluate(() => {
     window.__morphs = 0;
     addEventListener('turbo:morph', () => { window.__morphs += 1; });
   });
   const hayFormTop = await page.evaluate(() => {
-    const form = document.querySelector('form[action*="/ai_requests"]');
+    const form = document.querySelector('form[action*="detect_duplicates"]');
     if (!form) return false;
-    const url = new URL(form.action);
-    url.searchParams.set('purpose', 'proposito-inexistente');
-    form.action = url.toString();
     form.dataset.turboFrame = '_top';
     form.requestSubmit();
     return true;
   });
   if (!hayFormTop) {
     failures++;
-    console.error('[IA] la ficha de la idea no ofrece ningún pedido a la IA');
+    console.error('[IA] la ficha de la idea no ofrece «Detectar duplicados»');
   }
 
-  await page.waitForSelector('dialog[data-ia="respuesta"][open]', { timeout: 15000 });
+  await page.waitForSelector('dialog[data-ia="respuesta"][open]', { timeout: 30000 });
   if (!(await page.evaluate(() => window.__morphs > 0))) {
     failures++;
     console.error('[IA] el pedido a `_top` no pasó por un morph: este camino no se probó');
@@ -887,13 +894,19 @@ async function shot(page, name, url, prepare) {
     console.error('[IA] la espera sobrevivió al morph de la pantalla entera');
   }
   // El popup que sobrevivió al morph tiene que estar VISIBLE, no sólo en el
-  // DOM: idiomorph puede dejar el `<dialog>` puesto y sacarle el `open`.
-  if (!(await page.locator('dialog[data-ia="respuesta"] .ia-respuesta--error').isVisible())) {
+  // DOM: idiomorph puede dejar el `<dialog>` puesto y sacarle el `open`. Y con
+  // su tarjeta adentro: el `<form>` de «Listo» es lo que este camino suma.
+  const listoTrasMorph = page.locator('dialog[data-ia="respuesta"] button:has-text("Listo")');
+  if (!(await listoTrasMorph.isVisible())) {
     failures++;
-    console.error('[IA] el popup de respuesta quedó en el DOM sin verse después del morph');
+    console.error('[IA] la tarjeta de la propuesta no sobrevivió al morph de la pantalla entera');
   }
   await capturar(page, '09-15-ia-respuesta-pantalla-entera');
-  await page.click('dialog[data-ia="respuesta"] .ia-respuesta__cerrar');
+
+  // Se acepta de nuevo, por lo mismo que la vez anterior: dejarla pendiente
+  // haría que la corrida siguiente la reúse y este camino dejaría de probarse.
+  if (await listoTrasMorph.count()) await listoTrasMorph.click();
+  else await page.click('dialog[data-ia="respuesta"] .ia-respuesta__cerrar');
 
   await shot(page, '11-ai-runs', '/admin/ai_runs');
 
