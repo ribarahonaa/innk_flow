@@ -98,11 +98,15 @@ RSpec.describe "capa de IA", type: :request do
       end
     end
 
+    # 404 y no 403: una propuesta del flujo no le aparece en ningún lado —el
+    # panel filtra por `accept?` y la auditoría es de quien administra—, así
+    # que un 403 le confirmaría que existe. Ver el desafío no alcanza.
     it "un participante NO puede aplicar propuestas del desafío" do
       sign_in(participant, company: company)
       post accept_ai_suggestion_path(suggestion)
 
-      expect(response).to have_http_status(:forbidden)
+      expect(response).to have_http_status(:not_found)
+      expect(as_company(company) { suggestion.reload }).to be_pending
     end
 
     # Pedir y aceptar tienen que preguntar lo mismo. Pedirla sobre un desafío

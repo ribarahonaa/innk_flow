@@ -42,23 +42,11 @@ class AiSuggestionsController < ApplicationController
 
   # Se buscaba por id en toda la empresa: a quien participa, una propuesta
   # sobre una idea ajena le daba 403 y un id inexistente 404, y esa diferencia
-  # confirma que existe.
+  # confirma que existe. Qué propuestas ve cada quien lo dice
+  # `AiSuggestionPolicy#visible?`.
   def set_suggestion
     @suggestion = AiSuggestion.find(params[:id])
-    raise ActiveRecord::RecordNotFound unless objetivo_visible?
-  end
-
-  # Una propuesta se ve si se ve su OBJETIVO: el desafío para el gestor, la
-  # idea para quien participa. Lo que no se ve da 404.
-  #
-  # No es «si la podés revisar», aunque el panel filtre así: quien administra
-  # ve todas las propuestas en `/admin/ai_runs`, y con el desafío cerrado no
-  # poder aplicar una que ve es un 403 legítimo —ver y no poder hacer no
-  # confirma nada que no supiera—.
-  def objetivo_visible?
-    return false unless policy_scope(Challenge).exists?(id: @suggestion.desafio&.id)
-
-    @suggestion.idea_id.nil? || policy_scope(Idea).exists?(id: @suggestion.idea_id)
+    raise ActiveRecord::RecordNotFound unless policy(@suggestion).visible?
   end
 
   # Editar antes de aceptar: la sugerencia queda con status "edited" y el

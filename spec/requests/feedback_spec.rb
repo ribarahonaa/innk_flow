@@ -49,10 +49,10 @@ RSpec.describe "resolver feedback", type: :request do
     end
   end
 
-  def feedback!(body: "¿Y el costo?", kind: "question")
+  def feedback!(body: "¿Y el costo?", kind: "question", por: owner)
     as_company(company) do
       FeedbackItem.create!(challenge_step: step, idea: idea, idea_version_id: idea.current_version_id,
-                           author: owner, kind: kind, body: body)
+                           author: por, kind: kind, body: body)
     end
   end
 
@@ -170,12 +170,31 @@ RSpec.describe "resolver feedback", type: :request do
     # 404 y no 403: quien participa no ve la idea de otra persona, y un 403
     # le confirmaría que existe —y que tiene comentarios—. Este spec aceptaba
     # 403, que era justamente el oráculo.
-    it "un tercero NO: quien comenta no decide si quedó atendido" do
+    it "un tercero que no ve la idea tampoco sabe que tiene comentarios" do
       item = feedback!
       sign_in(ajeno, company: company)
       post resolve_challenge_step_feedback_item_path(challenge, step, item), params: { resolution: "dismissed" }
 
       expect(response).to have_http_status(:not_found)
+      expect(as_company(company) { item.reload }).to be_open
+    end
+
+    # La regla de `resolve?`, con alguien que SÍ ve la idea: quien evalúa ve
+    # todas, así que el 403 acá no confirma nada. Con el 404 de arriba este era
+    # el único caso que quedaba probando la regla: sin él, poner `true` en
+    # lugar de `participates?` dejaba la suite en verde.
+    it "quien comenta no decide si quedó atendido" do
+      evaluadora = without_tenant do
+        u = create(:user, email: "evaluadora@test.dev")
+        create(:membership, company: company, user: u, role: "evaluator")
+        u
+      end
+      item = feedback!(por: evaluadora)
+      sign_in(evaluadora, company: company)
+
+      post resolve_challenge_step_feedback_item_path(challenge, step, item), params: { resolution: "dismissed" }
+
+      expect(response).to have_http_status(:forbidden)
       expect(as_company(company) { item.reload }).to be_open
     end
   end

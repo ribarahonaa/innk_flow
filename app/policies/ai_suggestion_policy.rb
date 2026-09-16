@@ -30,6 +30,18 @@ class AiSuggestionPolicy < ApplicationPolicy
   end
 
   def request? = accept?
+
+  # ¿La ve? Donde aparece una propuesta es exactamente esto: el panel de cada
+  # pantalla filtra por `accept?`, y la auditoría (`/admin/ai_runs`) le muestra
+  # todas a quien administra. Lo que no ve da 404, no un 403 que confirme que
+  # existe.
+  #
+  # No es «se ve si se ve su objetivo», que fue la regla anterior: a quien
+  # participa le dejaba 403 por una propuesta del flujo —ve el desafío, pero
+  # la propuesta no le aparece en ningún lado—. Y tampoco es `accept?` a
+  # secas, que fue la primera: quien administra ve una propuesta sobre un
+  # desafío cerrado aunque ya no la pueda aplicar, y ahí el 403 es legítimo.
+  def visible? = manager? || accept?
   def reject? = accept?
   def index? = manager?
 

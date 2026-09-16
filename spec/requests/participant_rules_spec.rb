@@ -264,8 +264,8 @@ RSpec.describe "reglas de quien participa", type: :request do
           expect(estados).to eq([404, 404])
         end
 
-        # El panel ya filtra por `accept?`: una propuesta que no podés revisar
-        # no la ves en ningún lado, así que tampoco existe.
+        # Una propuesta sobre una idea que no ve no le aparece en ningún lado.
+        # Qué ve cada quien lo dice `AiSuggestionPolicy#visible?`.
         it "revisar una propuesta de la IA sobre ella" do
           estados = con_ajeno_y_con_inexistente(propuesta_ajena) do |id|
             post accept_ai_suggestion_path(id)

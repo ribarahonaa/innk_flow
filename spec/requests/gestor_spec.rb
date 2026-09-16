@@ -86,9 +86,6 @@ RSpec.describe "el rol gestor", type: :request do
       expect(response).to have_http_status(:not_found)
     end
 
-    # Por la URL de SU desafío con el id de un comentario del otro. El
-    # comentario se buscaba por id en toda la empresa y `resolve?` miraba el
-    # desafío del comentario: 403, que confirma que existe.
     # Los criterios de un módulo son del desafío. `CriteriaSetPolicy` no tenía
     # nada propio y heredaba `show? = membership.present?`: abrir el set por
     # id le mostraba los criterios de un desafío que no ve. No era un oráculo
@@ -127,6 +124,9 @@ RSpec.describe "el rol gestor", type: :request do
       end
     end
 
+    # Por la URL de SU desafío con el id de un comentario del otro. El
+    # comentario se buscaba por id en toda la empresa y `resolve?` miraba el
+    # desafío del comentario: 403, que confirma que existe.
     it "ni cerrando un comentario del otro desde la URL del suyo" do
       ajena = idea_en(otro_de_demo, demo)
       comentario = as_company(demo) do
