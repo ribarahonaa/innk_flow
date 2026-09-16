@@ -1217,6 +1217,13 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
 .alert-soft.alert-warning { color: var(--warn); }
 .alert-soft.alert-error { color: var(--danger); }
 
+/* `badge-soft` pinta el texto con el color puro del tema, y en estas
+   variantes no llega a 4,5:1 (lo mide `make screens`). Se oscurece con el
+   mismo token que usaba el chip antes de ser `badge`. */
+.badge-soft.badge-success { color: var(--ok); }
+.badge-soft.badge-warning { color: var(--warn); }
+.badge-soft.badge-error { color: var(--danger); }
+
 .island-placeholder { text-align: center; padding: 40px; }
 
 @media (max-width: 1040px) {

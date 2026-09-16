@@ -11,30 +11,40 @@
 # `run.succeeded? ? 'completed' : ...` estaba repetido en cinco vistas, y
 # cambiar el estilo de «falló» significaba encontrarlas todas.
 module EstilosHelper
-  # Cubre dos enums a la vez: ChallengeStep::STATUSES (pending/activating/
-  # active/completed/skipped) y Challenge::STATUSES (draft/running/closed/
-  # archived) — la hoja ya los agrupa con el mismo color (`.status-chip--
-  # draft, .status-chip--pending { ... }`), así que comparten helper. El
-  # brief original no traía draft/running/closed: un desafío "running" caía
-  # al default "pending" y perdía el celeste que tiene "en curso" en la ficha
-  # del desafío.
+  # Los chips son `badge` de DaisyUI, en su variante suave, y el color lo
+  # decide el grupo al que pertenece el estado —el mismo agrupamiento que
+  # tenía la hoja—:
+  #
+  #   neutro   draft · pending · closed · archived
+  #   acento   running · active · activating         → badge-primary
+  #   ok       completed                             → badge-success
+  #   warn     skipped                               → badge-warning
+  #
+  # Cubre dos enums a la vez: ChallengeStep::STATUSES y Challenge::STATUSES.
+  # Cada valor va ENTERO y literal: Tailwind escanea texto, y una clase armada
+  # con interpolación no llega a la hoja.
+  #
+  # `badge-sm` porque los chips tenían 11px de letra; `font-semibold` y
+  # `whitespace-nowrap` porque los tenían, y el `badge` no.
   CHIP_DE_ESTADO = {
-    "pending" => "status-chip status-chip--pending",
-    "draft" => "status-chip status-chip--draft",
-    "active" => "status-chip status-chip--active",
-    "activating" => "status-chip status-chip--activating",
-    "running" => "status-chip status-chip--running",
-    "completed" => "status-chip status-chip--completed",
-    "skipped" => "status-chip status-chip--skipped",
-    "closed" => "status-chip status-chip--closed",
-    "archived" => "status-chip status-chip--archived"
+    "pending" => "badge badge-soft badge-sm font-semibold whitespace-nowrap",
+    "draft" => "badge badge-soft badge-sm font-semibold whitespace-nowrap",
+    "closed" => "badge badge-soft badge-sm font-semibold whitespace-nowrap",
+    "archived" => "badge badge-soft badge-sm font-semibold whitespace-nowrap",
+    "active" => "badge badge-soft badge-primary badge-sm font-semibold whitespace-nowrap",
+    "activating" => "badge badge-soft badge-primary badge-sm font-semibold whitespace-nowrap",
+    "running" => "badge badge-soft badge-primary badge-sm font-semibold whitespace-nowrap",
+    "completed" => "badge badge-soft badge-success badge-sm font-semibold whitespace-nowrap",
+    "skipped" => "badge badge-soft badge-warning badge-sm font-semibold whitespace-nowrap"
   }.freeze
 
+  # `badge-xs` porque tenían 10px de letra; `ml-1.5` es el `margin-left: 6px`
+  # que los separaba del nombre del criterio.
   CHIP_DE_ORIGEN = {
-    "manual" => "source-chip source-chip--manual",
-    "automatic" => "source-chip source-chip--automatic",
-    "ai" => "source-chip source-chip--ai",
-    "formula" => "source-chip source-chip--formula"
+    "manual" => "badge badge-soft badge-primary badge-xs font-semibold whitespace-nowrap ml-1.5",
+    "automatic" => "badge badge-soft badge-success badge-xs font-semibold whitespace-nowrap ml-1.5",
+    "ai" => "badge badge-soft badge-secondary badge-xs font-semibold whitespace-nowrap ml-1.5",
+    "formula" => "badge badge-soft badge-warning badge-xs font-semibold whitespace-nowrap ml-1.5"
   }.freeze
 
   CLASE_DE_FLASH = {
@@ -42,15 +52,18 @@ module EstilosHelper
     "alert" => "alert alert-soft alert-error"
   }.freeze
 
-  # Las claves son FeedbackItem::KINDS tal cual las declara el modelo
-  # (suggestion/question/issue). El brief original traía "comment" y "risk",
-  # que no son valores del dominio, y no mapeaba "issue" —el real— que caía
-  # al default y perdía el color rojo de `.feedback-kind--issue` en la hoja.
+  # Las claves son FeedbackItem::KINDS tal cual las declara el modelo. Van en
+  # mayúsculas y en negrita, como iban.
   CLASE_DE_FEEDBACK = {
-    "suggestion" => "feedback-kind feedback-kind--suggestion",
-    "question" => "feedback-kind feedback-kind--question",
-    "issue" => "feedback-kind feedback-kind--issue"
+    "suggestion" => "badge badge-soft badge-primary badge-xs font-bold uppercase",
+    "question" => "badge badge-soft badge-warning badge-xs font-bold uppercase",
+    "issue" => "badge badge-soft badge-error badge-xs font-bold uppercase"
   }.freeze
+
+  # La marca de IA. Estaba escrita a mano en nueve vistas; como `badge` serían
+  # cinco clases repetidas nueve veces, que es justo lo que «si aparece en más
+  # de dos vistas es un componente» existe para evitar.
+  CHIP_DE_IA = "badge badge-soft badge-secondary badge-xs font-bold tracking-wide"
 
   CLASE_DE_DIFF = {
     "added" => "diff-kind diff-kind--added",
@@ -99,6 +112,7 @@ module EstilosHelper
   def chip_de_origen(source) = CHIP_DE_ORIGEN.fetch(source.to_s, CHIP_DE_ORIGEN.fetch("manual"))
   def clase_de_flash(tipo) = CLASE_DE_FLASH.fetch(tipo.to_s, CLASE_DE_FLASH.fetch("notice"))
   def clase_de_feedback(kind) = CLASE_DE_FEEDBACK.fetch(kind.to_s, CLASE_DE_FEEDBACK.fetch("suggestion"))
+  def chip_de_ia = CHIP_DE_IA
   def clase_de_diff(kind) = CLASE_DE_DIFF.fetch(kind.to_s, CLASE_DE_DIFF.fetch("changed"))
   def clase_de_resultado(status) = CLASE_DE_RESULTADO.fetch(status.to_s, CLASE_DE_RESULTADO.fetch("pending"))
   def clase_de_nodo_de_flujo(estado) = CLASE_DE_NODO_DE_FLUJO.fetch(estado.to_s, CLASE_DE_NODO_DE_FLUJO.fetch("pending"))

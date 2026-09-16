@@ -16,7 +16,7 @@
       .panel.ai-guide-banner
         %h2.section-title
           La IA ya evaluó esta idea
-          %span.ai-chip IA
+          %span{ class: chip_de_ia } IA
         %p.muted Vas a ver su valor y su razón junto a cada criterio. Podés partir de ahí y ajustar.
         = link_to "Precargar con los valores de la IA",
                   new_challenge_step_assessment_path(@challenge, @step, idea_id: @idea.id, prefill: "ai"),
@@ -80,7 +80,7 @@
       .panel.assessment-detail--ai
         %h2.section-title
           Comentario general de la IA
-          %span.ai-chip IA
+          %span{ class: chip_de_ia } IA
         %p.assessment-detail__comment= @ai_assessment.overall_comment
 
     .panel

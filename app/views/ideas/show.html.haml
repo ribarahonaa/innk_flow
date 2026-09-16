@@ -18,7 +18,7 @@
       - if @idea.submitted_at
         %span= " · postulada #{l(@idea.submitted_at, format: :short)}"
       - else
-        %span.status-chip.status-chip--pending Borrador
+        %span{ class: chip_de_estado("pending") } Borrador
   .page-head__actions
     - if policy(@idea).update?
       = link_to "Editar", edit_challenge_idea_path(@challenge, @idea), class: "btn btn-ghost"
@@ -114,7 +114,7 @@
             .feedback-round
               %p.feedback-round__head
                 %strong= paso.name
-                %span.status-chip.status-chip--active en curso
+                %span{ class: chip_de_estado("active") } en curso
                 %span.muted= " · #{resumen}"
               %ul.feedback-list
                 - comentarios.each do |item|
@@ -123,7 +123,7 @@
             %details.feedback-round.feedback-round--cerrada
               %summary.feedback-round__head
                 %strong= paso.name
-                %span.status-chip.status-chip--skipped= t("flow.statuses.#{paso.status}").downcase
+                %span{ class: chip_de_estado("skipped") }= t("flow.statuses.#{paso.status}").downcase
                 %span.muted= " · #{resumen}"
               %ul.feedback-list
                 - comentarios.each do |item|
@@ -144,7 +144,7 @@
             .version-timeline__meta
               = version.author_name
               - if version.by_ai?
-                %span.ai-chip IA
+                %span{ class: chip_de_ia } IA
             - if version.change_note.present?
               %p.version-timeline__note= version.change_note
             - if version.source_step

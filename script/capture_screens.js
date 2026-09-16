@@ -297,28 +297,64 @@ async function revisarContraste(page, name) {
 const MUESTRARIO = [
   'alert alert-soft alert-success',
   'alert alert-soft alert-warning',
-  'alert alert-soft alert-error'
+  'alert alert-soft alert-error',
+  // Cada chip distinto que devuelve `EstilosHelper`. Un spec de Ruby
+  // (`estilos_helper_spec.rb`) falla si el helper devuelve uno que no está
+  // acá: si no, esa variante nunca se mide en el tema en que ninguna pantalla
+  // la muestre.
+  'badge badge-soft badge-sm font-semibold whitespace-nowrap',
+  'badge badge-soft badge-primary badge-sm font-semibold whitespace-nowrap',
+  'badge badge-soft badge-success badge-sm font-semibold whitespace-nowrap',
+  'badge badge-soft badge-warning badge-sm font-semibold whitespace-nowrap',
+  'badge badge-soft badge-primary badge-xs font-semibold whitespace-nowrap ml-1.5',
+  'badge badge-soft badge-success badge-xs font-semibold whitespace-nowrap ml-1.5',
+  'badge badge-soft badge-secondary badge-xs font-semibold whitespace-nowrap ml-1.5',
+  'badge badge-soft badge-warning badge-xs font-semibold whitespace-nowrap ml-1.5',
+  'badge badge-soft badge-primary badge-xs font-bold uppercase',
+  'badge badge-soft badge-warning badge-xs font-bold uppercase',
+  'badge badge-soft badge-error badge-xs font-bold uppercase',
+  'badge badge-soft badge-secondary badge-xs font-bold tracking-wide'
+];
+
+// Los chips que se ven ATENUADOS: los de un comentario ya atendido
+// (`shared/_feedback_item`: el tipo, la resolución y la marca de IA), adentro
+// de `.feedback-item.is-addressed`, que tiene `opacity: .72`. Se inyectan
+// dentro de un elemento con esa misma clase, así la opacidad y el fondo son
+// los de verdad y no una copia.
+const MUESTRARIO_ATENUADO = [
+  'badge badge-soft badge-primary badge-xs font-bold uppercase',
+  'badge badge-soft badge-warning badge-xs font-bold uppercase',
+  'badge badge-soft badge-error badge-xs font-bold uppercase',
+  'badge badge-soft badge-success badge-sm font-semibold whitespace-nowrap',
+  'badge badge-soft badge-secondary badge-xs font-bold tracking-wide'
 ];
 
 async function revisarMuestrario(page, tema) {
-  await page.evaluate((clases) => {
+  await page.evaluate(({ plenas, atenuadas }) => {
     const destino = document.querySelector('.panel') || document.querySelector('.app-main') || document.body;
     const caja = document.createElement('div');
     caja.dataset.muestrario = '';
-    for (const clase of clases) {
-      const muestra = document.createElement('div');
-      muestra.className = clase;
-      muestra.textContent = 'Muestra de contraste';
-      caja.appendChild(muestra);
-    }
+    const muestra = (clase, padre) => {
+      const el = document.createElement('div');
+      el.className = clase;
+      el.dataset.muestra = '';
+      el.textContent = 'Muestra de contraste';
+      padre.appendChild(el);
+    };
+    for (const clase of plenas) muestra(clase, caja);
+    const atenuado = document.createElement('div');
+    atenuado.className = 'feedback-item is-addressed';
+    for (const clase of atenuadas) muestra(clase, atenuado);
+    caja.appendChild(atenuado);
     destino.appendChild(caja);
-  }, MUESTRARIO);
-  const medidos = await medirContraste(page, '[data-muestrario] > *');
+  }, { plenas: MUESTRARIO, atenuadas: MUESTRARIO_ATENUADO });
+  const medidos = await medirContraste(page, '[data-muestrario] [data-muestra]');
   await page.evaluate(() => document.querySelector('[data-muestrario]')?.remove());
 
-  if (medidos.length !== MUESTRARIO.length) {
+  const esperadas = MUESTRARIO.length + MUESTRARIO_ATENUADO.length;
+  if (medidos.length !== esperadas) {
     failures++;
-    console.error(`[CONTRASTE] muestrario ${tema}: se midieron ${medidos.length} de ${MUESTRARIO.length} muestras`);
+    console.error(`[CONTRASTE] muestrario ${tema}: se midieron ${medidos.length} de ${esperadas} muestras`);
   }
   const bajos = medidos.filter((m) => m.ratio < 4.5);
   if (bajos.length) {
@@ -733,7 +769,7 @@ async function shot(page, name, url, prepare) {
   if (comite) {
     await page.goto(BASE + comite.href, { waitUntil: 'networkidle' });
     const filas = await page.locator('.assignment-row').count();
-    const conPesos = await page.locator('.status-chip--active', { hasText: 'con pesos' }).count();
+    const conPesos = await page.locator('.badge-primary', { hasText: 'con pesos' }).count();
 
     if (filas === 0) {
       failures++;

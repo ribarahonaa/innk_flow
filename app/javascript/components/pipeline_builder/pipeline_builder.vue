@@ -221,7 +221,7 @@ export default {
         statusLabel: 'Pendiente',
         // Literal, como el rótulo de al lado: un módulo recién agregado nace
         // pendiente y el server le manda la suya en cuanto se guarda.
-        statusClass: 'status-chip status-chip--pending',
+        statusClass: 'badge badge-soft badge-sm font-semibold whitespace-nowrap',
         aiMode: null,
         locked: false
       };

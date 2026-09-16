@@ -23,7 +23,7 @@
         Quién evalúa
         %span.muted= " · #{Flow::Texto.contar(asignaciones.size, "persona")}"
       - if hay_pesos
-        %span.status-chip.status-chip--active con pesos
+        %span{ class: chip_de_estado("active") } con pesos
     %p.muted.field-hint
       - if cerrado
         El módulo cerró: quién evaluó y cuánto pesó cada voto queda como está.

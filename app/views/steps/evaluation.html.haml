@@ -32,7 +32,7 @@
     -# jobs, así que los puntajes llegan de a poco y no todos juntos.
     - if pendientes.size > 1
       .ai-actions
-        %span.ai-chip IA
+        %span{ class: chip_de_ia } IA
         = button_to "Evaluar #{Flow::Texto.contar(pendientes.size, "idea")} con IA",
                     evaluate_all_challenge_step_path(@challenge, @step),
                     class: "btn btn-primary btn-sm"
@@ -117,7 +117,7 @@
             .assessment-detail__head
               %strong= assessment.evaluator_name
               - if assessment.by_ai?
-                %span.ai-chip IA
+                %span{ class: chip_de_ia } IA
               %span.version-chip= assessment.idea_version.label
               - if assessment.stale?
                 %span.stale-chip= "la idea ya va por #{idea.current_version&.label}"

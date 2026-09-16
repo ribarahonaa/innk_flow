@@ -12,7 +12,7 @@
     %span{ class: clase_de_feedback(item.kind) }= item.kind_label
     %span.muted= item.author_name
     - if item.by_ai?
-      %span.ai-chip IA
+      %span{ class: chip_de_ia } IA
     - if local_assigns[:con_origen]
       %span.muted= "· desde «#{step.name}»"
     - if item.open? && item.stale?
@@ -32,7 +32,7 @@
                      value: "dismissed", class: "btn btn-ghost btn-sm"
   - else
     .feedback-item__resolution
-      %span.status-chip.status-chip--completed= item.resolution_label
+      %span{ class: chip_de_estado("completed") }= item.resolution_label
       - if item.addressed_by_version
         %span.muted= "en #{item.addressed_by_version.label}"
       - if item.resolved_by

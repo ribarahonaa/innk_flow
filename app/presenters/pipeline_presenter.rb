@@ -9,9 +9,8 @@
 class PipelinePresenter
   # La clase del chip de estado la resuelve el MISMO mapeo que usan las vistas
   # HAML. La isla la recibe hecha en vez de armarla con un template literal:
-  # Tailwind escanea texto y un `status-chip--${step.status}` no existe para el
-  # escáner —hoy es inocuo porque la clase está escrita a mano en la hoja, y
-  # deja de serlo en cuanto el chip pase a `badge` de DaisyUI—.
+  # Tailwind escanea texto y un `badge-${color}` armado con interpolación no
+  # existe para el escáner.
   include EstilosHelper
 
   def initialize(challenge, membership: nil)

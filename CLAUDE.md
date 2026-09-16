@@ -803,9 +803,9 @@ saldría con el default y la utilidad parecería no haber compilado.
 #### Tailwind escanea texto: una clase interpolada no existe
 
 `app/helpers/estilos_helper.rb` traduce estado del dominio → clase y devuelve
-siempre el nombre **completo**, escrito literal. Nunca `"status-chip--#{x}"`:
-esa clase no llega a la hoja, el elemento queda sin ninguna regla detrás y en
-el DOM se ve perfecto mientras en pantalla no se ve nada. De rebote, la
+siempre el nombre **completo**, escrito literal. Nunca `"badge-#{x}"`: esa
+clase no llega a la hoja, el elemento queda sin ninguna regla detrás y en el
+DOM se ve perfecto mientras en pantalla no se ve nada. De rebote, la
 traducción estado → estilo queda en un solo lugar.
 
 La guarda es `spec/lint/clases_interpoladas_spec.rb` y mira **HAML, `.vue` y
@@ -815,8 +815,12 @@ una isla. En una isla el nombre lo manda el **presenter** en las props
 —`PipelinePresenter` resuelve el chip con el mismo `chip_de_estado` que el
 HAML— y el componente solo lo liga.
 
-Cada mapeo se prueba **contra su enum**, y con `end_with` y no `include`: un
-helper que devolviera `--issued` pasaba el test de `issue`.
+Cada mapeo se prueba **contra su enum**, preguntando si cada estado es clave
+del hash (`spec/helpers/estilos_helper_spec.rb`). Antes se comparaba el sufijo
+de la clase con `end_with`; con `badge` varios estados comparten la misma clase
+—`draft`, `pending`, `closed` y `archived` son el neutro— y el sufijo dejó de
+decir qué estado la pidió. Y todo chip empieza con `badge `: un valor que quedó
+con el nombre viejo se ve bien hasta que se borra su regla.
 
 #### El shell de tres regiones
 

@@ -27,6 +27,6 @@
     .panel.ai-panel
       %h2.section-title
         Propuestas de la IA
-        %span.ai-chip= suggestions.size
+        %span{ class: chip_de_ia }= suggestions.size
       - suggestions.each do |suggestion|
         = render "shared/ai_suggestion", suggestion: suggestion

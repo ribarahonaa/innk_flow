@@ -38,11 +38,11 @@
             %td= report.format.upcase
             %td
               - if report.ready?
-                %span.status-chip.status-chip--completed listo
+                %span{ class: chip_de_estado("completed") } listo
               - elsif report.stalled? || report.failed?
-                %span.status-chip.status-chip--skipped falló
+                %span{ class: chip_de_estado("skipped") } falló
               - else
-                %span.status-chip.status-chip--active generando…
+                %span{ class: chip_de_estado("active") } generando…
             %td.muted= report.row_count || "—"
             %td.muted= report.generated_at ? l(report.generated_at, format: :short) : "—"
             %td
@@ -53,7 +53,7 @@
   .panel.narrative-card
     %h2.section-title
       Resumen narrativo
-      %span.ai-chip IA
+      %span{ class: chip_de_ia } IA
     %p.narrative-card__summary= narrative.data["summary"]
     - if narrative.data["themes"].present?
       .theme-grid
@@ -99,7 +99,7 @@
             %td
               = row["title"]
               - if row["origin"] == "ai"
-                %span.ai-chip IA
+                %span{ class: chip_de_ia } IA
             %td.muted= row["author"]
             %td
               %strong= "#{(row['score'] * 100).round(1)}%"

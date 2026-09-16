@@ -48,7 +48,7 @@
   -# copiar a mano. Es lo que la vuelve una guía y no una opinión suelta.
   - if ai_score
     .ai-hint
-      %span.ai-chip IA
+      %span{ class: chip_de_ia } IA
       %strong.ai-hint__value= ai_score.display_value
       - if ai_score.comment.present?
         %span.ai-hint__reason= ai_score.comment

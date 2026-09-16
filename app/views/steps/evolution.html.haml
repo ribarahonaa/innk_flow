@@ -41,9 +41,9 @@
             %span.version-chip= entry.idea.current_version&.label
         .feedback-card__state
           - if @handler.responded?(entry)
-            %span.status-chip.status-chip--completed actualizada
+            %span{ class: chip_de_estado("completed") } actualizada
           - elsif open_items.any?
-            %span.status-chip.status-chip--pending= "#{open_items.size} sin atender"
+            %span{ class: chip_de_estado("pending") }= "#{open_items.size} sin atender"
           - if @step.active? && policy(entry.idea).update?
             = link_to "Responder editando la idea",
                       edit_challenge_idea_path(@challenge, entry.idea),

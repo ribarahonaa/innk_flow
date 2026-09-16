@@ -10,7 +10,7 @@
             = idea.author.name
             %span.version-chip= idea.current_version&.label
             - if idea.origin == "ai"
-              %span.ai-chip IA
+              %span{ class: chip_de_ia } IA
         -# «No avanzó» sin decir dónde obliga a entrar a la idea para saberlo.
         %span.idea-list__outcome
           %span{ class: chip_de_estado({ "active" => "active", "eliminated" => "skipped" }.fetch(idea.status, "pending")) }
