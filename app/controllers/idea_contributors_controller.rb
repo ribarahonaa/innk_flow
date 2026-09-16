@@ -35,6 +35,8 @@ class IdeaContributorsController < ApplicationController
 
   def set_idea
     @challenge = policy_scope(Challenge).find_by!(slug: params[:challenge_id])
-    @idea = @challenge.ideas.find(params[:idea_id])
+    # Por `policy_scope`: a quien participa, una idea ajena le daba 403 y un id
+    # inexistente 404, y esa diferencia confirma que existe.
+    @idea = policy_scope(@challenge.ideas).find(params[:idea_id])
   end
 end

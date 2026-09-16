@@ -174,6 +174,115 @@ RSpec.describe "reglas de quien participa", type: :request do
 
       expect(response.body).to include("La idea de Paula", "La idea de Pedro")
     end
+
+    # Lo que no ve tampoco se lo confirma una ruta que ACTÚA sobre una idea.
+    # Buscándola con `@challenge.ideas.find` y autorizando después, la ajena
+    # daba 403 y un id que no existe daba 404: esa diferencia dice que la idea
+    # existe, que es el oráculo que la ficha ya cerraba. Cada ruta se pide con
+    # las dos, y tienen que responder igual.
+    describe "ninguna ruta le confirma que existe una idea ajena" do
+      def con_ajena_y_con_inexistente(&pedido)
+        [ajena.id, SecureRandom.uuid].map do |id|
+          instance_exec(id, &pedido)
+          response.status
+        end
+      end
+
+      it "comentarla" do
+        estados = con_ajena_y_con_inexistente do |id|
+          post challenge_step_feedback_items_path(challenge, step_named("Ronda")),
+               params: { idea_id: id, kind: "suggestion", body: "Cambiala." }
+        end
+
+        expect(estados).to eq([404, 404])
+      end
+
+      it "sumarse como colaboradora" do
+        estados = con_ajena_y_con_inexistente do |id|
+          post challenge_idea_contributors_path(challenge, id), params: { user_id: paula.id, role: "contributor" }
+        end
+
+        expect(estados).to eq([404, 404])
+      end
+
+      it "abrir su ficha de evaluación" do
+        estados = con_ajena_y_con_inexistente do |id|
+          get new_challenge_step_assessment_path(challenge, step_named("Técnica"), idea_id: id)
+        end
+
+        expect(estados).to eq([404, 404])
+      end
+
+      it "pedirle algo a la IA sobre ella" do
+        estados = con_ajena_y_con_inexistente do |id|
+          post challenge_ai_requests_path(challenge, purpose: "coauthor_field", idea_id: id)
+        end
+
+        expect(estados).to eq([404, 404])
+      end
+
+      # Lo que cuelga de la idea tampoco: un comentario o una propuesta de la IA
+      # sobre ella. Los dos se buscaban por id a secas, en toda la empresa.
+      describe "ni lo que cuelga de ella" do
+        let!(:comentario_ajeno) do
+          as_company(company) do
+            FeedbackItem.create!(challenge_step: step_named("Ronda"), idea: ajena,
+                                 idea_version_id: ajena.current_version_id, author: admin,
+                                 actor_type: "human", kind: "suggestion", body: "Falta el costeo.")
+          end
+        end
+
+        let!(:propuesta_ajena) do
+          as_company(company) do
+            ideacion = challenge.steps.reload.find(&:ideation?)
+            task = Flow::AI::Tasks::DetectDuplicates.new(challenge: challenge, step: ideacion, idea: ajena)
+            Flow::AI::Runner.call(task, mode: "ai_assisted", challenge: challenge, step: ideacion,
+                                        idea: ajena).suggestion
+          end
+        end
+
+        def con_ajeno_y_con_inexistente(ajeno, &pedido)
+          [ajeno.id, SecureRandom.uuid].map do |id|
+            instance_exec(id, &pedido)
+            response.status
+          end
+        end
+
+        it "cerrar un comentario sobre ella" do
+          estados = con_ajeno_y_con_inexistente(comentario_ajeno) do |id|
+            post resolve_challenge_step_feedback_item_path(challenge, step_named("Ronda"), id)
+          end
+
+          expect(estados).to eq([404, 404])
+        end
+
+        it "reabrirlo" do
+          estados = con_ajeno_y_con_inexistente(comentario_ajeno) do |id|
+            post reopen_challenge_step_feedback_item_path(challenge, step_named("Ronda"), id)
+          end
+
+          expect(estados).to eq([404, 404])
+        end
+
+        # Una propuesta sobre una idea que no ve no le aparece en ningún lado.
+        # Qué ve cada quien lo dice `AiSuggestionPolicy#visible?`.
+        it "revisar una propuesta de la IA sobre ella" do
+          estados = con_ajeno_y_con_inexistente(propuesta_ajena) do |id|
+            post accept_ai_suggestion_path(id)
+          end
+
+          expect(estados).to eq([404, 404])
+        end
+
+        it "ni descartarla" do
+          estados = con_ajeno_y_con_inexistente(propuesta_ajena) do |id|
+            post reject_ai_suggestion_path(id)
+          end
+
+          expect(estados).to eq([404, 404])
+        end
+      end
+    end
   end
 end
 

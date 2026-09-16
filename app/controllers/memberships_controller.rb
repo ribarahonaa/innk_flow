@@ -56,7 +56,8 @@ class MembershipsController < ApplicationController
 
   private
 
-  def set_membership = @membership = Membership.find(params[:id])
+  # Por `policy_scope`: una membresía que no ves no existe.
+  def set_membership = @membership = policy_scope(Membership).find(params[:id])
 
   def rol(membership) = t("flow.roles.#{membership.role}")
 

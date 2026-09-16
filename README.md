@@ -133,8 +133,8 @@ Se regeneran desde su `.json` con la skill `archify`; el comando exacto está en
 ### Verificación
 
 ```
-make spec       # 848 ejemplos
-make screens    # 38 capturas; falla si alguna pantalla tira error JS o HTTP >= 400
+make spec       # la suite completa
+make screens    # recorre la app con un navegador; falla si alguna pantalla tira error JS o HTTP >= 400
 ```
 
 `make screens` es la verificación end-to-end real: recorre la app corriendo con

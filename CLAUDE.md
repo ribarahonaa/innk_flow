@@ -42,8 +42,8 @@ No hay linter configurado.
 **`make screens` es la verificación end-to-end real**, no un extra. Recorre la
 app corriendo con un navegador y falla si hay error de JS, HTTP >= 400, si
 queda un `.island-placeholder` sin montar o si una clase quedó **sin ninguna
-regla detrás** porque Tailwind no la vio al escanear —eso se revisa en las 38
-pantallas, no en algunas: vive en `capturar()`—. Corrélo después de tocar
+regla detrás** porque Tailwind no la vio al escanear —eso se revisa en todas
+las pantallas del recorrido, no en algunas: vive en `capturar()`—. Corrélo después de tocar
 vistas, islas o CSS — un bug de Vue no lo atrapa ningún spec de Ruby (un
 `__VUE_OPTIONS_API__` mal puesto dejó el builder en blanco y la suite en verde).
 
@@ -258,6 +258,11 @@ Dos reglas que no viven en el rol:
   no puede. La regla está en un solo lugar y las tres puertas la consultan
   (`AiSuggestionPolicy#evaluacion`, `AiRequestsController#autorizar!`,
   `StepsController#evaluate_all`).
+  **Y por eso no se edita al aceptarla** (`Tasks::EvaluateIdea#editable?`):
+  aceptar una propuesta pendiente admitía un payload editado, y quien evaluaba
+  se ponía puntaje en su propia idea con el nombre de la IA encima. Ninguna
+  pantalla edita un payload antes de aceptar; era una capacidad del dominio
+  sin interfaz.
 - **El puntaje y el desglose son cosas distintas.** Quien participa de una idea
   ve su resultado agregado cuando el módulo cierra; **quién puso qué** lo ven
   solo quien administra y quien evaluó esa idea. Por eso hay dos predicados en
@@ -301,8 +306,63 @@ ahora.
    escape: explícita y greppable (jobs, seeds, tasks).
 2. `TenantScoped` tiene un `default_scope` que **revienta** con `MissingTenant`
    sin tenant en contexto, en vez de devolver todo.
-3. Los controllers devuelven **404, nunca 403**: un 403 es un oráculo de
-   existencia.
+3. **Lo que no se ve da 404, no 403**: un 403 es un oráculo de existencia.
+   El 403 existe —`Pundit::NotAuthorizedError` lo devuelve— y es correcto
+   para lo que SÍ se ve pero no se puede hacer: ver un desafío y no poder
+   editarlo no confirma nada que no supieras. Esta línea decía «404, nunca
+   403», y el código nunca hizo eso.
+
+   **La trampa es el orden, no el `authorize`.** Buscar con el scope de
+   tenencia y autorizar DESPUÉS devuelve 403 sobre algo que no se debería
+   ver: a quien participa, una idea ajena le daba 403 y un id inexistente
+   404, y esa diferencia confirma que existe. Pasó en cuatro de los seis
+   controllers que buscaban una idea —cada uno con su `authorize` escrito—.
+   Por eso las ideas se buscan por `policy_scope`, y los desafíos también.
+   `spec/lint/ideas_por_policy_scope_spec.rb` cuida **sólo las ideas y sólo
+   en controllers**, y es texto: su comentario dice qué no ve. Lo que prueba
+   el comportamiento son los `[404, 404]` ruta por ruta de
+   `spec/requests/participant_rules_spec.rb`. La guarda marca los usos de
+   `Idea` o `.ideas` que queden fuera de un `policy_scope(...)` y prueba su
+   propio detector; las dos revisiones la evadieron, y lo que todavía no ve
+   —ideas a las que se llega por otro registro, `public_send`, heredocs— está
+   listado en su comentario. No le creas más que eso.
+
+   **Y lo que cuelga de una idea hereda su visibilidad.** Comentarios y
+   propuestas de la IA se buscaban por id en toda la empresa, con el mismo
+   403-contra-404. Un comentario se busca dentro del paso de la URL y sobre
+   una idea visible (`FeedbackItemsController#comentario`). Una propuesta la
+   ve (`AiSuggestionPolicy#visible?`) quien administra, y cualquier otra
+   persona si **le aparece en un panel Y ve aquello sobre lo que actúa**: el
+   panel filtra por `accept?`, pero vive en pantallas que ya filtraron por
+   desafío e idea, y la regla tiene que filtrar igual. Tres intentos fallaron
+   por una mitad cada uno: `accept?` a secas volvía 404 el 403 legítimo de
+   quien administra un desafío cerrado; «se ve si se ve su objetivo» le dejaba
+   403 a quien participa por una propuesta del flujo; y `manager? || accept?`
+   dejaba a un gestor dado de baja —con la asignación intacta— **aplicar una
+   evaluación** sobre un desafío que le da 404, porque `accept?` de una
+   evaluación sólo miraba la asignación. `AssessmentPolicy#create?` ahora
+   pregunta si llega al desafío (`spec/policies/assessment_policy_spec.rb`,
+   el único spec de policy directo: por request, esa línea la tapan otros).
+   La guarda de lint no cubre comentarios ni propuestas.
+
+   **Una policy sin nada propio hereda `show? = membership.present?`**, o sea
+   «cualquiera de la empresa lee esto». `CriteriaSetPolicy` estaba vacía, y
+   un gestor abría por id —200, con los criterios adentro— el set `inline` de
+   un desafío que no le asignaron. No era un oráculo: era una fuga de lectura,
+   y la auditoría del 403 la encontró de casualidad. Ahora su `Scope` deja la
+   biblioteca a la vista de la empresa y cada set `inline` a la de su
+   desafío. Antes de dejar una policy vacía, preguntate de qué desafío cuelga
+   lo que protege.
+
+   **Sin membresía, `none`.** La sesión guarda la empresa elegida y no
+   vuelve a pedir la membresía: a quien se la sacaron le queda el tenant
+   puesto y `current_membership` en `nil`. `ChallengePolicy::Scope` hacía
+   `scope.all unless gestor?`, y quien acababa de perder el acceso listaba
+   todos los desafíos —un gestor removido, más que antes—. El default de
+   `ApplicationPolicy::Scope#resolve` devuelve `none` sin membresía, y todo
+   `Scope` que lo sobreescriba tiene que hacer la misma pregunta primero
+   (`spec/tenancy/sin_membresia_spec.rb`). **La sesión sigue viva igual**:
+   esto cierra lo que se ve, no la puerta.
 4. FKs compuestas `(x_id, company_id)`: Postgres rechaza atar una fila de la
    empresa A a un padre de la B.
 

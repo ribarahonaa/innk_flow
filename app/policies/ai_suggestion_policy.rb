@@ -30,6 +30,31 @@ class AiSuggestionPolicy < ApplicationPolicy
   end
 
   def request? = accept?
+
+  # ¿La ve? Lo que no ve da 404, no un 403 que confirme que existe.
+  #
+  # Quien administra ve todas, en la auditoría (`/admin/ai_runs`). Cualquier
+  # otra persona ve una propuesta si le aparece en un panel —que filtra por
+  # `accept?`— Y si ve aquello sobre lo que actúa: el desafío y, si la tiene,
+  # la idea. Las dos cosas, porque los paneles viven en pantallas que ya
+  # filtraron por desafío e idea, y la regla tiene que filtrar igual.
+  #
+  # Llevó tres intentos, y cada uno falló por una de las dos mitades:
+  #
+  #   · `accept?` a secas volvía 404 el 403 legítimo de quien administra un
+  #     desafío cerrado —ve la propuesta y ya no la puede aplicar—.
+  #   · «se ve si se ve su objetivo» le dejaba 403 a quien participa por una
+  #     propuesta del flujo, que no le aparece en ningún lado.
+  #   · `manager? || accept?` confiaba en `accept?`, y para una evaluación eso
+  #     es `AssessmentPolicy#create?` sin idea: sólo miraba la asignación. Un
+  #     gestor dado de baja con la asignación intacta, o alguien que evaluaba y
+  #     pasó a participar, aplicaba una evaluación sobre algo que le da 404.
+  def visible?
+    return true if manager?
+    return false unless accept? && reaches_challenge?(desafio)
+
+    record.idea.nil? || IdeaPolicy.new(membership, record.idea).show?
+  end
   def reject? = accept?
   def index? = manager?
 
@@ -55,5 +80,5 @@ class AiSuggestionPolicy < ApplicationPolicy
 
   # Una propuesta cuelga de UN objetivo —el desafío, el módulo o la idea—, así
   # que el desafío hay que buscarlo en el que tenga.
-  def desafio = record.challenge || paso&.challenge || record.idea&.challenge
+  def desafio = record.desafio
 end

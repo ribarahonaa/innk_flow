@@ -85,6 +85,60 @@ RSpec.describe "el rol gestor", type: :request do
       get challenge_step_path(otro_de_demo, step)
       expect(response).to have_http_status(:not_found)
     end
+
+    # Los criterios de un módulo son del desafío. `CriteriaSetPolicy` no tenía
+    # nada propio y heredaba `show? = membership.present?`: abrir el set por
+    # id le mostraba los criterios de un desafío que no ve. No era un oráculo
+    # de existencia; era leerlo.
+    describe "los criterios propios de un módulo del otro desafío" do
+      let!(:set_ajeno) do
+        as_company(demo) do
+          paso = otro_de_demo.steps.create!(kind: "evaluation", position: 3, name: "Técnica")
+          set = CriteriaSet.create!(name: "Criterios del onboarding", scope: "inline", owner_step_id: paso.id)
+          set.criteria.create!(key: "margen", name: "Margen interno del proveedor", weight: 1,
+                               source: "manual", scale_type: "numeric", position: 0)
+          paso.update!(criteria_set: set)
+          set
+        end
+      end
+
+      it "no los lee" do
+        get criteria_set_path(set_ajeno)
+
+        expect(response).to have_http_status(:not_found)
+        expect(response.body).not_to include("Margen interno del proveedor")
+      end
+
+      it "ni le confirma que existen al intentar editarlos" do
+        get edit_criteria_set_path(set_ajeno)
+        expect(response).to have_http_status(:not_found)
+      end
+
+      # La biblioteca es de la empresa, no de un desafío: esto no la toca. Si
+      # se decide que un gestor tampoco la ve, cambia acá.
+      it "la biblioteca la sigue viendo" do
+        biblioteca = as_company(demo) { CriteriaSet.create!(name: "Genéricos", scope: "library") }
+
+        get criteria_set_path(biblioteca)
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
+    # Por la URL de SU desafío con el id de un comentario del otro. El
+    # comentario se buscaba por id en toda la empresa y `resolve?` miraba el
+    # desafío del comentario: 403, que confirma que existe.
+    it "ni cerrando un comentario del otro desde la URL del suyo" do
+      ajena = idea_en(otro_de_demo, demo)
+      comentario = as_company(demo) do
+        ronda = otro_de_demo.steps.reload.find_by(name: "Ronda")
+        FeedbackItem.create!(challenge_step: ronda, idea: ajena, idea_version_id: ajena.current_version_id,
+                             author: admin, actor_type: "human", kind: "suggestion", body: "x")
+      end
+      mi_ronda = as_company(demo) { acompanado.steps.reload.find_by(name: "Ronda") }
+
+      post resolve_challenge_step_feedback_item_path(acompanado, mi_ronda, comentario)
+      expect(response).to have_http_status(:not_found)
+    end
   end
 
   describe "lo que sí puede hacer" do
