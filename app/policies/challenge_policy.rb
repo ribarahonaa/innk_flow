@@ -10,7 +10,12 @@ class ChallengePolicy < ApplicationPolicy
   # no da 403 sino 404: un 403 diría «existe pero no es tuyo», que es
   # justamente el oráculo de existencia que el resto del sistema evita.
   class Scope < ApplicationPolicy::Scope
+    # Sin membresía, nada: `gestor?` es falso para quien no tiene rol, y
+    # `scope.all unless gestor?` le mostraba a quien acababa de perder el
+    # acceso todos los desafíos de la empresa —a un gestor removido, más de
+    # los que veía antes—.
     def resolve
+      return scope.none if membership.nil?
       return scope.all unless gestor?
 
       scope.where(id: ChallengeGestor.for_user(membership.user).select(:challenge_id))

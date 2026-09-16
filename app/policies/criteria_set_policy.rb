@@ -10,6 +10,7 @@ class CriteriaSetPolicy < ApplicationPolicy
   # No era confirmar que existía: era leerlo.
   class Scope < ApplicationPolicy::Scope
     def resolve
+      return scope.none if membership.nil?
       return scope.all unless gestor?
 
       desafios = ChallengePolicy::Scope.new(membership, Challenge).resolve.select(:id)
