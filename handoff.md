@@ -2,162 +2,126 @@
 
 ## Objetivo
 
-Implementar los **popups de la IA** que la sesión anterior dejó diseñados: un
-modal con spinner mientras la IA piensa —no se cierra, bloquea la pantalla— y
-otro con la respuesta y la propuesta. De paso arregla el error que en modo
-asistido **no se veía nunca**.
+Los **cuatro puntos** que la sesión anterior dejó recomendados, en el orden en
+que los dejó: un botón que no se le ofrecía a quien podía usarlo, un «Aplicar»
+que no aplicaba nada, una cuenta de demo que mentía sobre su rol, y el camino
+`_top` del popup de la IA sin ninguna captura que lo recorriera.
 
-Sobre la marcha aparecieron tres cosas más, todas pedidas por Raúl mirando la
-app corriendo: que crear un desafío con «Que lo proponga la IA» no mostraba
-nada, que una selección necesitaba un mínimo de ideas que pasan, y que el
-camino de configuración estaba dibujado en dos lugares a la vez.
+Los cuatro son el mismo defecto de la rama anterior en distintas formas: un
+control que promete lo que no hace, o que no aparece donde tendría que
+aparecer.
 
-El plan de los popups se ejecutó con subagentes: uno por task, revisión después
-de cada una, revisión de rama entera al final. Lo demás se hizo inline con test
-primero.
+Se hizo inline con test primero, y dos rondas de revisión: la de rama entera y
+una re-revisión de los arreglos.
 
 ## Estado actual
 
-- **`master` en `ff6aa29`, pusheado, 0/0 con `origin`.** Dieciocho commits
-  sobre `df20fc9`.
-- **No quedan ramas.** `popups-de-ia` se mergeó por fast-forward y se borró
-  local y remota (estaba en `cef3c74`); `origin/rediseno-tailwind` también se
-  borró (estaba en `beb9a50`). Las dos estaban enteras en `master` —verificado
-  con `git rev-list --count master..rama` = 0 antes de borrar—.
-- **Verificación sobre `ff6aa29`:** `make spec` da 840 ejemplos, 0 fallas,
-  0 warnings. `make screens` saca 37 capturas sin errores de JS ni respuestas
+- **Rama `arreglos-de-permisos-y-demo`, ocho commits sobre `ad56dde`,
+  `9a7fbaa` la punta. SIN PUSHEAR y sin mergear.** `master` quedó donde
+  estaba.
+- **Verificación sobre `9a7fbaa`:** `make spec` da 848 ejemplos, 0 fallas
+  (eran 840). `make screens` saca 38 capturas sin errores de JS ni respuestas
   >= 400.
-- **Los dos últimos commits se hicieron directo sobre `master`**, sin ramear.
-  Está dicho, no se repitió a escondidas.
-- **Hechos del entorno que muerden:**
-  - **El push por SSH no anda desde esta shell:** `~/.ssh` no tiene clave.
-    Se pushea por HTTPS con el token de `gh`:
+- **El seed se corrió contra la base de desarrollo** para verificar el
+  renombre de la cuenta: conservó sus 2 ideas, la identidad viajó con ella y
+  no quedó nada con el correo viejo. La base quedó sembrada.
+- **Hechos del entorno que siguen valiendo** (de la sesión anterior, todos
+  confirmados):
+  - El push por SSH no anda: `~/.ssh` no tiene clave. Va por HTTPS con el
+    token de `gh`:
     `git -c credential.helper= -c credential.helper='!gh auth git-credential' push https://github.com/ribarahonaa/innk_flow.git <ref>`.
-  - **Desarrollo usa el proveedor real:** `FLOW_AI_PROVIDER=anthropic` en
-    `.env`. El de **embeddings** es el fixture, y por eso «Detectar duplicados»
-    compara local y no cuesta plata — eso es lo que hace posible la captura del
-    camino de éxito.
-  - **Crear un desafío con «Que lo proponga la IA» ahora bloquea el request
-    de 10 a 70 segundos** con el proveedor real, y cuesta plata. Es el
-    trade-off elegido; el popup de espera es lo que lo hace tolerable.
+  - Desarrollo usa el proveedor real (`FLOW_AI_PROVIDER=anthropic` en `.env`).
+    El de **embeddings** no está declarado, así que cae al fixture: por eso
+    «Detectar duplicados» compara local y las capturas lo pueden pedir dos
+    veces sin gastar un peso.
 
 ## Archivos y cambios
 
-Dieciocho commits. Los dos primeros son de la sesión anterior (el spec y su
-handoff).
+Ocho commits: cuatro de los puntos, cuatro de lo que encontraron las
+revisiones.
 
-**Los popups** (`227187f` … `335635b`)
+**Los cuatro puntos**
 
-- `flash[:ia]`, un hash con claves **string** (`tipo`, `mensaje`,
-  `sugerencia_id`), porque el flash viaja en la cookie como JSON.
-  `sugerencia_id` sólo cuando la propuesta quedó pendiente.
-- La respuesta viaja en un `<template data-ia-respuesta>` que se renderiza
-  **dos veces**: dentro del `turbo-frame#ai-suggestions` y en el layout. Hacen
-  falta las dos porque sin la gema `turbo-rails` Rails pinta el layout completo
-  y Turbo se queda sólo con el marco. La tarjeta de una propuesta salió a
-  `shared/_ai_suggestion`, que usan el panel y el popup.
-- `app/javascript/ia_popups.js` arma los dos `<dialog class="modal">` desde los
-  eventos de Turbo. Se fue `.ai-waiting` con todo su CSS.
-- `recorrido-ia` en `db/seeds.rb` y dos capturas nuevas.
+- `d89572c` — **el botón «Pedir la guía de la IA»**. La ficha de evaluación lo
+  mostraba con `update_pipeline?`, pero `evaluate_idea` declara
+  `actua_sobre = :assessment` y el pedido lo autoriza `AssessmentPolicy#create?`.
+  Un evaluador asignado podía pedirlo y nunca lo veía. Es la misma expresión
+  que `steps/evaluation.html.haml:23` ya usaba para el lote, escrita a mano en
+  la otra pantalla. La tabla de alcances de `CLAUDE.md` no listaba
+  `:assessment`.
+- `2aec5e9` — **un solo «Listo» en las propuestas informativas**. Detectar
+  duplicados no aplica nada, y ofrecía igual «Aplicar» y «Descartar». Quién lo
+  decide es la tarea, vía `AiSuggestion#informativa?`.
+- `2e5a3bb` — **`gestor@demo.test` → `admin2@demo.test`**. Estaba sembrada con
+  rol `admin`; la única con rol `gestor` es Gina. Se renombra EN EL LUGAR
+  (usuario e identidad), porque `upsert_user!` busca por correo y una base ya
+  sembrada quedaría con las dos. Guarda nueva: `spec/lint/cuentas_de_demo_spec.rb`.
+- `b3f4620` — **la captura del camino `_top`**, con contador de `turbo:morph`.
 
-**Lo que salió de usar la app**
+**Lo que encontraron las revisiones**
 
-- `6d0b67e` — crear un desafío con «Que lo proponga la IA» corre **síncrono**.
-  Era el primer pedido a la IA que hace cualquiera y el único que no mostraba
-  ninguno de los dos popups. La tabla de qué decir en cada desenlace se mudó a
-  `app/controllers/concerns/respuesta_de_ia.rb`, compartida por los dos
-  controllers que corren IA de forma síncrona.
-- `1f2a81d` — `cut.min`, un **mínimo de ideas que pasan** el corte. Con la
-  regla «puntaje mínimo» el corte podía dar CERO y en IA automática dejaba el
-  desafío sin finalistas. El piso **gana** sobre la regla, topeado por las
-  ideas evaluadas. Default 0.
-- `69c884d` — **el paso a paso de configuración son los módulos del flujo**, no
-  seis casilleros fijos.
-- `ff6aa29` — **el camino se dibuja sólo en el flujo de la izquierda**. La
-  tarjeta de arriba se fue de las ocho pantallas y el drawer absorbió lo que
-  sabía. Los `current:` escritos a mano se fueron: los infiere
-  `ShellHelper#paso_actual_del_setup`, la misma fuente que lee el pie.
+- `985acab` — el aviso `"Sugerencia aplicada."` quedó sin una sola aserción al
+  bifurcarse. `Tasks::Base.informativa?` reemplaza dos resoluciones a mano del
+  propósito. Los tres helpers del aviso bajan a `private`.
+- `bbad996` — la captura `_top` pasa a ir por el **éxito** y no por un
+  propósito inventado: así el popup trae la tarjeta, que es un `<form>` dentro
+  del `<dialog>`. Y el wait espera al form concreto en vez de a que no quede
+  ninguna `.ai-suggestion`.
+- `ab52780` — `puede_pedir` inline y último en el `&&`; `FILA_DE_CUENTA`; la
+  nota de que el renombre del seed es una migración de datos.
+- `9a7fbaa` — el accept final de la captura no se esperaba y el `goto` de
+  `shot()` lo cancelaba; el mensaje de la guarda mentía sobre lo que prueba;
+  `marco_para_pedido_de_ia` y `_ai_suggestion` seguían con rescues anchos; los
+  tres conteos.
 
-`CLAUDE.md` ganó tres reglas: que un `<dialog>` abierto no puede existir
-durante un morph, que el camino vive en un solo lugar y quién decide dónde
-estás, y qué necesita cada `kind` para contarse configurado.
+`CLAUDE.md` ganó tres cosas: la fila `:assessment`, el párrafo del «Listo» de
+las informativas, y la lección de la guarda que cuenta eventos.
 
 ## Intentos fallidos
 
-- **El layout nuevo rompía la pantalla de 404 en bucle.** `respuesta_de_ia`
-  consultaba `AiSuggestion`, que es `TenantScoped`, y `rescue_from` corre
-  **afuera** del `around_action`: `render_not_found` pinta el layout con
-  `Current` ya reseteado → `MissingTenant` → lo atrapa el mismo `rescue_from` →
-  vuelve a pintar. Es la trampa que `ShellHelper#desafio_del_shell` ya
-  documentaba. Guarda: `return nil if Current.company.nil?`.
-- **Acotar `turbo:fetch-request-error` con `if (!espera)` mató el popup de
-  `turbo:frame-missing` en 403 y 500.** El evento es global y el prefetch de
-  Turbo lo dispara al pasar el mouse por un link, así que había que acotarlo;
-  pero con 4xx/5xx `turbo:submit-end` llega con `success:false` y cierra la
-  espera **antes** de que se dispare `frame-missing`. La re-revisión miró sólo
-  el caso 200-sin-marco, que sí andaba — **error mío al acotarle el foco**. Lo
-  encontró la revisión de rama entera. Se reemplazó por una bandera de pedido
-  en vuelo.
-- **Tres pedazos del código del plan estaban mal** y se corrigieron al
-  ejecutarlo: `Flow::Pipeline#insert` devuelve un `Result`, no el
-  `ChallengeStep`; `a[href*="/ideas/"]` agarraba «Postular una idea»; y faltaba
-  el clic por link hasta la pantalla del módulo.
-- **El spec del congelado de `cut.min` estaba mal escrito.** Intentaba editar
-  el `config` de un módulo arrancado, y el modelo rechaza esa escritura:
-  `config` está en `FROZEN_ATTRIBUTES`. Lo que hay que probar es que
-  `resolve_config!` ESCRIBE la clave.
-- **`make screens` atrapó dos veces lo que `make spec` no.** La guarda del
-  camino exigía SEIS casilleros fijos: al volverse la lista derivada del
-  pipeline fallaron cinco pantallas de una, y al mudarse el camino al drawer
-  hubo que repuntarla otra vez. Se actualizó a `2 + 5 + 1` con la aritmética
-  escrita, no se aflojó a «más de cero».
-- **Un `- if` quedó sin cuerpo** al sacar el render de `setup_progress` de
-  `challenges/builder`, y reventó el HAML entero de esa pantalla.
-- **Las corridas de `make screens` de las tasks 1 a 3 pasaron en verde sin
-  haber abierto los popups ni una vez.** Recién la Task 4 los ejercitó.
-- **Un subagente pusheó la rama sin autorización.** Mi encargo no se lo
-  prohibía. Si se despachan subagentes que commitean, hay que decírselo.
+- **La guarda del morph pasaba por la razón equivocada.** Cuenta
+  `turbo:morph` para probar que el pedido refrescó la pantalla entera, pero el
+  clic anterior —«Listo»— también sale a `_top` y su diálogo se saca en
+  `turbo:submit-start`, o sea ANTES del morph: esperar a que el diálogo se
+  detache dejaba esa navegación en vuelo y el contador registraba ÉSE. **No se
+  descubrió leyendo la guarda: se descubrió apuntando el pedido al marco a
+  propósito y viendo que pasaba igual.** Está en `CLAUDE.md`.
+- **El `private` dentro de `class << self` de `Tasks::Base` se llevó puesto
+  `.for`**, que venía después. 50 specs en rojo de una. El método privado va
+  al final del bloque, no en el medio.
+- **Un `begin/rescue/end` no entra en HAML**: «You don't need to use "- end"».
+  Intentar acotar ahí el `rescue nil` del partial puso 50 specs en rojo. El
+  lugar del rescue acotado es el modelo (`AiSuggestion#tarea`).
+- **Puse 39 capturas antes de contarlas**, cuando eran 38. Y el conteo de
+  `capturar()` decía «nueve de las treinta»: son 25 de 38, contadas con `comm`
+  contra los nombres que pasan por `shot()`.
+- **La primera revisión no vio dos de los tres conteos desactualizados**,
+  incluido el `make spec # 743 ejemplos` de la línea de arriba de la que sí
+  arregló. Los encontró la re-revisión.
 
 ## Próximos pasos
 
-Las cuatro que recomendé, en una rama, en este orden:
+1. **Pushear y mergear la rama.** Las dos revisiones dan «listo para
+   mergear»; no quedó ningún hallazgo sin atender.
+2. **`CLAUDE.md` dice «404, nunca 403», y un `authorize` rechazado devuelve
+   403** (`tenant_resolution.rb:70`). Sigue sin decidir desde la sesión
+   anterior: o la doc no describe el código, o el código no cumple la regla.
+   Vale mirarlo con la tabla de alcances a mano, porque esta rama movió
+   justamente quién puede pedir qué.
+3. **El conteo de pantallas vive en tres lugares** (`README.md:137`,
+   `CLAUDE.md:45`, `script/capture_screens.js:151`) y se desactualizó en los
+   tres. Se pueden derivar del propio script, o aceptar que envejecen.
+4. **La espera larga real de 10 a 70 segundos sigue sin verse de punta a
+   punta**, porque cuesta plata. Decisión de Raúl, de la sesión anterior.
+5. **El `beforeunload` sigue sin cubrir nada** y no lo va a cubrir: Playwright
+   no muestra el diálogo nativo en headless.
 
-1. **El botón «Pedir la guía de la IA» no se le ofrece a quien puede usarlo.**
-   Bug **confirmado**: `assessments/new.html.haml:58` lo muestra con
-   `policy(@challenge).update_pipeline?`, pero `evaluate_idea` declara
-   `actua_sobre = :assessment` y el pedido lo autoriza
-   `AssessmentPolicy#create?`, que dice que sí a quien está **asignado a
-   evaluar ese módulo**. Un evaluador asignado puede pedirlo y nunca ve el
-   botón. Es el defecto de esta rama dado vuelta: una capacidad que no se
-   ofrece.
-2. **«Aplicar» en una propuesta informativa no aplica nada.** En duplicados el
-   botón promete algo que no hace; corresponde un solo «Listo».
-3. **`gestor@demo.test` está sembrado con rol `admin`** (`db/seeds.rb:38`),
-   mientras `guia@demo.test` es el que tiene rol `gestor`. La cuenta que se
-   llama gestor no lo es, y el login lista esas cuentas.
-4. **El camino `_top` no lo recorre ninguna captura.** Es el pedido que
-   refresca la pantalla entera, donde el popup convive con el morph: el riesgo
-   central del diseño y nada lo ejercita. Las dos capturas nuevas van al marco.
-   Se cierra con una tercera, y sigue siendo gratis.
-
-**Ruido documentado, se decidió dejarlo:** `layouts/auth.html.haml` sin el
-`next if` de `:ia` (inalcanzable: el flash se barre antes del login y esa
-pantalla no carga JS); `esPedidoDeIa` usa `form.action`, que un control
-`name="action"` sombrearía (ningún form de la app tiene uno, y `false` sería la
-respuesta correcta); el `waitForSelector(state:'detached')` tras «Descartar»
-se resuelve por el cierre del cliente y no por la confirmación del servidor (la
-propiedad la prueba la segunda corrida de `make screens`); el filtro de permiso
-del popup sin test propio (no se puede violar: `request?` **es** `accept?`);
-`pedidoEnVuelo` sin red de seguridad en `turbo:submit-end` (el `showModal()`
-deja la página inerte, no hay cómo dispararlo); y que la guarda sea por
-pedido-en-vuelo y no por correlación por request.
-
-**Sin decidir:**
-
-- `CLAUDE.md` dice «404, nunca 403», pero un `authorize` rechazado devuelve 403
-  (`tenant_resolution.rb:70`). O la doc no describe el código, o el código no
-  cumple la regla.
-- **El `beforeunload` no lo cubre nada** y no lo va a cubrir: Playwright no
-  muestra el diálogo nativo en headless.
-- **La espera larga real de 10 a 70 segundos nunca se vio de punta a punta**,
-  porque cuesta plata. Decisión de Raúl.
+**Ruido documentado, se decidió dejarlo:** `puede_pedir` en
+`assessments/new.html.haml` no puede dar `false` —el controller ya autorizó
+`create?` con la idea real, y sin idea la policy es más permisiva—, se
+pregunta igual porque la vista no puede depender de lo que autorizó el
+controller; el renombre del seed es una migración de datos que corre en cada
+`make setup` sin hacer nada (dice cuándo se puede borrar); y `FILA_DE_CUENTA`
+sigue siendo una constante en el namespace global, que es lo que pasa con
+cualquier constante dentro de un bloque de RSpec y la convención del
+directorio.
