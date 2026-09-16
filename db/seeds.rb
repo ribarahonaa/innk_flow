@@ -33,9 +33,26 @@ Flow::Tenant.bypass! do
     user
   end
 
+  # La cuenta se llamaba `gestor@demo.test` y tenía rol `admin`: el login lista
+  # estas cuentas con su rol para que se entre a ver el producto desde cada
+  # uno, y la que se llamaba gestor mandaba al rol equivocado —la única con rol
+  # `gestor` es Gina—.
+  #
+  # Se renombra EN EL LUGAR y no se crea una nueva: `upsert_user!` busca por
+  # correo, así que una base ya sembrada quedaría con las dos, y la vieja es
+  # autora y evaluadora del desafío —borrarla se llevaría sus ideas—. La
+  # identidad va con ella: su `uid` es el correo, y dejarla mantendría abierto
+  # el login viejo.
+  vieja = User.find_by(email: "gestor@demo.test")
+  if vieja
+    vieja.update!(email: "admin2@demo.test")
+    Identity.where(provider: Identity::PASSWORD, uid: "gestor@demo.test")
+            .update_all(uid: "admin2@demo.test")
+  end
+
   people = {
     "admin@demo.test" => ["Ana Admin", "admin"],
-    "gestor@demo.test" => ["Gabriel Gómez", "admin"],
+    "admin2@demo.test" => ["Gabriel Gómez", "admin"],
     "eval1@demo.test" => ["Elena Evaluadora", "evaluator"],
     "eval2@demo.test" => ["Emilio Evaluador", "evaluator"],
     "part1@demo.test" => ["Paula Participante", "participant"],
@@ -134,8 +151,8 @@ Flow::Tenant.bypass! do
     end
 
     admin = User.find_by!(email: "admin@demo.test")
-    autores = User.where(email: %w[part1@demo.test part2@demo.test gestor@demo.test]).to_a
-    evaluadores = User.where(email: %w[eval1@demo.test eval2@demo.test gestor@demo.test]).to_a
+    autores = User.where(email: %w[part1@demo.test part2@demo.test admin2@demo.test]).to_a
+    evaluadores = User.where(email: %w[eval1@demo.test eval2@demo.test admin2@demo.test]).to_a
 
     # El formulario lo define el dueño del desafío antes de arrancar: sin
     # preguntas nadie puede postular y `start!` no deja abrir el módulo.
@@ -186,7 +203,7 @@ Flow::Tenant.bypass! do
     end
 
     # Dos ideas hechas entre varias personas, y una con su costeo adjunto.
-    # `autores` y `evaluadores` comparten a gestor@demo.test, así que se elige
+    # `autores` y `evaluadores` comparten a admin2@demo.test, así que se elige
     # contra el autor real de cada idea en vez de por índice.
     sumar = lambda do |idea, role, candidatos|
       persona = candidatos.find { |u| u.id != idea.author_id }
