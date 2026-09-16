@@ -115,6 +115,16 @@ RSpec.describe EstilosHelper, type: :helper do
   # colores: el chip `skipped` es amarillo; el nodo `skipped` es neutro con el
   # borde punteado. Se respeta lo que pintaba cada uno.
   it "el nodo salteado es punteado, no amarillo" do
-    expect(helper.clase_de_nodo_de_flujo("skipped")).to eq("badge badge-dash badge-sm")
+    expect(helper.clase_de_nodo_de_flujo("skipped")).to eq("badge badge-soft badge-sm border-dashed")
+  end
+
+  # Los mapas que siguen teniendo un modificador por estado —`result--*`,
+  # `diff-kind--*`— se prueban además por el valor: con las claves solas, un
+  # `"advanced" => "result result--eliminated"` pegado de la línea de abajo
+  # pasaba.
+  it "cada resultado y cada tipo de diff pintan su propio modificador" do
+    { EstilosHelper::CLASE_DE_RESULTADO => "result--", EstilosHelper::CLASE_DE_DIFF => "diff-kind--" }.each do |mapa, prefijo|
+      mapa.each { |clave, clase| expect(clase).to end_with("#{prefijo}#{clave}"), "«#{clave}» pinta «#{clase}»" }
+    end
   end
 end

@@ -91,13 +91,13 @@ module EstilosHelper
   #   pending · activating   neutro, con borde
   #   active                 acento, en negrita
   #   completed              ok
-  #   skipped                neutro, borde punteado → badge-dash
+  #   skipped                neutro, borde punteado → border-dashed
   CLASE_DE_NODO_DE_FLUJO = {
     "pending" => "badge badge-soft badge-sm",
     "activating" => "badge badge-soft badge-sm",
     "active" => "badge badge-soft badge-primary badge-sm font-semibold",
     "completed" => "badge badge-soft badge-success badge-sm",
-    "skipped" => "badge badge-dash badge-sm"
+    "skipped" => "badge badge-soft badge-sm border-dashed"
   }.freeze
 
   # Las claves son StepEntry::STATUSES. El brief original traía "skipped"

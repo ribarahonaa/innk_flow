@@ -390,9 +390,6 @@
   --ok-soft: color-mix(in oklab, var(--color-success) 12%, var(--color-base-100));
   --warn-soft: color-mix(in oklab, var(--color-warning) 12%, var(--color-base-100));
   --danger-soft: color-mix(in oklab, var(--color-error) 12%, var(--color-base-100));
-  /* El gris de «todavía nada» / «ya terminó»: un tinte del propio texto, para
-     que se despegue de la superficie en los dos modos. */
-  --neutro-soft: color-mix(in oklab, var(--color-base-content) 8%, var(--color-base-100));
 
   --accent-borde: color-mix(in oklab, var(--color-primary) 40%, var(--color-base-100));
   --ia-borde: color-mix(in oklab, var(--color-secondary) 40%, var(--color-base-100));
@@ -2643,6 +2640,8 @@ turbo-frame#ai-suggestions { display: contents; }
 }
 .feedback-round--cerrada > .feedback-round__head { cursor: pointer; margin-bottom: 0; }
 .feedback-round--cerrada[open] > .feedback-round__head { margin-bottom: 10px; }
-/* Una ronda cerrada no se atenúa: ya va plegada en un `details`, que es lo
-   que dice que terminó, y atenuar la lista entera bajaba sus chips por debajo
-   de 4,5:1 igual que en un comentario atendido. */
+/* Una ronda cerrada no se atenúa: atenuar la lista entera bajaba sus chips
+   por debajo de 4,5:1 igual que en un comentario atendido. Ya va plegada en
+   un `details`, y abierta se distingue por el fondo: sin superficie propia,
+   como lo atendido. */
+.feedback-round--cerrada .feedback-item { background: var(--bg); }

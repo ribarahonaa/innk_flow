@@ -43,7 +43,10 @@ No hay linter configurado.
 app corriendo con un navegador y falla si hay error de JS, HTTP >= 400, si
 queda un `.island-placeholder` sin montar o si una clase quedó **sin ninguna
 regla detrás** porque Tailwind no la vio al escanear —eso se revisa en todas
-las pantallas del recorrido, no en algunas: vive en `capturar()`—. Corrélo después de tocar
+las pantallas del recorrido, no en algunas: vive en `capturar()`—. También
+falla si un `.badge` o un `.alert` mide menos de 4,5:1 de contraste en claro o
+en oscuro (`[CONTRASTE]`, en cada pantalla y en el muestrario), y si aparece un
+`card` sin `card-body` (`[PANEL]`). Corrélo después de tocar
 vistas, islas o CSS — un bug de Vue no lo atrapa ningún spec de Ruby (un
 `__VUE_OPTIONS_API__` mal puesto dejó el builder en blanco y la suite en verde).
 
@@ -738,11 +741,15 @@ Sass se jubiló entero. El archivo de salida conserva el nombre, así que el
 
 La fase 1 migró la plomería, las clases dinámicas, el tema y el shell. El plan
 2a pasó el vocabulario que se repite a componentes: las tablas son `table`, los
-avisos `alert alert-soft`, los chips y los nodos del mapa del flujo `badge`, y
-las tarjetas se llaman `.panel` mientras esperan su `card` + `card-body`. Lo
-que sigue —pantalla por pantalla (2b) y las islas Vue (2c)— tiene su plan
-cuando le toque. `.step-card`, `.flow-strip` y `.empty-state` siguen siendo
-clases propias a propósito: son vocabulario de esta app.
+avisos `alert alert-soft`, las cuatro familias de chips (estado, origen, tipo
+de feedback e IA) y los nodos del mapa del flujo son `badge`, y las tarjetas se
+llaman `.panel` mientras esperan su `card` + `card-body`. Otros chips
+(`version-chip`, `stale-chip`, `here-chip`, `out-chip`, `evaluator-chip`,
+`derived-chip`) siguen escritos a mano: la guarda de contraste no los mide, y
+son candidatos del plan 2b. Lo que sigue —pantalla por pantalla (2b) y las
+islas Vue (2c)— tiene su plan cuando le toque. `.step-card`, `.flow-strip` y
+`.empty-state` siguen siendo clases propias a propósito: son vocabulario de
+esta app.
 
 #### Lo que más fácil se rompe
 
@@ -816,9 +823,10 @@ excluida porque declara `display: flex`, y habilitarla convertía de golpe todas
 las tarjetas de la app en columnas flex. Para poder habilitarla sin tocar
 ninguna, las tarjetas de la app se llaman **`.panel`**: mismo CSS que tenía
 `.card`. Cada pantalla pasa de `.panel` a `card` + `card-body` cuando le toca
-(plan 2b). `make screens` falla si aparece un elemento con la clase `card`
-vieja (`revisarTarjetasViejas`), porque sin el `exclude` esa tarjeta se vuelve
-flex en silencio.
+(plan 2b). `make screens` falla si aparece un `card` sin `card-body`
+(`revisarTarjetasViejas`), que es la forma VIEJA; un `card` con `card-body`
+adentro ya es la migración del plan 2b y no hace fallar la guarda. Sin el
+`exclude`, esa tarjeta se volvería flex en silencio.
 
 **La capa decide quién gana, y no es la especificidad.** Las clases propias de
 la app van **sin capa**, y una regla sin capa le gana a cualquier `@layer` —o

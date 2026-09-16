@@ -156,16 +156,21 @@ async function revisarClasesDescartadas(page, name) {
   }
 }
 
-// Ningún elemento puede tener la clase `card` de esta app: se renombró a
-// `.panel` para poder habilitar el `card` de DaisyUI, que declara
-// `display: flex` y convertiría en columna flex a cualquier tarjeta vieja que
-// haya quedado. Se mira en el DOM y no en el fuente porque una clase la puede
-// armar un `.js` o una isla en tiempo de ejecución, donde un `grep` no llega.
+// Ningún elemento puede tener la clase `card` VIEJA de esta app —un `card`
+// SIN `card-body` adentro—: se renombró a `.panel` para poder habilitar el
+// `card` de DaisyUI, que declara `display: flex` y convertiría en columna
+// flex a cualquier tarjeta vieja que haya quedado. El plan 2b migra
+// `.panel` a `card` + `card-body` pantalla por pantalla, así que un `card`
+// CON `card-body` es la forma nueva y no tiene que hacer fallar esto. Se
+// mira en el DOM y no en el fuente porque una clase la puede armar un `.js`
+// o una isla en tiempo de ejecución, donde un `grep` no llega.
 async function revisarTarjetasViejas(page, name) {
-  const viejas = await page.evaluate(() => document.querySelectorAll('.card').length);
+  const viejas = await page.evaluate(
+    () => document.querySelectorAll('.card:not(:has(> .card-body))').length
+  );
   if (viejas > 0) {
     failures++;
-    console.error(`[PANEL] ${name}: ${viejas} elementos con la clase \`card\` vieja; tienen que ser \`panel\``);
+    console.error(`[PANEL] ${name}: ${viejas} elementos \`card\` sin \`card-body\`; tienen que ser \`panel\``);
   }
 }
 
@@ -265,6 +270,10 @@ async function probarMedidorDeContraste(page) {
     </body>`);
   const medidos = await medirContraste(page, '[data-esperado]');
   const esperados = await page.$$eval('[data-esperado]', (els) => els.map((e) => Number(e.dataset.esperado)));
+  if (medidos.length !== esperados.length) {
+    failures++;
+    console.error(`[CONTRASTE] el medidor midió ${medidos.length} de ${esperados.length} valores conocidos`);
+  }
   medidos.forEach((m, i) => {
     if (Math.abs(m.ratio - esperados[i]) > 0.05) {
       failures++;
@@ -314,12 +323,13 @@ const MUESTRARIO = [
   'badge badge-soft badge-warning badge-xs font-bold uppercase',
   'badge badge-soft badge-error badge-xs font-bold uppercase',
   'badge badge-soft badge-secondary badge-xs font-bold tracking-wide',
-  // Los nodos del mapa del flujo (`CLASE_DE_NODO_DE_FLUJO`). `badge-dash`
-  // no tiene fondo propio: se mide sobre el `.panel` donde vive el mapa.
+  // Los nodos del mapa del flujo (`CLASE_DE_NODO_DE_FLUJO`). El salteado
+  // comparte `badge-soft` con el pendiente —mismo fondo, mismo texto— y se
+  // distingue solo por `border-dashed`.
   'badge badge-soft badge-sm',
   'badge badge-soft badge-primary badge-sm font-semibold',
   'badge badge-soft badge-success badge-sm',
-  'badge badge-dash badge-sm'
+  'badge badge-soft badge-sm border-dashed'
 ];
 
 // Los chips de un comentario ya atendido —el tipo, la resolución y la marca

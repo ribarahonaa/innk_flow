@@ -256,6 +256,8 @@ Tres capas, en este orden:
 
 ### Mapeo
 
+> **Actualizado por el plan 2a** (`2026-09-16-rediseno-2a-vocabulario-design.md`): `.card` pasa primero por `.panel`, los avisos van a `alert-soft` y `toast` no entra, y `.flow-strip` queda como contenedor propio con nodos `badge`. Leé ese spec antes de usar esta tabla.
+
 | Hoy | DaisyUI |
 |---|---|
 | `.card` | `card` |
