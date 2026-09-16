@@ -813,23 +813,87 @@ async function shot(page, name, url, prepare) {
   await page.click('form[action*="detect_duplicates"] button');
   await page.waitForSelector('dialog[data-ia="respuesta"][open]', { timeout: 30000 });
 
+  // Detectar duplicados es INFORMATIVA: lo que devuelve es para leer y su
+  // `apply!` no toca nada, así que la tarjeta ofrece un solo «Listo» —no
+  // «Aplicar», que prometía algo que no pasaba, ni «Descartar», que decía que
+  // la IA se equivocó—.
+  if (!(await page.locator('dialog[data-ia="respuesta"] button:has-text("Listo")').count())) {
+    failures++;
+    console.error('[IA] el popup de una propuesta informativa no ofrece «Listo»');
+  }
   for (const texto of ['Aplicar', 'Descartar']) {
-    if (!(await page.locator(`dialog[data-ia="respuesta"] button:has-text("${texto}")`).count())) {
+    if (await page.locator(`dialog[data-ia="respuesta"] button:has-text("${texto}")`).count()) {
       failures++;
-      console.error(`[IA] el popup de respuesta no ofrece «${texto}»`);
+      console.error(`[IA] una propuesta informativa sigue ofreciendo «${texto}»`);
     }
   }
   // Se captura CON el popup abierto, pero `revisarClasesDescartadas` (la
   // guarda de clases sin regla detrás que corre en `capturar()`) sólo mira
   // `[class*="badge"],[class*="btn"],[class*="alert"],.steps,.card`: de lo
-  // que arma este JS eso alcanza al ✕ y a Aplicar/Descartar —son `btn`—, no a
-  // `modal`, `modal-box`, `modal-backdrop`, `loading` ni a ninguna `ia-*`.
+  // que arma este JS eso alcanza al ✕ y a «Listo» —es `btn`—, no a `modal`,
+  // `modal-box`, `modal-backdrop`, `loading` ni a ninguna `ia-*`.
   await capturar(page, '09-14-ia-respuesta');
 
-  // Descartar, para no dejar una propuesta pendiente: la corrida siguiente la
+  // «Listo», para no dejar una propuesta pendiente: la corrida siguiente la
   // encontraría como «ya había una» y el camino de éxito dejaría de probarse.
-  await page.click('dialog[data-ia="respuesta"] button:has-text("Descartar")');
+  await page.click('dialog[data-ia="respuesta"] button:has-text("Listo")');
   await page.waitForSelector('dialog[data-ia="respuesta"]', { state: 'detached', timeout: 10000 });
+  // «Listo» también sale a `_top`, y el diálogo se saca en
+  // `turbo:submit-start` —ANTES del morph—, así que el `detached` de arriba se
+  // cumple con la navegación todavía en vuelo. Se espera a que la propuesta
+  // aceptada se vaya del panel, que es lo que sólo puede pasar una vez
+  // pintada la pantalla nueva: sin esto el contador de morphs de acá abajo
+  // registra ÉSTE y la guarda pasa aunque el pedido no vaya a `_top`.
+  await page.waitForSelector('.ai-suggestion', { state: 'detached', timeout: 10000 });
+
+  // 3 · El camino `_top`: el pedido que refresca la PANTALLA ENTERA.
+  //
+  // Es el riesgo central del diseño y los dos caminos de arriba no lo tocan:
+  // los dos responden al marco de propuestas. Acá el popup convive con el
+  // morph —el layout declara `turbo-refresh-method: morph`— y un `<dialog
+  // open>` que el cliente agregó es, para idiomorph, un nodo de más: se lo
+  // lleva puesto, o le saca el `open` y lo deja en el DOM sin verse. Por eso
+  // se comprueba que hubo morph de verdad y no sólo que el popup aparece.
+  //
+  // Se reescribe un form de IA de esta misma pantalla a un propósito que no
+  // existe y a `_top`: el servidor lo rechaza antes de llamar a nadie, así
+  // que este camino tampoco cuesta un peso.
+  await page.evaluate(() => {
+    window.__morphs = 0;
+    addEventListener('turbo:morph', () => { window.__morphs += 1; });
+  });
+  const hayFormTop = await page.evaluate(() => {
+    const form = document.querySelector('form[action*="/ai_requests"]');
+    if (!form) return false;
+    const url = new URL(form.action);
+    url.searchParams.set('purpose', 'proposito-inexistente');
+    form.action = url.toString();
+    form.dataset.turboFrame = '_top';
+    form.requestSubmit();
+    return true;
+  });
+  if (!hayFormTop) {
+    failures++;
+    console.error('[IA] la ficha de la idea no ofrece ningún pedido a la IA');
+  }
+
+  await page.waitForSelector('dialog[data-ia="respuesta"][open]', { timeout: 15000 });
+  if (!(await page.evaluate(() => window.__morphs > 0))) {
+    failures++;
+    console.error('[IA] el pedido a `_top` no pasó por un morph: este camino no se probó');
+  }
+  if (await page.locator('dialog[data-ia="espera"]').count()) {
+    failures++;
+    console.error('[IA] la espera sobrevivió al morph de la pantalla entera');
+  }
+  // El popup que sobrevivió al morph tiene que estar VISIBLE, no sólo en el
+  // DOM: idiomorph puede dejar el `<dialog>` puesto y sacarle el `open`.
+  if (!(await page.locator('dialog[data-ia="respuesta"] .ia-respuesta--error').isVisible())) {
+    failures++;
+    console.error('[IA] el popup de respuesta quedó en el DOM sin verse después del morph');
+  }
+  await capturar(page, '09-15-ia-respuesta-pantalla-entera');
+  await page.click('dialog[data-ia="respuesta"] .ia-respuesta__cerrar');
 
   await shot(page, '11-ai-runs', '/admin/ai_runs');
 

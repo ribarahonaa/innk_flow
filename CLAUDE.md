@@ -55,6 +55,16 @@ Al escribir capturas nuevas en `script/capture_screens.js`:
   calma antes de que Turbo ponga el body nuevo, y la captura sale de la
   pantalla anterior.
 - Las islas exponen `data-island-mounted="true"` como señal determinista.
+- **Una guarda que cuenta eventos tiene que arrancar con el paso anterior ya
+  pintado, y hay que verla fallar.** La captura del camino `_top` cuenta
+  `turbo:morph` para probar que el pedido refrescó la pantalla entera y no el
+  marco. El clic anterior —«Listo»— también sale a `_top`, y su diálogo se
+  saca en `turbo:submit-start`, o sea ANTES del morph: esperar a que el
+  diálogo se detache deja esa navegación en vuelo y el contador registra ESE
+  morph. La guarda pasaba igual apuntando el pedido al marco; se descubrió
+  apuntándolo al marco a propósito, no leyéndola. Se espera una señal que
+  sólo puede existir con la pantalla nueva pintada (que la propuesta aceptada
+  se haya ido del panel).
 - **Nunca apuntes una captura a un desafío que también se usa a mano.**
   `optimizacion-de-la-experiencia-de-onboarding` ni siquiera vive en
   `db/seeds.rb` —es dato real armado a mano—, así que un `goto` ahí revienta
