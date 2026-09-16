@@ -21,8 +21,8 @@ Tres trabajos en una sesión, en este orden:
 
 ## Estado actual
 
-- **`master` en `0269b31`**, igual que `origin/master`. Sin ramas locales
-  además de `master`.
+- **`master` en `origin/master`**: el merge del 2a es `0269b31`, y encima
+  sólo hay commits de handoff. Sin ramas locales además de `master`.
 - **Verificación sobre `0269b31`:** `make spec` 880 ejemplos, 0 fallas.
   `make screens` 42 capturas sin errores, y sin ninguna guarda disparada
   (`[CLASES]`, `[CONTRASTE]`, `[PANEL]`, `[RITMO]`).
@@ -116,7 +116,15 @@ Tres trabajos en una sesión, en este orden:
 ## Próximos pasos
 
 1. **Plan 2b** (pantalla por pantalla), escrito recién ahora que 2a está
-   mergeado. Lo que ya se sabe que le toca:
+   mergeado. **Estimación: ~9 a 10 horas, unas dos sesiones.** Sale de lo que
+   midió el 2a: ~5,5 h en total (1,5 h de spec y plan; 7 tareas a ~35 min
+   cada una con revisión y arreglos, la de los chips pasó la hora), escalado a
+   ~11 tareas —unas 25 unidades de pantalla de a 3 o 4, más tres de cierre—
+   a ~40 min cada una, porque `card-body` vuelve cada tarjeta una columna flex
+   y cada pantalla pide ajustes y mirarla en los dos temas. Lo que más la puede
+   estirar es justamente eso; la achica dejar pantallas de poco uso en `.panel`
+   o partir el 2b en dos planes (pantallas de módulo y el resto). No incluye
+   el tiempo de Raúl mirando las capturas. Lo que ya se sabe que le toca:
    - pasar `.panel` a `card` + `card-body`; la guarda `[PANEL]` ya lo admite;
    - seis familias de chip escritas a mano (`version-chip`, `stale-chip`,
      `here-chip`, `out-chip`, `evaluator-chip`, `derived-chip`) que la guarda
