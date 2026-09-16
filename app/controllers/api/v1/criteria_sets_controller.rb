@@ -27,7 +27,8 @@ module Api
 
       private
 
-      def set_criteria_set = @set = CriteriaSet.find(params[:id])
+      # Por `policy_scope`: un set `inline` de un desafío que no ves no existe.
+      def set_criteria_set = @set = policy_scope(CriteriaSet).find(params[:id])
 
       def save_and_render
         errors = apply_changes!

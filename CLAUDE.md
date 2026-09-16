@@ -324,6 +324,15 @@ ahora.
    puede revisar, aunque el panel filtre así: quien administra ve todas en
    `/admin/ai_runs`, y no poder aplicar una sobre un desafío cerrado es un
    403 legítimo. La guarda de lint no cubre estos dos: busca `ideas.find`.
+
+   **Una policy sin nada propio hereda `show? = membership.present?`**, o sea
+   «cualquiera de la empresa lee esto». `CriteriaSetPolicy` estaba vacía, y
+   un gestor abría por id —200, con los criterios adentro— el set `inline` de
+   un desafío que no le asignaron. No era un oráculo: era una fuga de lectura,
+   y la auditoría del 403 la encontró de casualidad. Ahora su `Scope` deja la
+   biblioteca a la vista de la empresa y cada set `inline` a la de su
+   desafío. Antes de dejar una policy vacía, preguntate de qué desafío cuelga
+   lo que protege.
 4. FKs compuestas `(x_id, company_id)`: Postgres rechaza atar una fila de la
    empresa A a un padre de la B.
 
