@@ -126,5 +126,20 @@ RSpec.describe "miembros de la empresa", type: :request do
       get members_path
       expect(response.body).not_to include("ajeno@test.dev")
     end
+
+    # La pantalla de miembros existe y no puede entrar: ese 403 está bien. Pero
+    # una membresía por id no la ve, y se buscaba antes de autorizar: 403 por
+    # una que existe y 404 por una que no, que le confirma que existe.
+    it "ni le confirma que existe una membresía" do
+      de_ana = as_company(demo) { Membership.find_by!(user_id: ana.id) }
+      sign_in(paula, company: demo)
+
+      estados = [de_ana.id, SecureRandom.uuid].map do |id|
+        patch member_path(id), params: { role: "admin" }
+        response.status
+      end
+
+      expect(estados).to eq([404, 404])
+    end
   end
 end
