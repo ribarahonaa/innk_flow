@@ -41,7 +41,7 @@ explicada abajo:
 | Hoy | El spec decía | Queda |
 |---|---|---|
 | `.card` | `card` | `.panel` en 2a; `card` + `card-body` en 2b |
-| `.flash--*` | `alert`, y `toast` como ganancia | `alert`; `toast` no entra |
+| `.flash--*` | `alert`, y `toast` como ganancia | `alert-soft`; `toast` no entra |
 | `.flow-strip` | `steps` | Contenedor propio; nodos `badge` |
 
 ---
@@ -86,6 +86,12 @@ cuatro nombres:
 
 El spec mapeaba sólo `status-chip`. Las otras tres son lo mismo con otro
 nombre, así que entran.
+
+«Dónde se decide» no es todo: **diez `status-chip` están escritos a mano** en
+las vistas, fuera del helper, y `pipeline_builder.vue` tiene otra copia literal
+para el chip de un módulo recién agregado, que todavía no pasó por el
+presenter. Los diez pasan a usar `chip_de_estado`, y la cadena del builder
+queda atada a la del helper con un spec.
 
 `ai-chip` es la única sin helper. Pasa a tener uno (`CHIP_DE_IA` en
 `EstilosHelper`): escrito a mano en nueve vistas, `badge badge-soft
@@ -189,11 +195,23 @@ La fila `flow-strip → steps` sale de la tabla de mapeo.
 Son dos cosas con la misma clase:
 
 - **El flash de un redirect** («Feedback registrado.»): lo pinta el layout
-  arriba del contenido, vía `clase_de_flash`. Pasa a `alert alert-success` o
-  `alert alert-error` cambiando el helper.
-- **Los avisos fijos de una pantalla** («Criterios derivados: …»): diez
-  `.flash.flash--*` escritos a mano. Pasan a `alert alert-warning`,
-  `alert-success` o `alert-error`, a mano.
+  arriba del contenido, vía `clase_de_flash`. Pasa a `alert alert-soft
+  alert-success` o `alert-error` cambiando el helper.
+- **Los avisos fijos**: diez en las vistas y **siete en tres islas Vue**
+  (`criteria_editor`, `form_editor`, `pipeline_builder`). Pasan a `alert
+  alert-soft alert-warning`, `alert-success` o `alert-error`, a mano. Los de
+  las islas entran aunque Vue sea el plan 2c, por lo mismo que el renombre de
+  `.card`: si no, el paso de borrado les saca el estilo.
+
+**`alert-soft` y no la variante sólida**, por lo mismo que los chips: los
+avisos de hoy son suaves, y la sólida los vuelve bloques de color. Tiene el
+mismo problema de contraste que `badge-soft` —pinta el texto con el color puro
+del tema— y se resuelve igual.
+
+**`alert` es `display: grid` con `grid-auto-flow: column`.** Un aviso con
+varios hijos los reparte en columnas: «Guardar no pisa el contenido… | v3 | y
+la anterior queda en el historial» en tres. Cuatro avisos tienen varios hijos,
+y su contenido se envuelve en un solo `div`.
 
 **`toast` no entra.** El spec lo listaba como ganancia —que el flash deje de
 empujar el contenido—, pero `toast` es CSS puro y no se cierra solo: quedaría
@@ -226,13 +244,17 @@ Cada familia en su propio commit, con `make spec` y `make screens` en verde:
 |---|---|---|
 | 1 | `.card` → `.panel`, y se saca el `exclude` | No |
 | 2 | `step-table` → `table` | Poco |
-| 3 | Avisos → `alert` | Sí |
-| 4 | Chips → `badge`, con el contraste medido primero | Sí |
-| 5 | Nodos del flujo → `badge` | Sí |
-| 6 | Borrar el CSS a mano que quedó sin nadie que lo use | No |
+| 3 | La guarda de contraste en `make screens`, en los dos temas | No |
+| 4 | Avisos → `alert-soft` | Sí |
+| 5 | Chips → `badge-soft` | Sí |
+| 6 | Nodos del flujo → `badge` | Sí |
+| 7 | Borrar el CSS a mano que quedó sin nadie que lo use | No |
 
 El renombre va primero porque es el único que se verifica por «no cambió
-nada», y así queda de punto de control, igual que el paso 1 de la fase 1.
+nada», y así queda de punto de control, igual que el paso 1 de la fase 1. La
+guarda de contraste va antes que avisos y chips porque es la que decide qué
+variante suave hay que ajustar: medir a mano, una vez, es el error que la fase
+1 pagó con un 1,49:1 leído como 13,56:1.
 Después, de lo más chico a lo más grande: las tablas y los avisos son pocos y
 sin ambigüedad; los chips tocan cuatro familias y piden medir contraste antes
 de elegir.
@@ -250,23 +272,32 @@ de elegir.
   (`.app-main > .card`, la que atrapó las tarjetas que se tocaban)— pasan a
   `.panel`. Sin eso, las dos se quedarían mirando cero elementos y pasarían en
   verde sin probar nada.
-- Las aserciones de `EstilosHelper` contra cada enum, que comparan con
-  `end_with` para no confundir `--issued` con `--issue`: se reescriben contra
-  el nombre nuevo.
+- Las aserciones de `EstilosHelper` contra cada enum comparan el **sufijo**
+  de la clase (`end_with("--#{estado}")`). Con `badge` varios estados devuelven
+  la misma clase —`draft`, `pending`, `closed` y `archived` son el neutro—, así
+  que el sufijo deja de existir. Lo que protegen —que un estado nuevo no caiga
+  al fallback— se prueba preguntando si el estado es **clave** del hash, que
+  no depende del nombre de la clase. Y se suma que todo chip empiece con
+  `badge `.
 - `spec/lint/clases_interpoladas_spec.rb` no cambia: los nombres nuevos
   también se escriben enteros.
 
 **Cómo se verifica cada paso:**
 
-- **El renombre (1):** las capturas antes y después tienen que dar iguales. Si
-  una tarjeta se ve distinta, hay un `.card` que el renombre no agarró. Y
-  después de sacar el `exclude` no puede quedar ningún `.card` en `app/`: se
-  busca.
-- **Los que cambian lo que se ve (2 a 5):** las capturas de antes y de después
-  se miran a ojo, familia por familia, **en los dos temas**. El contraste de
-  cada variante de `badge` se mide con el estilo computado y compuesto sobre
-  su fondo, no leyendo el CSS.
-- **El borrado (6):** por cada regla que se saca, se busca que su clase no
+- **El renombre (1):** después de sacar el `exclude` no puede quedar ningún
+  `card` en `app/` (se busca), y `make screens` suma una guarda que falla si
+  **en el DOM** aparece un elemento con la clase `card` —que es donde aparece
+  una clase armada por una isla o un `.js`, y donde un `grep` no llega—. Las
+  capturas de antes y después se miran a ojo; compararlas píxel a píxel no
+  sirve, porque tienen fechas relativas y contadores que cambian entre
+  corridas.
+- **La guarda de contraste (3)** queda para siempre en `make screens`: mide
+  todo `.badge` y `.alert` de cada pantalla, compuesto sobre su fondo efectivo,
+  y hace una pasada con `prefers-color-scheme: dark` por las pantallas donde
+  viven. Antes de creerle se prueba contra valores conocidos.
+- **Los que cambian lo que se ve (4 a 6):** las capturas de antes y de después
+  se miran a ojo, familia por familia, **en los dos temas**.
+- **El borrado (7):** por cada regla que se saca, se busca que su clase no
   aparezca en `app/views`, `app/helpers` ni `app/javascript`.
 
 **Y `CLAUDE.md`**, que hoy dice que `card` está excluida, que la regla
@@ -279,8 +310,8 @@ siendo CSS a mano, se actualiza en el commit que vuelve falsa cada frase.
 
 - **Un `.card` que el renombre no agarra**, armado en un `.js` o en un
   template literal de una isla. El `exclude` se saca recién cuando la búsqueda
-  da cero en todo `app/`, y la guarda de clases descartadas ya mira `.js` y
-  `.vue`.
+  da cero en todo `app/`, y la guarda nueva lo busca en el DOM de cada
+  pantalla, que es donde aparece aunque el fuente no lo escriba literal.
 - **El contraste de `badge-soft`** en `success`, `warning` y `error`, que es
   probable que no alcance. Está resuelto de antemano con los tokens que ya
   existen; lo que no está es el número, y se mide antes de elegir.
