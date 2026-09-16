@@ -754,15 +754,6 @@ body {
   padding: 20px;
 }
 
-.flash {
-  padding: 10px 14px;
-  border-radius: var(--radius);
-  border: 1px solid var(--borde);
-  background: var(--surface);
-}
-.flash--alert { border-color: var(--danger-borde); background: var(--danger-soft); color: var(--danger); }
-.flash--notice { border-color: var(--ok-borde); background: var(--ok-soft); color: var(--ok); }
-
 /* ── Auth ───────────────────────────────────────────────────────────────── */
 .auth-body {
   display: grid;
@@ -957,26 +948,6 @@ input:focus, textarea:focus, select:focus {
 .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
 .empty-state { text-align: center; padding: 44px 20px; }
 
-/* ── Estados: una sola paleta para toda la app ──────────────────────────── */
-.status-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 9px;
-  border-radius: 99px;
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.status-chip--draft,
-.status-chip--pending    { background: var(--neutro-soft); color: var(--muted); }
-.status-chip--running,
-.status-chip--active,
-.status-chip--activating { background: var(--accent-soft); color: var(--accent); }
-.status-chip--completed  { background: var(--ok-soft); color: var(--ok); }
-.status-chip--skipped    { background: var(--warn-soft); color: var(--warn); }
-.status-chip--closed,
-.status-chip--archived   { background: var(--neutro-soft); color: var(--muted); }
-
 /* ── Índice de desafíos ─────────────────────────────────────────────────── */
 .challenge-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
 .challenge-card { text-decoration: none; color: inherit; display: block; transition: border-color .12s, box-shadow .12s; }
@@ -988,17 +959,6 @@ input:focus, textarea:focus, select:focus {
 /* Mapa compacto del pipeline */
 .flow-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
 .flow-strip__arrow { color: var(--tenue); }
-.flow-strip__node {
-  padding: 3px 9px;
-  border-radius: 6px;
-  border: 1px solid var(--borde);
-  background: var(--bg);
-  font-size: 11px;
-  color: var(--muted);
-}
-.flow-strip__node--active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-.flow-strip__node--completed { border-color: var(--ok-borde); background: var(--ok-soft); color: var(--ok); }
-.flow-strip__node--skipped { border-style: dashed; }
 
 /* ── Radio cards ────────────────────────────────────────────────────────── */
 .radio-cards { display: grid; gap: 8px; }
@@ -1207,7 +1167,6 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
   background: repeating-linear-gradient(90deg, var(--warn) 0 6px, transparent 6px 12px);
 }
 
-.flash--warn { border-color: var(--warn-borde); background: var(--warn-soft); color: var(--warn); }
 .alert ul { margin: 0; padding-left: 18px; }
 
 /* `alert-soft` pinta el texto con el color puro del tema, y en las tres
@@ -1276,15 +1235,6 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
   font-size: 11px;
   font-family: ui-monospace, monospace;
   color: var(--muted);
-}
-.ai-chip {
-  padding: 1px 7px;
-  border-radius: 99px;
-  background: var(--ia-soft);
-  color: var(--ia);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .03em;
 }
 
 /* ── Detalle de idea ────────────────────────────────────────────────────── */
@@ -1554,10 +1504,6 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
 .feedback-item__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11.5px; }
 .feedback-item__body { margin: 6px 0 0; font-size: 13px; line-height: 1.55; }
 
-.feedback-kind { padding: 1px 8px; border-radius: 99px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
-.feedback-kind--suggestion { background: var(--accent-soft); color: var(--accent); }
-.feedback-kind--question { background: var(--warn-soft); color: var(--warn); }
-.feedback-kind--issue { background: var(--danger-soft); color: var(--danger); }
 .feedback-item:has(> .feedback-item__head > .badge-error) { border-left-color: var(--danger-borde); }
 .feedback-item:has(> .feedback-item__head > .badge-warning) { border-left-color: var(--warn-borde); }
 .feedback-item:has(> .feedback-item__head > .badge-primary) { border-left-color: var(--accent-borde); }
@@ -1645,19 +1591,6 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
 .section-head .section-title { margin-bottom: 10px; }
 
 /* ── Origen de un criterio ──────────────────────────────────────────────── */
-.source-chip {
-  padding: 1px 8px;
-  margin-left: 6px;
-  border-radius: 99px;
-  font-size: 10px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.source-chip--manual { background: var(--accent-soft); color: var(--accent); }
-.source-chip--automatic { background: var(--ok-soft); color: var(--ok); }
-.source-chip--ai { background: var(--ia-soft); color: var(--ia); }
-.source-chip--formula { background: var(--warn-soft); color: var(--warn); }
-
 .criterion-row__main { grid-template-columns: 1.6fr 1fr 80px 1.3fr 1.2fr; }
 .criterion-row__jsons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .checks-help { margin: 6px 0 18px; font-size: 12px; }

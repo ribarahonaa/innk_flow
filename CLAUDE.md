@@ -736,11 +736,13 @@ La configuración vive **en el CSS** —Tailwind 4 es config-por-CSS, no hay
 Sass se jubiló entero. El archivo de salida conserva el nombre, así que el
 `stylesheet_link_tag` del layout nunca cambió.
 
-Esta fase migró la plomería, las clases dinámicas, el tema y el shell. Lo que
-sigue —los 18 partials compartidos, pantalla por pantalla y los componentes
-Vue— es el plan 2. Por eso `status-chip`, `.step-card` y compañía todavía son
-CSS escrito a mano; el plan 2a (`docs/superpowers/plans/2026-09-16-rediseno-2a-vocabulario.md`)
-los pasa a componentes.
+La fase 1 migró la plomería, las clases dinámicas, el tema y el shell. El plan
+2a pasó el vocabulario que se repite a componentes: las tablas son `table`, los
+avisos `alert alert-soft`, los chips y los nodos del mapa del flujo `badge`, y
+las tarjetas se llaman `.panel` mientras esperan su `card` + `card-body`. Lo
+que sigue —pantalla por pantalla (2b) y las islas Vue (2c)— tiene su plan
+cuando le toque. `.step-card`, `.flow-strip` y `.empty-state` siguen siendo
+clases propias a propósito: son vocabulario de esta app.
 
 #### Lo que más fácil se rompe
 
@@ -772,6 +774,35 @@ los pasa a componentes.
   fuera del gamut sRGB: el navegador los recorta, y entonces ajustar el croma
   no hace nada hasta cruzar el límite. Los valores de la hoja son la conversión
   exacta del hex y el croma máximo que entra.
+- **`badge-soft` y `alert-soft` pintan el texto con el color PURO del tema.**
+  La hoja tuvo que oscurecer `success`, `warning` y `error` para el texto de un
+  chip (`--ok`, `--warn`, `--danger`), y las variantes suaves no usan esos
+  tokens: en tema claro las tres variantes de aviso y de chip quedaban entre
+  2,3 y 4,2:1. Se ajustan con una regla de dos clases. `make screens` lo mide
+  de dos formas: en cada pantalla (`revisarContraste`) y con un **muestrario**
+  que inyecta cada variante en una pantalla real y la mide en claro y en
+  oscuro (`revisarMuestrario`). El muestrario existe porque la pasada oscura,
+  sola, midió CERO avisos y dio verde: sus pantallas no tienen ninguno. Falla
+  si mide menos muestras de las que declara, y un spec exige que cada chip del
+  helper esté en el arreglo.
+- **Atenuar un contenedor con `opacity` baja el contraste de todo lo de
+  adentro**, chips incluidos: un comentario atendido a `.72` los dejaba en
+  3:1. La hoja ya lo dice dos veces (`.criterion-edit--off`,
+  `.setup__step--outline`): que pese menos —sin superficie, contorno
+  punteado, texto en gris—, no que se lea peor. El muestrario mide los chips
+  adentro de un comentario atendido de una ronda cerrada, así que volver a
+  poner la opacidad lo hace fallar.
+- **`alert` es `display: grid` con `grid-auto-flow: column`.** Un aviso con
+  varios hijos —un `%strong` y un texto, una lista y un título— los reparte en
+  columnas. Envolvé el contenido en un solo `%div`.
+- **Renombrar una clase deja muertas en silencio las reglas que la usaban
+  desde AFUERA de su bloque.** Al pasar los chips a `badge`,
+  `.flow-drawer .status-chip` (los puntos de estado del drawer) y
+  `.feedback-item:has(.feedback-kind--issue)` (el borde por tipo) dejaron de
+  aplicar, y ni `make spec` ni `make screens` lo notaron: el elemento seguía
+  teniendo reglas, sólo que otras. Antes de renombrar, buscá la clase en
+  selectores compuestos, descendientes y `:has()`, y en los localizadores de
+  `script/capture_screens.js`.
 
 #### Las tres capas, y de quién es cada regla
 
