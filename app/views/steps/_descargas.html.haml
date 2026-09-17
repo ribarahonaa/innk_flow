@@ -1,0 +1,35 @@
+-# Generar Excel y PDF, y los archivos ya generados. Son herramientas que se
+-# usan al costado del reporte, no el reporte: van en la referencia. La tabla
+-# de cinco columnas que había no entra en la columna, así que es lista.
+- downloadable = handler.reports.select { |r| r.format != "dashboard" }
+.card
+  .card-body
+    %h3.section-title Descargas
+    %p.muted
+      Modo
+      %strong= t("flow.report_modes.#{data['mode']}")
+      = data["mode"] == "by_version" ? "· cada puntaje dice sobre qué versión se evaluó." : "· solo la versión vigente."
+    .report-actions
+      = button_to "Excel", challenge_step_reports_path(step.challenge, step, format_kind: "xlsx"),
+                  params: { format: "xlsx", kind: "snapshot" }, class: "btn btn-ghost btn-sm"
+      = button_to "PDF", challenge_step_reports_path(step.challenge, step),
+                  params: { format: "pdf", kind: "snapshot" }, class: "btn btn-ghost btn-sm"
+
+    - if downloadable.any?
+      %ul.field-list
+        - downloadable.each do |report|
+          %li.field-list__item{ id: "report-#{report.id}" }
+            %span
+              %strong= report.format.upcase
+              - if report.ready?
+                %span{ class: chip_de_estado("completed") } listo
+              - elsif report.stalled? || report.failed?
+                %span{ class: chip_de_estado("skipped") } falló
+              - else
+                %span{ class: chip_de_estado("active") } generando…
+              %br
+              %span.muted
+                = report.generated_at ? l(report.generated_at, format: :short) : "—"
+                = "· #{report.row_count} filas" if report.row_count
+            - if report.ready? && report.file.attached?
+              = link_to "Descargar", rails_blob_path(report.file, disposition: "attachment"), class: "btn btn-ghost btn-sm"

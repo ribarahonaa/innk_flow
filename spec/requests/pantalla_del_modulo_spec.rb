@@ -220,6 +220,36 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
     end
   end
 
+  describe "reportería" do
+    let!(:challenge) do
+      as_company(company) do
+        c = create(:challenge, name: "Merma", ai_default_mode: "human")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
+        c.steps.create!(kind: "reporting", position: 2, name: "Informe")
+        c
+      end
+    end
+
+    before do
+      postular!(challenge, author: paula, titulo: "Sensores")
+      as_company(company) do
+        challenge.pipeline.start!
+        challenge.pipeline.advance!
+        expect(paso("reporting")).to be_active
+      end
+    end
+
+    it "quien administra: configuración y descargas a la derecha, el reporte al centro" do
+      sign_in(admin, company: company)
+      get challenge_step_path(challenge, paso("reporting"))
+
+      expect(zonas[:referencia]).to include("Cómo quedó configurado", "Descargas", "Excel", "PDF")
+      expect(zonas[:referencia]).not_to include("Embudo")
+      expect(zonas[:ajustes]).to include("Ajustes del módulo", "Modo de IA")
+      expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
+    end
+  end
+
   describe "idear" do
     let!(:challenge) do
       as_company(company) do
