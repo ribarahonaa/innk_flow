@@ -127,7 +127,9 @@ RSpec.describe "reglas de quien participa", type: :request do
       expect(response).to have_http_status(:not_found)
     end
 
-    # El reporte trae el ranking entero: es justo lo que no ve en pantalla.
+    # El reporte trae el ranking entero: en pantalla ve lo agregado y sus
+    # propias ideas (`pantalla_del_modulo_spec`, reportería), y el archivo no
+    # lo puede generar.
     it "no puede generar el reporte" do
       post challenge_step_reports_path(challenge, step_named("Técnica")), params: { kind: "summary" }
 

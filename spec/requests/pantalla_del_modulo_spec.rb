@@ -221,32 +221,105 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
   end
 
   describe "reportería" do
-    let!(:challenge) do
-      as_company(company) do
-        c = create(:challenge, name: "Merma", ai_default_mode: "human")
-        seed_form!(c.steps.create!(kind: "ideation", position: 1))
-        c.steps.create!(kind: "reporting", position: 2, name: "Informe")
-        c
+    # Un grupo propio y no el `before` suelto de `reportería`: un `before` de
+    # afuera corre también para los grupos de adentro, y el desafío de «lo que
+    # ve cada quien» tiene otro flujo.
+    describe "las zonas" do
+      let!(:challenge) do
+        as_company(company) do
+          c = create(:challenge, name: "Merma", ai_default_mode: "human")
+          seed_form!(c.steps.create!(kind: "ideation", position: 1))
+          c.steps.create!(kind: "reporting", position: 2, name: "Informe")
+          c
+        end
+      end
+
+      before do
+        postular!(challenge, author: paula, titulo: "Sensores")
+        as_company(company) do
+          challenge.pipeline.start!
+          challenge.pipeline.advance!
+          expect(paso("reporting")).to be_active
+        end
+      end
+
+      it "quien administra: configuración y descargas a la derecha, el reporte al centro" do
+        sign_in(admin, company: company)
+        get challenge_step_path(challenge, paso("reporting"))
+
+        expect(zonas[:referencia]).to include("Cómo quedó configurado", "Descargas", "Excel", "PDF")
+        expect(zonas[:referencia]).not_to include("Embudo")
+        expect(zonas[:ajustes]).to include("Ajustes del módulo", "Modo de IA")
+        expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
       end
     end
 
-    before do
-      postular!(challenge, author: paula, titulo: "Sensores")
-      as_company(company) do
-        challenge.pipeline.start!
-        challenge.pipeline.advance!
+    describe "lo que ve cada quien" do
+      let!(:pedro) { member("pedro@test.dev", :participant) }
+
+      let!(:challenge) do
+        as_company(company) do
+          c = create(:challenge, name: "Merma", ai_default_mode: "human")
+          seed_form!(c.steps.create!(kind: "ideation", position: 1))
+          c.steps.create!(kind: "evaluation", position: 2, name: "Técnica", config: { "min_assessments" => 1 })
+          c.steps.create!(kind: "reporting", position: 3, name: "Informe")
+          c
+        end
+      end
+
+      before do
+        postular!(challenge, author: paula, titulo: "Sensores de peso")
+        postular!(challenge, author: pedro, titulo: "Cámaras en la merma")
+        as_company(company) do
+          challenge.pipeline.start!
+          challenge.pipeline.advance!
+          evaluacion = challenge.steps.reload.find(&:evaluation?)
+          challenge.ideas.each do |idea|
+            evaluacion.assessments.create!(idea: idea, idea_version_id: idea.current_version_id,
+                                           evaluator: elena, actor_type: "human", status: "submitted",
+                                           submitted_at: Time.current, normalized_score: 0.6)
+            evaluacion.handler.recompute_entry!(StepEntry.find_by(challenge_step_id: evaluacion.id, idea_id: idea.id))
+          end
+          challenge.pipeline.advance!
+          informe = challenge.steps.reload.find(&:reporting?)
+          # Un resumen narrativo listo, que nombra una idea ajena a quien participa.
+          Report.create!(challenge_step: informe, kind: "narrative", format: "dashboard", status: "ready",
+                         data: { "summary" => "«Cámaras en la merma» quedó última por esfuerzo." })
+        end
         expect(paso("reporting")).to be_active
       end
-    end
 
-    it "quien administra: configuración y descargas a la derecha, el reporte al centro" do
-      sign_in(admin, company: company)
-      get challenge_step_path(challenge, paso("reporting"))
+      def tarjeta(titulo) = documento.css(".app-main .card").find { |c| c.at_css(".section-title")&.text.to_s.include?(titulo) }
 
-      expect(zonas[:referencia]).to include("Cómo quedó configurado", "Descargas", "Excel", "PDF")
-      expect(zonas[:referencia]).not_to include("Embudo")
-      expect(zonas[:ajustes]).to include("Ajustes del módulo", "Modo de IA")
-      expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
+      it "quien participa: lo agregado y sus ideas, sin resumen ni descargas" do
+        sign_in(paula, company: company)
+        get challenge_step_path(challenge, paso("reporting"))
+
+        expect(tarjeta("Embudo")).not_to be_nil
+        expect(tarjeta("Ranking").text).to include("Sensores de peso")
+        expect(tarjeta("Ranking").text).not_to include("Cámaras en la merma")
+        expect(tarjeta("Matriz por módulo").text).not_to include("Cámaras en la merma")
+        expect(response.body).not_to include("quedó última por esfuerzo")
+        expect(zonas[:referencia]).not_to include("Descargas")
+      end
+
+      it "quien evalúa: el pool entero, sin descargas ni pedido a la IA" do
+        sign_in(elena, company: company)
+        get challenge_step_path(challenge, paso("reporting"))
+
+        expect(tarjeta("Ranking").text).to include("Sensores de peso", "Cámaras en la merma")
+        expect(response.body).to include("quedó última por esfuerzo")
+        expect(zonas[:referencia]).not_to include("Descargas")
+      end
+
+      it "quien administra: todo" do
+        sign_in(admin, company: company)
+        get challenge_step_path(challenge, paso("reporting"))
+
+        expect(tarjeta("Ranking").text).to include("Sensores de peso", "Cámaras en la merma")
+        expect(response.body).to include("quedó última por esfuerzo")
+        expect(zonas[:referencia]).to include("Descargas", "Excel", "PDF")
+      end
     end
   end
 

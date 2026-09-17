@@ -2,6 +2,19 @@
 
 - data = @handler.dashboard
 - narrative = @handler.reports.detect { |r| r.kind == "narrative" && r.ready? }
+-# Quien participa ve lo agregado y sus propias ideas, igual que en selección:
+-# el embudo, la distribución y la participación son conteos y no dicen de
+-# quién es cada idea; el ranking y la matriz se filtran con `@ideas_visibles`
+-# (`IdeaPolicy::Scope`, que para quien administra, acompaña o evalúa es el
+-# pool entero). El resumen narrativo nombra ideas ajenas: no se le muestra.
+- ve_el_pool = !current_membership.participant?
+- ranking = data["ranking"].select { |row| @ideas_visibles.include?(row["idea_id"]) }
+- matrix = data["matrix"]
+- filas_de_matriz = matrix["rows"].select { |row| @ideas_visibles.include?(row["idea_id"]) }
+-# Pedir el resumen es `summarize_challenge`, de alcance `:challenge`: lo
+-# autoriza `update_pipeline?`. Sin esto quien acompaña o evalúa veía un botón
+-# que le rebotaba con 403.
+- pide_resumen = policy(@challenge).update_pipeline?
 
 -# Reportería no tiene progreso: la referencia se lleva la configuración y las
 -# descargas, y el centro es el reporte.
@@ -14,13 +27,14 @@
 
 -# El pedido del resumen a la IA va donde aparece lo que produce.
 - resumen_con_ia = { label: narrative ? "Rehacer el resumen narrativo" : "Resumen narrativo", purpose: "summarize_challenge", step_id: @step.id }
-- if narrative
+- if narrative && ve_el_pool
   .card.narrative-card
     .card-body
       %h2.section-title
         Resumen narrativo
         %span{ class: chip_de_ia } IA
-      = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode, actions: [resumen_con_ia]
+      - if pide_resumen
+        = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode, actions: [resumen_con_ia]
       %p.narrative-card__summary= narrative.data["summary"]
       - if narrative.data["themes"].present?
         .theme-grid
@@ -33,7 +47,7 @@
         %p.narrative-card__left
           %strong Lo que quedó afuera:
           = narrative.data["left_behind"]
-- else
+- elsif pide_resumen
   = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode, actions: [resumen_con_ia]
 
 .card
@@ -50,7 +64,7 @@
             - if stage["eliminated"].positive?
               %span.funnel__lost= "−#{stage['eliminated']}"
 
-- if data["ranking"].any?
+- if ranking.any?
   .card
     .card-body
       %h2.section-title Ranking
@@ -65,7 +79,7 @@
               %th Evaluada sobre
               %th Estado
           %tbody
-            - data["ranking"].each do |row|
+            - ranking.each do |row|
               %tr
                 %td.muted= row["rank"]
                 %td
@@ -116,8 +130,7 @@
                 %td= "#{row['submitted']} / #{row['expected']}"
                 %td.muted= row["assessments"]
 
-- matrix = data["matrix"]
-- if matrix["columns"].any?
+- if matrix["columns"].any? && filas_de_matriz.any?
   .card
     .card-body
       %h2.section-title
@@ -132,7 +145,7 @@
               - matrix["columns"].each do |column|
                 %th= column["name"]
           %tbody
-            - matrix["rows"].each do |row|
+            - filas_de_matriz.each do |row|
               %tr
                 %td= row["title"]
                 - row["cells"].each do |cell|

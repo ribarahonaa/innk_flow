@@ -253,7 +253,10 @@ Dos reglas que no viven en el rol:
   eso lo que listan. Idear se lo olvidó hasta el plan 2b —listaba todas las
   postuladas—, que es exactamente lo que advertía `e3787a3`. Lo que no se ve
   da **404**, no 403. Quien administra, acompaña o evalúa las ve todas: las
-  tres cosas se hacen sobre el pool entero.
+  tres cosas se hacen sobre el pool entero. En reportería ve lo agregado
+  —embudo, distribución, participación— y el ranking y la matriz filtrados a
+  sus ideas; el resumen narrativo no, porque nombra ideas ajenas. Hasta el
+  plan 2b veía el tablero entero.
 - **Pedirle a la IA que evalúe no es evaluar.** El botón —y el lote «evaluar
   todas con IA»— es de quien evalúa en el módulo, por asignación o por
   administrarlo, no de `update_pipeline?`. Y va **sin idea**: quien participa

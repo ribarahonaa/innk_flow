@@ -2885,6 +2885,198 @@ EOF
 
 ---
 
+### Task 8b: Quien participa ve en reportería lo agregado y sus propias ideas
+
+**Agregada después de la Tarea 8**, por decisión de Raúl. **No es del rediseño: es una sospecha de fuga de lectura que ya estaba**, del mismo tipo que la de idear (Tarea 7b). La cara de ejecución de reportería no tiene ninguna guarda de vista, así que el tablero —ranking con autor y puntaje de TODAS las ideas, matriz por módulo, resumen narrativo que nombra ideas— se dibuja para cualquiera que llegue al desafío, incluido quien participa. `participant_rules_spec` dice «El reporte trae el ranking entero: es justo lo que no ve en pantalla», pero sólo prueba que no puede GENERAR el archivo. **Lo primero es confirmarla con un spec**; si no se confirma, se para.
+
+Qué ve cada quien (decisión de Raúl, la misma forma que selección):
+
+| Bloque | Quien participa | Quien administra, acompaña o evalúa |
+|---|---|---|
+| Embudo, distribución, participación de evaluadores | Sí: son conteos, no dicen de quién es cada idea | Sí |
+| Ranking y matriz | Sólo las filas de sus ideas (`@ideas_visibles`) | Todas |
+| Resumen narrativo | No: nombra ideas ajenas | Sí |
+| Pedido del resumen a la IA | No | Sólo quien puede pedirlo (`ChallengePolicy#update_pipeline?`, el alcance `:challenge` de `summarize_challenge`) |
+| Descargas (Excel, PDF y archivos generados) | No | Sólo `ChallengeStepPolicy#report?` |
+
+Las dos últimas filas también le sacan controles a quien acompaña o evalúa: hoy los ve y le rebotan con 403 —generar pide `report?`, pedir el resumen pide `update_pipeline?`—, que es el control que no responde. Y los archivos generados traen el ranking entero por un link de Active Storage que no pasa por Pundit: no se le muestran a quien no puede generarlos. Todas las ideas que ve quien no participa siguen siendo todas: para esos roles `@ideas_visibles` es el pool entero.
+
+**Files:**
+- Modify: `app/views/steps/reporting.html.haml`
+- Modify: `app/views/steps/_descargas.html.haml`
+- Modify: `spec/requests/pantalla_del_modulo_spec.rb` (`describe "reportería"`)
+- Modify: `spec/requests/participant_rules_spec.rb` (el comentario de ~130)
+- Modify: `CLAUDE.md` («Los cuatro roles»)
+
+**Interfaces:**
+- Consumes: `@ideas_visibles` (`Set` de ids, `StepsController#show`); las filas de `data["ranking"]` y `data["matrix"]["rows"]` traen `"idea_id"` (`Flow::Reports::Builder`, ~77 y ~141); `current_membership` (disponible en las vistas); `postular!`, `member`, `documento`, `zonas`, `paso` del spec.
+
+- [ ] **Step 1: Confirmar la fuga con un spec que falla**
+
+En `spec/requests/pantalla_del_modulo_spec.rb`, adentro de `describe "reportería"`, un `describe` nuevo con su propio desafío —el del `describe` padre no tiene evaluación, así que su ranking y su matriz están vacíos y no pueden mostrar ninguna fuga—:
+
+```ruby
+    describe "lo que ve cada quien" do
+      let!(:pedro) { member("pedro@test.dev", :participant) }
+
+      let!(:challenge) do
+        as_company(company) do
+          c = create(:challenge, name: "Merma", ai_default_mode: "human")
+          seed_form!(c.steps.create!(kind: "ideation", position: 1))
+          c.steps.create!(kind: "evaluation", position: 2, name: "Técnica", config: { "min_assessments" => 1 })
+          c.steps.create!(kind: "reporting", position: 3, name: "Informe")
+          c
+        end
+      end
+
+      before do
+        postular!(challenge, author: paula, titulo: "Sensores de peso")
+        postular!(challenge, author: pedro, titulo: "Cámaras en la merma")
+        as_company(company) do
+          challenge.pipeline.start!
+          challenge.pipeline.advance!
+          evaluacion = challenge.steps.reload.find(&:evaluation?)
+          challenge.ideas.each do |idea|
+            evaluacion.assessments.create!(idea: idea, idea_version_id: idea.current_version_id,
+                                           evaluator: elena, actor_type: "human", status: "submitted",
+                                           submitted_at: Time.current, normalized_score: 0.6)
+            evaluacion.handler.recompute_entry!(StepEntry.find_by(challenge_step_id: evaluacion.id, idea_id: idea.id))
+          end
+          challenge.pipeline.advance!
+          informe = challenge.steps.reload.find(&:reporting?)
+          # Un resumen narrativo listo, que nombra una idea ajena a quien participa.
+          Report.create!(challenge_step: informe, kind: "narrative", format: "dashboard", status: "ready",
+                         data: { "summary" => "«Cámaras en la merma» quedó última por esfuerzo." })
+        end
+        expect(paso("reporting")).to be_active
+      end
+
+      def tarjeta(titulo) = documento.css(".app-main .card").find { |c| c.at_css(".section-title")&.text.to_s.include?(titulo) }
+
+      it "quien participa: lo agregado y sus ideas, sin resumen ni descargas" do
+        sign_in(paula, company: company)
+        get challenge_step_path(challenge, paso("reporting"))
+
+        expect(tarjeta("Embudo")).not_to be_nil
+        expect(tarjeta("Ranking").text).to include("Sensores de peso")
+        expect(tarjeta("Ranking").text).not_to include("Cámaras en la merma")
+        expect(tarjeta("Matriz por módulo").text).not_to include("Cámaras en la merma")
+        expect(response.body).not_to include("quedó última por esfuerzo")
+        expect(zonas[:referencia]).not_to include("Descargas")
+      end
+
+      it "quien evalúa: el pool entero, sin descargas ni pedido a la IA" do
+        sign_in(elena, company: company)
+        get challenge_step_path(challenge, paso("reporting"))
+
+        expect(tarjeta("Ranking").text).to include("Sensores de peso", "Cámaras en la merma")
+        expect(response.body).to include("quedó última por esfuerzo")
+        expect(zonas[:referencia]).not_to include("Descargas")
+      end
+
+      it "quien administra: todo" do
+        sign_in(admin, company: company)
+        get challenge_step_path(challenge, paso("reporting"))
+
+        expect(tarjeta("Ranking").text).to include("Sensores de peso", "Cámaras en la merma")
+        expect(response.body).to include("quedó última por esfuerzo")
+        expect(zonas[:referencia]).to include("Descargas", "Excel", "PDF")
+      end
+    end
+```
+
+El fixture es una guía: si `advance!` no llega a reportería (el `be_active` lo dice), leé `Flow::Pipeline#advance!` y `Flow::Handlers::Evaluation#can_complete?` y ajustá lo mínimo; si `Report.create!` pide otro campo, mirá `app/models/report.rb`. Reportá cada ajuste.
+
+Run: `make spec-file FILE=spec/requests/pantalla_del_modulo_spec.rb`
+Expected: FAIL en «quien participa» (ve «Cámaras en la merma», el resumen y las descargas) y en «quien evalúa» (ve las descargas). «Quien administra: todo» pasa. **Si «quien participa» no falla por la fuga** —por ejemplo, porque la pantalla ya no le muestra el ranking—, pará y reportá BLOCKED con la salida: la sospecha no se confirmó y no hay nada que arreglar.
+
+- [ ] **Step 2: El filtro en la pantalla**
+
+En `app/views/steps/reporting.html.haml`, debajo de `- narrative = …`:
+
+```haml
+-# Quien participa ve lo agregado y sus propias ideas, igual que en selección:
+-# el embudo, la distribución y la participación son conteos y no dicen de
+-# quién es cada idea; el ranking y la matriz se filtran con `@ideas_visibles`
+-# (`IdeaPolicy::Scope`, que para quien administra, acompaña o evalúa es el
+-# pool entero). El resumen narrativo nombra ideas ajenas: no se le muestra.
+- ve_el_pool = !current_membership.participant?
+- ranking = data["ranking"].select { |row| @ideas_visibles.include?(row["idea_id"]) }
+- matrix = data["matrix"]
+- filas_de_matriz = matrix["rows"].select { |row| @ideas_visibles.include?(row["idea_id"]) }
+-# Pedir el resumen es `summarize_challenge`, de alcance `:challenge`: lo
+-# autoriza `update_pipeline?`. Sin esto quien acompaña o evalúa veía un botón
+-# que le rebotaba con 403.
+- pide_resumen = policy(@challenge).update_pipeline?
+```
+
+Y en el cuerpo:
+
+1. El resumen: `- if narrative` pasa a `- if narrative && ve_el_pool`; adentro, el `= render "shared/ai_actions" …` pasa a estar detrás de `- if pide_resumen`. El `- else` (pedido suelto, sin resumen) pasa a `- elsif pide_resumen`.
+2. El ranking: `- if data["ranking"].any?` pasa a `- if ranking.any?`, y `- data["ranking"].each do |row|` pasa a `- ranking.each do |row|`.
+3. La matriz: borrá la línea `- matrix = data["matrix"]` que está más abajo (ya está arriba); `- if matrix["columns"].any?` pasa a `- if matrix["columns"].any? && filas_de_matriz.any?`, y `- matrix["rows"].each do |row|` pasa a `- filas_de_matriz.each do |row|`.
+
+Embudo, distribución y participación no cambian.
+
+- [ ] **Step 3: Las descargas, sólo para quien puede generarlas**
+
+En `app/views/steps/_descargas.html.haml`, todo lo que no es el comentario de arriba pasa a colgar de un único `if`:
+
+```haml
+-# Sólo quien puede generarlos (`report?`): los archivos traen el ranking
+-# entero, y el link de Active Storage no pasa por Pundit. Sin esto quien
+-# acompaña o evalúa veía dos botones que le rebotaban con 403.
+- if policy(step).report?
+  - downloadable = handler.reports.select { |r| r.format != "dashboard" }
+  .card
+    -# (el resto del partial, un nivel más adentro, sin cambios)
+```
+
+(Pegá el contenido actual de la tarjeta un nivel más adentro; no dejes el comentario de paréntesis.)
+
+- [ ] **Step 4: Verde**
+
+Run: `make spec-file FILE=spec/requests/pantalla_del_modulo_spec.rb`
+Expected: PASS.
+
+Run: `make spec`
+Expected: verde, incluido `participant_rules_spec` («no puede generar el reporte»).
+
+Run: `make yarn-build && make screens`
+Expected: verde. El recorrido es como admin: `09-7-step-reporte-de-cierre` y `97-oscuro-reporteria` no cambian.
+
+- [ ] **Step 5: El comentario viejo y `CLAUDE.md`**
+
+En `spec/requests/participant_rules_spec.rb` (~130), el comentario «El reporte trae el ranking entero: es justo lo que no ve en pantalla.» pasa a: «El reporte trae el ranking entero: en pantalla ve lo agregado y sus propias ideas (`pantalla_del_modulo_spec`, reportería), y el archivo no lo puede generar.»
+
+En `CLAUDE.md`, «Los cuatro roles», al final del bullet de «Quien participa ve solo las ideas en las que participa» (después de lo que sumó la Tarea 7b), agregá: «En reportería ve lo agregado —embudo, distribución, participación— y el ranking y la matriz filtrados a sus ideas; el resumen narrativo no, porque nombra ideas ajenas. Hasta el plan 2b veía el tablero entero.»
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add app/views/steps/reporting.html.haml app/views/steps/_descargas.html.haml spec/requests/pantalla_del_modulo_spec.rb spec/requests/participant_rules_spec.rb CLAUDE.md docs/superpowers/plans/2026-09-17-rediseno-2b-pantallas-de-modulo.md
+git commit -F - <<'MSG'
+Quien participa ve en reportería lo agregado y sus propias ideas
+
+La pantalla de reportería no tenía guarda de vista: quien participa veía el
+ranking con autor y puntaje de todas las ideas, la matriz por módulo y el
+resumen narrativo, que nombra ideas ajenas. El spec de reglas decía que eso
+no lo veía en pantalla y sólo probaba que no podía generar el archivo.
+
+Ahora ve lo agregado —embudo, distribución, participación— y el ranking y la
+matriz filtrados con `@ideas_visibles`, igual que selección; el resumen no.
+Las descargas y el pedido del resumen a la IA quedan para quien puede usarlos
+(`report?`, `update_pipeline?`): a quien acompaña o evalúa le rebotaban con
+403, y los archivos traen el ranking entero por un link que no pasa por
+Pundit. No es del rediseño: lo encontró el plan 2b al mudar la pantalla.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014gkhXcuX5q5pNYj9oZdAZU
+MSG
+```
+
+---
+
 ### Task 9: Las cinco caras de configuración
 
 Una sola columna, en el orden de hoy. Lo que cambia es juntar lo que está partido y pasar a `card`.
