@@ -37,3 +37,17 @@ import './ia_popups';
     requestAnimationFrame(() => window.scrollTo(0, destino));
   });
 })();
+
+// Un plegable abierto sigue abierto cuando la pantalla se actualiza.
+//
+// El `open` de un <details> lo pone quien lo abre, en el cliente. Un POST que
+// redirige a la misma URL morfea contra el HTML del servidor, que no lo trae,
+// e idiomorph lo saca: guardar un peso adentro de «Ajustes del módulo» cerraba
+// los ajustes en la cara de quien acababa de guardar. Se cancela solo la
+// REMOCIÓN: un `open` que agrega el servidor sigue entrando.
+addEventListener('turbo:before-morph-attribute', (event) => {
+  const { attributeName, mutationType } = event.detail;
+  if (event.target instanceof HTMLDetailsElement && attributeName === 'open' && mutationType === 'remove') {
+    event.preventDefault();
+  }
+});

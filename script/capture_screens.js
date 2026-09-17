@@ -80,6 +80,38 @@ async function revisarMorphing(page, name) {
   }
 }
 
+// Un <details> abierto por quien usa la pantalla tiene el `open` puesto por
+// el CLIENTE. Guardar algo adentro redirige a la misma URL, Turbo morfea
+// contra el HTML del servidor —que no trae `open`— y el plegable se cierra
+// justo después de guardar. El gancho de `application.js` lo evita; esto
+// prueba que siga ahí, con la misma navegación que produce un POST que
+// vuelve a donde estabas.
+async function revisarPlegableTrasMorph(page, name, selector) {
+  if (!(await page.locator(selector).count())) {
+    failures++;
+    console.error(`[PLEGABLE] ${name}: no hay ningún ${selector} con qué probar`);
+    return;
+  }
+  const resultado = await page.evaluate(async (sel) => {
+    document.querySelector(sel).open = true;
+    let morphs = 0;
+    const contar = () => { morphs++; };
+    addEventListener('turbo:morph', contar);
+    window.Turbo.visit(window.location.href, { action: 'replace' });
+    await new Promise((r) => setTimeout(r, 1500));
+    removeEventListener('turbo:morph', contar);
+    return { morphs, abierto: document.querySelector(sel)?.open === true };
+  }, selector);
+  // Sin morph la guarda no probó nada: pasaría en verde con el gancho roto.
+  if (!resultado.morphs) {
+    failures++;
+    console.error(`[PLEGABLE] ${name}: la pantalla no se morfeó, así que no se probó el plegable`);
+  } else if (!resultado.abierto) {
+    failures++;
+    console.error(`[PLEGABLE] ${name}: ${selector} se cerró al actualizarse la pantalla`);
+  }
+}
+
 // Un <form> dentro de otro es HTML inválido y el navegador NO lo deja pasar:
 // descarta el interno y sus botones pasan a pertenecer al externo. Pasó de
 // verdad — los ✓/✗ de veredicto vivían dentro del formulario del corte, así
@@ -104,7 +136,7 @@ async function revisarFormsAnidados(page, name, url) {
 // mirando —a simple vista el borde doble parece una separación—.
 async function revisarRitmo(page, name) {
   const pegadas = await page.evaluate(() => {
-    const paneles = [...document.querySelectorAll('.app-main > .panel')];
+    const paneles = [...document.querySelectorAll('.app-main > .panel, .app-main > .card')];
     let juntas = 0;
     for (let i = 1; i < paneles.length; i++) {
       const anterior = paneles[i - 1].getBoundingClientRect();
@@ -129,7 +161,7 @@ async function revisarRitmo(page, name) {
 async function revisarClasesDescartadas(page, name) {
   const huerfanas = await page.evaluate(() => {
     const sospechosas = [];
-    for (const el of document.querySelectorAll('[class*="badge"],[class*="btn"],[class*="alert"],.steps,.panel,.table :is(th,td)')) {
+    for (const el of document.querySelectorAll('[class*="badge"],[class*="btn"],[class*="alert"],.steps,.panel,.card,.table :is(th,td)')) {
       // Única excepción: la celda de `tr.cut-line` (línea de corte del
       // ranking, `steps/selection.html.haml`) anula padding y borde a
       // propósito con `!important` (`.cut-line td` en application.css) — no
@@ -296,10 +328,10 @@ async function revisarContraste(page, name) {
 }
 
 // Las variantes que la app usa, medidas en el tema activo aunque ninguna
-// pantalla del recorrido las muestre en ese tema. Se inyectan en un `.panel`
-// de una pantalla real —con la hoja y el tema de verdad—, se miden y se
-// sacan. Sin esto la pasada oscura midió CERO avisos y dio verde: las cuatro
-// pantallas que recorre no tienen ninguno.
+// pantalla del recorrido las muestre en ese tema. Se inyectan en una tarjeta
+// (`.card-body` o `.panel`) de una pantalla real —con la hoja y el tema de
+// verdad—, se miden y se sacan. Sin esto la pasada oscura midió CERO avisos y
+// dio verde: las cuatro pantallas que recorre no tienen ninguno.
 //
 // Falla también si mide menos muestras de las que declara, para que no
 // vuelva a pasar en verde sin haber medido nada.
@@ -350,7 +382,7 @@ const MUESTRARIO_ATENUADO = [
 
 async function revisarMuestrario(page, tema) {
   await page.evaluate(({ plenas, atenuadas }) => {
-    const destino = document.querySelector('.panel') || document.querySelector('.app-main') || document.body;
+    const destino = document.querySelector('.card-body') || document.querySelector('.panel') || document.querySelector('.app-main') || document.body;
     const caja = document.createElement('div');
     caja.dataset.muestrario = '';
     const muestra = (clase, padre) => {
@@ -390,6 +422,46 @@ async function revisarMuestrario(page, tema) {
   if (bajos.length) {
     failures++;
     console.error(`[CONTRASTE] muestrario ${tema}: ${bajos.map((m) => `${m.clase} ${m.ratio.toFixed(2)}:1`).join(' · ')}`);
+  }
+}
+
+// Mientras convivan `.panel` y `.card`, una tarjeta migrada tiene que verse
+// igual que una sin migrar: si no, cada pantalla del plan 2b cambia de aspecto
+// por la tarjeta y no por lo que se decidió cambiarle. Se inyectan las dos en
+// la pantalla real —con la hoja y el tema de verdad— y se comparan los estilos
+// computados. Se borra junto con `.panel`, al final del plan 2b-bis.
+async function revisarCardComoPanel(page, tema) {
+  const diferencias = await page.evaluate(() => {
+    const destino = document.querySelector('.app-main') || document.body;
+    const panel = document.createElement('div');
+    panel.className = 'panel';
+    panel.textContent = 'panel';
+    const card = document.createElement('div');
+    card.className = 'card';
+    const body = document.createElement('div');
+    body.className = 'card-body';
+    body.textContent = 'card';
+    card.appendChild(body);
+    destino.append(panel, card);
+
+    const p = getComputedStyle(panel);
+    const c = getComputedStyle(card);
+    const b = getComputedStyle(body);
+    const pares = {
+      'background-color': [p.backgroundColor, c.backgroundColor],
+      'border-top': [`${p.borderTopWidth} ${p.borderTopStyle} ${p.borderTopColor}`, `${c.borderTopWidth} ${c.borderTopStyle} ${c.borderTopColor}`],
+      'border-radius': [p.borderTopLeftRadius, c.borderTopLeftRadius],
+      'box-shadow': [p.boxShadow, c.boxShadow],
+      'padding': [`${p.paddingTop} ${p.paddingLeft}`, `${b.paddingTop} ${b.paddingLeft}`],
+      'font-size': [p.fontSize, b.fontSize]
+    };
+    panel.remove();
+    card.remove();
+    return Object.entries(pares).filter(([, [a, z]]) => a !== z).map(([k, [a, z]]) => `${k}: panel ${a} · card ${z}`);
+  });
+  if (diferencias.length) {
+    failures++;
+    console.error(`[CARD] ${tema}: la card no se ve como el panel — ${diferencias.join(' | ')}`);
   }
 }
 
@@ -749,6 +821,10 @@ async function shot(page, name, url, prepare) {
   ]);
   await page.waitForSelector('.version-timeline', { timeout: 10000 });
   await capturar(page, '07-idea');
+
+  // Las rondas de feedback cerradas de la ficha de la idea ya se pliegan con
+  // <details>: es el plegable que existe desde antes de este plan.
+  await revisarPlegableTrasMorph(page, '07-idea', 'details.feedback-round--cerrada');
 
   const diffLink = page.locator('a:has-text("Ver cambios entre versiones")');
   if (await diffLink.count()) {
@@ -1187,6 +1263,7 @@ async function shot(page, name, url, prepare) {
   // las tres variantes, así que se miden a mano acá, con la hoja y el tema de
   // verdad, antes de pasar a oscuro.
   await revisarMuestrario(page, 'claro');
+  await revisarCardComoPanel(page, 'claro');
 
   // ── Tema oscuro ──────────────────────────────────────────────────────────
   //
@@ -1196,14 +1273,32 @@ async function shot(page, name, url, prepare) {
   // esto no prueba navegación, prueba colores, y el recorrido por link ya
   // corrió en claro.
   await page.emulateMedia({ colorScheme: 'dark' });
+  // Las pantallas de módulo también, que son las que el plan 2b reordena. Por
+  // URL, como el resto de esta pasada: esto prueba colores, no navegación.
+  const oscuroDeModulos = [
+    ['94-oscuro-evaluacion', stepLinks.find((l) => l.text.match(/comit/i))],
+    ['95-oscuro-seleccion', stepLinks.find((l) => l.text.match(/Corte a top/i))],
+    ['96-oscuro-evolucion', stepLinks.find((l) => l.text.match(/Ronda de feedback/i))],
+    ['97-oscuro-reporteria', stepLinks.find((l) => l.text.match(/Reporte/i))]
+  ];
+  for (const [nombre, link] of oscuroDeModulos) {
+    if (!link) {
+      failures++;
+      console.error(`[LINK] la pasada oscura no encontró el módulo de ${nombre}`);
+    }
+  }
   for (const [nombre, url] of [
     ['90-oscuro-desafios', '/challenges'],
     ['91-oscuro-desafio', `/challenges/${CHALLENGE}`],
     ['92-oscuro-criterios', '/criteria_sets'],
-    ['93-oscuro-ia', '/admin/ai_runs']
+    ['93-oscuro-ia', '/admin/ai_runs'],
+    ...oscuroDeModulos.filter(([, link]) => link).map(([nombre, link]) => [nombre, link.href])
   ]) {
     await page.goto(BASE + url, { waitUntil: 'networkidle' });
-    if (nombre === '90-oscuro-desafios') await revisarMuestrario(page, 'oscuro');
+    if (nombre === '90-oscuro-desafios') {
+      await revisarMuestrario(page, 'oscuro');
+      await revisarCardComoPanel(page, 'oscuro');
+    }
     await capturar(page, nombre);
   }
   await page.emulateMedia({ colorScheme: 'light' });

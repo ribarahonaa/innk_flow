@@ -523,6 +523,9 @@ body {
 .app-main > .panel p:not([class]),
 .app-main > .panel .muted,
 .app-main > .panel .field-hint,
+.app-main > .card p:not([class]),
+.app-main > .card .muted,
+.app-main > .card .field-hint,
 .app-main > .page-head p,
 .app-main > p { max-width: var(--prosa); }
 
@@ -749,6 +752,24 @@ body {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 20px;
+}
+
+/* La tarjeta de DaisyUI con el aspecto de `.panel`. El componente trae el
+   radio y `display: flex` en columna, y nada más: ni fondo, ni borde, ni
+   sombra. Escribir `card-border bg-base-100 shadow-sm` en cada vista sería la
+   regla de los componentes al revés, así que el aspecto vive acá, una vez.
+
+   `--card-p` y `--card-fs` son lo que mide `.panel`: 20px de relleno —DaisyUI
+   pone 24— y la letra del `body`. Va PEGADA a `.panel` y antes de `.ai-panel`,
+   `.narrative-card` y `.ai-mode-card`: con la misma especificidad y sin capa,
+   gana la que viene después, y esas tienen que seguir pisando borde y fondo. */
+.card {
+  --card-p: 20px;
+  --card-fs: 14px;
+  background: var(--surface);
+  border: 1px solid var(--borde);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 /* ── Auth ───────────────────────────────────────────────────────────────── */

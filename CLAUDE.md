@@ -575,6 +575,13 @@ Tres cosas que no son obvias:
   `make screens` lo verifica sin gastar una llamada al proveedor
   (`revisarMorphing` en `script/capture_screens.js`), pidiendo a mano la misma
   navegación.
+- **Un `<details>` abierto sobrevive al morph.** El `open` lo pone el
+  cliente, y un POST que vuelve a la misma URL morfea contra el HTML del
+  servidor, que no lo trae: guardar algo adentro de un plegable lo cerraba.
+  `application.js` cancela en `turbo:before-morph-attribute` la REMOCIÓN de
+  `open` en un `DETAILS` (un `open` que agrega el servidor sigue entrando).
+  Por eso todo lo plegable de la app es un `<details>`: un mecanismo, un
+  gancho. Lo prueba `revisarPlegableTrasMorph` en `make screens`.
 
 ### Configurar y ejecutar son dos caras de la misma pantalla
 
@@ -818,15 +825,15 @@ el vocabulario que es de esta app y se repite (`.flow-strip`, `.step-card`,
 `.empty-state`) · utilidades sueltas solo para lo irrepetible. **Si una clase
 aparece en más de dos vistas, es un componente, no doce utilidades.**
 
-`card` de DaisyUI está **habilitada**, y ninguna tarjeta la usa todavía. Estuvo
-excluida porque declara `display: flex`, y habilitarla convertía de golpe todas
-las tarjetas de la app en columnas flex. Para poder habilitarla sin tocar
-ninguna, las tarjetas de la app se llaman **`.panel`**: mismo CSS que tenía
-`.card`. Cada pantalla pasa de `.panel` a `card` + `card-body` cuando le toca
-(plan 2b). `make screens` falla si aparece un `card` sin `card-body`
-(`revisarTarjetasViejas`), que es la forma VIEJA; un `card` con `card-body`
-adentro ya es la migración del plan 2b y no hace fallar la guarda. Sin el
-`exclude`, esa tarjeta se volvería flex en silencio.
+`card` de DaisyUI está **habilitada**, y el aspecto lo pone la hoja: una
+regla `.card` pegada a `.panel` le da superficie, borde, radio y sombra, y
+fija `--card-p` y `--card-fs` a lo que mide `.panel`. En las vistas se
+escribe `.card` > `.card-body` y nada más. Estuvo excluida porque declara
+`display: flex`, y habilitarla convertía de golpe todas las tarjetas en
+columnas flex; por eso las tarjetas de la app se llaman **`.panel`** hasta
+que cada pantalla pasa a `card` (planes 2b y 2b-bis). `make screens` falla si
+aparece un `card` sin `card-body` (`[PANEL]`) y si una `card` no se ve igual
+que un `.panel` (`[CARD]`, que se borra con `.panel`).
 
 **La capa decide quién gana, y no es la especificidad.** Las clases propias de
 la app van **sin capa**, y una regla sin capa le gana a cualquier `@layer` —o
