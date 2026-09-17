@@ -17,9 +17,13 @@ Rama `rediseno-2b`, **sin mergear y sin pushear**.
 
 ## Estado actual
 
-- **`master` sigue donde estaba** (`0bf4a77`). `rediseno-2b` tiene **23
-  commits** encima: spec, plan y 21 de trabajo.
-- **Verificación sobre `c76a6e7`:** `make spec` 915 ejemplos, 0 fallas.
+- **Mergeado y pusheado.** `master` y `origin/master` están en `4915f14`, el
+  merge de `rediseno-2b` (`--no-ff`, como las integraciones anteriores). El
+  árbol del merge es idéntico al de la rama verificada, así que lo que corrió
+  en verde es exactamente lo que quedó en `master`. La rama local
+  `rediseno-2b` (`b7a48d6`) sigue existiendo, sin borrar.
+- **Verificación sobre `c76a6e7`, la punta de la rama:** `make spec` 915
+  ejemplos, 0 fallas.
   `make screens` 52 capturas, «Sin errores de JS ni respuestas >= 400», con
   todas las guardas en silencio.
 - **Revisión final de la rama hecha** (subagente, rama entera contra `master`):
@@ -110,10 +114,11 @@ spec visto fallar)
 
 ## Próximos pasos
 
-1. **Decidir cómo integrar `rediseno-2b`**: mergear a `master` (y pushear las
-   dos, que hoy están sólo locales), o dejarla para revisar las capturas
-   primero. `tmp/screenshots/` tiene las 52 de HEAD y
-   `tmp/screenshots-antes-2b/` las de partida.
+1. **Mirar las capturas**, que es lo único del 2b que no hizo una máquina:
+   `tmp/screenshots/` tiene las 52 de HEAD y `tmp/screenshots-antes-2b/` las
+   de partida, con los mismos nombres. Las que más cambiaron:
+   `09-3` y `09-5` (evaluación), `09-16-ajustes-abiertos`, `09-17-desglose`,
+   `09-4` (selección), `09-1` (idear), `09-7` (reportería) y `02b-salteado`.
 2. **Menores que la revisión final dejó pasar**, en orden de valor:
    - la pasada oscura no abre plegables, así que el desglose y los ajustes no
      se miden en oscuro (se cierra abriendo el `details` en
@@ -140,9 +145,17 @@ spec visto fallar)
    handoff anterior): la sesión de quien perdió la membresía sigue viva; los
    links de adjuntos de Active Storage no vencen y quedan fuera de Pundit; se
    puede asignar a evaluar a alguien con rol `participant` por POST directo.
-6. Las ramas mergeadas que siguen en `origin` (`doc-404-403`, `rediseno-2a`,
-   `arreglos-de-permisos-y-demo`) todavía están sin borrar: el intento de esta
-   sesión lo bloqueó el filtro de permisos.
+6. **Ramas mergeadas sin borrar**: en `origin` siguen `doc-404-403`,
+   `rediseno-2a` y `arreglos-de-permisos-y-demo` —el intento de esta sesión lo
+   bloqueó el filtro de permisos, que no deja borrar ramas remotas— y en local
+   queda `rediseno-2b`, ya mergeada. Borrarlas es de Raúl:
+
+   ```bash
+   git branch -d rediseno-2b
+   git -c credential.helper= -c credential.helper='!gh auth git-credential' \
+     push https://github.com/ribarahonaa/innk_flow.git \
+     --delete doc-404-403 rediseno-2a arreglos-de-permisos-y-demo rediseno-2b
+   ```
 
 **Decisiones tomadas en esta sesión** (las nueve están en los mensajes de
 commit; éstas son las que cambian lo que se ve o condicionan lo que sigue):
