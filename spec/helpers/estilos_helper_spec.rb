@@ -3,6 +3,13 @@
 require "rails_helper"
 
 RSpec.describe EstilosHelper, type: :helper do
+  # Toda clase de chip que devuelve el helper. Una sola lista: estaba copiada
+  # en dos specs, y un chip nuevo sumado a una y no a la otra quedaba sin medir.
+  def todos_los_chips
+    [EstilosHelper::CHIP_DE_ESTADO, EstilosHelper::CHIP_DE_ORIGEN, EstilosHelper::CLASE_DE_FEEDBACK,
+     EstilosHelper::CLASE_DE_NODO_DE_FLUJO, EstilosHelper::CHIPS].flat_map(&:values) << EstilosHelper::CHIP_DE_IA
+  end
+
   it "devuelve el nombre completo, no un fragmento" do
     expect(helper.chip_de_estado("completed")).to eq("badge badge-soft badge-success badge-sm font-semibold whitespace-nowrap")
   end
@@ -38,9 +45,7 @@ RSpec.describe EstilosHelper, type: :helper do
   # viejo (`status-chip`, `source-chip`…) se ve bien mientras la hoja todavía
   # tiene su regla, y se rompe en silencio el día que la Tarea 7 la borra.
   it "todos los chips son badge" do
-    chips = [EstilosHelper::CHIP_DE_ESTADO, EstilosHelper::CHIP_DE_ORIGEN, EstilosHelper::CLASE_DE_FEEDBACK,
-             EstilosHelper::CLASE_DE_NODO_DE_FLUJO].flat_map(&:values) << EstilosHelper::CHIP_DE_IA
-    chips.each { |clase| expect(clase).to start_with("badge "), "«#{clase}» no es un badge" }
+    todos_los_chips.each { |clase| expect(clase).to start_with("badge "), "«#{clase}» no es un badge" }
   end
 
   it "el chip de IA es uno solo" do
@@ -105,10 +110,19 @@ RSpec.describe EstilosHelper, type: :helper do
     expect(arreglo).not_to be_nil, "No se encontró `const MUESTRARIO = [...]` en script/capture_screens.js"
 
     muestrario = arreglo.scan(/'([^']+)'/).flatten
-    chips = [EstilosHelper::CHIP_DE_ESTADO, EstilosHelper::CHIP_DE_ORIGEN, EstilosHelper::CLASE_DE_FEEDBACK,
-             EstilosHelper::CLASE_DE_NODO_DE_FLUJO].flat_map(&:values) << EstilosHelper::CHIP_DE_IA
-    faltan = chips.uniq - muestrario
+    faltan = todos_los_chips.uniq - muestrario
     expect(faltan).to be_empty, "El muestrario no mide: #{faltan.join(" · ")}"
+  end
+
+  # Las marcas sueltas se piden por nombre, no por estado: un nombre mal
+  # escrito es un error de código y tiene que reventar, no pintar un neutro.
+  it "una marca que no existe revienta en vez de caer a un default" do
+    expect { helper.chip("versión") }.to raise_error(KeyError)
+  end
+
+  it "la marca de fuera del corte y la de sin responder no se confunden" do
+    expect(helper.chip("no_pasa")).to include("badge-error")
+    expect(helper.chip("sin_responder")).to include("badge-warning")
   end
 
   # Los nodos pintan los mismos estados que los chips, pero NO con los mismos

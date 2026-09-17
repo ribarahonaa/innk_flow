@@ -361,7 +361,16 @@ const MUESTRARIO = [
   'badge badge-soft badge-sm',
   'badge badge-soft badge-primary badge-sm font-semibold',
   'badge badge-soft badge-success badge-sm',
-  'badge badge-soft badge-sm border-dashed'
+  'badge badge-soft badge-sm border-dashed',
+  // Las marcas sueltas (`EstilosHelper::CHIPS`).
+  'badge badge-soft badge-xs font-mono font-semibold ml-1.5',
+  'badge badge-soft badge-warning badge-xs font-semibold ml-1',
+  'badge badge-primary badge-xs font-semibold whitespace-nowrap ml-2',
+  'badge badge-soft badge-error badge-xs font-semibold whitespace-nowrap ml-2',
+  'badge badge-soft badge-warning badge-xs font-semibold whitespace-nowrap ml-2',
+  'badge badge-soft badge-primary badge-xs font-bold ml-1.5',
+  'badge badge-soft badge-xs font-semibold',
+  'badge badge-soft badge-secondary badge-xs font-semibold'
 ];
 
 // Los chips de un comentario ya atendido —el tipo, la resolución y la marca

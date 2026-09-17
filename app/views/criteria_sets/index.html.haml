@@ -18,7 +18,7 @@
           %h2.challenge-card__name
             = set.name
             - if set.version > 1
-              %span.version-chip{ title: "Las versiones anteriores siguen sirviendo a quien las usaba" }= "v#{set.version}"
+              %span{ class: chip("version"), title: "Las versiones anteriores siguen sirviendo a quien las usaba" }= "v#{set.version}"
           %span{ class: chip_de_validez(set.status == "valid") }
             = set.status == "valid" ? "válido" : "revisar"
         - usos = set.challenge_steps.count

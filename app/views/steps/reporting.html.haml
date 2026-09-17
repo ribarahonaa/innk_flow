@@ -104,9 +104,9 @@
             %td
               %strong= "#{(row['score'] * 100).round(1)}%"
             %td.muted
-              %span.version-chip= row["version"]
+              %span{ class: chip("version") }= row["version"]
               - if row["stale"]
-                %span.stale-chip{ title: "La idea cambió después de evaluarse" }= "→ #{row['current_version']}"
+                %span{ class: chip("desactualizada"), title: "La idea cambió después de evaluarse" }= "→ #{row['current_version']}"
             %td
               %span{ class: chip_de_estado(row["status"] == "active" ? "active" : "skipped") }
                 = t("flow.idea_statuses.#{row['status']}")
@@ -164,7 +164,7 @@
                   - if cell["score"]
                     %strong= "#{(cell['score'] * 100).round}%"
                     - if cell["version"]
-                      %span.version-chip= cell["version"]
+                      %span{ class: chip("version") }= cell["version"]
                   - else
                     %span.muted —
 

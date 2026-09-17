@@ -76,8 +76,8 @@
               - if evaluadores.any?
                 %span.evaluators
                   - evaluadores.each do |assessment|
-                    %span.evaluator-chip{ class: ("evaluator-chip--ai" if assessment.by_ai?),
-                                          title: "#{assessment.evaluator_name}: #{assessment.overall_comment}" }
+                    %span{ class: chip(assessment.by_ai? ? "evaluador_ia" : "evaluador"),
+                           title: "#{assessment.evaluator_name}: #{assessment.overall_comment}" }
                       = assessment.by_ai? ? "IA" : assessment.evaluator_name.split.map(&:first).join
             %td
               - if !visible
@@ -118,9 +118,9 @@
               %strong= assessment.evaluator_name
               - if assessment.by_ai?
                 %span{ class: chip_de_ia } IA
-              %span.version-chip= assessment.idea_version.label
+              %span{ class: chip("version") }= assessment.idea_version.label
               - if assessment.stale?
-                %span.stale-chip= "la idea ya va por #{idea.current_version&.label}"
+                %span{ class: chip("desactualizada") }= "la idea ya va por #{idea.current_version&.label}"
               - if assessment.normalized_score
                 %span.assessment-detail__score= "#{(assessment.normalized_score.to_f * 100).round(1)}%"
             - if assessment.overall_comment.present?
@@ -133,4 +133,4 @@
                   - if score.comment.present?
                     %span.muted= score.comment
                   - if score.error.present?
-                    %span.stale-chip= score.error
+                    %span{ class: chip("desactualizada") }= score.error

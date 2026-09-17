@@ -144,10 +144,10 @@
             -# Una idea con mejor puntaje puede quedar debajo de otra peor
             -# porque no pasó un filtro. Sin decirlo, el ranking parece roto.
             - if row.failed_gates.any?
-              %span.out-chip{ title: row.failed_gates.map { |g| g[:name] }.join(", ") }
+              %span{ class: chip("no_pasa"), title: row.failed_gates.map { |g| g[:name] }.join(", ") }
                 = "no pasa #{Flow::Texto.contar(row.failed_gates.size, 'filtro')}"
             - elsif row.pending_gates.any?
-              %span.out-chip.out-chip--pending= "#{Flow::Texto.contar(row.pending_gates.size, 'filtro')} sin responder"
+              %span{ class: chip("sin_responder") }= "#{Flow::Texto.contar(row.pending_gates.size, 'filtro')} sin responder"
             -# La acción va donde está la idea. Antes había una tarjeta aparte
             -# que repetía estas mismas filas solo para colgarle el botón.
             - if fuera_aca.key?(row.idea.id) && policy(@step).advance?

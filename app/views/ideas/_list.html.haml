@@ -8,7 +8,7 @@
           %span.idea-list__title= idea.title
           %span.idea-list__meta
             = idea.author.name
-            %span.version-chip= idea.current_version&.label
+            %span{ class: chip("version") }= idea.current_version&.label
             - if idea.origin == "ai"
               %span{ class: chip_de_ia } IA
         -# «No avanzó» sin decir dónde obliga a entrar a la idea para saberlo.

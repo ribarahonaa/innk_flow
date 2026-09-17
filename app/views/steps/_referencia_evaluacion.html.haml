@@ -41,7 +41,7 @@
             -# para las fórmulas, así que `scale_type == "formula"` no es
             -# nunca cierto y el chip no se veía en ninguna pantalla.
             - if criterion["source"] == "formula"
-              %span.derived-chip derivado
+              %span{ class: chip("derivado") } derivado
             %br
             %span.muted= t("flow.scale_types.#{criterion['scale_type']}")
           %strong= "#{(criterion['weight'].to_f * 100).round}%"

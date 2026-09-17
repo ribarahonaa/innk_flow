@@ -65,6 +65,25 @@ module EstilosHelper
   # de dos vistas es un componente» existe para evitar.
   CHIP_DE_IA = "badge badge-soft badge-secondary badge-xs font-bold tracking-wide"
 
+  # Las marcas que no traducen un estado sino que dicen algo suelto de un
+  # elemento: su versión, que quedó vieja, que no pasa un filtro, quién evaluó.
+  # Estaban escritas a mano, cada una con su CSS, y la guarda de contraste no
+  # las medía. Se piden por NOMBRE y un nombre que no existe revienta: es un
+  # error de código, no un dato del dominio que pueda venir nuevo.
+  #
+  # Los `ml-*` son los `margin-left` que tenían. `evaluador` deja de ser un
+  # círculo: toma el radio del tema, como el resto de los chips.
+  CHIPS = {
+    "version" => "badge badge-soft badge-xs font-mono font-semibold ml-1.5",
+    "desactualizada" => "badge badge-soft badge-warning badge-xs font-semibold ml-1",
+    "aca" => "badge badge-primary badge-xs font-semibold whitespace-nowrap ml-2",
+    "no_pasa" => "badge badge-soft badge-error badge-xs font-semibold whitespace-nowrap ml-2",
+    "sin_responder" => "badge badge-soft badge-warning badge-xs font-semibold whitespace-nowrap ml-2",
+    "derivado" => "badge badge-soft badge-primary badge-xs font-bold ml-1.5",
+    "evaluador" => "badge badge-soft badge-xs font-semibold",
+    "evaluador_ia" => "badge badge-soft badge-secondary badge-xs font-semibold"
+  }.freeze
+
   CLASE_DE_DIFF = {
     "added" => "diff-kind diff-kind--added",
     "removed" => "diff-kind diff-kind--removed",
@@ -123,6 +142,7 @@ module EstilosHelper
   def clase_de_diff(kind) = CLASE_DE_DIFF.fetch(kind.to_s, CLASE_DE_DIFF.fetch("changed"))
   def clase_de_resultado(status) = CLASE_DE_RESULTADO.fetch(status.to_s, CLASE_DE_RESULTADO.fetch("pending"))
   def clase_de_nodo_de_flujo(estado) = CLASE_DE_NODO_DE_FLUJO.fetch(estado.to_s, CLASE_DE_NODO_DE_FLUJO.fetch("pending"))
+  def chip(nombre) = CHIPS.fetch(nombre.to_s)
 
   # `_setup_progress.html.haml` ya arma su clase como ARREGLO y le suma otras
   # condicionales. Este helper devuelve solo la de estado; el arreglo se

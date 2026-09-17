@@ -14,7 +14,7 @@
       - if @idea.eliminated? && @idea.eliminated_at_step
         %span= " en «#{@idea.eliminated_at_step.name}»"
       %span= " · #{@idea.author.name}"
-      %span.version-chip= @idea.current_version&.label
+      %span{ class: chip("version") }= @idea.current_version&.label
       - if @idea.submitted_at
         %span= " · postulada #{l(@idea.submitted_at, format: :short)}"
       - else
@@ -138,7 +138,7 @@
         - @versions.reverse_each do |version|
           %li.version-timeline__item{ class: ("is-current" if version.current?) }
             .version-timeline__head
-              %span.version-chip= version.label
+              %span{ class: chip("version") }= version.label
               - if version.current?
                 %span.muted vigente
             .version-timeline__meta

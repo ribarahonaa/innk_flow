@@ -38,7 +38,7 @@
           = link_to entry.idea.title, challenge_idea_path(@challenge, entry.idea), class: "feedback-card__title"
           %p.muted
             = entry.idea.author.name
-            %span.version-chip= entry.idea.current_version&.label
+            %span{ class: chip("version") }= entry.idea.current_version&.label
         .feedback-card__state
           - if @handler.responded?(entry)
             %span{ class: chip_de_estado("completed") } actualizada

@@ -750,10 +750,12 @@ La fase 1 migró la plomería, las clases dinámicas, el tema y el shell. El pla
 2a pasó el vocabulario que se repite a componentes: las tablas son `table`, los
 avisos `alert alert-soft`, las cuatro familias de chips (estado, origen, tipo
 de feedback e IA) y los nodos del mapa del flujo son `badge`, y las tarjetas se
-llaman `.panel` mientras esperan su `card` + `card-body`. Otros chips
-(`version-chip`, `stale-chip`, `here-chip`, `out-chip`, `evaluator-chip`,
-`derived-chip`) siguen escritos a mano: la guarda de contraste no los mide, y
-son candidatos del plan 2b. Lo que sigue —pantalla por pantalla (2b) y las
+llaman `.panel` mientras esperan su `card` + `card-body`. Las marcas sueltas
+—versión, desactualizada, «acá está el flujo», no pasa un filtro, filtros sin
+responder, derivado, las iniciales de quien evaluó— son `badge` vía
+`EstilosHelper::CHIPS`, y se piden por nombre con `chip("version")`: un nombre
+que no existe revienta, porque es un error de código y no un estado nuevo del
+dominio. Lo que sigue —pantalla por pantalla (2b) y las
 islas Vue (2c)— tiene su plan cuando le toque. `.step-card`, `.flow-strip` y
 `.empty-state` siguen siendo clases propias a propósito: son vocabulario de
 esta app.
