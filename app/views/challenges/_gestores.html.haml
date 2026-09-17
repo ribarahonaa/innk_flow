@@ -3,7 +3,10 @@
 -# Un gestor tiene membresía en la empresa pero NO ve sus desafíos: se lo asigna
 -# acá, uno por uno. Es lo que permite que la misma persona acompañe a varias
 -# empresas sin que se le mezcle nada.
-.panel
+-#
+-# En la ficha del desafío y en la cara de configuración es una tarjeta; en
+-# los ajustes del módulo, una sección (`tarjeta: false`).
+= render layout: "steps/bloque", locals: { tarjeta: local_assigns.fetch(:tarjeta, true) } do
   .section-head
     %div
       %h2.section-title Quiénes acompañan

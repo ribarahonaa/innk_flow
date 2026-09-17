@@ -1,66 +1,68 @@
 - content_for :title, @step.name
+
+-# Lo que se consulta mientras se acompaña la evolución.
+- content_for :referencia do
+  = render "steps/progreso", progress: @handler.progress
+  = render "steps/quienes_acompanan", step: @step
+  = render "steps/config_congelada", step: @step
+
 = render "steps/header", step: @step, handler: @handler
-= render "steps/config_congelada", step: @step
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 
-= render "steps/ai_mode", step: @step
-
-= render "steps/asignaciones_gestores", step: @step, candidates: @gestor_candidates
-
-- progress = @handler.progress
-.panel
-  .step-progress
-    %div
-      %strong= progress.done
-      %span.muted= " de #{progress.total} #{progress.label}"
-    .progress-bar
-      .progress-bar__fill{ style: "width: #{[progress.pct, 100].min}%" }
-  -# Pedirle feedback a la IA es lo mismo que escribirlo: lo puede hacer quien
-  -# podría comentar esa idea. Para quien acompaña la evolución, es su trabajo.
-  - primera = @step.step_entries.first
-  - if primera && policy(FeedbackItem.new(idea: primera.idea, challenge_step: @step)).create?
-    = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode,
-             actions: [{ label: "Sugerir feedback con IA", purpose: "suggest_feedback", step_id: @step.id, idea_id: primera.idea_id }]
+-# Pedirle feedback a la IA es lo mismo que escribirlo: lo puede hacer quien
+-# podría comentar esa idea. Para quien acompaña la evolución, es su trabajo.
+- primera = @step.step_entries.first
+- if primera && policy(FeedbackItem.new(idea: primera.idea, challenge_step: @step)).create?
+  = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode,
+           actions: [{ label: "Sugerir feedback con IA", purpose: "suggest_feedback", step_id: @step.id, idea_id: primera.idea_id }]
 
 .feedback-board
   -# Quien participa ve solo las ideas en las que participa: el tablero de la
   -# evolución es la vista de quien acompaña, no la del resto del desafío.
   - visibles = @step.step_entries.includes(idea: %i[current_version author]).select { |e| @ideas_visibles.include?(e.idea_id) }
   - if visibles.empty?
-    .panel
-      %p.muted Todavía no hay ideas tuyas en este módulo.
+    .card
+      .card-body
+        %p.muted Todavía no hay ideas tuyas en este módulo.
   - visibles.each do |entry|
     - items = @handler.feedback_for(entry.idea_id)
     - open_items = items.reject(&:addressed)
-    .panel.feedback-card
-      .feedback-card__head
-        %div
-          = link_to entry.idea.title, challenge_idea_path(@challenge, entry.idea), class: "feedback-card__title"
-          %p.muted
-            = entry.idea.author.name
-            %span{ class: chip("version") }= entry.idea.current_version&.label
-        .feedback-card__state
-          - if @handler.responded?(entry)
-            %span{ class: chip_de_estado("completed") } actualizada
-          - elsif open_items.any?
-            %span{ class: chip_de_estado("pending") }= "#{open_items.size} sin atender"
-          - if @step.active? && policy(entry.idea).update?
-            = link_to "Responder editando la idea",
-                      edit_challenge_idea_path(@challenge, entry.idea),
-                      class: "btn btn-primary btn-sm"
+    .card.feedback-card
+      .card-body
+        .feedback-card__head
+          %div
+            = link_to entry.idea.title, challenge_idea_path(@challenge, entry.idea), class: "feedback-card__title"
+            %p.muted
+              = entry.idea.author.name
+              %span{ class: chip("version") }= entry.idea.current_version&.label
+          .feedback-card__state
+            - if @handler.responded?(entry)
+              %span{ class: chip_de_estado("completed") } actualizada
+            - elsif open_items.any?
+              %span{ class: chip_de_estado("pending") }= "#{open_items.size} sin atender"
+            - if @step.active? && policy(entry.idea).update?
+              = link_to "Responder editando la idea",
+                        edit_challenge_idea_path(@challenge, entry.idea),
+                        class: "btn btn-primary btn-sm"
 
-      - if items.any?
-        %ul.feedback-list
-          - items.each do |item|
-            = render "shared/feedback_item", item: item, challenge: @challenge
-      - else
-        %p.muted Todavía nadie dio feedback a esta idea.
+        - if items.any?
+          %ul.feedback-list
+            - items.each do |item|
+              = render "shared/feedback_item", item: item, challenge: @challenge
+        - else
+          %p.muted Todavía nadie dio feedback a esta idea.
 
-      -# Comentar la idea ajena es de quien acompaña o juzga; quien participa,
-      -# solo la suya. El botón no se ofrece si va a rebotar.
-      - puede_comentar = policy(FeedbackItem.new(idea: entry.idea, challenge_step: @step)).create?
-      - if @step.active? && puede_comentar
-        = form_with url: challenge_step_feedback_items_path(@challenge, @step, idea_id: entry.idea_id), method: :post, class: "feedback-form" do
-          = select_tag :kind, options_for_select(FeedbackItem::KINDS.map { |k| [t("flow.feedback_kinds.#{k}"), k] }), class: "feedback-form__kind"
-          = text_field_tag :body, nil, placeholder: "Qué le falta o qué mejorarías", required: true
-          = submit_tag "Comentar", class: "btn btn-ghost btn-sm"
+        -# Comentar la idea ajena es de quien acompaña o juzga; quien participa,
+        -# solo la suya. El botón no se ofrece si va a rebotar.
+        - puede_comentar = policy(FeedbackItem.new(idea: entry.idea, challenge_step: @step)).create?
+        - if @step.active? && puede_comentar
+          = form_with url: challenge_step_feedback_items_path(@challenge, @step, idea_id: entry.idea_id), method: :post, class: "feedback-form" do
+            = select_tag :kind, options_for_select(FeedbackItem::KINDS.map { |k| [t("flow.feedback_kinds.#{k}"), k] }), class: "feedback-form__kind"
+            = text_field_tag :body, nil, placeholder: "Qué le falta o qué mejorarías", required: true
+            = submit_tag "Comentar", class: "btn btn-ghost btn-sm"
+
+-# Nombre, modo de IA y quiénes acompañan: se editan acá, pero casi nunca.
+- if policy(@step).advance? || policy(@challenge).update_pipeline?
+  = render layout: "steps/ajustes", locals: { resumen: "nombre, modo de IA y quiénes acompañan" } do
+    = render "steps/ai_mode", step: @step
+    = render "steps/asignaciones_gestores", step: @step, candidates: @gestor_candidates, tarjeta: false

@@ -1361,6 +1361,9 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
   border-radius: 8px;
   background: var(--ia-panel);
 }
+/* Suelta en la columna del trabajo, el `gap` de `.app-main` ya la separa: el
+   margen de abajo se sumaría y abriría un hueco. */
+.app-main > .ai-actions { margin-bottom: 0; }
 .link-button {
   background: none;
   border: 0;

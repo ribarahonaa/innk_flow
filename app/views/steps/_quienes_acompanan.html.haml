@@ -1,0 +1,15 @@
+-# Quiénes acompañan este desafío, para LEER. Sumar y sacar gente vive en los
+-# ajustes (`_asignaciones_gestores`). Con la MISMA guarda que la edición.
+- if policy(step.challenge).update_pipeline?
+  - asignados = step.challenge.challenge_gestores.includes(:user)
+  .card
+    .card-body
+      %h3.section-title Quiénes acompañan
+      - if asignados.any?
+        %ul.field-list
+          - asignados.each do |asignacion|
+            %li.field-list__item
+              %span= asignacion.user.name
+              %span.field-list__type gestor
+      - else
+        %p.muted Nadie acompaña este desafío todavía.

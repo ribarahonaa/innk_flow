@@ -179,4 +179,44 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       expect(documento.at_css(".ajustes")).to be_nil
     end
   end
+
+  describe "evolución" do
+    let!(:gina) { member("gina@test.dev", :gestor) }
+
+    let!(:challenge) do
+      as_company(company) do
+        c = create(:challenge, name: "Merma", ai_default_mode: "human")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
+        c.steps.create!(kind: "evolution", position: 2, name: "Ronda")
+        c
+      end
+    end
+
+    before do
+      postular!(challenge, author: paula, titulo: "Sensores")
+      as_company(company) do
+        challenge.pipeline.start!
+        challenge.pipeline.advance!
+        expect(paso("evolution")).to be_active
+      end
+    end
+
+    it "quien administra: progreso y quiénes acompañan a la derecha, gestores en los ajustes" do
+      sign_in(admin, company: company)
+      get challenge_step_path(challenge, paso("evolution"))
+
+      expect(zonas[:referencia]).to include("Progreso", "Quiénes acompañan", "Cómo quedó configurado")
+      expect(zonas[:ajustes]).to include("Ajustes del módulo", "Modo de IA", "Elegí a quién sumar")
+      expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
+    end
+
+    it "quien participa: sin quiénes acompañan y sin ajustes" do
+      sign_in(paula, company: company)
+      get challenge_step_path(challenge, paso("evolution"))
+
+      expect(zonas[:referencia]).to include("Progreso", "Cómo quedó configurado")
+      expect(zonas[:referencia]).not_to include("Quiénes acompañan")
+      expect(documento.at_css(".ajustes")).to be_nil
+    end
+  end
 end

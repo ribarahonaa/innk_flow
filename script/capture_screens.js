@@ -537,7 +537,7 @@ async function shot(page, name, url, prepare) {
 // Los módulos cuya cara de ejecución ya está en tres zonas (plan 2b). Por
 // nombre del seed de `merma-bodega`, igual que el resto del recorrido. Cada
 // tarea del plan suma el suyo; al final están todos menos las selecciones.
-const MODULOS_EN_ZONAS = [/Evaluaci/i];
+const MODULOS_EN_ZONAS = [/Evaluaci/i, /Ronda de feedback/i];
 // Las selecciones van sin referencia —con la columna puesta el ranking no
 // entraba en el centro—, pero los ajustes plegados sí los tienen.
 const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
