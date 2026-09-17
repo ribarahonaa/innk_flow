@@ -135,4 +135,48 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       end
     end
   end
+
+  describe "selección" do
+    let!(:challenge) do
+      as_company(company) do
+        c = create(:challenge, name: "Merma", ai_default_mode: "human")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
+        # Sin evaluación antes, la selección arranca solo con el orden manual:
+        # si no, `start!` falla y la pantalla sirve la cara de configuración.
+        c.steps.create!(kind: "selection", position: 2, name: "Corte",
+                        config: { "score_source" => { "type" => "manual" } })
+        c
+      end
+    end
+
+    before do
+      postular!(challenge, author: paula, titulo: "Sensores")
+      as_company(company) do
+        challenge.pipeline.start!
+        challenge.pipeline.advance!
+        expect(paso("selection")).to be_active
+      end
+    end
+
+    # Selección no tiene referencia: con la columna puesta el ranking no entra
+    # en el centro. «Cómo se decide» va arriba de la tabla.
+    it "quien administra: cómo se decide sin columna de referencia, los ajustes plegados" do
+      sign_in(admin, company: company)
+      get challenge_step_path(challenge, paso("selection"))
+
+      expect(response.body).to include("Cómo se decide")
+      expect(documento.at_css(".app-aside")).to be_nil
+      expect(zonas[:ajustes]).to include("Ajustes del módulo", "Modo de IA")
+      expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
+    end
+
+    it "quien participa: cómo se decide, sin ajustes" do
+      sign_in(paula, company: company)
+      get challenge_step_path(challenge, paso("selection"))
+
+      expect(response.body).to include("Cómo se decide")
+      expect(documento.at_css(".app-aside")).to be_nil
+      expect(documento.at_css(".ajustes")).to be_nil
+    end
+  end
 end
