@@ -1,0 +1,71 @@
+-# Una idea a evaluar. Si quien mira puede ver quién puso qué
+-# (`breakdown_visible_for?`) y hay evaluaciones, la fila es un <details> que
+-# se despliega con el detalle de cada una. Si no, es una fila común: una
+-# flechita que abre algo vacío sería un control que no responde.
+-#
+-# «Evaluar» e «IA» van AFUERA del `summary`, a la derecha: un clic en un botón
+-# adentro de un `summary` también despliega la fila, y un `button_to` es un
+-# formulario, que ahí adentro el HTML no admite.
+- result = entry.result
+- propia = entry.idea.participates?(current_user)
+-# El puntaje agregado y el desglose por evaluador son dos cosas distintas: el
+-# autor ve el suyo, pero no quién puso qué.
+- visible = handler.score_visible_for?(entry.idea, user: current_user, manager: manda)
+- desglose = handler.breakdown_visible_for?(entry.idea_id, user: current_user, manager: manda)
+- evaluaciones = desglose ? hechas.fetch(entry.idea_id, []) : []
+- celdas = { entry: entry, handler: handler, challenge: challenge, result: result, visible: visible, evaluaciones: evaluaciones }
+
+.fila-de-idea
+  - if evaluaciones.any?
+    %details.fila-de-idea__plegable
+      %summary.fila-de-idea__resumen
+        = render "steps/celdas_de_evaluacion", **celdas, desplegable: true
+      .fila-de-idea__desglose
+        - evaluaciones.each do |assessment|
+          .assessment-detail{ class: ("assessment-detail--ai" if assessment.by_ai?) }
+            .assessment-detail__head
+              %strong= assessment.evaluator_name
+              - if assessment.by_ai?
+                %span{ class: chip_de_ia } IA
+              %span{ class: chip("version") }= assessment.idea_version.label
+              - if assessment.stale?
+                %span{ class: chip("desactualizada") }= "la idea ya va por #{entry.idea.current_version&.label}"
+              - if assessment.normalized_score
+                %span.assessment-detail__score= "#{(assessment.normalized_score.to_f * 100).round(1)}%"
+            - if assessment.overall_comment.present?
+              %p.assessment-detail__comment= assessment.overall_comment
+            %ul.assessment-detail__scores
+              - assessment.assessment_scores.sort_by(&:criterion_key).each do |score|
+                %li
+                  %span.assessment-detail__criterion= score.criterion_key
+                  %strong= score.display_value
+                  - if score.comment.present?
+                    %span.muted= score.comment
+                  - if score.error.present?
+                    %span{ class: chip("desactualizada") }= score.error
+  - else
+    .fila-de-idea__resumen
+      = render "steps/celdas_de_evaluacion", **celdas, desplegable: false
+
+  .fila-de-idea__acciones
+    - if step.active?
+      - if propia
+        %span.field-hint Es tu idea
+      - else
+        -# El link tiene que decir lo mismo que la puerta: `AssessmentsController#new`
+        -# autoriza `AssessmentPolicy#create?`, y evaluar depende de la ASIGNACIÓN al
+        -# módulo, no del rol. Ofrecido con sólo mirar `step.active?`, a quien evalúa
+        -# sin asignación en este módulo —y a quien acompaña el desafío, que no es
+        -# `manager?`— le aparecía en todas las filas y le rebotaba con 403.
+        - if policy(Assessment.new(challenge_step: step, idea: entry.idea)).create?
+          = link_to "Evaluar", new_challenge_step_assessment_path(challenge, step, idea_id: entry.idea_id), class: "btn btn-ghost btn-sm"
+      -# Pedirle a la IA que evalúe no es evaluar: la nota es de la IA, no de
+      -# quien la pide (`AssessmentPolicy#create?`, vía `puede_pedir`, sin
+      -# idea a propósito, como en el lote y en la ficha de evaluación). Por
+      -# eso va FUERA del `if`/`else` de arriba y se ofrece también en la
+      -# fila propia: bloquearlo trabaría el módulo, porque
+      -# `min_assessments_for` ya baja el mínimo contando a la IA justamente
+      -# como quien evalúa lo que su autor no puede.
+      - if step.effective_ai_mode != "human" && puede_pedir
+        = button_to "IA", challenge_ai_requests_path(challenge, purpose: "evaluate_idea", step_id: step.id, idea_id: entry.idea_id),
+                    class: "btn btn-ghost btn-sm", title: "Que la IA evalúe esta idea"

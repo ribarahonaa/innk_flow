@@ -152,6 +152,95 @@ RSpec.describe "reglas de quien evalúa", type: :request do
     end
   end
 
+  # Evaluar depende de la ASIGNACIÓN, no del rol, y el link tiene que decir lo
+  # mismo que la puerta: `AssessmentsController#new` autoriza
+  # `AssessmentPolicy#create?`. La fila lo ofrecía con sólo mirar que el módulo
+  # estuviera activo y que la idea no fuera propia, así que a quien evalúa sin
+  # asignación en ESTE módulo —y a quien acompaña el desafío, que tampoco es
+  # `manager?`— le aparecía «Evaluar» en todas las filas y le rebotaba con 403.
+  describe "el link «Evaluar» de cada fila" do
+    it "se lo ofrece a quien tiene la asignación" do
+      sign_in(elena, company: company)
+      get challenge_step_path(challenge, step)
+
+      expect(response.body).to include(new_challenge_step_assessment_path(challenge, step, idea_id: ajena.id))
+    end
+
+    it "no se lo ofrece a quien evalúa sin asignación en este módulo" do
+      as_company(company) { step.step_assignments.find_by(user_id: emilio.id).destroy! }
+
+      sign_in(emilio, company: company)
+      get challenge_step_path(challenge, step)
+
+      expect(response.body).not_to include(new_challenge_step_assessment_path(challenge, step, idea_id: ajena.id))
+      expect(response.body).not_to include(new_challenge_step_assessment_path(challenge, step, idea_id: propia.id))
+    end
+  end
+
+  # El botón «IA» de cada fila —pedirle a la IA que evalúe ESA idea— es la
+  # misma regla que el lote y que la ficha de evaluación (`AssessmentPolicy
+  # #create?`, sin idea): de quien evalúa por asignación o por administrar,
+  # no de `update_pipeline?`. La fila lo escribía a mano con `manda`, así que
+  # a un evaluador asignado no le aparecía en ninguna fila.
+  describe "el botón «IA» de cada fila" do
+    before do
+      as_company(company) { step.update!(ai_mode: "ai_assisted") }
+    end
+
+    # `button_to` arma un `<form>`: la acción sale escapada como atributo
+    # HTML (`&amp;` y no `&`), a diferencia del link de «Evaluar», que sólo
+    # lleva un parámetro y no tiene `&` que escapar.
+    def ruta_del_pedido(idea)
+      CGI.escapeHTML(challenge_ai_requests_path(challenge, purpose: "evaluate_idea", step_id: step.id, idea_id: idea.id))
+    end
+
+    it "se lo ofrece a quien tiene la asignación" do
+      sign_in(elena, company: company)
+      get challenge_step_path(challenge, step)
+
+      expect(response.body).to include(ruta_del_pedido(ajena))
+    end
+
+    it "no se lo ofrece a quien evalúa sin asignación en este módulo" do
+      as_company(company) { step.step_assignments.find_by(user_id: emilio.id).destroy! }
+
+      sign_in(emilio, company: company)
+      get challenge_step_path(challenge, step)
+
+      expect(response.body).not_to include(ruta_del_pedido(ajena))
+    end
+
+    # La nota es de la IA, no de quien la pide: en su propia fila no hay
+    # «Evaluar» —Elena no se puntúa a sí misma—, pero el botón «IA» tiene que
+    # seguir ahí, porque bloquearlo trabaría el módulo (`min_assessments_for`
+    # ya cuenta a la IA justamente para lo que su autor no puede evaluar).
+    #
+    # Completar la propia saca su idea de `pendientes`, así que el atajo de
+    # arriba (`pendientes.first(1)`, en `steps/evaluation.html.haml`) ya no
+    # puede ser quien ponga esta ruta en la página: si aparece, es la fila.
+    it "se lo ofrece igual en la fila de su propia idea, aunque ya no tenga «Evaluar»" do
+      as_company(company) do
+        [emilio, admin].each do |evaluador|
+          step.assessments.create!(idea: propia, idea_version_id: propia.current_version_id,
+                                   evaluator: evaluador, actor_type: "human",
+                                   status: "submitted", submitted_at: Time.current,
+                                   normalized_score: 0.7)
+        end
+        # En modo asistido la IA también cuenta para el mínimo (`min_assessments_for`).
+        step.assessments.create!(idea: propia, idea_version_id: propia.current_version_id,
+                                 actor_type: "ai", status: "submitted", submitted_at: Time.current,
+                                 normalized_score: 0.7)
+        expect(step.handler.complete?(step.step_entries.find_by(idea_id: propia.id))).to be true
+      end
+
+      sign_in(elena, company: company)
+      get challenge_step_path(challenge, step)
+
+      expect(response.body).to include(ruta_del_pedido(propia))
+      expect(response.body).not_to include(new_challenge_step_assessment_path(challenge, step, idea_id: propia.id))
+    end
+  end
+
   # Pedirle a la IA que evalúe todo lo que falta.
   #
   # Dos cosas que se rompen fácil y por eso están acá: que el botón sea de

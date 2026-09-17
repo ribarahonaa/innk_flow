@@ -1,171 +1,168 @@
 - content_for :title, @step.name
-= render "steps/header", step: @step, handler: @handler
-= render "steps/config_congelada", step: @step
-= render "shared/ai_suggestions", suggestions: @pending_suggestions
-
-= render "steps/ai_mode", step: @step
 
 - data = @handler.dashboard
 - narrative = @handler.reports.detect { |r| r.kind == "narrative" && r.ready? }
+-# Quien participa ve lo agregado y sus propias ideas, igual que en selección:
+-# el embudo, la distribución y la participación son conteos y no dicen de
+-# quién es cada idea; el ranking y la matriz se filtran con `@ideas_visibles`
+-# (`IdeaPolicy::Scope`, que para quien administra, acompaña o evalúa es el
+-# pool entero). El resumen narrativo nombra ideas ajenas: no se le muestra.
+- ve_el_pool = !current_membership.participant?
+- ranking = data["ranking"].select { |row| @ideas_visibles.include?(row["idea_id"]) }
+- matrix = data["matrix"]
+- filas_de_matriz = matrix["rows"].select { |row| @ideas_visibles.include?(row["idea_id"]) }
+-# Pedir el resumen es `summarize_challenge`, de alcance `:challenge`: lo
+-# autoriza `update_pipeline?`. Sin esto quien acompaña o evalúa veía un botón
+-# que le rebotaba con 403.
+- pide_resumen = policy(@challenge).update_pipeline?
 
-.panel
-  %h2.section-title Generar
-  %p.muted
-    Modo
-    %strong= t("flow.report_modes.#{data['mode']}")
-    = data["mode"] == "by_version" ? "· cada puntaje dice sobre qué versión se evaluó." : "· solo la versión vigente."
-  .report-actions
-    = button_to "Excel", challenge_step_reports_path(@challenge, @step, format_kind: "xlsx"),
-                params: { format: "xlsx", kind: "snapshot" }, class: "btn btn-ghost btn-sm"
-    = button_to "PDF", challenge_step_reports_path(@challenge, @step),
-                params: { format: "pdf", kind: "snapshot" }, class: "btn btn-ghost btn-sm"
-    = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode,
-             actions: [{ label: "Resumen narrativo", purpose: "summarize_challenge", step_id: @step.id }]
+-# Reportería no tiene progreso: la referencia se lleva la configuración y las
+-# descargas, y el centro es el reporte.
+- content_for :referencia do
+  = render "steps/config_congelada", step: @step
+  = render "steps/descargas", step: @step, handler: @handler, data: data
 
-  - downloadable = @handler.reports.select { |r| r.format != "dashboard" }
-  - if downloadable.any?
-    %table.table{ id: "reports-table" }
-      %thead
-        %tr
-          %th Formato
-          %th Estado
-          %th Filas
-          %th Generado
-          %th
-      %tbody
-        - downloadable.each do |report|
-          %tr{ id: "report-#{report.id}" }
-            %td= report.format.upcase
-            %td
-              - if report.ready?
-                %span{ class: chip_de_estado("completed") } listo
-              - elsif report.stalled? || report.failed?
-                %span{ class: chip_de_estado("skipped") } falló
-              - else
-                %span{ class: chip_de_estado("active") } generando…
-            %td.muted= report.row_count || "—"
-            %td.muted= report.generated_at ? l(report.generated_at, format: :short) : "—"
-            %td
-              - if report.ready? && report.file.attached?
-                = link_to "Descargar", rails_blob_path(report.file, disposition: "attachment"), class: "btn btn-ghost btn-sm"
+= render "steps/header", step: @step, handler: @handler
+= render "shared/ai_suggestions", suggestions: @pending_suggestions
 
-- if narrative
-  .panel.narrative-card
-    %h2.section-title
-      Resumen narrativo
-      %span{ class: chip_de_ia } IA
-    %p.narrative-card__summary= narrative.data["summary"]
-    - if narrative.data["themes"].present?
-      .theme-grid
-        - narrative.data["themes"].each do |theme|
-          .theme-card
-            %span.theme-card__count= theme["count"]
-            %strong= theme["name"]
-            %span.muted= theme["note"]
-    - if narrative.data["left_behind"].present?
-      %p.narrative-card__left
-        %strong Lo que quedó afuera:
-        = narrative.data["left_behind"]
+-# El pedido del resumen a la IA va donde aparece lo que produce.
+- resumen_con_ia = { label: narrative ? "Rehacer el resumen narrativo" : "Resumen narrativo", purpose: "summarize_challenge", step_id: @step.id }
+- if narrative && ve_el_pool
+  .card.narrative-card
+    .card-body
+      %h2.section-title
+        Resumen narrativo
+        %span{ class: chip_de_ia } IA
+      - if pide_resumen
+        = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode, actions: [resumen_con_ia]
+      %p.narrative-card__summary= narrative.data["summary"]
+      - if narrative.data["themes"].present?
+        .theme-grid
+          - narrative.data["themes"].each do |theme|
+            .theme-card
+              %span.theme-card__count= theme["count"]
+              %strong= theme["name"]
+              %span.muted= theme["note"]
+      - if narrative.data["left_behind"].present?
+        %p.narrative-card__left
+          %strong Lo que quedó afuera:
+          = narrative.data["left_behind"]
+- elsif pide_resumen
+  = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode, actions: [resumen_con_ia]
 
-.panel
-  %h2.section-title Embudo
-  .funnel
-    - data["funnel"].each do |stage|
-      - max = data["funnel"].map { _1["entered"] }.max.to_f
-      .funnel__stage
-        .funnel__bar{ style: "width: #{max.positive? ? (stage['entered'] / max * 100).round : 0}%" }
-        .funnel__meta
-          %strong= stage["name"]
-          %span.muted= "#{stage['entered']} entraron"
-          - if stage["eliminated"].positive?
-            %span.funnel__lost= "−#{stage['eliminated']}"
+.card
+  .card-body
+    %h2.section-title Embudo
+    .funnel
+      - data["funnel"].each do |stage|
+        - max = data["funnel"].map { _1["entered"] }.max.to_f
+        .funnel__stage
+          .funnel__bar{ style: "width: #{max.positive? ? (stage['entered'] / max * 100).round : 0}%" }
+          .funnel__meta
+            %strong= stage["name"]
+            %span.muted= "#{stage['entered']} entraron"
+            - if stage["eliminated"].positive?
+              %span.funnel__lost= "−#{stage['eliminated']}"
 
-- if data["ranking"].any?
-  .panel
-    %h2.section-title Ranking
-    %table.table
-      %thead
-        %tr
-          %th #
-          %th Idea
-          %th Autor
-          %th Puntaje
-          %th Evaluada sobre
-          %th Estado
-      %tbody
-        - data["ranking"].each do |row|
-          %tr
-            %td.muted= row["rank"]
-            %td
-              = row["title"]
-              - if row["origin"] == "ai"
-                %span{ class: chip_de_ia } IA
-            %td.muted= row["author"]
-            %td
-              %strong= "#{(row['score'] * 100).round(1)}%"
-            %td.muted
-              %span.version-chip= row["version"]
-              - if row["stale"]
-                %span.stale-chip{ title: "La idea cambió después de evaluarse" }= "→ #{row['current_version']}"
-            %td
-              %span{ class: chip_de_estado(row["status"] == "active" ? "active" : "skipped") }
-                = t("flow.idea_statuses.#{row['status']}")
+- if ranking.any?
+  .card
+    .card-body
+      %h2.section-title Ranking
+      .table-scroll
+        %table.table
+          %thead
+            %tr
+              %th #
+              %th Idea
+              %th Autor
+              %th Puntaje
+              %th Evaluada sobre
+              %th Estado
+          %tbody
+            - ranking.each do |row|
+              %tr
+                %td.muted= row["rank"]
+                %td
+                  = row["title"]
+                  - if row["origin"] == "ai"
+                    %span{ class: chip_de_ia } IA
+                %td.muted= row["author"]
+                %td
+                  %strong= "#{(row['score'] * 100).round(1)}%"
+                %td.muted
+                  %span{ class: chip("version") }= row["version"]
+                  - if row["stale"]
+                    %span{ class: chip("desactualizada"), title: "La idea cambió después de evaluarse" }= "→ #{row['current_version']}"
+                %td
+                  %span{ class: chip_de_estado(row["status"] == "active" ? "active" : "skipped") }
+                    = t("flow.idea_statuses.#{row['status']}")
 
 - if data["distribution"].any?
-  .panel
-    %h2.section-title Distribución de puntajes
-    .histogram
-      - max = data["distribution"].map { _1["count"] }.max.to_f
-      - data["distribution"].each do |bucket|
-        .histogram__col
-          .histogram__bar{ style: "height: #{max.positive? ? (bucket['count'] / max * 100).round : 0}%",
-                           title: "#{bucket['count']} ideas" }
-          %span.histogram__label= bucket["label"].split("–").first
-          %span.histogram__count= bucket["count"]
+  .card
+    .card-body
+      %h2.section-title Distribución de puntajes
+      .histogram
+        - max = data["distribution"].map { _1["count"] }.max.to_f
+        - data["distribution"].each do |bucket|
+          .histogram__col
+            .histogram__bar{ style: "height: #{max.positive? ? (bucket['count'] / max * 100).round : 0}%",
+                             title: "#{bucket['count']} ideas" }
+            %span.histogram__label= bucket["label"].split("–").first
+            %span.histogram__count= bucket["count"]
 
 - if data["evaluators"].any?
-  .panel
-    %h2.section-title Participación de evaluadores
-    %table.table
-      %thead
-        %tr
-          %th Módulo
-          %th Asignados
-          %th Evaluaron
-          %th Evaluaciones
-      %tbody
-        - data["evaluators"].each do |row|
-          %tr
-            %td= row["step"]
-            %td.muted= row["expected"]
-            %td= "#{row['submitted']} / #{row['expected']}"
-            %td.muted= row["assessments"]
-
-- matrix = data["matrix"]
-- if matrix["columns"].any?
-  .panel
-    %h2.section-title
-      Matriz por módulo
-      - if data["mode"] == "by_version"
-        %span.muted · cada celda con la versión que se evaluó
-    .table-scroll
-      %table.table
-        %thead
-          %tr
-            %th Idea
-            - matrix["columns"].each do |column|
-              %th= column["name"]
-        %tbody
-          - matrix["rows"].each do |row|
+  .card
+    .card-body
+      %h2.section-title Participación de evaluadores
+      .table-scroll
+        %table.table
+          %thead
             %tr
-              %td= row["title"]
-              - row["cells"].each do |cell|
-                %td
-                  - if cell["score"]
-                    %strong= "#{(cell['score'] * 100).round}%"
-                    - if cell["version"]
-                      %span.version-chip= cell["version"]
-                  - else
-                    %span.muted —
+              %th Módulo
+              %th Asignados
+              %th Evaluaron
+              %th Evaluaciones
+          %tbody
+            - data["evaluators"].each do |row|
+              %tr
+                %td= row["step"]
+                %td.muted= row["expected"]
+                %td= "#{row['submitted']} / #{row['expected']}"
+                %td.muted= row["assessments"]
 
-= render "shared/reports_auto_refresh", challenge: @challenge, step: @step
+- if matrix["columns"].any? && filas_de_matriz.any?
+  .card
+    .card-body
+      %h2.section-title
+        Matriz por módulo
+        - if data["mode"] == "by_version"
+          %span.muted · cada celda con la versión que se evaluó
+      .table-scroll
+        %table.table
+          %thead
+            %tr
+              %th Idea
+              - matrix["columns"].each do |column|
+                %th= column["name"]
+          %tbody
+            - filas_de_matriz.each do |row|
+              %tr
+                %td= row["title"]
+                - row["cells"].each do |cell|
+                  %td
+                    - if cell["score"]
+                      %strong= "#{(cell['score'] * 100).round}%"
+                      - if cell["version"]
+                        %span{ class: chip("version") }= cell["version"]
+                    - else
+                      %span.muted —
+
+- if policy(@step).advance?
+  = render layout: "steps/ajustes", locals: { resumen: "nombre y modo de IA" } do
+    = render "steps/ai_mode", step: @step
+
+-# El sondeo pega cada 4s contra `reports#statuses`, que pide `report?`: sin esta
+-# guarda quien no lo tiene recibe 403, `data.pending` queda `undefined` y el
+-# timer sigue pegando hasta agotar los 120 intentos.
+- if policy(@step).report?
+  = render "shared/reports_auto_refresh", challenge: @challenge, step: @step

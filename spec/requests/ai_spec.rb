@@ -485,8 +485,8 @@ RSpec.describe "la IA evaluando", type: :request do
 
     get challenge_step_path(challenge, step)
 
-    expect(response.body).to include("Evaluaciones hechas")
-    expect(response.body).to include("diferencia de inventario")
+    desglose = Nokogiri::HTML(response.body).css(".fila-de-idea__desglose").text
+    expect(desglose).to include("diferencia de inventario")
   end
 
   it "en modo human no se ofrece" do

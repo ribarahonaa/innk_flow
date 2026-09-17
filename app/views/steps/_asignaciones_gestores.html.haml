@@ -13,4 +13,4 @@
 -# no tener dos copias del mismo bloque.
 - if policy(step.challenge).update_pipeline?
   = render "challenges/gestores", challenge: step.challenge, candidatos: candidates,
-           desde_modulo: true
+           desde_modulo: true, tarjeta: local_assigns.fetch(:tarjeta, true)

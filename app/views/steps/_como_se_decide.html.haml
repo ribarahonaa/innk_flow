@@ -1,0 +1,66 @@
+-# Los filtros y el corte, para leer: se congelaron al arrancar el módulo. Va
+-# arriba del ranking y no en la referencia: con esa columna puesta el ranking
+-# no entraba en el centro (el porqué medido, en `steps/selection`).
+- challenge = step.challenge
+- gates = handler.gate_criteria
+.card
+  .card-body
+    .section-head
+      %h2.section-title Cómo se decide
+      - if step.criteria_set && policy(challenge).update_pipeline?
+        = link_to "Editar el set", edit_criteria_set_path(step.criteria_set), class: "btn btn-ghost btn-sm"
+      -# El corte vive en `config` y se congela al arrancar. Esta vista es la
+      -# cara de ejecución —sólo se renderiza con el módulo tocado—, así que ya
+      -# no hay un «Cambiar el corte» que ofrecer: mientras estuvo pendiente, se
+      -# configuraba en la pantalla propia del módulo (`steps/config/selection`).
+
+    - if gates.any?
+      %p.field-hint
+        = "#{Flow::Texto.contar(gates.size, "condición")} para poder avanzar."
+        Una idea avanza solo si las cumple todas.
+      %ul.field-list
+        - gates.each do |gate|
+          - criterion = Criterion.find_by(id: gate["id"])
+          %li.field-list__item
+            %span
+              = gate["name"]
+              %span{ class: chip_de_origen(gate["source"]) }= t("flow.criterion_sources.#{gate['source']}")
+            %span.field-list__type
+              - if gate["source"] == "automatic" && criterion&.check
+                = criterion.check.description
+              - else
+                veredicto por idea
+
+    %p.rule-line
+      - if gates.any?
+        %strong Después, el corte:
+      - else
+        %strong El corte:
+      = t("flow.cut_modes.#{handler.cut_mode}")
+      - unless handler.manual_cut?
+        = "· #{handler.cut_value.to_i}"
+        - if handler.cut_min.positive?
+          = "· mínimo #{Flow::Texto.contar(handler.cut_min, "idea")}"
+      - fuentes = handler.expected_source_steps
+      - if fuentes.any?
+        %span.muted
+          = " · por puntaje de #{fuentes.map(&:name).join(" + ")}"
+          - if fuentes.size > 1
+            - weights = step.settings.dig("score_source", "weights") || {}
+            - if weights.present?
+              = "(#{fuentes.map { |s| "#{s.name} #{(weights[s.slug].to_f * 100).round}%" }.join(', ')})"
+      - else
+        %span.muted · sin fuente de puntaje: el orden es manual
+
+    - if handler.piso_aplicado?(completo)
+      %p.rule-line
+        %strong Pasan por el mínimo:
+        = "el corte dejaba pasar menos de #{Flow::Texto.contar(handler.cut_min, "idea")}, así que avanzan las mejores aunque no lo alcancen."
+
+    - combine_campo = Flow::StepSettings.fields("selection").find { |c| c[:key] == "score_source.combine" }
+    - combine_valor = step.settings.dig("score_source", "combine")
+    - if fuentes.size > 1 && combine_valor.present?
+      %p.muted.field-hint= "#{combine_campo[:label]}: #{Flow::StepSettings.display_value(combine_campo, combine_valor)}"
+
+    -# La cara de ejecución sólo se renderiza con el módulo tocado.
+    %p.field-hint El corte quedó fijado cuando arrancó el módulo. Se puede cambiar el modo de IA, no la regla.

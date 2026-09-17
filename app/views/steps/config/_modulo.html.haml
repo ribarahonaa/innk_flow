@@ -10,24 +10,25 @@
 -# arregla. Sin `configure?`, se muestra en modo lectura.
 - if policy(step).configure?
   = form_with model: step, url: challenge_step_path(step.challenge, step), method: :patch do |f|
-    .panel
-      %h2.section-title El módulo
-      .field
-        = f.label :name, "Nombre"
-        = f.text_field :name, required: true
-      .field
-        = f.label :ai_mode, "Modo de IA"
-        = f.select :ai_mode,
-                   Challenge::AI_MODES.map { |m| [t("flow.ai_modes.#{m}"), m] },
-                   include_blank: "Heredar del desafío (#{t("flow.ai_modes.#{step.challenge.ai_default_mode}")})"
-        %p.field-hint= t("flow.ai_mode_descriptions.#{step.effective_ai_mode}")
+    .card
+      .card-body
+        %h2.section-title El módulo
+        .field
+          = f.label :name, "Nombre"
+          = f.text_field :name, required: true
+        .field
+          = f.label :ai_mode, "Modo de IA"
+          = f.select :ai_mode,
+                     Challenge::AI_MODES.map { |m| [t("flow.ai_modes.#{m}"), m] },
+                     include_blank: "Heredar del desafío (#{t("flow.ai_modes.#{step.challenge.ai_default_mode}")})"
+          %p.field-hint= t("flow.ai_mode_descriptions.#{step.effective_ai_mode}")
 
-      %div{ "data-island": "step-settings", data: { props: props.to_json } }
-        .island-placeholder
-          %p.muted Cargando los ajustes…
+        %div{ "data-island": "step-settings", data: { props: props.to_json } }
+          .island-placeholder
+            %p.muted Cargando los ajustes…
 
-      .form-actions
-        = f.submit "Guardar el módulo", class: "btn btn-primary"
+        .form-actions
+          = f.submit "Guardar el módulo", class: "btn btn-primary"
 
   = javascript_include_tag "packs/step_settings", defer: true, nonce: content_security_policy_nonce
 - else

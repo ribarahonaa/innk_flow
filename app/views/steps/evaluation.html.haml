@@ -1,18 +1,13 @@
 - content_for :title, @step.name
 
--# La columna de la derecha: progreso y criterios, que se consultan mientras
--# se evalúa y no se editan acá. Se declara arriba de todo porque el layout la
--# lee después del `yield`.
+-# Las tres zonas de la cara de ejecución: el trabajo al centro, lo que se
+-# consulta a la derecha y los ajustes plegados al final. La referencia se
+-# declara arriba de todo porque el layout la lee después del `yield`.
 - content_for :referencia do
   = render "steps/referencia_evaluacion", step: @step, handler: @handler
 
 = render "steps/header", step: @step, handler: @handler
-= render "steps/config_congelada", step: @step
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
-
-= render "steps/ai_mode", step: @step
-
-= render "steps/asignaciones_evaluadores", step: @step, assignable: @assignable
 
 - manda = policy(@challenge).update_pipeline?
 - pendientes = @step.step_entries.reject { |e| @handler.complete?(e) }
@@ -21,116 +16,61 @@
 -# propósito —pedirle a la IA que evalúe no es evaluar—; el porqué largo está
 -# en AiSuggestionPolicy#evaluacion.
 - puede_pedir = policy(Assessment.new(challenge_step: @step)).create?
-- if @step.active? && @step.effective_ai_mode != "human" && pendientes.any? && puede_pedir
-  .panel
-    %h2.section-title Pedirle una evaluación a la IA
-    %p.muted
-      La IA evalúa con los mismos criterios y su nota entra al promedio como una más, con su
-      justificación por criterio.
-    -# Con más de una pendiente el lote va primero: es lo que casi siempre se
-    -# quiere, y pedirlas de a una es el camino largo al mismo lugar. Va por
-    -# jobs, así que los puntajes llegan de a poco y no todos juntos.
-    - if pendientes.size > 1
-      .ai-actions
-        %span{ class: chip_de_ia } IA
-        = button_to "Evaluar #{Flow::Texto.contar(pendientes.size, "idea")} con IA",
-                    evaluate_all_challenge_step_path(@challenge, @step),
-                    class: "btn btn-primary btn-sm"
-        %span.muted Todas las que faltan, de una.
-    = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode,
-             actions: pendientes.first(1).map { |e| { label: "Evaluar solo «#{e.idea.title.truncate(28)}»", purpose: "evaluate_idea", step_id: @step.id, idea_id: e.idea_id } }
 
-.panel
-  %h2.section-title Ideas a evaluar
-  - unless manda
-    %p.muted.field-hint
-      Los puntajes se muestran cuando envíes tu evaluación: verlos antes ancla el juicio. De las
-      ideas que no evalúes vas a ver el resultado, no quién puso qué.
-  - if @step.step_entries.empty?
-    %p.muted Todavía no hay ideas en este módulo.
-  - else
-    %table.table
-      %thead
-        %tr
-          %th Idea
-          %th Evaluaciones
-          %th Puntaje
-          %th Dispersión
-          %th
-      %tbody
-        - entries = @step.step_entries.includes(idea: %i[current_version author idea_contributors])
-        - entries.select { |e| @ideas_visibles.include?(e.idea_id) }.each do |entry|
-          - result = entry.result
-          - propia = entry.idea.participates?(current_user)
-          -# El puntaje agregado y el desglose por evaluador son dos cosas
-          -# distintas: el autor ve el suyo, pero no quién puso qué.
-          - visible = @handler.score_visible_for?(entry.idea, user: current_user, manager: manda)
-          - desglose = @handler.breakdown_visible_for?(entry.idea_id, user: current_user, manager: manda)
-          %tr
-            %td
-              = link_to entry.idea.title, challenge_idea_path(@challenge, entry.idea), class: "table-link"
-              %span.muted= " · #{entry.idea.author.name}"
-            %td.muted
-              = "#{result['assessments_count'] || 0} / #{@handler.min_assessments_for(entry.idea)}"
-              - evaluadores = desglose ? @handler.assessments_for(entry.idea_id) : []
-              - if evaluadores.any?
-                %span.evaluators
-                  - evaluadores.each do |assessment|
-                    %span.evaluator-chip{ class: ("evaluator-chip--ai" if assessment.by_ai?),
-                                          title: "#{assessment.evaluator_name}: #{assessment.overall_comment}" }
-                      = assessment.by_ai? ? "IA" : assessment.evaluator_name.split.map(&:first).join
-            %td
-              - if !visible
-                %span.muted{ title: "Se muestra cuando envíes la tuya" } oculto
-              - elsif result["score"]
-                %strong= "#{(result['score'].to_f * 100).round}%"
-              - else
-                %span.muted —
-            %td.muted= visible && result["dispersion"] ? result["dispersion"].to_f.round(3) : "—"
-            %td.nowrap
-              - if @step.active? && propia
-                %span.field-hint Es tu idea
-              - elsif @step.active?
-                = link_to "Evaluar", new_challenge_step_assessment_path(@challenge, @step, idea_id: entry.idea_id), class: "btn btn-ghost btn-sm"
-                - if @step.effective_ai_mode != "human" && manda
-                  = button_to "IA", challenge_ai_requests_path(@challenge, purpose: "evaluate_idea", step_id: @step.id, idea_id: entry.idea_id),
-                              class: "btn btn-ghost btn-sm", title: "Que la IA evalúe esta idea"
+.card
+  .card-body
+    %h2.section-title Ideas a evaluar
 
-- hechas = @step.assessments.current.submitted_ones.includes(:idea, :evaluator, :assessment_scores).to_a
--# Idem: solo se ven las de las ideas que ya evaluaste.
-- hechas = hechas.select { |a| @handler.breakdown_visible_for?(a.idea_id, user: current_user, manager: manda) }
-- if hechas.any?
-  .panel
-    %h2.section-title
-      Evaluaciones hechas
-      %span.muted= " (#{hechas.size})"
+    -# El pedido a la IA es parte del trabajo sobre esta lista, así que va
+    -# arriba de ella y no en una tarjeta aparte del mismo peso.
+    - if @step.active? && @step.effective_ai_mode != "human" && pendientes.any? && puede_pedir
+      %section.pedido-a-la-ia
+        %h3.section-title Pedirle una evaluación a la IA
+        %p.muted
+          La IA evalúa con los mismos criterios y su nota entra al promedio como una más, con su
+          justificación por criterio.
+        -# Con más de una pendiente el lote va primero: es lo que casi siempre se
+        -# quiere, y pedirlas de a una es el camino largo al mismo lugar.
+        - if pendientes.size > 1
+          .ai-actions
+            %span{ class: chip_de_ia } IA
+            = button_to "Evaluar #{Flow::Texto.contar(pendientes.size, "idea")} con IA",
+                        evaluate_all_challenge_step_path(@challenge, @step),
+                        class: "btn btn-primary btn-sm"
+            %span.muted Todas las que faltan, de una.
+        = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode,
+                 actions: pendientes.first(1).map { |e| { label: "Evaluar solo «#{e.idea.title.truncate(28)}»", purpose: "evaluate_idea", step_id: @step.id, idea_id: e.idea_id } }
+
+    - unless manda
+      %p.muted.field-hint
+        Los puntajes se muestran cuando envíes tu evaluación: verlos antes ancla el juicio. De las
+        ideas que no evalúes vas a ver el resultado, no quién puso qué.
     %p.muted.field-hint
       Las de la IA cuentan igual que las de una persona: mismo peso en el promedio.
-      - unless manda
-        Solo ves las de las ideas que ya evaluaste.
-    - hechas.group_by(&:idea).each do |idea, lista|
-      .assessment-group
-        %h3.assessment-group__title
-          = link_to idea.title, challenge_idea_path(@challenge, idea), class: "table-link"
-        - lista.each do |assessment|
-          .assessment-detail{ class: ("assessment-detail--ai" if assessment.by_ai?) }
-            .assessment-detail__head
-              %strong= assessment.evaluator_name
-              - if assessment.by_ai?
-                %span{ class: chip_de_ia } IA
-              %span.version-chip= assessment.idea_version.label
-              - if assessment.stale?
-                %span.stale-chip= "la idea ya va por #{idea.current_version&.label}"
-              - if assessment.normalized_score
-                %span.assessment-detail__score= "#{(assessment.normalized_score.to_f * 100).round(1)}%"
-            - if assessment.overall_comment.present?
-              %p.assessment-detail__comment= assessment.overall_comment
-            %ul.assessment-detail__scores
-              - assessment.assessment_scores.sort_by { |s| s.criterion_key }.each do |score|
-                %li
-                  %span.assessment-detail__criterion= score.criterion_key
-                  %strong= score.display_value
-                  - if score.comment.present?
-                    %span.muted= score.comment
-                  - if score.error.present?
-                    %span.stale-chip= score.error
+    - if @step.step_entries.empty?
+      %p.muted Todavía no hay ideas en este módulo.
+    - else
+      -# El detalle de cada evaluación vive en la fila de su idea. Era una
+      -# sección aparte —quince bloques abiertos debajo de la tabla— y la idea
+      -# aparecía dos veces en la pantalla.
+      - hechas = @step.assessments.current.submitted_ones.includes(:evaluator, :assessment_scores, :idea_version).group_by(&:idea_id)
+      - entries = @step.step_entries.includes(idea: %i[current_version author idea_contributors])
+      .filas-de-ideas
+        .filas-de-ideas__encabezado
+          .filas-de-ideas__columnas
+            %span
+            %span Idea
+            %span Evaluaciones
+            %span Puntaje
+            %span Dispersión
+          %span
+        - entries.select { |e| @ideas_visibles.include?(e.idea_id) }.each do |entry|
+          = render "steps/fila_de_evaluacion", entry: entry, handler: @handler, challenge: @challenge,
+                   step: @step, manda: manda, hechas: hechas, puede_pedir: puede_pedir
+
+-# Nombre, modo de IA y quién evalúa: se editan acá, pero casi nunca. Cada
+-# bloque trae su guarda; los ajustes se dibujan si a quien mira le toca uno.
+- if policy(@step).advance? || policy(@step).manage_assignments?
+  = render layout: "steps/ajustes", locals: { resumen: "nombre, modo de IA y quién evalúa" } do
+    = render "steps/ai_mode", step: @step
+    = render "steps/asignaciones_evaluadores", step: @step, assignable: @assignable, tarjeta: false

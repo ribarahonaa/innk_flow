@@ -1,0 +1,16 @@
+-# «Ajustes del módulo»: lo que se edita en la cara de ejecución, pero casi
+-# nunca —nombre, modo de IA, quién participa—. Va al final y plegado para no
+-# interponerse con el trabajo, que es lo que la pantalla existe para hacer.
+-#
+-# La vista decide si se dibuja: si a quien mira no le toca ningún bloque de
+-# adentro, un plegable que se abre vacío es un control que no responde.
+-#
+-# Queda abierto después de guardar algo adentro por el gancho de
+-# `application.js` (`turbo:before-morph-attribute`).
+.card.ajustes
+  .card-body
+    %details.ajustes__plegable
+      %summary.ajustes__titulo
+        %span.section-title Ajustes del módulo
+        %span.muted= resumen
+      .ajustes__contenido= yield

@@ -7,7 +7,7 @@
 - step = item.challenge_step
 - puede_resolver = step&.active? && policy(item).resolve?
 
-%li.feedback-item{ class: ("is-addressed" unless item.open?) }
+%li.feedback-item{ class: ("is-addressed" unless item.open?), data: { kind: item.kind } }
   .feedback-item__head
     %span{ class: clase_de_feedback(item.kind) }= item.kind_label
     %span.muted= item.author_name

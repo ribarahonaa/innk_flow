@@ -12,36 +12,37 @@
 -# tiene `configure?` sobre un módulo TODAVÍA pendiente. Ahí «quedó fijado
 -# cuando arrancó» sería falso —el módulo ni arrancó—, así que el aviso
 -# distingue los dos casos.
-.panel
-  .section-head
-    %h2.section-title
+.card
+  .card-body
+    .section-head
+      %h2.section-title
+        - if step.touched?
+          Cómo quedó configurado
+        - else
+          Cómo está configurado
+    %p.field-hint
       - if step.touched?
-        Cómo quedó configurado
+        🔒 Quedó fijado cuando arrancó el módulo.
+        - if step.evaluation? || step.evolution?
+          Se pueden cambiar el nombre, el modo de IA y quién participa; la regla no.
+        - else
+          Se pueden cambiar el nombre y el modo de IA; la regla no.
       - else
-        Cómo está configurado
-  %p.field-hint
-    - if step.touched?
-      🔒 Quedó fijado cuando arrancó el módulo.
-      - if step.evaluation? || step.evolution?
-        Se pueden cambiar el nombre, el modo de IA y quién participa; la regla no.
-      - else
-        Se pueden cambiar el nombre y el modo de IA; la regla no.
+        🔒 Todavía no arrancó. Sólo quien administra el desafío puede cambiar esta configuración.
+    -# Las filas salen del esquema con los DEFAULTS aplicados
+    -# (`resumen_de_configuracion`): `settings` sólo trae lo que alguien
+    -# escribió, y evolución y reportería salían sin una sola fila.
+    -#
+    -# El `else` no es alcanzable con los cinco kinds de hoy —todos declaran al
+    -# menos un campo con default— pero un kind nuevo sin entrada en el esquema
+    -# volvería a dejar la tarjeta muda, y decir «no hay nada» es lo único
+    -# honesto que se puede poner ahí.
+    - filas = resumen_de_configuracion(step)
+    - if filas.any?
+      %ul.field-list
+        - filas.each do |etiqueta, valor|
+          %li.field-list__item
+            %span= etiqueta
+            %span.field-list__type= valor
     - else
-      🔒 Todavía no arrancó. Sólo quien administra el desafío puede cambiar esta configuración.
-  -# Las filas salen del esquema con los DEFAULTS aplicados
-  -# (`resumen_de_configuracion`): `settings` sólo trae lo que alguien
-  -# escribió, y evolución y reportería salían sin una sola fila.
-  -#
-  -# El `else` no es alcanzable con los cinco kinds de hoy —todos declaran al
-  -# menos un campo con default— pero un kind nuevo sin entrada en el esquema
-  -# volvería a dejar la tarjeta muda, y decir «no hay nada» es lo único
-  -# honesto que se puede poner ahí.
-  - filas = resumen_de_configuracion(step)
-  - if filas.any?
-    %ul.field-list
-      - filas.each do |etiqueta, valor|
-        %li.field-list__item
-          %span= etiqueta
-          %span.field-list__type= valor
-  - else
-    %p.muted Este módulo no tiene nada configurable.
+      %p.muted Este módulo no tiene nada configurable.

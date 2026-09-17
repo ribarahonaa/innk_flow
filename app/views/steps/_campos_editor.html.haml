@@ -12,7 +12,10 @@
 -# participante recibía la isla entera —con el botón «Usar los tres
 -# básicos»— y el panel de sugerencias de IA con «Aplicar»/«Descartar», que le
 -# rebotaban 403 al apretarlos. Por eso TODO lo que no sea el encabezado vive
--# detrás de un único `if puede_configurar`.
+-# detrás de `puede_configurar`. Son dos `if` y no uno porque el bloque se
+-# cierra antes de las propuestas y de la isla, que van después; las dos
+-# preguntan lo MISMO —la misma variable, calculada una sola vez acá arriba—,
+-# así que no pueden divergir.
 -#
 -# Su candado NO es `touched?` sino `ideas.submitted.exists?`, que es más fino
 -# y se conserva: con el módulo ya abierto pero sin ninguna postulación,
@@ -28,56 +31,41 @@
                     back: challenge_step_path(step.challenge, step) } }
 - puede_configurar = policy(step).manage_form?
 
-.panel
+= render layout: "steps/bloque", locals: { tarjeta: local_assigns.fetch(:tarjeta, true) } do
   .section-head
     %h2.section-title Formulario de postulación
   %p.muted Estos son los campos que responde quien postula.
 
-- if puede_configurar
-  -# `form_fields/show` era una de las dos únicas pantallas que mostraban
-  -# esto para un módulo. Borrarla sin más dejaba una sugerencia PENDIENTE DE
-  -# REVISIÓN sobre un módulo sin ningún lugar donde verse. Sólo se pasa
-  -# `suggestions` desde la cara de configuración: la de ejecución
-  -# (`steps/ideation.html.haml`) ya renderiza el mismo marco con TODAS las
-  -# sugerencias del módulo, y repetirlo acá lo duplicaría.
-  - if local_assigns[:suggestions]
-    = render "shared/ai_suggestions", suggestions: suggestions
+  - if puede_configurar
+    - if bloqueado
+      .alert.alert-soft.alert-warning
+        Ya hay ideas postuladas. Podés cambiar etiquetas, ayudas, obligatoriedad y orden, pero no el tipo ni la clave de un campo, ni quitarlo: las respuestas ya guardadas quedarían huérfanas.
 
-  - if bloqueado
-    .alert.alert-soft.alert-warning
-      Ya hay ideas postuladas. Podés cambiar etiquetas, ayudas, obligatoriedad y orden, pero no el tipo ni la clave de un campo, ni quitarlo: las respuestas ya guardadas quedarían huérfanas.
-
-  - if campos.empty?
-    .panel
-      %h2.section-title Todavía no hay campos
+    - if campos.empty?
+      %h3.section-title Todavía no hay campos
       %p.muted Sin formulario nadie puede postular. Empezá con los básicos, pedile una propuesta a la IA, o armalo a mano.
       .report-actions
         = button_to "Usar los tres básicos", seed_defaults_challenge_form_path(step.challenge), class: "btn btn-primary btn-sm"
         = render "shared/ai_actions", challenge: step.challenge, mode: step.effective_ai_mode, always: true,
                  actions: [{ label: "Proponer campos con IA", purpose: "suggest_form_fields", step_id: step.id }]
-  - else
-    .panel
+    - else
       = render "shared/ai_actions", challenge: step.challenge, mode: step.effective_ai_mode, always: true,
                actions: [{ label: "Rehacer el formulario con IA", purpose: "suggest_form_fields", step_id: step.id }]
+  - else
+    = render "steps/campos_lista", campos: campos
+    %p.field-hint.field-hint--warn 🔒 Sólo quien administra el desafío puede cambiar esto.
+
+-# Las propuestas van después del bloque —donde aparece lo que se le pidió a
+-# la IA— y la isla al final. Mismo `puede_configurar` que adentro del bloque:
+-# es la misma variable, así que las dos guardas no pueden divergir. En la cara
+-# de ejecución (`tarjeta: false`) esto queda afuera de la `%section` pero
+-# sigue adentro de `.ajustes__contenido`, que es el `yield` del partial.
+- if puede_configurar
+  - if local_assigns[:suggestions]
+    = render "shared/ai_suggestions", suggestions: suggestions
 
   %div{ "data-island": "form-editor", data: { props: props.to_json } }
-    .panel.island-placeholder
+    .island-placeholder
       %p.muted Cargando el editor…
 
   = javascript_include_tag "packs/form_editor", defer: true, nonce: content_security_policy_nonce
-- else
-  -# Sin `manage_form?`: la lista de campos tal cual la ve quien postula, sin
-  -# ningún control para actuar sobre ellos.
-  .panel
-    - if campos.any?
-      %ul.field-list
-        - campos.each do |field|
-          %li.field-list__item
-            %span.field-list__label
-              = field.label
-              - if field.required
-                %span.field-list__req *
-            %span.field-list__type= field.type_label
-    - else
-      %p.muted Todavía no hay campos.
-    %p.field-hint.field-hint--warn 🔒 Sólo quien administra el desafío puede cambiar esto.

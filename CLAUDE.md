@@ -41,14 +41,23 @@ No hay linter configurado.
 
 **`make screens` es la verificación end-to-end real**, no un extra. Recorre la
 app corriendo con un navegador y falla si hay error de JS, HTTP >= 400, si
-queda un `.island-placeholder` sin montar o si una clase quedó **sin ninguna
-regla detrás** porque Tailwind no la vio al escanear —eso se revisa en todas
-las pantallas del recorrido, no en algunas: vive en `capturar()`—. También
-falla si un `.badge` o un `.alert` mide menos de 4,5:1 de contraste en claro o
-en oscuro (`[CONTRASTE]`, en cada pantalla y en el muestrario), y si aparece un
-`card` sin `card-body` (`[PANEL]`). Corrélo después de tocar
-vistas, islas o CSS — un bug de Vue no lo atrapa ningún spec de Ruby (un
-`__VUE_OPTIONS_API__` mal puesto dejó el builder en blanco y la suite en verde).
+queda un `.island-placeholder` sin montar o si un elemento se quedó **sin
+ninguna regla detrás** (`[CLASES]`) —una clase que Tailwind no vio al escanear,
+pero también un `.panel`, un `.card` o el punto del drawer que perdió la regla
+que lo pintaba por un renombre o por un token roto; eso se revisa en todas las
+pantallas del recorrido, no en algunas: vive en `capturar()`—. También falla si
+un `.badge` o un `.alert` mide menos de 4,5:1 de contraste en claro o en oscuro
+(`[CONTRASTE]`, en cada pantalla y en el muestrario), si un punto de estado del
+drawer mide menos de 3:1 —el piso de WCAG 1.4.11 para lo que no es texto—
+(`[PUNTOS]`, en los dos temas), si aparece un `card` sin `card-body`
+(`[PANEL]`) o si el `card` de DaisyUI dejó de verse como el `.panel` que
+reemplaza (`[CARD]`). Y falla si una pantalla de módulo pierde su forma: sin
+columna de referencia o sin los ajustes plegados (`[ZONAS]`), con el plegable
+cerrándose solo al morfear (`[PLEGABLE]`), sin la fila desplegable del desglose
+de evaluación (`[DESGLOSE]`) o sin el módulo salteado en el drawer y el mapa
+del flujo (`[SALTEADO]`). Corrélo después de tocar vistas, islas o CSS — un bug
+de Vue no lo atrapa ningún spec de Ruby (un `__VUE_OPTIONS_API__` mal puesto
+dejó el builder en blanco y la suite en verde).
 
 Al escribir capturas nuevas en `script/capture_screens.js`:
 
@@ -79,6 +88,8 @@ Al escribir capturas nuevas en `script/capture_screens.js`:
   revisión lo cortara)—. Hoy siembra los cinco `kind` pendientes y un set de
   criterios inline en su módulo de selección (`db/seeds.rb:360` en
   adelante), del que dependen varias capturas de las dos caras.
+  `con-salteado` existe sólo para la captura del módulo salteado
+  (`02b-salteado`).
 
 **Los system specs con navegador no cubren el recorrido.** Los servicios usan
 `with_lock` (SELECT FOR UPDATE) y eso deadlockea contra el pool compartido de
@@ -236,7 +247,11 @@ Dos reglas que no viven en el rol:
   **nadie evalúa una idea de la que participa**, ni siquiera quien administra.
   Por eso el mínimo de evaluaciones baja por idea cuando su autor está entre
   quienes evalúan: esperar el mínimo entero trabaría el módulo esperando una
-  evaluación imposible.
+  evaluación imposible. El link «Evaluar» de cada fila pregunta la misma policy
+  que autoriza el controller —`policy(Assessment.new(challenge_step:, idea:))`—
+  y no `step.active?` a secas: con eso lo veía en todas las filas quien evalúa
+  sin asignación en ese módulo, y quien acompaña el desafío, que no es
+  `manager?`. Los dos se comían un 403 al apretarlo.
 - **No todas las voces pesan igual.** `step_assignments.weight` entra en el
   agregado, en la dispersión y en el promedio por criterio. Dos reglas que no
   se ven en el código si no se buscan: los pesos **solo** entran cuando alguien
@@ -250,8 +265,17 @@ Dos reglas que no viven en el rol:
   aquellas en las que colabora—: compite por el mismo corte que las demás. La
   regla vive UNA vez, en `IdeaPolicy::Scope`, y las pantallas la aplican:
   `StepsController#show` publica `@ideas_visibles` y los módulos filtran con
-  eso lo que listan. Lo que no se ve da **404**, no 403. Quien administra,
-  acompaña o evalúa las ve todas: las tres cosas se hacen sobre el pool entero.
+  eso lo que listan. Idear se lo olvidó hasta el plan 2b —listaba todas las
+  postuladas—, que es exactamente lo que advertía `e3787a3`. Lo que no se ve
+  da **404**, no 403. Quien administra, acompaña o evalúa las ve todas: las
+  tres cosas se hacen sobre el pool entero. En reportería, quien participa ve
+  lo agregado —embudo, distribución, participación— y el ranking y la matriz
+  filtrados a sus ideas; el resumen narrativo no, porque nombra ideas ajenas.
+  Hasta el plan 2b veía el tablero entero. Y en selección **son dos listas, no
+  una**: el ranking y el registro de decisiones; el registro se olvidó del
+  filtro hasta la revisión final del 2b y listaba título, veredicto y puesto de
+  cada idea ajena. Lo que ahí NO se filtra es quién decidió, cuándo y el motivo
+  de la tanda: es lo que explica por qué la idea de uno avanzó o no.
 - **Pedirle a la IA que evalúe no es evaluar.** El botón —y el lote «evaluar
   todas con IA»— es de quien evalúa en el módulo, por asignación o por
   administrarlo, no de `update_pipeline?`. Y va **sin idea**: quien participa
@@ -575,6 +599,13 @@ Tres cosas que no son obvias:
   `make screens` lo verifica sin gastar una llamada al proveedor
   (`revisarMorphing` en `script/capture_screens.js`), pidiendo a mano la misma
   navegación.
+- **Un `<details>` abierto sobrevive al morph.** El `open` lo pone el
+  cliente, y un POST que vuelve a la misma URL morfea contra el HTML del
+  servidor, que no lo trae: guardar algo adentro de un plegable lo cerraba.
+  `application.js` cancela en `turbo:before-morph-attribute` la REMOCIÓN de
+  `open` en un `DETAILS` (un `open` que agrega el servidor sigue entrando).
+  Por eso todo lo plegable de la app es un `<details>`: un mecanismo, un
+  gancho. Lo prueba `revisarPlegableTrasMorph` en `make screens`.
 
 ### Configurar y ejecutar son dos caras de la misma pantalla
 
@@ -631,17 +662,21 @@ El mismo defecto apareció así de repetido: primero el form completo de
 `steps/config/_modulo` se servía sin ninguna policy; después, en
 `_criterios_editor`, el panel de sugerencias de IA quedó afuera de la guarda
 que sí envolvía el resto. La forma que quedó, en `_criterios_editor.html.haml`
-y `_campos_editor.html.haml`: **un solo `if` que envuelve todo menos el
-encabezado**, no guardas sueltas por bloque — una guarda que se olvida se
-encuentra más fácil que dos. Cuál predicado según qué bloque:
+y `_campos_editor.html.haml`: **nada que no sea el encabezado se sirve sin la
+guarda**, y la guarda es UNA variable (`puede_configurar`, calculada una vez
+arriba) y no un predicado escrito en cada bloque. Son dos `if` sobre esa
+variable y no uno, porque la tarjeta se cierra antes de las propuestas de la
+IA y de la isla, que van después de ella; al preguntar las dos lo mismo no
+pueden divergir, que es lo que el «un solo `if`» compraba. Cuál predicado
+según qué bloque:
 `configure?` para los ajustes del módulo y para sus criterios, `manage_form?`
 para los campos del formulario, `manage_assignments?` para quién evalúa y
 cuánto pesa, `update_pipeline?` para quién acompaña la evolución
 (`_asignaciones_gestores.html.haml`, que sólo envuelve `challenges/_gestores`
 con esa guarda y no tiene policy propia).
 
-El panel de propuestas de la IA (`shared/_ai_suggestions`) es la excepción al
-«un solo `if`»: filtra propuesta por propuesta con `AiSuggestionPolicy#accept?`,
+El panel de propuestas de la IA (`shared/_ai_suggestions`) es la excepción a
+esa guarda única: filtra propuesta por propuesta con `AiSuggestionPolicy#accept?`,
 porque quién revisa depende de sobre qué actúa cada tarea. Se sirve en diez
 pantallas, y sin ese filtro les mandaba a quien participa y a quien evalúa
 propuestas que no podían revisar, con la vista previa incluida.
@@ -691,8 +726,8 @@ otra vía: el test del pie sólo pasaba por `evaluation`, y sacar nada más que
 el render de `selection` (el otro kind que embebe el bloque de criterios)
 dejaba `make spec` y `make screens` en verde igual (`df0681d`). Quien borre o
 mude una pantalla de configuración tiene que revisar `Flow::Setup` y los
-renders de `setup_nav`/`setup_progress` a mano, no confiar en la suite para
-que avise.
+renders de `setup_nav` a mano —desde que `shared/_setup_progress` se borró es
+el único—, no confiar en la suite para que avise.
 
 ### Islas Vue
 
@@ -742,13 +777,18 @@ Sass se jubiló entero. El archivo de salida conserva el nombre, así que el
 La fase 1 migró la plomería, las clases dinámicas, el tema y el shell. El plan
 2a pasó el vocabulario que se repite a componentes: las tablas son `table`, los
 avisos `alert alert-soft`, las cuatro familias de chips (estado, origen, tipo
-de feedback e IA) y los nodos del mapa del flujo son `badge`, y las tarjetas se
-llaman `.panel` mientras esperan su `card` + `card-body`. Otros chips
-(`version-chip`, `stale-chip`, `here-chip`, `out-chip`, `evaluator-chip`,
-`derived-chip`) siguen escritos a mano: la guarda de contraste no los mide, y
-son candidatos del plan 2b. Lo que sigue —pantalla por pantalla (2b) y las
-islas Vue (2c)— tiene su plan cuando le toque. `.step-card`, `.flow-strip` y
-`.empty-state` siguen siendo clases propias a propósito: son vocabulario de
+de feedback e IA) y los nodos del mapa del flujo son `badge`, y las tarjetas
+esperan su `card` + `card-body` bajo el nombre `.panel`. Las marcas sueltas
+—versión, desactualizada, «acá está el flujo», no pasa un filtro, filtros sin
+responder, derivado, las iniciales de quien evaluó— son `badge` vía
+`EstilosHelper::CHIPS`, y se piden por nombre con `chip("version")`: un nombre
+que no existe revienta, porque es un error de código y no un estado nuevo del
+dominio. El plan **2b** hizo las cinco pantallas de módulo: las tres zonas del
+shell —trabajo al centro, referencia a la derecha, «Ajustes del módulo»
+plegados al final—, la cara de configuración junta en la misma pantalla, y
+`.panel` → `card` + `card-body` **ahí y sólo ahí**. El resto de la app sigue en
+`.panel`: ésas son 2b-bis, y las islas Vue son 2c. `.step-card`, `.flow-strip`
+y `.empty-state` siguen siendo clases propias a propósito: son vocabulario de
 esta app.
 
 #### Lo que más fácil se rompe
@@ -810,6 +850,8 @@ esta app.
   teniendo reglas, sólo que otras. Antes de renombrar, buscá la clase en
   selectores compuestos, descendientes y `:has()`, y en los localizadores de
   `script/capture_screens.js`.
+  Esas dos ya no cuelgan del chip: el borde va por `data-kind` y los puntos
+  del drawer son `flow-drawer__punto` (`EstilosHelper::PUNTO_DE_ESTADO`).
 
 #### Las tres capas, y de quién es cada regla
 
@@ -818,15 +860,15 @@ el vocabulario que es de esta app y se repite (`.flow-strip`, `.step-card`,
 `.empty-state`) · utilidades sueltas solo para lo irrepetible. **Si una clase
 aparece en más de dos vistas, es un componente, no doce utilidades.**
 
-`card` de DaisyUI está **habilitada**, y ninguna tarjeta la usa todavía. Estuvo
-excluida porque declara `display: flex`, y habilitarla convertía de golpe todas
-las tarjetas de la app en columnas flex. Para poder habilitarla sin tocar
-ninguna, las tarjetas de la app se llaman **`.panel`**: mismo CSS que tenía
-`.card`. Cada pantalla pasa de `.panel` a `card` + `card-body` cuando le toca
-(plan 2b). `make screens` falla si aparece un `card` sin `card-body`
-(`revisarTarjetasViejas`), que es la forma VIEJA; un `card` con `card-body`
-adentro ya es la migración del plan 2b y no hace fallar la guarda. Sin el
-`exclude`, esa tarjeta se volvería flex en silencio.
+`card` de DaisyUI está **habilitada**, y el aspecto lo pone la hoja: una
+regla `.card` pegada a `.panel` le da superficie, borde, radio y sombra, y
+fija `--card-p` y `--card-fs` a lo que mide `.panel`. En las vistas se
+escribe `.card` > `.card-body` y nada más. Estuvo excluida porque declara
+`display: flex`, y habilitarla convertía de golpe todas las tarjetas en
+columnas flex; por eso las tarjetas de la app se llaman **`.panel`** hasta
+que cada pantalla pasa a `card` (planes 2b y 2b-bis). `make screens` falla si
+aparece un `card` sin `card-body` (`[PANEL]`) y si una `card` no se ve igual
+que un `.panel` (`[CARD]`, que se borra con `.panel`).
 
 **La capa decide quién gana, y no es la especificidad.** Las clases propias de
 la app van **sin capa**, y una regla sin capa le gana a cualquier `@layer` —o
@@ -869,7 +911,27 @@ son opcionales y la grilla se acomoda sola con `:has()`**, así que ninguna
 pantalla declara su layout.
 
 - La regla de qué va dónde: **el centro es lo que se hace; la derecha es lo que
-  se consulta y no se edita** en el curso normal del trabajo.
+  se consulta y no se edita** en el curso normal del trabajo. En la cara de
+  ejecución de un módulo hay una tercera zona: **«Ajustes del módulo»**, una
+  tarjeta plegada al final del centro (`steps/_ajustes`) con lo que se edita
+  pero casi nunca —nombre, modo de IA, quién participa—. La referencia va en
+  orden fijo: progreso, lo propio del módulo, quién participa, configuración
+  congelada. Lo que se lee a la derecha y se edita abajo aparece dos veces a
+  propósito, **con la misma guarda en los dos lugares**
+  (`spec/requests/pantalla_del_modulo_spec.rb` lo prueba por rol). Un bloque
+  que va suelto o adentro de los ajustes toma su forma de `steps/_bloque`.
+  **Selección es la única cara de ejecución sin referencia**: su tabla de
+  ranking no entra en el centro angosto (plan 2b, Tarea 5). Los ajustes
+  plegados sí los tiene, y `make screens` lo espera así
+  (`MODULOS_SOLO_AJUSTES`).
+- **La referencia tiene que entrar en una pantalla.** Pegada y con
+  `max-height: 100vh`, lo que no entra queda tapado detrás de su propio
+  scroll. Por eso la densidad la decide la zona: adentro de `.app-aside` una
+  `.field-list` va sin recuadro por ítem, con una línea por fila. Debajo de
+  1280px, donde sube arriba del trabajo, las tarjetas van en UNA fila que se
+  desliza de costado (tope de 320px por tarjeta): en varias filas empujaban el
+  título del módulo afuera de la primera pantalla. Lo mide `[REFERENCIA]` en
+  `make screens`, a 1440×1000 y a 1100×900.
 - El drawer aparece solo si hay un desafío **guardado** en contexto
   (`ShellHelper#desafio_del_shell`). Dos guardas que parecen de más y no lo
   son: `/challenges/new` deja un `Challenge.new` sin slug y el `challenge_path`
@@ -889,10 +951,13 @@ pantalla declara su layout.
 
 - **El ritmo lo pone `.app-main`**, que es `flex` en columna con `gap`. Las
   tarjetas tienen `margin: 0` a propósito: un margen por tarjeta rompería las
-  grillas, donde son hermanas con su propio `gap`. Antes no había ninguno de
-  los dos y las tarjetas se **tocaban** — la página era una columna blanca
-  continua partida por hairlines. No se ve mirando (el borde doble parece una
-  separación): se ve midiendo, y hay guarda en las capturas.
+  grillas, donde son hermanas con su propio `gap`. Vale igual para `card`: ni
+  la regla que le da el aspecto de `.panel` ni `card-body` declaran margen, así
+  que las pantallas ya migradas (plan 2b) siguen el mismo ritmo y no hay dos
+  reglas que mantener. Antes no había ninguno de los dos y las tarjetas se
+  **tocaban** — la página era una columna blanca continua partida por
+  hairlines. No se ve mirando (el borde doble parece una separación): se ve
+  midiendo, y hay guarda en las capturas (`[RITMO]`).
 - **`.section-title` es un encabezado, no una etiqueta.** Era 13px en
   mayúsculas y gris, o sea estilo de etiqueta usado en 54 lugares como título
   de sección: nada anunciaba nada. Las mayúsculas chiquitas quedan donde

@@ -55,6 +55,8 @@
             = link_to challenge_step_path(desafio, paso), class: ["flow-drawer__link", ("menu-active" if @step&.id == paso.id)] do
               %span.flow-drawer__num= i + 1
               %span.flow-drawer__name= paso.name
-              -# El chip va vacío —a 232px no entra el rótulo— así que el estado
-              -# viaja en el `title`: un punto de color solo no dice nada.
-              %span{ class: chip_de_estado(paso.status), title: estado }
+              -# Un punto y no un chip —a 232px no entra el rótulo— así que el
+              -# estado viaja en el `title`: un punto de color solo no dice
+              -# nada. Tiene clase propia: vaciando un `badge`, cambiarle la
+              -# variante a un chip le cambiaba el color al punto.
+              %span{ class: punto_de_estado(paso.status), title: estado }

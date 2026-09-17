@@ -8,7 +8,7 @@
     %h1.page-title= @idea.title
     %p.muted
       = "Evaluando la versión "
-      %span.version-chip= @idea.current_version&.label
+      %span{ class: chip("version") }= @idea.current_version&.label
 
 .idea-layout
   .idea-layout__main

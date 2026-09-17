@@ -1,0 +1,27 @@
+-# Quién evalúa, para LEER: cuántas evaluaciones hizo cada persona y su peso,
+-# si tiene uno. Editar vive en los ajustes (`_asignaciones_evaluadores`).
+-#
+-# Aparece dos veces a propósito —leída acá, editable allá—: leer y editar
+-# son dos usos distintos de la misma lista. Con la MISMA guarda que la
+-# edición: mudarla a la referencia no la vuelve pública.
+- if policy(step).manage_assignments?
+  - asignaciones = step.step_assignments.includes(:user).sort_by { |a| a.user.name }
+  - evaluaron = step.assessments.current.group(:evaluator_id).count
+  .card
+    .card-body
+      .section-head
+        %h3.section-title Quién evalúa
+        - if asignaciones.any?(&:weighted?)
+          %span{ class: chip_de_estado("active") } con pesos
+      - if asignaciones.empty?
+        %p.muted Todavía no hay nadie asignado.
+      - else
+        %ul.field-list
+          - asignaciones.each do |asignacion|
+            - notas = evaluaron[asignacion.user_id].to_i
+            %li.field-list__item
+              %span= asignacion.user.name
+              %span.muted
+                = notas.positive? ? Flow::Texto.contar(notas, "evaluación") : "sin evaluar"
+                - if asignacion.weighted?
+                  = "· peso #{asignacion.weight.to_f}"

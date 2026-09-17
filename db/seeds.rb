@@ -481,6 +481,28 @@ Flow::Tenant.bypass! do
       idea.update!(submitted_at: Time.current)
     end
 
+    # Un desafío EN CURSO con un módulo SALTEADO, que existe sólo para
+    # `make screens`. Ningún otro seed tiene uno, y el nodo salteado del mapa
+    # del flujo quedó negro en el plan 2a sin que ninguna captura lo viera.
+    #
+    # Propio y no compartido, como manda CLAUDE.md. `sin-formulario` no sirve:
+    # está en borrador, y un borrador no tiene módulos salteados.
+    Challenge.where(slug: "con-salteado").destroy_all
+    salteado = Challenge.create!(
+      slug: "con-salteado",
+      name: "Turnos que no se pisen",
+      brief: "Los turnos de bodega se superponen y nadie sabe quién recibe qué camión.",
+      ai_default_mode: "human"
+    )
+    salteado.pipeline.insert(kind: "ideation", after: :end, name: "Postulación")
+    salteado.pipeline.insert(kind: "evolution", after: :end, name: "Ronda de feedback")
+    salteado.pipeline.insert(kind: "evaluation", after: :end, name: "Evaluación")
+    salteado_ideacion = salteado.pipeline.ideation_step
+    salteado_ideacion.form_fields.create!(key: "titulo", label: "Título", field_type: "text", required: true,
+                                          position: 0, config: { "is_title" => true })
+    salteado.pipeline.start!
+    salteado.steps.reload.find(&:evolution?).handler.skip!(reason: "Sin gestores disponibles este mes")
+
     # Un desafío SIN módulos, para la captura del selector de plantillas.
     # Antes el script de capturas creaba uno en cada corrida y no lo borraba:
     # la base de desarrollo terminó con dieciséis «desafio-de-prueba-N».
@@ -502,6 +524,11 @@ Flow::Tenant.bypass! do
     puts "  decisiones: #{SelectionDecision.where(idea_id: challenge.ideas.select(:id)).count}"
     puts "Desafío en borrador: Mejorar el onboarding remoto"
     puts "Desafío del recorrido: #{recorrido.name} (#{recorrido.ideas.count} ideas)"
+    # El estado va en el puts porque `start!` no revienta: devuelve un Result, y
+    # con la validación en contra el desafío quedaría en borrador —sin puntos de
+    # estado y sin módulo salteado— sin una línea que lo diga.
+    puts "Desafío con salteado: #{salteado.reload.name} (#{salteado.status}, " \
+         "salteado: #{salteado.steps.reload.find(&:skipped?)&.name || 'NINGUNO'})"
   end
 
   puts ""

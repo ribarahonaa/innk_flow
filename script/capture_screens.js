@@ -80,6 +80,38 @@ async function revisarMorphing(page, name) {
   }
 }
 
+// Un <details> abierto por quien usa la pantalla tiene el `open` puesto por
+// el CLIENTE. Guardar algo adentro redirige a la misma URL, Turbo morfea
+// contra el HTML del servidor —que no trae `open`— y el plegable se cierra
+// justo después de guardar. El gancho de `application.js` lo evita; esto
+// prueba que siga ahí, con la misma navegación que produce un POST que
+// vuelve a donde estabas.
+async function revisarPlegableTrasMorph(page, name, selector) {
+  if (!(await page.locator(selector).count())) {
+    failures++;
+    console.error(`[PLEGABLE] ${name}: no hay ningún ${selector} con qué probar`);
+    return;
+  }
+  const resultado = await page.evaluate(async (sel) => {
+    document.querySelector(sel).open = true;
+    let morphs = 0;
+    const contar = () => { morphs++; };
+    addEventListener('turbo:morph', contar);
+    window.Turbo.visit(window.location.href, { action: 'replace' });
+    await new Promise((r) => setTimeout(r, 1500));
+    removeEventListener('turbo:morph', contar);
+    return { morphs, abierto: document.querySelector(sel)?.open === true };
+  }, selector);
+  // Sin morph la guarda no probó nada: pasaría en verde con el gancho roto.
+  if (!resultado.morphs) {
+    failures++;
+    console.error(`[PLEGABLE] ${name}: la pantalla no se morfeó, así que no se probó el plegable`);
+  } else if (!resultado.abierto) {
+    failures++;
+    console.error(`[PLEGABLE] ${name}: ${selector} se cerró al actualizarse la pantalla`);
+  }
+}
+
 // Un <form> dentro de otro es HTML inválido y el navegador NO lo deja pasar:
 // descarta el interno y sus botones pasan a pertenecer al externo. Pasó de
 // verdad — los ✓/✗ de veredicto vivían dentro del formulario del corte, así
@@ -104,7 +136,7 @@ async function revisarFormsAnidados(page, name, url) {
 // mirando —a simple vista el borde doble parece una separación—.
 async function revisarRitmo(page, name) {
   const pegadas = await page.evaluate(() => {
-    const paneles = [...document.querySelectorAll('.app-main > .panel')];
+    const paneles = [...document.querySelectorAll('.app-main > .panel, .app-main > .card')];
     let juntas = 0;
     for (let i = 1; i < paneles.length; i++) {
       const anterior = paneles[i - 1].getBoundingClientRect();
@@ -120,6 +152,38 @@ async function revisarRitmo(page, name) {
   }
 }
 
+// La referencia es lo que se consulta, y tiene que poder consultarse sin
+// buscarla. Dos formas de romperlo, medidas en evaluación cuando se completó:
+// a 1440×1000 la columna —pegada y con `max-height: 100vh`— medía 1.395px, y
+// lo último quedaba tapado detrás de su propio scroll; y debajo de 1280px,
+// donde sube arriba del trabajo, formaba una banda de 727px que empujaba el
+// título del módulo afuera de la primera pantalla.
+async function revisarReferencia(page, name) {
+  const columna = await page.evaluate(() => {
+    const aside = document.querySelector('.app-aside');
+    return aside ? { alto: aside.scrollHeight, visible: aside.clientHeight } : null;
+  });
+  if (!columna) return;
+  if (columna.alto > columna.visible + 1) {
+    failures++;
+    console.error(`[REFERENCIA] ${name}: la columna mide ${columna.alto}px y se ven ${columna.visible}: lo último queda tapado`);
+  }
+
+  const tamano = page.viewportSize();
+  await page.setViewportSize({ width: 1100, height: 900 });
+  const titulo = await page.evaluate(() => {
+    window.scrollTo(0, 0);
+    return document.querySelector('.page-title')?.getBoundingClientRect().top ?? null;
+  });
+  await page.setViewportSize(tamano);
+  // La mitad de la pantalla: el título y el arranque del trabajo tienen que
+  // verse sin scrollear.
+  if (titulo !== null && titulo > 450) {
+    failures++;
+    console.error(`[REFERENCIA] ${name}: a 1100px la referencia empuja el título del módulo a ${Math.round(titulo)}px`);
+  }
+}
+
 // Una clase que Tailwind no vio al escanear existe en el HTML y no tiene
 // ninguna regla detrás: en el DOM se ve perfecta y en pantalla no se ve nada.
 // Ninguna otra prueba lo atrapa — ni un request spec, que solo mira el body.
@@ -129,7 +193,15 @@ async function revisarRitmo(page, name) {
 async function revisarClasesDescartadas(page, name) {
   const huerfanas = await page.evaluate(() => {
     const sospechosas = [];
-    for (const el of document.querySelectorAll('[class*="badge"],[class*="btn"],[class*="alert"],.steps,.panel,.table :is(th,td)')) {
+    // `.panel` y `.flow-drawer__punto` están en la lista aunque su CSS sea
+    // propio y escrito a mano: lo que esto atrapa no es sólo una clase que
+    // Tailwind no vio, es cualquier elemento que se quedó sin la regla que lo
+    // pintaba. El punto del drawer entró acá cuando dejó de ser un `badge`
+    // vaciado —antes lo cubría `[class*="badge"]`— y su fondo es un
+    // `color-mix()` sobre `--punto`: si ese token se rompe o se renombra, el
+    // `color-mix()` queda inválido, el fondo cae a transparente y el punto se
+    // vuelve invisible sin dejar rastro en el DOM.
+    for (const el of document.querySelectorAll('[class*="badge"],[class*="btn"],[class*="alert"],[class*="flow-drawer__punto"],.steps,.panel,.card,.table :is(th,td)')) {
       // Única excepción: la celda de `tr.cut-line` (línea de corte del
       // ranking, `steps/selection.html.haml`) anula padding y borde a
       // propósito con `!important` (`.cut-line td` en application.css) — no
@@ -295,11 +367,63 @@ async function revisarContraste(page, name) {
   }
 }
 
+// Los puntos de estado del drawer no tienen texto, así que `revisarContraste`
+// —que mide texto contra su fondo— no los ve. Son información no textual: el
+// piso es el 3:1 de WCAG 1.4.11, contra el panel oscuro donde viven. El
+// neutro estuvo en 2,57:1 hasta el plan 2b sin que nada lo dijera.
+//
+// `esperados` es CUÁNTOS puntos tiene que mostrar ese drawer, y falla si no
+// están. Sin eso la guarda se cumple sola: `querySelectorAll` que no matchea
+// devuelve una lista vacía, y filtrar una lista vacía no reporta nada, así que
+// un renombre de la clase dejaría `[PUNTOS]` en verde midiendo CERO. `[CLASES]`
+// tampoco lo vería —la clase nueva sí tendría regla detrás, que es lo único que
+// ese chequeo mira—. Es el modo de falla que la pasada oscura del muestrario ya
+// sufrió, y se ataja igual que ahí: fallando cuando mide menos de lo declarado.
+// El número va fijo, como `PASOS_DE_SIN_FORMULARIO`: sacarlo de la propia
+// página es volver a la guarda que se cumple sola.
+async function revisarPuntos(page, name, tema, esperados) {
+  const medidos = await page.evaluate(() => {
+    const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+    const rgba = (css) => {
+      ctx.clearRect(0, 0, 1, 1);
+      ctx.fillStyle = '#000';
+      ctx.fillStyle = css;
+      const [r, g, b, a] = (ctx.fillRect(0, 0, 1, 1), ctx.getImageData(0, 0, 1, 1).data);
+      return [r, g, b, a / 255];
+    };
+    const luminancia = ([r, g, b]) => {
+      const f = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+    };
+    const fondo = (el) => {
+      for (let n = el.parentElement; n; n = n.parentElement) {
+        const c = rgba(getComputedStyle(n).backgroundColor);
+        if (c[3] >= 1) return c;
+      }
+      return [255, 255, 255, 1];
+    };
+    return [...document.querySelectorAll('.flow-drawer__punto')].map((el) => {
+      const [claro, oscuro] = [luminancia(rgba(getComputedStyle(el).backgroundColor)), luminancia(fondo(el))].sort((a, b) => b - a);
+      return { clase: el.className, ratio: (claro + 0.05) / (oscuro + 0.05) };
+    });
+  });
+  if (medidos.length !== esperados) {
+    failures++;
+    console.error(`[PUNTOS] ${name} (${tema}): midió ${medidos.length} puntos y el drawer tiene que mostrar ${esperados}`);
+  }
+  const bajos = medidos.filter((m) => m.ratio < 3);
+  if (bajos.length) {
+    failures++;
+    const unicos = [...new Map(bajos.map((m) => [m.clase, m])).values()];
+    console.error(`[PUNTOS] ${name} (${tema}): ${unicos.map((m) => `${m.clase} ${m.ratio.toFixed(2)}:1`).join(' · ')}`);
+  }
+}
+
 // Las variantes que la app usa, medidas en el tema activo aunque ninguna
-// pantalla del recorrido las muestre en ese tema. Se inyectan en un `.panel`
-// de una pantalla real —con la hoja y el tema de verdad—, se miden y se
-// sacan. Sin esto la pasada oscura midió CERO avisos y dio verde: las cuatro
-// pantallas que recorre no tienen ninguno.
+// pantalla del recorrido las muestre en ese tema. Se inyectan en una tarjeta
+// (`.card-body` o `.panel`) de una pantalla real —con la hoja y el tema de
+// verdad—, se miden y se sacan. Sin esto la pasada oscura midió CERO avisos y
+// dio verde: las cuatro pantallas que recorre no tienen ninguno.
 //
 // Falla también si mide menos muestras de las que declara, para que no
 // vuelva a pasar en verde sin haber medido nada.
@@ -329,7 +453,16 @@ const MUESTRARIO = [
   'badge badge-soft badge-sm',
   'badge badge-soft badge-primary badge-sm font-semibold',
   'badge badge-soft badge-success badge-sm',
-  'badge badge-soft badge-sm border-dashed'
+  'badge badge-soft badge-sm border-dashed',
+  // Las marcas sueltas (`EstilosHelper::CHIPS`).
+  'badge badge-soft badge-xs font-mono font-semibold ml-1.5',
+  'badge badge-soft badge-warning badge-xs font-semibold ml-1',
+  'badge badge-primary badge-xs font-semibold whitespace-nowrap ml-2',
+  'badge badge-soft badge-error badge-xs font-semibold whitespace-nowrap ml-2',
+  'badge badge-soft badge-warning badge-xs font-semibold whitespace-nowrap ml-2',
+  'badge badge-soft badge-primary badge-xs font-bold ml-1.5',
+  'badge badge-soft badge-xs font-semibold',
+  'badge badge-soft badge-secondary badge-xs font-semibold'
 ];
 
 // Los chips de un comentario ya atendido —el tipo, la resolución y la marca
@@ -350,7 +483,7 @@ const MUESTRARIO_ATENUADO = [
 
 async function revisarMuestrario(page, tema) {
   await page.evaluate(({ plenas, atenuadas }) => {
-    const destino = document.querySelector('.panel') || document.querySelector('.app-main') || document.body;
+    const destino = document.querySelector('.card-body') || document.querySelector('.panel') || document.querySelector('.app-main') || document.body;
     const caja = document.createElement('div');
     caja.dataset.muestrario = '';
     const muestra = (clase, padre) => {
@@ -393,6 +526,46 @@ async function revisarMuestrario(page, tema) {
   }
 }
 
+// Mientras convivan `.panel` y `.card`, una tarjeta migrada tiene que verse
+// igual que una sin migrar: si no, cada pantalla del plan 2b cambia de aspecto
+// por la tarjeta y no por lo que se decidió cambiarle. Se inyectan las dos en
+// la pantalla real —con la hoja y el tema de verdad— y se comparan los estilos
+// computados. Se borra junto con `.panel`, al final del plan 2b-bis.
+async function revisarCardComoPanel(page, tema) {
+  const diferencias = await page.evaluate(() => {
+    const destino = document.querySelector('.app-main') || document.body;
+    const panel = document.createElement('div');
+    panel.className = 'panel';
+    panel.textContent = 'panel';
+    const card = document.createElement('div');
+    card.className = 'card';
+    const body = document.createElement('div');
+    body.className = 'card-body';
+    body.textContent = 'card';
+    card.appendChild(body);
+    destino.append(panel, card);
+
+    const p = getComputedStyle(panel);
+    const c = getComputedStyle(card);
+    const b = getComputedStyle(body);
+    const pares = {
+      'background-color': [p.backgroundColor, c.backgroundColor],
+      'border-top': [`${p.borderTopWidth} ${p.borderTopStyle} ${p.borderTopColor}`, `${c.borderTopWidth} ${c.borderTopStyle} ${c.borderTopColor}`],
+      'border-radius': [p.borderTopLeftRadius, c.borderTopLeftRadius],
+      'box-shadow': [p.boxShadow, c.boxShadow],
+      'padding': [`${p.paddingTop} ${p.paddingLeft}`, `${b.paddingTop} ${b.paddingLeft}`],
+      'font-size': [p.fontSize, b.fontSize]
+    };
+    panel.remove();
+    card.remove();
+    return Object.entries(pares).filter(([, [a, z]]) => a !== z).map(([k, [a, z]]) => `${k}: panel ${a} · card ${z}`);
+  });
+  if (diferencias.length) {
+    failures++;
+    console.error(`[CARD] ${tema}: la card no se ve como el panel — ${diferencias.join(' | ')}`);
+  }
+}
+
 // La captura y las revisiones que solo piden la pantalla ya pintada.
 //
 // La mayoría de las pantallas no se abren por URL —se llega a ellas con un
@@ -421,6 +594,21 @@ async function shot(page, name, url, prepare) {
   await capturar(page, name);
 }
 
+// Los módulos cuya cara de ejecución ya está en tres zonas (plan 2b). Por
+// nombre del seed de `merma-bodega`, igual que el resto del recorrido. Cada
+// tarea del plan suma el suyo; al final están todos menos las selecciones.
+const MODULOS_EN_ZONAS = [/Evaluaci/i, /Ronda de feedback/i, /Postulaci/i, /Reporte/i];
+// Las selecciones van sin referencia —con la columna puesta el ranking no
+// entraba en el centro—, pero los ajustes plegados sí los tienen.
+const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
+
+// Cuántos puntos de estado tiene que mostrar el drawer de cada desafío: uno por
+// módulo (`_flow_drawer.html.haml`, la cara de «arrancado»). Fijos y no sacados
+// de la página, por lo mismo que `PASOS_DE_SIN_FORMULARIO`. Si el seed le
+// cambia los módulos a uno de los dos, este número cambia con él.
+const PUNTOS_DE_SALTEADO = 3; // `con-salteado`: idear, evolución, evaluación
+const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
+
 (async () => {
   // Se limpia antes de empezar: una captura que dejó de tomarse queda en disco
   // como si siguiera siendo el estado actual, y eso es peor que no tenerla.
@@ -446,6 +634,18 @@ async function shot(page, name, url, prepare) {
   await page.waitForLoadState('networkidle');
 
   await shot(page, '02-challenges', '/challenges');
+
+  // Un módulo salteado en el mapa del flujo y en el drawer. Sin un seed que lo
+  // tenga, el nodo salteado quedó negro en el plan 2a sin que nada lo viera.
+  await shot(page, '02b-salteado', '/challenges/con-salteado');
+  if (!(await page.locator('.flow-drawer [title="Salteado"], .flow-strip .border-dashed').count())) {
+    failures++;
+    console.error('[SALTEADO] ni el drawer ni el mapa del flujo muestran el módulo salteado');
+  }
+  // Tres de los cuatro puntos: pendiente, en curso y salteado. El completado
+  // está en el drawer de `merma-bodega`, más abajo.
+  await revisarPuntos(page, '02b-salteado', 'claro', PUNTOS_DE_SALTEADO);
+
   await shot(page, '03-new-challenge', '/challenges/new');
 
   // Un desafío sin módulos ofrece las plantillas desde el builder.
@@ -503,6 +703,8 @@ async function shot(page, name, url, prepare) {
   }
   await shot(page, '03c-paso-a-paso', '/challenges/sin-formulario/form');
   await shot(page, '04-challenge', `/challenges/${CHALLENGE}`);
+  // El cuarto punto: acá hay módulos completados, que `con-salteado` no tiene.
+  await revisarPuntos(page, '04-challenge', 'claro', PUNTOS_DE_MERMA);
 
   // El índice de criterios (`/criteria`) se borró: duplicaba lo que ya hace
   // el flujo, que lista los módulos y ahora lleva a cada uno. El paso «Los
@@ -600,6 +802,9 @@ async function shot(page, name, url, prepare) {
       page.waitForURL(/\/steps\/[^/]+$/, { timeout: 15000 }),
       ideationCardName.click()
     ]);
+    // El editor vive ahora en los ajustes plegados: sin abrirlos, sus campos
+    // no están visibles y `waitForSelector` (que espera visibilidad) cuelga.
+    await page.locator('details.ajustes__plegable').evaluate((el) => { el.open = true; });
     await page.waitForSelector('[data-island-mounted="true"] .field-edit', { timeout: 15000 });
     await capturar(page, '05b-form');
 
@@ -750,6 +955,10 @@ async function shot(page, name, url, prepare) {
   await page.waitForSelector('.version-timeline', { timeout: 10000 });
   await capturar(page, '07-idea');
 
+  // Las rondas de feedback cerradas de la ficha de la idea ya se pliegan con
+  // <details>: es el plegable que existe desde antes de este plan.
+  await revisarPlegableTrasMorph(page, '07-idea', 'details.feedback-round--cerrada');
+
   const diffLink = page.locator('a:has-text("Ver cambios entre versiones")');
   if (await diffLink.count()) {
     await diffLink.click();
@@ -791,6 +1000,26 @@ async function shot(page, name, url, prepare) {
       failures++;
       console.error(`[MODO IA] «${link.text}» no ofrece cambiar el modo de IA del módulo`);
     }
+
+    // Las tres zonas: la referencia existe, y quien recorre —admin— tiene
+    // los ajustes plegados al final. Sin esto, un módulo reordenado podía
+    // perder su columna sin que ninguna captura lo dijera.
+    if (MODULOS_EN_ZONAS.some((re) => re.test(link.text))) {
+      if (!(await page.locator('.app-aside').count())) {
+        failures++;
+        console.error(`[ZONAS] «${link.text}» no tiene columna de referencia`);
+      }
+      if (!(await page.locator('details.ajustes__plegable').count())) {
+        failures++;
+        console.error(`[ZONAS] «${link.text}» no tiene los ajustes plegados`);
+      }
+      await revisarReferencia(page, nombre);
+    }
+    if (MODULOS_SOLO_AJUSTES.some((re) => re.test(link.text)) &&
+        !(await page.locator('details.ajustes__plegable').count())) {
+      failures++;
+      console.error(`[ZONAS] «${link.text}» no tiene los ajustes plegados`);
+    }
   }
 
   // Quién evalúa y cuánto pesa su voto. La tabla y la columna existían desde
@@ -812,6 +1041,38 @@ async function shot(page, name, url, prepare) {
   } else {
     failures++;
     console.error('[LINK] el desafío no tiene el módulo de evaluación de comité');
+  }
+
+  // Los ajustes abiertos. Plegados no salen en ninguna captura, y las guardas
+  // de contraste y de clases sólo miden lo que tiene caja: sin esto, lo de
+  // adentro quedaba sin medir.
+  if (comite) {
+    await page.goto(BASE + comite.href, { waitUntil: 'networkidle' });
+
+    // Una fila de idea desplegada: plegada no se ve ni se mide.
+    const fila = page.locator('details.fila-de-idea__plegable').first();
+    if (!(await fila.count())) {
+      failures++;
+      console.error('[DESGLOSE] ninguna idea del comité tiene fila desplegable');
+    } else {
+      await fila.evaluate((el) => { el.open = true; });
+      await capturar(page, '09-17-desglose');
+      await revisarPlegableTrasMorph(page, '09-17-desglose', 'details.fila-de-idea__plegable');
+    }
+
+    await page.locator('details.ajustes__plegable').evaluate((el) => { el.open = true; });
+    await capturar(page, '09-16-ajustes-abiertos');
+    await revisarPlegableTrasMorph(page, '09-16-ajustes-abiertos', 'details.ajustes__plegable');
+  }
+
+  // Los ajustes de idear abiertos: adentro está el editor del formulario, una
+  // isla que monta plegada. Cerrado no tiene caja, y las guardas de contraste y
+  // de clases no medirían nada de lo que pinta.
+  if (ideacion) {
+    await page.goto(BASE + ideacion.href, { waitUntil: 'networkidle' });
+    await page.locator('details.ajustes__plegable').evaluate((el) => { el.open = true; });
+    await page.waitForSelector('[data-island="form-editor"][data-island-mounted="true"]', { timeout: 15000 });
+    await capturar(page, '09-18-ajustes-de-idear');
   }
 
   // La selección con filtros: cada idea pasa o no pasa cada condición, y se
@@ -1187,6 +1448,7 @@ async function shot(page, name, url, prepare) {
   // las tres variantes, así que se miden a mano acá, con la hoja y el tema de
   // verdad, antes de pasar a oscuro.
   await revisarMuestrario(page, 'claro');
+  await revisarCardComoPanel(page, 'claro');
 
   // ── Tema oscuro ──────────────────────────────────────────────────────────
   //
@@ -1196,14 +1458,43 @@ async function shot(page, name, url, prepare) {
   // esto no prueba navegación, prueba colores, y el recorrido por link ya
   // corrió en claro.
   await page.emulateMedia({ colorScheme: 'dark' });
+  // Las pantallas de módulo también, que son las que el plan 2b reordena. Por
+  // URL, como el resto de esta pasada: esto prueba colores, no navegación.
+  const oscuroDeModulos = [
+    ['94-oscuro-evaluacion', stepLinks.find((l) => l.text.match(/comit/i))],
+    ['95-oscuro-seleccion', stepLinks.find((l) => l.text.match(/Corte a top/i))],
+    ['96-oscuro-evolucion', stepLinks.find((l) => l.text.match(/Ronda de feedback/i))],
+    ['97-oscuro-reporteria', stepLinks.find((l) => l.text.match(/Reporte/i))],
+    // Idear se quedó afuera de esta pasada cuando la Tarea 4 la armó, así que
+    // la única pantalla de módulo que el plan 2b reordenó y nadie miraba en
+    // oscuro era justo la primera del flujo.
+    ['99-oscuro-idear', stepLinks.find((l) => l.text.match(/Postulaci/i))]
+  ];
+  for (const [nombre, link] of oscuroDeModulos) {
+    if (!link) {
+      failures++;
+      console.error(`[LINK] la pasada oscura no encontró el módulo de ${nombre}`);
+    }
+  }
   for (const [nombre, url] of [
     ['90-oscuro-desafios', '/challenges'],
     ['91-oscuro-desafio', `/challenges/${CHALLENGE}`],
     ['92-oscuro-criterios', '/criteria_sets'],
-    ['93-oscuro-ia', '/admin/ai_runs']
+    ['93-oscuro-ia', '/admin/ai_runs'],
+    ...oscuroDeModulos.filter(([, link]) => link).map(([nombre, link]) => [nombre, link.href]),
+    ['98-oscuro-salteado', '/challenges/con-salteado']
   ]) {
     await page.goto(BASE + url, { waitUntil: 'networkidle' });
-    if (nombre === '90-oscuro-desafios') await revisarMuestrario(page, 'oscuro');
+    if (nombre === '90-oscuro-desafios') {
+      await revisarMuestrario(page, 'oscuro');
+      await revisarCardComoPanel(page, 'oscuro');
+    }
+    // Los mismos dos drawers que la pasada clara, por la misma razón:
+    // `con-salteado` tiene pendiente, en curso y salteado, y el completado
+    // solo está en `merma-bodega`. Con uno solo, el punto verde no se mide en
+    // oscuro.
+    if (nombre === '98-oscuro-salteado') await revisarPuntos(page, nombre, 'oscuro', PUNTOS_DE_SALTEADO);
+    if (nombre === '91-oscuro-desafio') await revisarPuntos(page, nombre, 'oscuro', PUNTOS_DE_MERMA);
     await capturar(page, nombre);
   }
   await page.emulateMedia({ colorScheme: 'light' });

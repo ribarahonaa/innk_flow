@@ -1,0 +1,12 @@
+-# Los campos del formulario tal cual los ve quien postula, sin ningún control.
+- if campos.any?
+  %ul.field-list
+    - campos.each do |field|
+      %li.field-list__item
+        %span.field-list__label
+          = field.label
+          - if field.required
+            %span.field-list__req *
+        %span.field-list__type= field.type_label
+- else
+  %p.muted Todavía no hay campos.

@@ -1,0 +1,12 @@
+-# El progreso del módulo, en la referencia: es lo que más se mira, así que
+-# va primero. `detalle` suma lo que el kind quiera decir junto al conteo.
+- detalle = local_assigns[:detalle]
+.card
+  .card-body
+    %h3.section-title Progreso
+    .step-progress
+      %div
+        %strong= progress.done
+        %span.muted= " de #{progress.total} #{progress.label}#{" · #{detalle}" if detalle}"
+      .progress-bar
+        .progress-bar__fill{ style: "width: #{[progress.pct, 100].min}%" }

@@ -1,57 +1,42 @@
--# Lo que se consulta y no se edita en el curso normal del trabajo. Hasta acá
--# eran tarjetas del mismo peso que el trabajo, apiladas encima de él: para
--# llegar a la tabla de ideas había que pasar por delante de todo esto.
+-# Lo que se consulta mientras se evalúa y no se edita acá, en el orden de la
+-# regla de la referencia: el progreso primero, después lo propio del módulo
+-# (los criterios), después quién participa y al final la configuración, que
+-# no cambia.
 -#
--# Es una MUDANZA, no una reescritura: el markup viene tal cual de
--# `steps/evaluation.html.haml`. Lo único que cambia es dónde vive y que la
--# tabla de criterios pasa a lista, porque una tabla de tres columnas no entra
--# en 280px.
--#
--# Lo que NO se mudó y por qué está en el reporte de la tarea: los
--# formularios se quedan en la columna principal —son trabajo—, y una tarjeta
--# que es toda formulario no se puede partir sin repetir la misma lista de
--# nombres en las dos columnas.
+-# La tabla de criterios es lista porque una tabla de tres columnas no entra
+-# en la columna. Los formularios no están acá: son trabajo, o ajustes.
 - desafio = step.challenge
-- progress = handler.progress
-.panel
-  %h3.section-title Progreso
-  .step-progress
-    %div
-      %strong= progress.done
-      %span.muted= " de #{progress.total} #{progress.label} · mínimo #{handler.min_assessments} por idea"
-    .progress-bar
-      .progress-bar__fill{ style: "width: #{[progress.pct, 100].min}%" }
+= render "steps/progreso", progress: handler.progress, detalle: "mínimo #{handler.min_assessments} por idea"
 
-.panel
-  %h3.section-title
-    Criterios
-    - if step.criteria_set
-      %span.muted= " · #{step.criteria_set.name}"
+.card
+  .card-body
+    %h3.section-title
+      Criterios
+      - if step.criteria_set
+        %span.muted= " · #{step.criteria_set.name}"
 
-  - if handler.criteria_snapshot.empty?
-    %p.muted Este módulo se activó sin criterios propios.
-  - else
-    %ul.field-list
-      - handler.criteria_snapshot.each do |criterion|
-        %li.field-list__item
-          %span
-            = criterion["name"]
-            -# Contra `source` y no contra `scale_type`, que es lo que decía la
-            -# tarjeta original: `align_scale_with_source` fuerza `numeric`
-            -# para las fórmulas, así que `scale_type == "formula"` no es
-            -# nunca cierto y el chip no se veía en ninguna pantalla.
-            - if criterion["source"] == "formula"
-              %span.derived-chip derivado
-            %br
-            %span.muted= t("flow.scale_types.#{criterion['scale_type']}")
-          %strong= "#{(criterion['weight'].to_f * 100).round}%"
-    %p.muted.field-hint
-      Congelados al activar el módulo: editar el set ahora no altera lo ya evaluado.
+    - if handler.criteria_snapshot.empty?
+      %p.muted Este módulo se activó sin criterios propios.
+    - else
+      %ul.field-list
+        - handler.criteria_snapshot.each do |criterion|
+          %li.field-list__item
+            %span
+              = criterion["name"]
+              -# Contra `source` y no contra `scale_type`: `align_scale_with_source`
+              -# fuerza `numeric` para las fórmulas, así que `scale_type ==
+              -# "formula"` no es nunca cierto.
+              - if criterion["source"] == "formula"
+                %span{ class: chip("derivado") } derivado
+              %span.muted= " · #{t("flow.scale_types.#{criterion['scale_type']}")}"
+            %strong= "#{(criterion['weight'].to_f * 100).round}%"
+      %p.muted.field-hint
+        Congelados al activar el módulo: editar el set ahora no altera lo ya evaluado.
 
-  -# Congelados, no hay nada que definir ni dónde editar un set inline: la
-  -# única pantalla que lo mostraba fuera de la lista de arriba era
-  -# `step_criteria/show`, que se borró. Uno de la biblioteca sigue editable
-  -# en el mantenedor —afecta a otros desafíos, por eso vive ahí y no acá—,
-  -# así que ese caso sí ofrece un link; el resto no va a ningún lado.
-  - if policy(desafio).update_pipeline? && step.criteria_set&.library?
-    = link_to "Ver el set", edit_criteria_set_path(step.criteria_set), class: "btn btn-ghost btn-sm"
+    -# Uno de la biblioteca sigue editable en el mantenedor —afecta a otros
+    -# desafíos, por eso vive ahí y no acá—; un set inline no va a ningún lado.
+    - if policy(desafio).update_pipeline? && step.criteria_set&.library?
+      = link_to "Ver el set", edit_criteria_set_path(step.criteria_set), class: "btn btn-ghost btn-sm"
+
+= render "steps/quien_evalua", step: step
+= render "steps/config_congelada", step: step
