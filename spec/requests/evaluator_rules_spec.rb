@@ -177,6 +177,40 @@ RSpec.describe "reglas de quien evalúa", type: :request do
     end
   end
 
+  # El botón «IA» de cada fila —pedirle a la IA que evalúe ESA idea— es la
+  # misma regla que el lote y que la ficha de evaluación (`AssessmentPolicy
+  # #create?`, sin idea): de quien evalúa por asignación o por administrar,
+  # no de `update_pipeline?`. La fila lo escribía a mano con `manda`, así que
+  # a un evaluador asignado no le aparecía en ninguna fila.
+  describe "el botón «IA» de cada fila" do
+    before do
+      as_company(company) { step.update!(ai_mode: "ai_assisted") }
+    end
+
+    # `button_to` arma un `<form>`: la acción sale escapada como atributo
+    # HTML (`&amp;` y no `&`), a diferencia del link de «Evaluar», que sólo
+    # lleva un parámetro y no tiene `&` que escapar.
+    def ruta_del_pedido(idea)
+      CGI.escapeHTML(challenge_ai_requests_path(challenge, purpose: "evaluate_idea", step_id: step.id, idea_id: idea.id))
+    end
+
+    it "se lo ofrece a quien tiene la asignación" do
+      sign_in(elena, company: company)
+      get challenge_step_path(challenge, step)
+
+      expect(response.body).to include(ruta_del_pedido(ajena))
+    end
+
+    it "no se lo ofrece a quien evalúa sin asignación en este módulo" do
+      as_company(company) { step.step_assignments.find_by(user_id: emilio.id).destroy! }
+
+      sign_in(emilio, company: company)
+      get challenge_step_path(challenge, step)
+
+      expect(response.body).not_to include(ruta_del_pedido(ajena))
+    end
+  end
+
   # Pedirle a la IA que evalúe todo lo que falta.
   #
   # Dos cosas que se rompen fácil y por eso están acá: que el botón sea de

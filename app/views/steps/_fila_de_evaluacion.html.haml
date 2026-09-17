@@ -58,6 +58,11 @@
       -# `manager?`— le aparecía en todas las filas y le rebotaba con 403.
       - if policy(Assessment.new(challenge_step: step, idea: entry.idea)).create?
         = link_to "Evaluar", new_challenge_step_assessment_path(challenge, step, idea_id: entry.idea_id), class: "btn btn-ghost btn-sm"
-      - if step.effective_ai_mode != "human" && manda
+      -# Pedirle a la IA que evalúe no es evaluar: es de quien evalúa el
+      -# módulo, por asignación o por administrarlo (`AssessmentPolicy
+      -# #create?`, vía `puede_pedir`), no de `manda`/`update_pipeline?`. Y el
+      -# objeto que se autoriza va SIN idea a propósito, como en el lote y en
+      -# la ficha de evaluación.
+      - if step.effective_ai_mode != "human" && puede_pedir
         = button_to "IA", challenge_ai_requests_path(challenge, purpose: "evaluate_idea", step_id: step.id, idea_id: entry.idea_id),
                     class: "btn btn-ghost btn-sm", title: "Que la IA evalúe esta idea"

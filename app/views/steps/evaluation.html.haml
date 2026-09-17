@@ -66,7 +66,7 @@
           %span
         - entries.select { |e| @ideas_visibles.include?(e.idea_id) }.each do |entry|
           = render "steps/fila_de_evaluacion", entry: entry, handler: @handler, challenge: @challenge,
-                   step: @step, manda: manda, hechas: hechas
+                   step: @step, manda: manda, hechas: hechas, puede_pedir: puede_pedir
 
 -# Nombre, modo de IA y quién evalúa: se editan acá, pero casi nunca. Cada
 -# bloque trae su guarda; los ajustes se dibujan si a quien mira le toca uno.
