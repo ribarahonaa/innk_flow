@@ -137,46 +137,100 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
   end
 
   describe "selección" do
-    let!(:challenge) do
-      as_company(company) do
-        c = create(:challenge, name: "Merma", ai_default_mode: "human")
-        seed_form!(c.steps.create!(kind: "ideation", position: 1))
-        # Sin evaluación antes, la selección arranca solo con el orden manual:
-        # si no, `start!` falla y la pantalla sirve la cara de configuración.
-        c.steps.create!(kind: "selection", position: 2, name: "Corte",
-                        config: { "score_source" => { "type" => "manual" } })
-        c
+    # Un grupo por escenario y no un `before` suelto, como en reportería: el
+    # registro de decisiones necesita dos ideas y el corte ya confirmado, y un
+    # `before` de afuera corre también para los grupos de adentro.
+    describe "las zonas" do
+      let!(:challenge) do
+        as_company(company) do
+          c = create(:challenge, name: "Merma", ai_default_mode: "human")
+          seed_form!(c.steps.create!(kind: "ideation", position: 1))
+          # Sin evaluación antes, la selección arranca solo con el orden manual:
+          # si no, `start!` falla y la pantalla sirve la cara de configuración.
+          c.steps.create!(kind: "selection", position: 2, name: "Corte",
+                          config: { "score_source" => { "type" => "manual" } })
+          c
+        end
+      end
+
+      before do
+        postular!(challenge, author: paula, titulo: "Sensores")
+        as_company(company) do
+          challenge.pipeline.start!
+          challenge.pipeline.advance!
+          expect(paso("selection")).to be_active
+        end
+      end
+
+      # Selección no tiene referencia: con la columna puesta el ranking no entra
+      # en el centro. «Cómo se decide» va arriba de la tabla.
+      it "quien administra: cómo se decide sin columna de referencia, los ajustes plegados" do
+        sign_in(admin, company: company)
+        get challenge_step_path(challenge, paso("selection"))
+
+        expect(response.body).to include("Cómo se decide")
+        expect(documento.at_css(".app-aside")).to be_nil
+        expect(zonas[:ajustes]).to include("Ajustes del módulo", "Modo de IA")
+        expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
+      end
+
+      it "quien participa: cómo se decide, sin ajustes" do
+        sign_in(paula, company: company)
+        get challenge_step_path(challenge, paso("selection"))
+
+        expect(response.body).to include("Cómo se decide")
+        expect(documento.at_css(".app-aside")).to be_nil
+        expect(documento.at_css(".ajustes")).to be_nil
       end
     end
 
-    before do
-      postular!(challenge, author: paula, titulo: "Sensores")
-      as_company(company) do
-        challenge.pipeline.start!
-        challenge.pipeline.advance!
-        expect(paso("selection")).to be_active
+    # El registro de decisiones dice, idea por idea, si avanzó y en qué puesto:
+    # es la misma lista que el ranking de arriba, y se filtra igual con
+    # `@ideas_visibles`. Quien decidió, cuándo y el motivo de la tanda siguen a
+    # la vista de todos —es lo que explica por qué la idea de uno avanzó o no—.
+    describe "el registro de decisiones" do
+      let!(:pedro) { member("pedro@test.dev", :participant) }
+
+      let!(:challenge) do
+        as_company(company) do
+          c = create(:challenge, name: "Merma", ai_default_mode: "human")
+          seed_form!(c.steps.create!(kind: "ideation", position: 1))
+          c.steps.create!(kind: "selection", position: 2, name: "Corte",
+                          config: { "score_source" => { "type" => "manual" } })
+          c
+        end
       end
-    end
 
-    # Selección no tiene referencia: con la columna puesta el ranking no entra
-    # en el centro. «Cómo se decide» va arriba de la tabla.
-    it "quien administra: cómo se decide sin columna de referencia, los ajustes plegados" do
-      sign_in(admin, company: company)
-      get challenge_step_path(challenge, paso("selection"))
+      before do
+        de_paula = postular!(challenge, author: paula, titulo: "Sensores de peso")
+        postular!(challenge, author: pedro, titulo: "Cámaras en la merma")
+        as_company(company) do
+          challenge.pipeline.start!
+          challenge.pipeline.advance!
+          paso("selection").handler.decide!([de_paula.id], decided_by: admin,
+                                            reason: "El comité priorizó impacto sobre esfuerzo")
+        end
+      end
 
-      expect(response.body).to include("Cómo se decide")
-      expect(documento.at_css(".app-aside")).to be_nil
-      expect(zonas[:ajustes]).to include("Ajustes del módulo", "Modo de IA")
-      expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
-    end
+      def registro
+        documento.css(".app-main .card")
+                 .find { |c| c.at_css(".section-title")&.text.to_s.include?("Registro de decisiones") }
+      end
 
-    it "quien participa: cómo se decide, sin ajustes" do
-      sign_in(paula, company: company)
-      get challenge_step_path(challenge, paso("selection"))
+      it "quien participa ve su fila y el motivo de la tanda, no las ajenas" do
+        sign_in(paula, company: company)
+        get challenge_step_path(challenge, paso("selection"))
 
-      expect(response.body).to include("Cómo se decide")
-      expect(documento.at_css(".app-aside")).to be_nil
-      expect(documento.at_css(".ajustes")).to be_nil
+        expect(registro.text).to include("Sensores de peso", "El comité priorizó impacto sobre esfuerzo")
+        expect(registro.text).not_to include("Cámaras en la merma")
+      end
+
+      it "quien administra ve las dos" do
+        sign_in(admin, company: company)
+        get challenge_step_path(challenge, paso("selection"))
+
+        expect(registro.text).to include("Sensores de peso", "Cámaras en la merma")
+      end
     end
   end
 

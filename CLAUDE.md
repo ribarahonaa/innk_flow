@@ -267,7 +267,11 @@ Dos reglas que no viven en el rol:
   tres cosas se hacen sobre el pool entero. En reportería, quien participa ve
   lo agregado —embudo, distribución, participación— y el ranking y la matriz
   filtrados a sus ideas; el resumen narrativo no, porque nombra ideas ajenas.
-  Hasta el plan 2b veía el tablero entero.
+  Hasta el plan 2b veía el tablero entero. Y en selección **son dos listas, no
+  una**: el ranking y el registro de decisiones; el registro se olvidó del
+  filtro hasta la revisión final del 2b y listaba título, veredicto y puesto de
+  cada idea ajena. Lo que ahí NO se filtra es quién decidió, cuándo y el motivo
+  de la tanda: es lo que explica por qué la idea de uno avanzó o no.
 - **Pedirle a la IA que evalúe no es evaluar.** El botón —y el lote «evaluar
   todas con IA»— es de quien evalúa en el módulo, por asignación o por
   administrarlo, no de `update_pipeline?`. Y va **sin idea**: quien participa

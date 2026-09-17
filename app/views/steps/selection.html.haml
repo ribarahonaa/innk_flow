@@ -162,7 +162,21 @@
         .form-actions
           = submit_tag "Confirmar corte", class: "btn btn-primary"
 
-- decisions = SelectionDecision.where(challenge_step_id: @step.id).latest_first.includes(:idea, :decided_by).limit(30)
+-# El registro se filtra con `@ideas_visibles`, igual que el ranking de arriba:
+-# quien participa ve sólo las filas de sus ideas (`IdeaPolicy::Scope`). Listaba
+-# el pool entero con título, veredicto y puesto de cada idea ajena.
+-#
+-# El filtro va en la CONSULTA y no después de traerlas: con el `limit(30)`
+-# puesto sobre el pool entero, filtrar después dejaría a quien participa con lo
+-# que le haya tocado entrar en esas treinta.
+-#
+-# Lo que NO se filtra es quién decidió, cuándo y el motivo de la tanda: es
+-# justamente lo que explica por qué la idea de uno avanzó o no. Una tanda sin
+-# filas visibles no se dibuja —el `group_by` ya no la arma— y sin ninguna fila
+-# no se dibuja la tarjeta. Misma fuga y misma forma que `e475cb2` (idear) y
+-# `be644ec` (reportería).
+- del_modulo = SelectionDecision.where(challenge_step_id: @step.id, idea_id: @ideas_visibles.to_a)
+- decisions = del_modulo.latest_first.includes(:idea, :decided_by).limit(30)
 - if decisions.any?
   .card
     .card-body
