@@ -3535,10 +3535,81 @@ EOF
 
 ### Task 11: Cierre — CSS muerto, `CLAUDE.md` y la revisión de la rama
 
+**Ampliada al ejecutar el plan** con lo que dejaron las revisiones de las Tareas 4, 8b y 10 y una decisión de Raúl. Los Steps 0a a 0d son eso; el resto es el cierre como estaba.
+
 **Files:**
 - Modify: `app/assets/stylesheets/application.css`
+- Modify: `script/capture_screens.js`
+- Modify: `app/views/steps/reporting.html.haml`
+- Modify: `spec/requests/pantalla_del_modulo_spec.rb`
 - Modify: `CLAUDE.md`
-- Modify: `docs/superpowers/specs/2026-09-17-rediseno-2b-pantallas-de-modulo-design.md` (estado)
+- Modify: `docs/superpowers/specs/2026-09-17-rediseno-2b-pantallas-de-modulo-design.md` (estado y §3)
+
+- [ ] **Step 0a: El punto neutro pasa 3:1, y una guarda mide los cuatro**
+
+Decisión de Raúl. El punto de un módulo pendiente mide **2,57:1 en tema claro** sobre el panel oscuro del drawer, abajo del piso de 3:1 de WCAG 1.4.11 para lo que no es texto; los otros tres pasan (5,00 / 5,13 / 5,19) y en oscuro pasan los cuatro (7,69 a 12,92). Lo dice el comentario de `.flow-drawer__punto` desde la Tarea 10, y nada lo mide: `revisarContraste` saltea lo que no tiene texto.
+
+1. Subí la mezcla del neutro hasta pasar 3:1 **en los dos temas**, tocando sólo ese modificador (hoy `--punto: var(--color-base-content)`). El punto se pinta con `color-mix(in oklab, var(--punto) 55%, var(--color-neutral-content))`: la palanca es el porcentaje o el token. Medí, no estimes.
+2. Guarda nueva en `script/capture_screens.js`, al lado de `revisarContraste`:
+
+```js
+// Los puntos de estado del drawer no tienen texto, así que `revisarContraste`
+// —que mide texto contra su fondo— no los ve. Son información no textual: el
+// piso es el 3:1 de WCAG 1.4.11, contra el panel oscuro donde viven. El
+// neutro estuvo en 2,57:1 hasta el plan 2b sin que nada lo dijera.
+async function revisarPuntos(page, tema) {
+  const bajos = await page.evaluate(() => {
+    const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+    const rgba = (css) => {
+      ctx.clearRect(0, 0, 1, 1);
+      ctx.fillStyle = '#000';
+      ctx.fillStyle = css;
+      const [r, g, b, a] = (ctx.fillRect(0, 0, 1, 1), ctx.getImageData(0, 0, 1, 1).data);
+      return [r, g, b, a / 255];
+    };
+    const luminancia = ([r, g, b]) => {
+      const f = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+    };
+    const fondo = (el) => {
+      for (let n = el.parentElement; n; n = n.parentElement) {
+        const c = rgba(getComputedStyle(n).backgroundColor);
+        if (c[3] >= 1) return c;
+      }
+      return [255, 255, 255, 1];
+    };
+    return [...document.querySelectorAll('.flow-drawer__punto')].map((el) => {
+      const [claro, oscuro] = [luminancia(rgba(getComputedStyle(el).backgroundColor)), luminancia(fondo(el))].sort((a, b) => b - a);
+      return { clase: el.className, ratio: (claro + 0.05) / (oscuro + 0.05) };
+    }).filter((m) => m.ratio < 3);
+  });
+  if (bajos.length) {
+    failures++;
+    const unicos = [...new Map(bajos.map((m) => [m.clase, m])).values()];
+    console.error(`[PUNTOS] ${tema}: ${unicos.map((m) => `${m.clase} ${m.ratio.toFixed(2)}:1`).join(' · ')}`);
+  }
+}
+```
+
+Llamala donde haya drawer con los cuatro estados a la vista: en la pasada clara sobre `02b-salteado` (tiene pendiente, en curso y salteado) y sobre una pantalla de `merma-bodega` (tiene completado), y en la pasada oscura sobre `98-oscuro-salteado`. Si el fondo del punto no se puede leer con `backgroundColor` —porque el `color-mix` no resuelve en `getComputedStyle`—, reportalo con lo que devolvió en vez de inventar otra medición.
+
+3. **Vela fallar**: con el valor viejo del neutro la guarda tiene que marcar `[PUNTOS] claro: flow-drawer__punto flow-drawer__punto--neutro 2.57:1`. Pegá esa salida y la de después.
+4. Actualizá el párrafo del comentario que la Tarea 10 escribió: ahora los cuatro pasan, con los números nuevos, y lo mide `[PUNTOS]`.
+
+- [ ] **Step 0b: Tres pendientes de la revisión de la Tarea 8b**
+
+1. **La guarda `pide_resumen` no tiene test.** En `spec/requests/pantalla_del_modulo_spec.rb`, el ejemplo «quien evalúa: el pool entero, sin descargas ni pedido a la IA» promete algo que no afirma: el desafío corre en modo `human`, donde `shared/ai_actions` no dibuja nada para nadie. Sumá una variante en modo asistido —`ai_default_mode: "ai_assisted"` en ese `describe`, o un `as_company { challenge.update!(ai_default_mode: "ai_assisted") }` dentro del ejemplo— que afirme que `purpose=summarize_challenge` **está** para quien administra y **no está** para quien evalúa ni para quien participa. Verificalo borrando `pide_resumen` de `reporting.html.haml` (tiene que fallar) y devolviéndolo.
+2. **La frase nueva de `CLAUDE.md` tiene sujeto ambiguo.** Viene después de «Quien administra, acompaña o evalúa las ve todas», así que «En reportería ve lo agregado…» se lee al revés. Pasa a «En reportería, quien participa ve lo agregado…».
+3. **El sondeo de reportes corre para todos.** `shared/_reports_auto_refresh` (último render de `reporting.html.haml`) consulta cada 4s hasta 120 veces mientras hay un reporte pendiente; quien no tiene `report?` recibe 403 JSON, `data.pending` queda `undefined` y el script sigue. Envolvé ese render en `- if policy(@step).report?`, con un comentario de una línea que diga por qué.
+
+- [ ] **Step 0c: Dos pendientes de las Tareas 4 y 7**
+
+1. **Idear no se mira en oscuro.** `oscuroDeModulos` en `script/capture_screens.js` recorre evaluación, selección, evolución y reportería. Sumá idear (`stepLinks.find((l) => l.text.match(/Postulaci/i))`) como `99-oscuro-idear`, con su chequeo de link faltante como los otros cuatro.
+2. **El `before` de «idear» no afirma que el módulo arrancó.** Los describes de selección, evolución y reportería tienen `expect(paso(...)).to be_active`; el de idear lo perdió. Sumalo (la Tarea 7b ya lo puso en su describe hijo; acá va en el padre, `spec/requests/pantalla_del_modulo_spec.rb`).
+
+- [ ] **Step 0d: La descripción de `[CLASES]` en `CLAUDE.md`**
+
+La sección «Verificación» dice que `make screens` falla «si una clase quedó **sin ninguna regla detrás** porque Tailwind no la vio al escanear». Es más angosto que lo que la guarda hace desde hace rato: también mira `.panel`, `.card` y ahora el punto del drawer, o sea cualquier elemento que se quedó sin la regla que lo pintaba —por un renombre, por un token roto o por lo que sea—. Corregí esa frase.
 
 - [ ] **Step 1: CSS sin nadie que lo use**
 
@@ -3554,14 +3625,14 @@ Expected: las que salen sin archivos se borran de `application.css`. Las que tie
 
 - [ ] **Step 2: `CLAUDE.md`**
 
-Leé las secciones «El sistema visual», «El shell de tres regiones», «Lo que carga la jerarquía» y «Configurar y ejecutar son dos caras de la misma pantalla», y corregí toda frase que el plan volvió falsa. Como mínimo:
+Además de lo de los Steps 0b.2 y 0d: leé las secciones «El sistema visual», «El shell de tres regiones», «Lo que carga la jerarquía» y «Configurar y ejecutar son dos caras de la misma pantalla», y corregí toda frase que el plan volvió falsa. Como mínimo:
 - «Lo que carga la jerarquía» dice que las tarjetas tienen `margin: 0` y el ritmo lo pone `.app-main`: sigue siendo cierto para `.card`, sumalo.
 - Cualquier mención a que evaluación es la única pantalla con referencia.
 - `make screens`: las guardas nuevas (`[PLEGABLE]`, `[CARD]`, `[ZONAS]`, `[DESGLOSE]`, `[SALTEADO]`) en el párrafo de «Verificación» que lista qué hace fallar el recorrido.
 
 - [ ] **Step 3: El estado del spec**
 
-Arriba de `docs/superpowers/specs/2026-09-17-rediseno-2b-pantallas-de-modulo-design.md`, debajo del título:
+En `docs/superpowers/specs/2026-09-17-rediseno-2b-pantallas-de-modulo-design.md`, la fila de **Selección** de la tabla del §3 todavía le da «Cómo se decide» a la referencia: pasa a decir que selección no tiene columna de referencia, con la medición del commit de la Tarea 5 en una frase. Y arriba de todo, debajo del título:
 
 ```markdown
 > **Estado:** implementado en la rama `rediseno-2b`. Selección quedó con

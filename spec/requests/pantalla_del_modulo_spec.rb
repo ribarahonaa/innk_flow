@@ -320,6 +320,37 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
         expect(response.body).to include("quedó última por esfuerzo")
         expect(zonas[:referencia]).to include("Descargas", "Excel", "PDF")
       end
+
+      # El «sin pedido a la IA» de arriba no afirma nada: el desafío corre en
+      # modo `human`, donde `shared/ai_actions` no dibuja botones para NADIE.
+      # La guarda que se quiere probar es `pide_resumen`
+      # (`policy(@challenge).update_pipeline?`), y sólo se ve con la IA
+      # encendida. Un grupo aparte para no cambiarle el modo a los tres
+      # ejemplos de arriba, que no hablan de IA.
+      describe "con la IA asistida" do
+        before { as_company(company) { challenge.update!(ai_default_mode: "ai_assisted") } }
+
+        it "quien administra puede pedir el resumen narrativo" do
+          sign_in(admin, company: company)
+          get challenge_step_path(challenge, paso("reporting"))
+
+          expect(response.body).to include("purpose=summarize_challenge")
+        end
+
+        it "quien evalúa no" do
+          sign_in(elena, company: company)
+          get challenge_step_path(challenge, paso("reporting"))
+
+          expect(response.body).not_to include("purpose=summarize_challenge")
+        end
+
+        it "quien participa tampoco" do
+          sign_in(paula, company: company)
+          get challenge_step_path(challenge, paso("reporting"))
+
+          expect(response.body).not_to include("purpose=summarize_challenge")
+        end
+      end
     end
   end
 

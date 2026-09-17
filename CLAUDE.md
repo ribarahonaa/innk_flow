@@ -41,14 +41,23 @@ No hay linter configurado.
 
 **`make screens` es la verificación end-to-end real**, no un extra. Recorre la
 app corriendo con un navegador y falla si hay error de JS, HTTP >= 400, si
-queda un `.island-placeholder` sin montar o si una clase quedó **sin ninguna
-regla detrás** porque Tailwind no la vio al escanear —eso se revisa en todas
-las pantallas del recorrido, no en algunas: vive en `capturar()`—. También
-falla si un `.badge` o un `.alert` mide menos de 4,5:1 de contraste en claro o
-en oscuro (`[CONTRASTE]`, en cada pantalla y en el muestrario), y si aparece un
-`card` sin `card-body` (`[PANEL]`). Corrélo después de tocar
-vistas, islas o CSS — un bug de Vue no lo atrapa ningún spec de Ruby (un
-`__VUE_OPTIONS_API__` mal puesto dejó el builder en blanco y la suite en verde).
+queda un `.island-placeholder` sin montar o si un elemento se quedó **sin
+ninguna regla detrás** (`[CLASES]`) —una clase que Tailwind no vio al escanear,
+pero también un `.panel`, un `.card` o el punto del drawer que perdió la regla
+que lo pintaba por un renombre o por un token roto; eso se revisa en todas las
+pantallas del recorrido, no en algunas: vive en `capturar()`—. También falla si
+un `.badge` o un `.alert` mide menos de 4,5:1 de contraste en claro o en oscuro
+(`[CONTRASTE]`, en cada pantalla y en el muestrario), si un punto de estado del
+drawer mide menos de 3:1 —el piso de WCAG 1.4.11 para lo que no es texto—
+(`[PUNTOS]`, en los dos temas), si aparece un `card` sin `card-body`
+(`[PANEL]`) o si el `card` de DaisyUI dejó de verse como el `.panel` que
+reemplaza (`[CARD]`). Y falla si una pantalla de módulo pierde su forma: sin
+columna de referencia o sin los ajustes plegados (`[ZONAS]`), con el plegable
+cerrándose solo al morfear (`[PLEGABLE]`), sin la fila desplegable del desglose
+de evaluación (`[DESGLOSE]`) o sin el módulo salteado en el drawer y el mapa
+del flujo (`[SALTEADO]`). Corrélo después de tocar vistas, islas o CSS — un bug
+de Vue no lo atrapa ningún spec de Ruby (un `__VUE_OPTIONS_API__` mal puesto
+dejó el builder en blanco y la suite en verde).
 
 Al escribir capturas nuevas en `script/capture_screens.js`:
 
@@ -255,10 +264,10 @@ Dos reglas que no viven en el rol:
   eso lo que listan. Idear se lo olvidó hasta el plan 2b —listaba todas las
   postuladas—, que es exactamente lo que advertía `e3787a3`. Lo que no se ve
   da **404**, no 403. Quien administra, acompaña o evalúa las ve todas: las
-  tres cosas se hacen sobre el pool entero. En reportería ve lo agregado
-  —embudo, distribución, participación— y el ranking y la matriz filtrados a
-  sus ideas; el resumen narrativo no, porque nombra ideas ajenas. Hasta el
-  plan 2b veía el tablero entero.
+  tres cosas se hacen sobre el pool entero. En reportería, quien participa ve
+  lo agregado —embudo, distribución, participación— y el ranking y la matriz
+  filtrados a sus ideas; el resumen narrativo no, porque nombra ideas ajenas.
+  Hasta el plan 2b veía el tablero entero.
 - **Pedirle a la IA que evalúe no es evaluar.** El botón —y el lote «evaluar
   todas con IA»— es de quien evalúa en el módulo, por asignación o por
   administrarlo, no de `update_pipeline?`. Y va **sin idea**: quien participa
@@ -709,8 +718,8 @@ otra vía: el test del pie sólo pasaba por `evaluation`, y sacar nada más que
 el render de `selection` (el otro kind que embebe el bloque de criterios)
 dejaba `make spec` y `make screens` en verde igual (`df0681d`). Quien borre o
 mude una pantalla de configuración tiene que revisar `Flow::Setup` y los
-renders de `setup_nav`/`setup_progress` a mano, no confiar en la suite para
-que avise.
+renders de `setup_nav` a mano —desde que `shared/_setup_progress` se borró es
+el único—, no confiar en la suite para que avise.
 
 ### Islas Vue
 
@@ -760,15 +769,18 @@ Sass se jubiló entero. El archivo de salida conserva el nombre, así que el
 La fase 1 migró la plomería, las clases dinámicas, el tema y el shell. El plan
 2a pasó el vocabulario que se repite a componentes: las tablas son `table`, los
 avisos `alert alert-soft`, las cuatro familias de chips (estado, origen, tipo
-de feedback e IA) y los nodos del mapa del flujo son `badge`, y las tarjetas se
-llaman `.panel` mientras esperan su `card` + `card-body`. Las marcas sueltas
+de feedback e IA) y los nodos del mapa del flujo son `badge`, y las tarjetas
+esperan su `card` + `card-body` bajo el nombre `.panel`. Las marcas sueltas
 —versión, desactualizada, «acá está el flujo», no pasa un filtro, filtros sin
 responder, derivado, las iniciales de quien evaluó— son `badge` vía
 `EstilosHelper::CHIPS`, y se piden por nombre con `chip("version")`: un nombre
 que no existe revienta, porque es un error de código y no un estado nuevo del
-dominio. Lo que sigue —pantalla por pantalla (2b) y las
-islas Vue (2c)— tiene su plan cuando le toque. `.step-card`, `.flow-strip` y
-`.empty-state` siguen siendo clases propias a propósito: son vocabulario de
+dominio. El plan **2b** hizo las cinco pantallas de módulo: las tres zonas del
+shell —trabajo al centro, referencia a la derecha, «Ajustes del módulo»
+plegados al final—, la cara de configuración junta en la misma pantalla, y
+`.panel` → `card` + `card-body` **ahí y sólo ahí**. El resto de la app sigue en
+`.panel`: ésas son 2b-bis, y las islas Vue son 2c. `.step-card`, `.flow-strip`
+y `.empty-state` siguen siendo clases propias a propósito: son vocabulario de
 esta app.
 
 #### Lo que más fácil se rompe
@@ -900,6 +912,10 @@ pantalla declara su layout.
   propósito, **con la misma guarda en los dos lugares**
   (`spec/requests/pantalla_del_modulo_spec.rb` lo prueba por rol). Un bloque
   que va suelto o adentro de los ajustes toma su forma de `steps/_bloque`.
+  **Selección es la única cara de ejecución sin referencia**: su tabla de
+  ranking no entra en el centro angosto (plan 2b, Tarea 5). Los ajustes
+  plegados sí los tiene, y `make screens` lo espera así
+  (`MODULOS_SOLO_AJUSTES`).
 - **La referencia tiene que entrar en una pantalla.** Pegada y con
   `max-height: 100vh`, lo que no entra queda tapado detrás de su propio
   scroll. Por eso la densidad la decide la zona: adentro de `.app-aside` una
@@ -927,10 +943,13 @@ pantalla declara su layout.
 
 - **El ritmo lo pone `.app-main`**, que es `flex` en columna con `gap`. Las
   tarjetas tienen `margin: 0` a propósito: un margen por tarjeta rompería las
-  grillas, donde son hermanas con su propio `gap`. Antes no había ninguno de
-  los dos y las tarjetas se **tocaban** — la página era una columna blanca
-  continua partida por hairlines. No se ve mirando (el borde doble parece una
-  separación): se ve midiendo, y hay guarda en las capturas.
+  grillas, donde son hermanas con su propio `gap`. Vale igual para `card`: ni
+  la regla que le da el aspecto de `.panel` ni `card-body` declaran margen, así
+  que las pantallas ya migradas (plan 2b) siguen el mismo ritmo y no hay dos
+  reglas que mantener. Antes no había ninguno de los dos y las tarjetas se
+  **tocaban** — la página era una columna blanca continua partida por
+  hairlines. No se ve mirando (el borde doble parece una separación): se ve
+  midiendo, y hay guarda en las capturas (`[RITMO]`).
 - **`.section-title` es un encabezado, no una etiqueta.** Era 13px en
   mayúsculas y gris, o sea estilo de etiqueta usado en 54 lugares como título
   de sección: nada anunciaba nada. Las mayúsculas chiquitas quedan donde

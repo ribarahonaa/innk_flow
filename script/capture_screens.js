@@ -367,6 +367,43 @@ async function revisarContraste(page, name) {
   }
 }
 
+// Los puntos de estado del drawer no tienen texto, así que `revisarContraste`
+// —que mide texto contra su fondo— no los ve. Son información no textual: el
+// piso es el 3:1 de WCAG 1.4.11, contra el panel oscuro donde viven. El
+// neutro estuvo en 2,57:1 hasta el plan 2b sin que nada lo dijera.
+async function revisarPuntos(page, tema) {
+  const bajos = await page.evaluate(() => {
+    const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+    const rgba = (css) => {
+      ctx.clearRect(0, 0, 1, 1);
+      ctx.fillStyle = '#000';
+      ctx.fillStyle = css;
+      const [r, g, b, a] = (ctx.fillRect(0, 0, 1, 1), ctx.getImageData(0, 0, 1, 1).data);
+      return [r, g, b, a / 255];
+    };
+    const luminancia = ([r, g, b]) => {
+      const f = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+    };
+    const fondo = (el) => {
+      for (let n = el.parentElement; n; n = n.parentElement) {
+        const c = rgba(getComputedStyle(n).backgroundColor);
+        if (c[3] >= 1) return c;
+      }
+      return [255, 255, 255, 1];
+    };
+    return [...document.querySelectorAll('.flow-drawer__punto')].map((el) => {
+      const [claro, oscuro] = [luminancia(rgba(getComputedStyle(el).backgroundColor)), luminancia(fondo(el))].sort((a, b) => b - a);
+      return { clase: el.className, ratio: (claro + 0.05) / (oscuro + 0.05) };
+    }).filter((m) => m.ratio < 3);
+  });
+  if (bajos.length) {
+    failures++;
+    const unicos = [...new Map(bajos.map((m) => [m.clase, m])).values()];
+    console.error(`[PUNTOS] ${tema}: ${unicos.map((m) => `${m.clase} ${m.ratio.toFixed(2)}:1`).join(' · ')}`);
+  }
+}
+
 // Las variantes que la app usa, medidas en el tema activo aunque ninguna
 // pantalla del recorrido las muestre en ese tema. Se inyectan en una tarjeta
 // (`.card-body` o `.panel`) de una pantalla real —con la hoja y el tema de
@@ -583,6 +620,9 @@ const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
     failures++;
     console.error('[SALTEADO] ni el drawer ni el mapa del flujo muestran el módulo salteado');
   }
+  // Tres de los cuatro puntos: pendiente, en curso y salteado. El completado
+  // está en el drawer de `merma-bodega`, más abajo.
+  await revisarPuntos(page, 'claro');
 
   await shot(page, '03-new-challenge', '/challenges/new');
 
@@ -641,6 +681,8 @@ const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
   }
   await shot(page, '03c-paso-a-paso', '/challenges/sin-formulario/form');
   await shot(page, '04-challenge', `/challenges/${CHALLENGE}`);
+  // El cuarto punto: acá hay módulos completados, que `con-salteado` no tiene.
+  await revisarPuntos(page, 'claro');
 
   // El índice de criterios (`/criteria`) se borró: duplicaba lo que ya hace
   // el flujo, que lista los módulos y ahora lleva a cada uno. El paso «Los
@@ -1400,7 +1442,11 @@ const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
     ['94-oscuro-evaluacion', stepLinks.find((l) => l.text.match(/comit/i))],
     ['95-oscuro-seleccion', stepLinks.find((l) => l.text.match(/Corte a top/i))],
     ['96-oscuro-evolucion', stepLinks.find((l) => l.text.match(/Ronda de feedback/i))],
-    ['97-oscuro-reporteria', stepLinks.find((l) => l.text.match(/Reporte/i))]
+    ['97-oscuro-reporteria', stepLinks.find((l) => l.text.match(/Reporte/i))],
+    // Idear se quedó afuera de esta pasada cuando la Tarea 4 la armó, así que
+    // la única pantalla de módulo que el plan 2b reordenó y nadie miraba en
+    // oscuro era justo la primera del flujo.
+    ['99-oscuro-idear', stepLinks.find((l) => l.text.match(/Postulaci/i))]
   ];
   for (const [nombre, link] of oscuroDeModulos) {
     if (!link) {
@@ -1421,6 +1467,11 @@ const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
       await revisarMuestrario(page, 'oscuro');
       await revisarCardComoPanel(page, 'oscuro');
     }
+    // Los mismos dos drawers que la pasada clara, por la misma razón:
+    // `con-salteado` tiene pendiente, en curso y salteado, y el completado
+    // solo está en `merma-bodega`. Con uno solo, el punto verde no se mide en
+    // oscuro.
+    if (nombre === '98-oscuro-salteado' || nombre === '91-oscuro-desafio') await revisarPuntos(page, 'oscuro');
     await capturar(page, nombre);
   }
   await page.emulateMedia({ colorScheme: 'light' });

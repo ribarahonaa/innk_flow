@@ -161,4 +161,8 @@
   = render layout: "steps/ajustes", locals: { resumen: "nombre y modo de IA" } do
     = render "steps/ai_mode", step: @step
 
-= render "shared/reports_auto_refresh", challenge: @challenge, step: @step
+-# El sondeo pega cada 4s contra `reports#statuses`, que pide `report?`: sin esta
+-# guarda quien no lo tiene recibe 403, `data.pending` queda `undefined` y el
+-# timer sigue pegando hasta agotar los 120 intentos.
+- if policy(@step).report?
+  = render "shared/reports_auto_refresh", challenge: @challenge, step: @step

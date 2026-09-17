@@ -679,15 +679,21 @@ body {
    WCAG 1.4.11. La mezcla conserva el tono —que es lo que distingue un estado
    de otro— y le sube el brillo.
 
-   Y no le alcanza en los cuatro. Medido: en oscuro los cuatro pasan cómodos
-   (7,69 a 12,92:1) y en claro pasan tres (5,00 el acento, 5,13 el ok, 5,19 el
-   warn), pero el NEUTRO queda en 2,57:1, abajo del piso de 3:1 —en claro
-   `--color-base-content` es casi el mismo casi-negro que el panel, así que
-   aclararlo un 45% hacia el gris del panel no lo despega—. Nada lo mide:
-   `revisarContraste` saltea lo que no tiene texto, y el punto va vacío. Y nada
-   lo mostraba: hasta `02b-salteado` ninguna captura tenía un módulo PENDIENTE
-   en un desafío ya arrancado. Cambiar ese color es una decisión de producto
-   abierta, no un olvido.
+   Con el 55% parejo no le alcanzaba a los cuatro. Medido: en oscuro los cuatro
+   pasaban cómodos (7,69 a 12,92:1) y en claro pasaban tres (5,00 el acento,
+   5,13 el ok, 5,19 el warn), pero el NEUTRO quedaba en 2,57:1, abajo del piso
+   —en claro `--color-base-content` es casi el mismo casi-negro que el panel,
+   así que aclararlo un 45% hacia el gris del panel no lo despega—. El neutro
+   mezcla menos (`--punto-mezcla: 40%`) y con eso llega a 3,71:1 en claro y
+   12,06:1 en oscuro, sin dejar de ser el más callado de los cuatro: los otros
+   tres siguen arriba de 5:1 y él queda abajo, que es lo que tiene que decir un
+   módulo que todavía no arrancó. Es la ÚNICA palanca que se movió —el 55% del
+   fallback pinta los otros tres igual que antes—.
+
+   Ahora lo miden `[PUNTOS]` (`revisarPuntos` en `script/capture_screens.js`),
+   en los dos temas y sobre los dos drawers que juntan los cuatro estados.
+   Hasta el plan 2b nada lo medía: `revisarContraste` saltea lo que no tiene
+   texto, y el punto va vacío.
 
    Clase propia y no un `badge` vaciado (`.flow-drawer .badge`): con
    `currentColor` el punto tomaba el color del texto del chip, así que
@@ -699,9 +705,9 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 99px;
-  background-color: color-mix(in oklab, var(--punto) 55%, var(--color-neutral-content));
+  background-color: color-mix(in oklab, var(--punto) var(--punto-mezcla, 55%), var(--color-neutral-content));
 }
-.flow-drawer__punto--neutro { --punto: var(--color-base-content); }
+.flow-drawer__punto--neutro { --punto: var(--color-base-content); --punto-mezcla: 40%; }
 .flow-drawer__punto--acento { --punto: var(--color-primary); }
 .flow-drawer__punto--ok { --punto: var(--ok); }
 .flow-drawer__punto--warn { --punto: var(--warn); }
@@ -1438,17 +1444,6 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
 }
 
 /* ── Evaluación ─────────────────────────────────────────────────────────── */
-.formula-code {
-  display: inline-block;
-  margin-left: 8px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--bg);
-  border: 1px solid var(--borde);
-  font-size: 11px;
-  color: var(--muted);
-}
-
 .criterion-field {
   padding: 16px 0;
   border-bottom: 1px solid var(--borde);
@@ -2360,9 +2355,6 @@ textarea:disabled {
   letter-spacing: 0;
 }
 
-.setup__ready { font-size: 12px; font-weight: 600; color: var(--ok); }
-.setup__missing { font-size: 12px; color: var(--warn); }
-
 .setup__steps {
   list-style: none;
   display: grid;
@@ -2426,8 +2418,6 @@ textarea:disabled {
 /* Bloqueante sin resolver: sin esto el desafío no arranca. */
 .setup__step--blocked .setup__mark { background: var(--danger-soft); border-color: var(--danger-borde); color: var(--danger); }
 .setup__step--blocked .setup__link { border-color: var(--danger-borde); }
-
-.setup__next { display: flex; justify-content: flex-end; margin-top: 12px; }
 
 /* Barra de navegación del paso a paso, al pie de cada pantalla. */
 .setup-nav {

@@ -1,5 +1,9 @@
 # Rediseño, plan 2b: la pantalla del módulo
 
+> **Estado:** implementado en la rama `rediseno-2b`. Selección quedó sin
+> referencia: el ranking no se leía en el centro angosto (ver el commit de la
+> Tarea 5).
+
 Continúa `2026-09-16-rediseno-2a-vocabulario-design.md`, que es el paso 5 del
 spec original (`2026-09-08-rediseno-tailwind-daisyui-design.md`). Esto es el
 **paso 6**, «pantalla por pantalla, la peor primero», partido en dos:
@@ -151,12 +155,12 @@ página entera.
 | Módulo | Referencia | Centro | Ajustes plegados |
 |---|---|---|---|
 | **Evaluación** | Progreso · Criterios · Quién evalúa · Cómo quedó configurado | Propuestas · «Ideas a evaluar», con el pedido a la IA como barra arriba de la lista y el desglose por fila | Nombre y modo de IA · asignaciones y pesos |
-| **Selección** | Cómo se decide (filtros y corte, con «Editar el set») | Propuestas · Ranking, con el pedido de veredictos como barra arriba · Registro de decisiones | Nombre y modo de IA |
+| **Selección** | — sin referencia: «Cómo se decide» quedó arriba del ranking | Propuestas · Cómo se decide (filtros y corte, con «Editar el set») · Ranking, con el pedido de veredictos como barra arriba · Registro de decisiones | Nombre y modo de IA |
 | **Evolución** | Progreso · Quiénes acompañan · Cómo quedó configurado | Propuestas · «Sugerir feedback con IA» · las ideas con su feedback | Nombre y modo de IA · gestores |
 | **Idear** | Progreso · El formulario (lista de campos) · Cómo quedó configurado | Propuestas · «Postular una idea» · Ideas postuladas, con «Generar con IA» | Nombre y modo de IA · editor del formulario |
 | **Reportería** | Cómo quedó configurado · Descargas | El reporte: resumen narrativo, embudo, ranking, distribución, participación, matriz | Nombre y modo de IA |
 
-**Evaluación va primero** porque es la peor y porque es la única que ya tiene
+**Evaluación va primero** porque es la peor y porque era la única que ya tenía
 referencia: se agrega a lo que hay en vez de inventar.
 
 #### El desglose de evaluación
@@ -188,6 +192,13 @@ seed. **Si en 850px no se lee** —la idea partida en tres renglones, los
 encabezados de los filtros encimados—, selección se queda sin referencia y
 «Cómo se decide» vuelve arriba del ranking. Se decide mirando la captura de la
 tarea, no de antemano, y la decisión queda en el commit.
+
+**Resuelto: no se lee.** Medido en «Corte a top 3» (dos filtros y una fuente)
+con la referencia puesta: a 1440px el centro quedaba en 888px y la columna
+«Idea» en 205px —tres de las cinco ideas en tres renglones—; a 1280px la tabla
+pedía scroll horizontal (710px de contenido en 637); y a 1100px `[REFERENCIA]`
+fallaba, con el título del módulo en 473px. Selección quedó **sin referencia**
+y «Cómo se decide» arriba del ranking (Tarea 5, `96ad0b6`).
 
 #### Reportería no tiene progreso
 
