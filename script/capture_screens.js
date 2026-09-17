@@ -371,8 +371,18 @@ async function revisarContraste(page, name) {
 // —que mide texto contra su fondo— no los ve. Son información no textual: el
 // piso es el 3:1 de WCAG 1.4.11, contra el panel oscuro donde viven. El
 // neutro estuvo en 2,57:1 hasta el plan 2b sin que nada lo dijera.
-async function revisarPuntos(page, tema) {
-  const bajos = await page.evaluate(() => {
+//
+// `esperados` es CUÁNTOS puntos tiene que mostrar ese drawer, y falla si no
+// están. Sin eso la guarda se cumple sola: `querySelectorAll` que no matchea
+// devuelve una lista vacía, y filtrar una lista vacía no reporta nada, así que
+// un renombre de la clase dejaría `[PUNTOS]` en verde midiendo CERO. `[CLASES]`
+// tampoco lo vería —la clase nueva sí tendría regla detrás, que es lo único que
+// ese chequeo mira—. Es el modo de falla que la pasada oscura del muestrario ya
+// sufrió, y se ataja igual que ahí: fallando cuando mide menos de lo declarado.
+// El número va fijo, como `PASOS_DE_SIN_FORMULARIO`: sacarlo de la propia
+// página es volver a la guarda que se cumple sola.
+async function revisarPuntos(page, name, tema, esperados) {
+  const medidos = await page.evaluate(() => {
     const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
     const rgba = (css) => {
       ctx.clearRect(0, 0, 1, 1);
@@ -395,12 +405,17 @@ async function revisarPuntos(page, tema) {
     return [...document.querySelectorAll('.flow-drawer__punto')].map((el) => {
       const [claro, oscuro] = [luminancia(rgba(getComputedStyle(el).backgroundColor)), luminancia(fondo(el))].sort((a, b) => b - a);
       return { clase: el.className, ratio: (claro + 0.05) / (oscuro + 0.05) };
-    }).filter((m) => m.ratio < 3);
+    });
   });
+  if (medidos.length !== esperados) {
+    failures++;
+    console.error(`[PUNTOS] ${name} (${tema}): midió ${medidos.length} puntos y el drawer tiene que mostrar ${esperados}`);
+  }
+  const bajos = medidos.filter((m) => m.ratio < 3);
   if (bajos.length) {
     failures++;
     const unicos = [...new Map(bajos.map((m) => [m.clase, m])).values()];
-    console.error(`[PUNTOS] ${tema}: ${unicos.map((m) => `${m.clase} ${m.ratio.toFixed(2)}:1`).join(' · ')}`);
+    console.error(`[PUNTOS] ${name} (${tema}): ${unicos.map((m) => `${m.clase} ${m.ratio.toFixed(2)}:1`).join(' · ')}`);
   }
 }
 
@@ -587,6 +602,13 @@ const MODULOS_EN_ZONAS = [/Evaluaci/i, /Ronda de feedback/i, /Postulaci/i, /Repo
 // entraba en el centro—, pero los ajustes plegados sí los tienen.
 const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
 
+// Cuántos puntos de estado tiene que mostrar el drawer de cada desafío: uno por
+// módulo (`_flow_drawer.html.haml`, la cara de «arrancado»). Fijos y no sacados
+// de la página, por lo mismo que `PASOS_DE_SIN_FORMULARIO`. Si el seed le
+// cambia los módulos a uno de los dos, este número cambia con él.
+const PUNTOS_DE_SALTEADO = 3; // `con-salteado`: idear, evolución, evaluación
+const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
+
 (async () => {
   // Se limpia antes de empezar: una captura que dejó de tomarse queda en disco
   // como si siguiera siendo el estado actual, y eso es peor que no tenerla.
@@ -622,7 +644,7 @@ const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
   }
   // Tres de los cuatro puntos: pendiente, en curso y salteado. El completado
   // está en el drawer de `merma-bodega`, más abajo.
-  await revisarPuntos(page, 'claro');
+  await revisarPuntos(page, '02b-salteado', 'claro', PUNTOS_DE_SALTEADO);
 
   await shot(page, '03-new-challenge', '/challenges/new');
 
@@ -682,7 +704,7 @@ const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
   await shot(page, '03c-paso-a-paso', '/challenges/sin-formulario/form');
   await shot(page, '04-challenge', `/challenges/${CHALLENGE}`);
   // El cuarto punto: acá hay módulos completados, que `con-salteado` no tiene.
-  await revisarPuntos(page, 'claro');
+  await revisarPuntos(page, '04-challenge', 'claro', PUNTOS_DE_MERMA);
 
   // El índice de criterios (`/criteria`) se borró: duplicaba lo que ya hace
   // el flujo, que lista los módulos y ahora lleva a cada uno. El paso «Los
@@ -1471,7 +1493,8 @@ const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
     // `con-salteado` tiene pendiente, en curso y salteado, y el completado
     // solo está en `merma-bodega`. Con uno solo, el punto verde no se mide en
     // oscuro.
-    if (nombre === '98-oscuro-salteado' || nombre === '91-oscuro-desafio') await revisarPuntos(page, 'oscuro');
+    if (nombre === '98-oscuro-salteado') await revisarPuntos(page, nombre, 'oscuro', PUNTOS_DE_SALTEADO);
+    if (nombre === '91-oscuro-desafio') await revisarPuntos(page, nombre, 'oscuro', PUNTOS_DE_MERMA);
     await capturar(page, nombre);
   }
   await page.emulateMedia({ colorScheme: 'light' });
