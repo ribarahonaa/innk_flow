@@ -209,6 +209,36 @@ RSpec.describe "reglas de quien evalúa", type: :request do
 
       expect(response.body).not_to include(ruta_del_pedido(ajena))
     end
+
+    # La nota es de la IA, no de quien la pide: en su propia fila no hay
+    # «Evaluar» —Elena no se puntúa a sí misma—, pero el botón «IA» tiene que
+    # seguir ahí, porque bloquearlo trabaría el módulo (`min_assessments_for`
+    # ya cuenta a la IA justamente para lo que su autor no puede evaluar).
+    #
+    # Completar la propia saca su idea de `pendientes`, así que el atajo de
+    # arriba (`pendientes.first(1)`, en `steps/evaluation.html.haml`) ya no
+    # puede ser quien ponga esta ruta en la página: si aparece, es la fila.
+    it "se lo ofrece igual en la fila de su propia idea, aunque ya no tenga «Evaluar»" do
+      as_company(company) do
+        [emilio, admin].each do |evaluador|
+          step.assessments.create!(idea: propia, idea_version_id: propia.current_version_id,
+                                   evaluator: evaluador, actor_type: "human",
+                                   status: "submitted", submitted_at: Time.current,
+                                   normalized_score: 0.7)
+        end
+        # En modo asistido la IA también cuenta para el mínimo (`min_assessments_for`).
+        step.assessments.create!(idea: propia, idea_version_id: propia.current_version_id,
+                                 actor_type: "ai", status: "submitted", submitted_at: Time.current,
+                                 normalized_score: 0.7)
+        expect(step.handler.complete?(step.step_entries.find_by(idea_id: propia.id))).to be true
+      end
+
+      sign_in(elena, company: company)
+      get challenge_step_path(challenge, step)
+
+      expect(response.body).to include(ruta_del_pedido(propia))
+      expect(response.body).not_to include(new_challenge_step_assessment_path(challenge, step, idea_id: propia.id))
+    end
   end
 
   # Pedirle a la IA que evalúe todo lo que falta.

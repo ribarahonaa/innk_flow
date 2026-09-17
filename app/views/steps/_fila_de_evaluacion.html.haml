@@ -48,21 +48,24 @@
       = render "steps/celdas_de_evaluacion", **celdas, desplegable: false
 
   .fila-de-idea__acciones
-    - if step.active? && propia
-      %span.field-hint Es tu idea
-    - elsif step.active?
-      -# El link tiene que decir lo mismo que la puerta: `AssessmentsController#new`
-      -# autoriza `AssessmentPolicy#create?`, y evaluar depende de la ASIGNACIÓN al
-      -# módulo, no del rol. Ofrecido con sólo mirar `step.active?`, a quien evalúa
-      -# sin asignación en este módulo —y a quien acompaña el desafío, que no es
-      -# `manager?`— le aparecía en todas las filas y le rebotaba con 403.
-      - if policy(Assessment.new(challenge_step: step, idea: entry.idea)).create?
-        = link_to "Evaluar", new_challenge_step_assessment_path(challenge, step, idea_id: entry.idea_id), class: "btn btn-ghost btn-sm"
-      -# Pedirle a la IA que evalúe no es evaluar: es de quien evalúa el
-      -# módulo, por asignación o por administrarlo (`AssessmentPolicy
-      -# #create?`, vía `puede_pedir`), no de `manda`/`update_pipeline?`. Y el
-      -# objeto que se autoriza va SIN idea a propósito, como en el lote y en
-      -# la ficha de evaluación.
+    - if step.active?
+      - if propia
+        %span.field-hint Es tu idea
+      - else
+        -# El link tiene que decir lo mismo que la puerta: `AssessmentsController#new`
+        -# autoriza `AssessmentPolicy#create?`, y evaluar depende de la ASIGNACIÓN al
+        -# módulo, no del rol. Ofrecido con sólo mirar `step.active?`, a quien evalúa
+        -# sin asignación en este módulo —y a quien acompaña el desafío, que no es
+        -# `manager?`— le aparecía en todas las filas y le rebotaba con 403.
+        - if policy(Assessment.new(challenge_step: step, idea: entry.idea)).create?
+          = link_to "Evaluar", new_challenge_step_assessment_path(challenge, step, idea_id: entry.idea_id), class: "btn btn-ghost btn-sm"
+      -# Pedirle a la IA que evalúe no es evaluar: la nota es de la IA, no de
+      -# quien la pide (`AssessmentPolicy#create?`, vía `puede_pedir`, sin
+      -# idea a propósito, como en el lote y en la ficha de evaluación). Por
+      -# eso va FUERA del `if`/`else` de arriba y se ofrece también en la
+      -# fila propia: bloquearlo trabaría el módulo, porque
+      -# `min_assessments_for` ya baja el mínimo contando a la IA justamente
+      -# como quien evalúa lo que su autor no puede.
       - if step.effective_ai_mode != "human" && puede_pedir
         = button_to "IA", challenge_ai_requests_path(challenge, purpose: "evaluate_idea", step_id: step.id, idea_id: entry.idea_id),
                     class: "btn btn-ghost btn-sm", title: "Que la IA evalúe esta idea"
