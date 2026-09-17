@@ -20,9 +20,8 @@
           - asignaciones.each do |asignacion|
             - notas = evaluaron[asignacion.user_id].to_i
             %li.field-list__item
-              %span
-                = asignacion.user.name
-                %br
-                %span.muted= notas.positive? ? Flow::Texto.contar(notas, "evaluación") : "sin evaluar"
-              - if asignacion.weighted?
-                %span.field-list__type= "peso #{asignacion.weight.to_f}"
+              %span= asignacion.user.name
+              %span.muted
+                = notas.positive? ? Flow::Texto.contar(notas, "evaluación") : "sin evaluar"
+                - if asignacion.weighted?
+                  = "· peso #{asignacion.weight.to_f}"

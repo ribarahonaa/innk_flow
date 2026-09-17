@@ -887,6 +887,14 @@ pantalla declara su layout.
   propósito, **con la misma guarda en los dos lugares**
   (`spec/requests/pantalla_del_modulo_spec.rb` lo prueba por rol). Un bloque
   que va suelto o adentro de los ajustes toma su forma de `steps/_bloque`.
+- **La referencia tiene que entrar en una pantalla.** Pegada y con
+  `max-height: 100vh`, lo que no entra queda tapado detrás de su propio
+  scroll. Por eso la densidad la decide la zona: adentro de `.app-aside` una
+  `.field-list` va sin recuadro por ítem, con una línea por fila. Debajo de
+  1280px, donde sube arriba del trabajo, las tarjetas van en UNA fila que se
+  desliza de costado (tope de 320px por tarjeta): en varias filas empujaban el
+  título del módulo afuera de la primera pantalla. Lo mide `[REFERENCIA]` en
+  `make screens`, a 1440×1000 y a 1100×900.
 - El drawer aparece solo si hay un desafío **guardado** en contexto
   (`ShellHelper#desafio_del_shell`). Dos guardas que parecen de más y no lo
   son: `/challenges/new` deja un `Challenge.new` sin slug y el `challenge_path`

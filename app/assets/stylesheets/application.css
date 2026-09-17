@@ -556,6 +556,21 @@ body {
   border-right: 1px solid var(--tenue);
 }
 
+/* La referencia, densa. Lo que se consulta tiene que entrar en una pantalla:
+   con un recuadro por ítem, la de evaluación medía 1.395px y lo último quedaba
+   tapado. La ZONA decide la densidad y no la lista: la misma `.field-list` en
+   el centro o en la cara de configuración conserva sus recuadros, y cualquier
+   lista de lectura que se mude a la referencia la toma sola. */
+.app-aside .card { --card-p: 16px; }
+.app-aside .field-list { gap: 0; }
+.app-aside .field-list__item {
+  gap: 8px;
+  padding: 5px 0;
+  border: 0;
+  border-radius: 0;
+}
+.app-aside .field-list__item + .field-list__item { border-top: 1px solid var(--tenue); }
+
 /* ── El flujo del desafío ───────────────────────────────────────────────── */
 /* La columna oscura ocupa las dos filas —cuando la referencia baja debajo del
    trabajo, el drawer se quedaría en la primera y dejaría medio panel de aire
@@ -696,11 +711,13 @@ body {
      1280px, donde antes eran las dos primeras tarjetas de la pila. */
   .app-shell:has(.app-aside) .app-aside { grid-row: 1; }
   .app-shell:has(.app-aside) .app-main { grid-row: 2; }
-  /* Y en fila: apiladas a lo ancho de la pantalla, las mismas dos tarjetas
-     empujan el título del módulo 635px hacia abajo, o sea afuera de la
-     primera pantalla. En fila la banda mide lo que la tarjeta más alta. */
-  .app-aside { flex-direction: row; flex-wrap: wrap; align-items: flex-start; }
-  .app-aside > * { flex: 1 1 260px; }
+  /* En UNA fila que se desliza de costado. En varias filas, las cuatro
+     tarjetas de evaluación formaban una banda de 727px que empujaba el título
+     del módulo afuera de la primera pantalla; en una, la banda mide lo que la
+     tarjeta más alta, y ninguna pasa de 320px: una lista larga scrollea
+     adentro de su tarjeta. */
+  .app-aside { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; align-items: flex-start; }
+  .app-aside > * { flex: 0 0 280px; max-height: 320px; overflow-y: auto; }
   /* Sin esto las dos caen en la columna del flujo, al lado del drawer. */
   .app-shell--con-flujo .app-aside,
   .app-shell--con-flujo:has(.app-aside) .app-main { grid-column: 2; }
@@ -760,9 +777,9 @@ body {
    regla de los componentes al revés, así que el aspecto vive acá, una vez.
 
    `--card-p` y `--card-fs` son lo que mide `.panel`: 20px de relleno —DaisyUI
-   pone 24— y la letra del `body`. Va PEGADA a `.panel` y antes de `.ai-panel`,
-   `.narrative-card` y `.ai-mode-card`: con la misma especificidad y sin capa,
-   gana la que viene después, y esas tienen que seguir pisando borde y fondo. */
+   pone 24— y la letra del `body`. Va PEGADA a `.panel` y antes de `.ai-panel`
+   y `.narrative-card`: con la misma especificidad y sin capa, gana la que
+   viene después, y esas tienen que seguir pisando borde y fondo. */
 .card {
   --card-p: 20px;
   --card-fs: 14px;

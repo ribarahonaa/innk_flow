@@ -28,8 +28,7 @@
               -# "formula"` no es nunca cierto.
               - if criterion["source"] == "formula"
                 %span{ class: chip("derivado") } derivado
-              %br
-              %span.muted= t("flow.scale_types.#{criterion['scale_type']}")
+              %span.muted= " · #{t("flow.scale_types.#{criterion['scale_type']}")}"
             %strong= "#{(criterion['weight'].to_f * 100).round}%"
       %p.muted.field-hint
         Congelados al activar el módulo: editar el set ahora no altera lo ya evaluado.

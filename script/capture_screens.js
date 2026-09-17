@@ -152,6 +152,38 @@ async function revisarRitmo(page, name) {
   }
 }
 
+// La referencia es lo que se consulta, y tiene que poder consultarse sin
+// buscarla. Dos formas de romperlo, medidas en evaluación cuando se completó:
+// a 1440×1000 la columna —pegada y con `max-height: 100vh`— medía 1.395px, y
+// lo último quedaba tapado detrás de su propio scroll; y debajo de 1280px,
+// donde sube arriba del trabajo, formaba una banda de 727px que empujaba el
+// título del módulo afuera de la primera pantalla.
+async function revisarReferencia(page, name) {
+  const columna = await page.evaluate(() => {
+    const aside = document.querySelector('.app-aside');
+    return aside ? { alto: aside.scrollHeight, visible: aside.clientHeight } : null;
+  });
+  if (!columna) return;
+  if (columna.alto > columna.visible + 1) {
+    failures++;
+    console.error(`[REFERENCIA] ${name}: la columna mide ${columna.alto}px y se ven ${columna.visible}: lo último queda tapado`);
+  }
+
+  const tamano = page.viewportSize();
+  await page.setViewportSize({ width: 1100, height: 900 });
+  const titulo = await page.evaluate(() => {
+    window.scrollTo(0, 0);
+    return document.querySelector('.page-title')?.getBoundingClientRect().top ?? null;
+  });
+  await page.setViewportSize(tamano);
+  // La mitad de la pantalla: el título y el arranque del trabajo tienen que
+  // verse sin scrollear.
+  if (titulo !== null && titulo > 450) {
+    failures++;
+    console.error(`[REFERENCIA] ${name}: a 1100px la referencia empuja el título del módulo a ${Math.round(titulo)}px`);
+  }
+}
+
 // Una clase que Tailwind no vio al escanear existe en el HTML y no tiene
 // ninguna regla detrás: en el DOM se ve perfecta y en pantalla no se ve nada.
 // Ninguna otra prueba lo atrapa — ni un request spec, que solo mira el body.
@@ -894,6 +926,7 @@ const MODULOS_EN_ZONAS = [/Evaluaci/i];
         failures++;
         console.error(`[ZONAS] «${link.text}» no tiene los ajustes plegados`);
       }
+      await revisarReferencia(page, nombre);
     }
   }
 

@@ -1245,6 +1245,194 @@ EOF
 
 ---
 
+### Task 3b: La referencia entra en una pantalla
+
+**Agregada después de la Tarea 3**, por decisión de Raúl sobre un hallazgo de su revisión. Con la referencia completa, evaluación medía **1.395px** de columna a 1440×1000 —«Cómo quedó configurado» quedaba tapado detrás del scroll propio de la columna, que es `sticky` con `max-height: 100vh`— y **a 1100px de ancho** la referencia, que sube arriba del trabajo, formaba una banda de **727px** que empujaba el título del módulo a y=807, afuera de la primera pantalla. Las Tareas 5 a 8 copian la forma, así que se arregla antes.
+
+Decisiones: **se compactan las listas de la referencia** (una línea por fila, sin recuadro por ítem) y **debajo de 1280px las tarjetas van en UNA fila que se desliza de costado**.
+
+**Files:**
+- Modify: `app/assets/stylesheets/application.css` (bloque `.app-aside` del `@media (max-width: 1279px)` ~702-703; comentario de `.card` ~756-764; sección nueva «La referencia, densa»)
+- Modify: `app/views/steps/_quien_evalua.html.haml`
+- Modify: `app/views/steps/_referencia_evaluacion.html.haml` (la lista de criterios)
+- Modify: `script/capture_screens.js`
+- Modify: `CLAUDE.md` («El shell de tres regiones»)
+
+**Interfaces:**
+- Consumes: `.app-aside` (layout), `MODULOS_EN_ZONAS` y el loop de módulos (Tarea 3).
+- Produces: `revisarReferencia(page, name)` en `script/capture_screens.js`, llamada en el loop para cada módulo de `MODULOS_EN_ZONAS`; la densidad de `.field-list` adentro de `.app-aside`, que las listas de lectura de las Tareas 5 a 8 (`_como_se_decide`, `_quienes_acompanan`, `_campos_lectura`, `_descargas`) toman solas, sin tocar su markup.
+
+- [ ] **Step 1: La guarda, y verla fallar**
+
+En `script/capture_screens.js`, debajo de `revisarRitmo`:
+
+```js
+// La referencia es lo que se consulta, y tiene que poder consultarse sin
+// buscarla. Dos formas de romperlo, medidas en evaluación cuando se completó:
+// a 1440×1000 la columna —pegada y con `max-height: 100vh`— medía 1.395px, y
+// lo último quedaba tapado detrás de su propio scroll; y debajo de 1280px,
+// donde sube arriba del trabajo, formaba una banda de 727px que empujaba el
+// título del módulo afuera de la primera pantalla.
+async function revisarReferencia(page, name) {
+  const columna = await page.evaluate(() => {
+    const aside = document.querySelector('.app-aside');
+    return aside ? { alto: aside.scrollHeight, visible: aside.clientHeight } : null;
+  });
+  if (!columna) return;
+  if (columna.alto > columna.visible + 1) {
+    failures++;
+    console.error(`[REFERENCIA] ${name}: la columna mide ${columna.alto}px y se ven ${columna.visible}: lo último queda tapado`);
+  }
+
+  const tamano = page.viewportSize();
+  await page.setViewportSize({ width: 1100, height: 900 });
+  const titulo = await page.evaluate(() => {
+    window.scrollTo(0, 0);
+    return document.querySelector('.page-title')?.getBoundingClientRect().top ?? null;
+  });
+  await page.setViewportSize(tamano);
+  // La mitad de la pantalla: el título y el arranque del trabajo tienen que
+  // verse sin scrollear.
+  if (titulo !== null && titulo > 450) {
+    failures++;
+    console.error(`[REFERENCIA] ${name}: a 1100px la referencia empuja el título del módulo a ${Math.round(titulo)}px`);
+  }
+}
+```
+
+En el loop de módulos, adentro del `if (MODULOS_EN_ZONAS.some(...))` de la Tarea 3, después de los dos chequeos de `[ZONAS]`:
+
+```js
+      await revisarReferencia(page, nombre);
+```
+
+Run: `make screens`
+Expected: FAIL con `[REFERENCIA] 09-3-step-evaluaci-n-t-cnica: la columna mide …px y se ven 1000` y `[REFERENCIA] …: a 1100px la referencia empuja el título del módulo a …px`, para evaluación técnica y para comité. Si alguna de las dos no falla, **pará**: la guarda no mide lo que dice.
+
+- [ ] **Step 2: La referencia, densa**
+
+En `application.css`, después de la regla `.app-shell:has(.app-aside) .app-main { border-right: … }` (~555):
+
+```css
+/* La referencia, densa. Lo que se consulta tiene que entrar en una pantalla:
+   con un recuadro por ítem, la de evaluación medía 1.395px y lo último quedaba
+   tapado. La ZONA decide la densidad y no la lista: la misma `.field-list` en
+   el centro o en la cara de configuración conserva sus recuadros, y cualquier
+   lista de lectura que se mude a la referencia la toma sola. */
+.app-aside .card { --card-p: 16px; }
+.app-aside .field-list { gap: 0; }
+.app-aside .field-list__item {
+  gap: 8px;
+  padding: 5px 0;
+  border: 0;
+  border-radius: 0;
+}
+.app-aside .field-list__item + .field-list__item { border-top: 1px solid var(--tenue); }
+```
+
+- [ ] **Step 3: Una línea por fila**
+
+`app/views/steps/_quien_evalua.html.haml`, el `%li` entero pasa a:
+
+```haml
+            %li.field-list__item
+              %span= asignacion.user.name
+              %span.muted
+                = notas.positive? ? Flow::Texto.contar(notas, "evaluación") : "sin evaluar"
+                - if asignacion.weighted?
+                  = "· peso #{asignacion.weight.to_f}"
+```
+
+`app/views/steps/_referencia_evaluacion.html.haml`, el `%li` de los criterios pasa a:
+
+```haml
+          %li.field-list__item
+            %span
+              = criterion["name"]
+              -# Contra `source` y no contra `scale_type`: `align_scale_with_source`
+              -# fuerza `numeric` para las fórmulas, así que `scale_type ==
+              -# "formula"` no es nunca cierto.
+              - if criterion["source"] == "formula"
+                %span{ class: chip("derivado") } derivado
+              %span.muted= " · #{t("flow.scale_types.#{criterion['scale_type']}")}"
+            %strong= "#{(criterion['weight'].to_f * 100).round}%"
+```
+
+- [ ] **Step 4: Debajo de 1280px, una fila**
+
+En el `@media (max-width: 1279px)`, reemplazá las dos líneas
+
+```css
+  .app-aside { flex-direction: row; flex-wrap: wrap; align-items: flex-start; }
+  .app-aside > * { flex: 1 1 260px; }
+```
+
+y su comentario («Y en fila: …») por:
+
+```css
+  /* En UNA fila que se desliza de costado. En varias filas, las cuatro
+     tarjetas de evaluación formaban una banda de 727px que empujaba el título
+     del módulo afuera de la primera pantalla; en una, la banda mide lo que la
+     tarjeta más alta, y ninguna pasa de 320px: una lista larga scrollea
+     adentro de su tarjeta. */
+  .app-aside { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; align-items: flex-start; }
+  .app-aside > * { flex: 0 0 280px; max-height: 320px; overflow-y: auto; }
+```
+
+Verificá que ninguna regla posterior del mismo `@media` (ni del de 1023px) vuelva a poner `flex-wrap: wrap` o `overflow: visible` sobre `.app-aside`; si la hay, que no pise estas.
+
+- [ ] **Step 5: El comentario de `.card`**
+
+En el comentario de la regla `.card` (~756-764), `.ai-mode-card` ya no es tarjeta desde la Tarea 3. Reemplazá «Va PEGADA a `.panel` y antes de `.ai-panel`, `.narrative-card` y `.ai-mode-card`» por «Va PEGADA a `.panel` y antes de `.ai-panel` y `.narrative-card`».
+
+- [ ] **Step 6: Verde y mirar**
+
+```bash
+make yarn-build
+make spec
+make screens
+```
+
+Expected: verde, sin `[REFERENCIA]`. Si a 1100px el título queda apenas arriba de 450 por una tarjeta puntual, reportalo con el número: no subas el umbral.
+
+Mirá contra `tmp/screenshots-antes-2b/` y contra las de la Tarea 3: `09-3-step-evaluaci-n-t-cnica`, `09-5-step-evaluaci-n-de-comit-` (la columna entera, con «Cómo quedó configurado» al final) y `94-oscuro-evaluacion`. Y con Playwright o el navegador a 1100×900, una captura de evaluación de comité para el reporte.
+
+- [ ] **Step 7: `CLAUDE.md`**
+
+En «El shell de tres regiones», después del bullet de la regla de qué va dónde (Tarea 3), sumá:
+
+```markdown
+- **La referencia tiene que entrar en una pantalla.** Pegada y con
+  `max-height: 100vh`, lo que no entra queda tapado detrás de su propio
+  scroll. Por eso la densidad la decide la zona: adentro de `.app-aside` una
+  `.field-list` va sin recuadro por ítem, con una línea por fila. Debajo de
+  1280px, donde sube arriba del trabajo, las tarjetas van en UNA fila que se
+  desliza de costado (tope de 320px por tarjeta): en varias filas empujaban el
+  título del módulo afuera de la primera pantalla. Lo mide `[REFERENCIA]` en
+  `make screens`, a 1440×1000 y a 1100×900.
+```
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add app/assets/stylesheets/application.css app/views/steps/_quien_evalua.html.haml app/views/steps/_referencia_evaluacion.html.haml script/capture_screens.js CLAUDE.md docs/superpowers/plans/2026-09-17-rediseno-2b-pantallas-de-modulo.md
+git commit -F - <<'MSG'
+La referencia entra en una pantalla
+
+Con la referencia completa, la columna de evaluación medía 1.395px a
+1440×1000 y lo último quedaba tapado detrás de su propio scroll; a 1100px
+formaba una banda de 727px que empujaba el título del módulo afuera de la
+primera pantalla. Las listas de la referencia pasan a una línea por fila sin
+recuadro —la zona decide la densidad—, y debajo de 1280px las tarjetas van en
+una fila que se desliza de costado. `[REFERENCIA]` mide las dos cosas.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014gkhXcuX5q5pNYj9oZdAZU
+MSG
+```
+
+---
+
 ### Task 4: Evaluación — el desglose adentro de la fila de cada idea
 
 «Evaluaciones hechas» desaparece como sección: cada idea es una fila que se despliega y muestra sus evaluaciones.
