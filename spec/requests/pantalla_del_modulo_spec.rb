@@ -413,6 +413,13 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
 
     # Lo que estaba partido en tarjetas sueltas con una sola cosa adentro: el
     # título, la descripción y la acción de IA de un bloque van juntos.
+    #
+    # El aserto de TEXTO solo no alcanza para probar eso: `#text` de Nokogiri
+    # baja por todos los descendientes, así que da lo mismo si la acción de IA
+    # está en el `card-body` o en otra tarjeta anidada adentro —que es
+    # exactamente la forma vieja—. Y `[PANEL]` de `make screens` tampoco lo
+    # ve: marca una `card` SIN `card-body`, no una `card` dentro de otra. Lo
+    # que prueba el reagrupamiento es que la tarjeta no tenga otra adentro.
     it "el título de los criterios y su acción de IA están en la misma tarjeta" do
       sign_in(admin, company: company)
       get challenge_step_path(challenge, paso("evaluation"))
@@ -420,6 +427,7 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       tarjeta = documento.css(".card").find { |c| c.at_css(".section-title")&.text.to_s.include?("Los criterios") }
       expect(tarjeta).not_to be_nil
       expect(tarjeta.text).to include("Proponer criterios con IA")
+      expect(tarjeta.css(".card, .panel")).to be_empty
     end
 
     it "el título del formulario y su acción de IA están en la misma tarjeta" do
@@ -429,6 +437,7 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       tarjeta = documento.css(".card").find { |c| c.at_css(".section-title")&.text.to_s.include?("Formulario de postulación") }
       expect(tarjeta).not_to be_nil
       expect(tarjeta.text).to include("Proponer campos con IA")
+      expect(tarjeta.css(".card, .panel")).to be_empty
     end
   end
 end
