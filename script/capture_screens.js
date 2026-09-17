@@ -537,7 +537,7 @@ async function shot(page, name, url, prepare) {
 // Los módulos cuya cara de ejecución ya está en tres zonas (plan 2b). Por
 // nombre del seed de `merma-bodega`, igual que el resto del recorrido. Cada
 // tarea del plan suma el suyo; al final están todos menos las selecciones.
-const MODULOS_EN_ZONAS = [/Evaluaci/i, /Ronda de feedback/i];
+const MODULOS_EN_ZONAS = [/Evaluaci/i, /Ronda de feedback/i, /Postulaci/i];
 // Las selecciones van sin referencia —con la columna puesta el ranking no
 // entraba en el centro—, pero los ajustes plegados sí los tienen.
 const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
@@ -721,6 +721,9 @@ const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
       page.waitForURL(/\/steps\/[^/]+$/, { timeout: 15000 }),
       ideationCardName.click()
     ]);
+    // El editor vive ahora en los ajustes plegados: sin abrirlos, sus campos
+    // no están visibles y `waitForSelector` (que espera visibilidad) cuelga.
+    await page.locator('details.ajustes__plegable').evaluate((el) => { el.open = true; });
     await page.waitForSelector('[data-island-mounted="true"] .field-edit', { timeout: 15000 });
     await capturar(page, '05b-form');
 
@@ -979,6 +982,16 @@ const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
     await page.locator('details.ajustes__plegable').evaluate((el) => { el.open = true; });
     await capturar(page, '09-16-ajustes-abiertos');
     await revisarPlegableTrasMorph(page, '09-16-ajustes-abiertos', 'details.ajustes__plegable');
+  }
+
+  // Los ajustes de idear abiertos: adentro está el editor del formulario, una
+  // isla que monta plegada. Cerrado no tiene caja, y las guardas de contraste y
+  // de clases no medirían nada de lo que pinta.
+  if (ideacion) {
+    await page.goto(BASE + ideacion.href, { waitUntil: 'networkidle' });
+    await page.locator('details.ajustes__plegable').evaluate((el) => { el.open = true; });
+    await page.waitForSelector('[data-island="form-editor"][data-island-mounted="true"]', { timeout: 15000 });
+    await capturar(page, '09-18-ajustes-de-idear');
   }
 
   // La selección con filtros: cada idea pasa o no pasa cada condición, y se

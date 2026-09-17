@@ -219,4 +219,35 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       expect(documento.at_css(".ajustes")).to be_nil
     end
   end
+
+  describe "idear" do
+    let!(:challenge) do
+      as_company(company) do
+        c = create(:challenge, name: "Merma", ai_default_mode: "human")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
+        c.steps.create!(kind: "evaluation", position: 2, name: "Técnica")
+        c
+      end
+    end
+
+    before { as_company(company) { challenge.pipeline.start! } }
+
+    it "quien administra: el formulario leído a la derecha y el editor en los ajustes" do
+      sign_in(admin, company: company)
+      get challenge_step_path(challenge, paso("ideation"))
+
+      expect(zonas[:referencia]).to include("Progreso", "Formulario de postulación", "Cómo quedó configurado")
+      expect(documento.at_css('.ajustes [data-island="form-editor"]')).not_to be_nil
+      expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
+    end
+
+    it "quien participa: lee el formulario, sin editor ni ajustes" do
+      sign_in(paula, company: company)
+      get challenge_step_path(challenge, paso("ideation"))
+
+      expect(zonas[:referencia]).to include("Formulario de postulación")
+      expect(documento.at_css(".ajustes")).to be_nil
+      expect(response.body).not_to include('data-island="form-editor"')
+    end
+  end
 end

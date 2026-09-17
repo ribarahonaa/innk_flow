@@ -381,11 +381,12 @@ RSpec.describe "las dos caras de un módulo", type: :request do
       expect(response.body).to include('data-island="form-editor"')
     end
 
-    # La guarda de `manage_form?` se probó en cara A, pero el partial también
-    # se renderiza acá, y ésta es la cara donde vive quien participa de
-    # verdad: sin este ejemplo, la guarda de cara B queda sin probar aunque
-    # sea el mismo código.
-    it "sin `manage_form?`, en Idear muestra los campos pero no ofrece editarlos" do
+    # La guarda de `manage_form?` se probó en cara A. En cara B el editor vive
+    # dentro de los ajustes plegados, y esos ni se dibujan sin `advance?` ni
+    # `manage_form?`: quien participa no ve el bloque entero, ni su
+    # `else` de sólo lectura, sino el formulario de lectura de la referencia
+    # (`steps/campos_lectura`), igual que ve quien evalúa o acompaña.
+    it "sin `manage_form?`, en Idear no hay editor ni ajustes: sólo el formulario de lectura" do
       participante = without_tenant do
         u = create(:user, email: "part-form-b@test.dev", name: "Priscila Participante")
         create(:membership, company: company, user: u, role: "participant")
@@ -397,7 +398,8 @@ RSpec.describe "las dos caras de un módulo", type: :request do
 
       expect(response.body).not_to include('data-island="form-editor"')
       expect(response.body).not_to include("Rehacer el formulario con IA")
-      expect(response.body).to include("Sólo quien administra el desafío puede cambiar esto")
+      expect(response.body).not_to include("Ajustes del módulo")
+      expect(response.body).to include("Formulario de postulación")
     end
   end
 
