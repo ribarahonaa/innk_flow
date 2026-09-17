@@ -643,17 +643,21 @@ El mismo defecto apareció así de repetido: primero el form completo de
 `steps/config/_modulo` se servía sin ninguna policy; después, en
 `_criterios_editor`, el panel de sugerencias de IA quedó afuera de la guarda
 que sí envolvía el resto. La forma que quedó, en `_criterios_editor.html.haml`
-y `_campos_editor.html.haml`: **un solo `if` que envuelve todo menos el
-encabezado**, no guardas sueltas por bloque — una guarda que se olvida se
-encuentra más fácil que dos. Cuál predicado según qué bloque:
+y `_campos_editor.html.haml`: **nada que no sea el encabezado se sirve sin la
+guarda**, y la guarda es UNA variable (`puede_configurar`, calculada una vez
+arriba) y no un predicado escrito en cada bloque. Son dos `if` sobre esa
+variable y no uno, porque la tarjeta se cierra antes de las propuestas de la
+IA y de la isla, que van después de ella; al preguntar las dos lo mismo no
+pueden divergir, que es lo que el «un solo `if`» compraba. Cuál predicado
+según qué bloque:
 `configure?` para los ajustes del módulo y para sus criterios, `manage_form?`
 para los campos del formulario, `manage_assignments?` para quién evalúa y
 cuánto pesa, `update_pipeline?` para quién acompaña la evolución
 (`_asignaciones_gestores.html.haml`, que sólo envuelve `challenges/_gestores`
 con esa guarda y no tiene policy propia).
 
-El panel de propuestas de la IA (`shared/_ai_suggestions`) es la excepción al
-«un solo `if`»: filtra propuesta por propuesta con `AiSuggestionPolicy#accept?`,
+El panel de propuestas de la IA (`shared/_ai_suggestions`) es la excepción a
+esa guarda única: filtra propuesta por propuesta con `AiSuggestionPolicy#accept?`,
 porque quién revisa depende de sobre qué actúa cada tarea. Se sirve en diez
 pantallas, y sin ese filtro les mandaba a quien participa y a quien evalúa
 propuestas que no podían revisar, con la vista previa incluida.

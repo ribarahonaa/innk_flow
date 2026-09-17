@@ -388,4 +388,47 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       end
     end
   end
+
+  describe "la cara de configuración" do
+    let!(:challenge) do
+      as_company(company) do
+        c = create(:challenge, name: "Merma", ai_default_mode: "human")
+        c.steps.create!(kind: "ideation", position: 1)
+        c.steps.create!(kind: "evolution", position: 2, name: "Ronda")
+        c.steps.create!(kind: "evaluation", position: 3, name: "Técnica")
+        c.steps.create!(kind: "selection", position: 4, name: "Corte")
+        c.steps.create!(kind: "reporting", position: 5, name: "Informe")
+        c
+      end
+    end
+
+    it "no sirve ningún panel viejo en los cinco kinds" do
+      sign_in(admin, company: company)
+
+      %w[ideation evolution evaluation selection reporting].each do |kind|
+        get challenge_step_path(challenge, paso(kind))
+        expect(documento.css(".panel").map { |n| n["class"] }).to eq([]), "quedó un .panel en #{kind}"
+      end
+    end
+
+    # Lo que estaba partido en tarjetas sueltas con una sola cosa adentro: el
+    # título, la descripción y la acción de IA de un bloque van juntos.
+    it "el título de los criterios y su acción de IA están en la misma tarjeta" do
+      sign_in(admin, company: company)
+      get challenge_step_path(challenge, paso("evaluation"))
+
+      tarjeta = documento.css(".card").find { |c| c.at_css(".section-title")&.text.to_s.include?("Los criterios") }
+      expect(tarjeta).not_to be_nil
+      expect(tarjeta.text).to include("Proponer criterios con IA")
+    end
+
+    it "el título del formulario y su acción de IA están en la misma tarjeta" do
+      sign_in(admin, company: company)
+      get challenge_step_path(challenge, paso("ideation"))
+
+      tarjeta = documento.css(".card").find { |c| c.at_css(".section-title")&.text.to_s.include?("Formulario de postulación") }
+      expect(tarjeta).not_to be_nil
+      expect(tarjeta.text).to include("Proponer campos con IA")
+    end
+  end
 end
