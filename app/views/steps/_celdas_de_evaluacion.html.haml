@@ -1,0 +1,23 @@
+-# Las cuatro celdas de la fila de una idea. Se renderizan adentro del
+-# `summary` cuando la fila se despliega y sueltas cuando no: la misma fila en
+-# los dos casos, sin copiar el markup.
+%span.fila-de-idea__flecha{ "aria-hidden": "true" }= desplegable ? "▸" : ""
+%span.fila-de-idea__idea
+  = link_to entry.idea.title, challenge_idea_path(challenge, entry.idea), class: "table-link"
+  %span.muted= " · #{entry.idea.author.name}"
+%span.muted
+  = "#{result['assessments_count'] || 0} / #{handler.min_assessments_for(entry.idea)}"
+  - if evaluaciones.any?
+    %span.evaluators
+      - evaluaciones.each do |assessment|
+        %span{ class: chip(assessment.by_ai? ? "evaluador_ia" : "evaluador"),
+               title: "#{assessment.evaluator_name}: #{assessment.overall_comment}" }
+          = assessment.by_ai? ? "IA" : assessment.evaluator_name.split.map(&:first).join
+%span
+  - if !visible
+    %span.muted{ title: "Se muestra cuando envíes la tuya" } oculto
+  - elsif result["score"]
+    %strong= "#{(result['score'].to_f * 100).round}%"
+  - else
+    %span.muted —
+%span.muted= visible && result["dispersion"] ? result["dispersion"].to_f.round(3) : "—"

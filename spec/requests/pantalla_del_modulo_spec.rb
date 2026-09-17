@@ -94,5 +94,45 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
 
       expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
     end
+
+    describe "el desglose por fila" do
+      before do
+        as_company(company) do
+          evaluacion = challenge.steps.reload.find(&:evaluation?)
+          idea = challenge.ideas.first
+          evaluacion.assessments.create!(idea: idea, idea_version_id: idea.current_version_id,
+                                         evaluator: elena, actor_type: "human", status: "submitted",
+                                         submitted_at: Time.current, normalized_score: 0.58,
+                                         overall_comment: "Falta el costo del piloto")
+          evaluacion.handler.recompute_entry!(StepEntry.find_by(challenge_step_id: evaluacion.id, idea_id: idea.id))
+        end
+      end
+
+      it "quien administra despliega la fila y ve quién puso qué" do
+        sign_in(admin, company: company)
+        get challenge_step_path(challenge, paso("evaluation"))
+
+        desglose = documento.at_css("details.fila-de-idea__plegable .fila-de-idea__desglose")
+        expect(desglose&.text.to_s).to include(elena.name, "Falta el costo del piloto")
+        expect(response.body).not_to include("Evaluaciones hechas")
+      end
+
+      it "«Evaluar» queda afuera del summary: un clic ahí no despliega la fila" do
+        sign_in(admin, company: company)
+        get challenge_step_path(challenge, paso("evaluation"))
+
+        # El link del título sí va adentro del summary: navega, no despliega.
+        # Lo que no puede ir es un formulario ni las acciones de la fila.
+        expect(documento.css("summary form, summary .fila-de-idea__acciones")).to be_empty
+      end
+
+      it "quien participa no tiene fila desplegable ni ve quién evaluó" do
+        sign_in(paula, company: company)
+        get challenge_step_path(challenge, paso("evaluation"))
+
+        expect(documento.at_css(".fila-de-idea__plegable")).to be_nil
+        expect(response.body).not_to include(elena.name)
+      end
+    end
   end
 end

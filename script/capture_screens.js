@@ -956,6 +956,18 @@ const MODULOS_EN_ZONAS = [/Evaluaci/i];
   // adentro quedaba sin medir.
   if (comite) {
     await page.goto(BASE + comite.href, { waitUntil: 'networkidle' });
+
+    // Una fila de idea desplegada: plegada no se ve ni se mide.
+    const fila = page.locator('details.fila-de-idea__plegable').first();
+    if (!(await fila.count())) {
+      failures++;
+      console.error('[DESGLOSE] ninguna idea del comité tiene fila desplegable');
+    } else {
+      await fila.evaluate((el) => { el.open = true; });
+      await capturar(page, '09-17-desglose');
+      await revisarPlegableTrasMorph(page, '09-17-desglose', 'details.fila-de-idea__plegable');
+    }
+
     await page.locator('details.ajustes__plegable').evaluate((el) => { el.open = true; });
     await capturar(page, '09-16-ajustes-abiertos');
     await revisarPlegableTrasMorph(page, '09-16-ajustes-abiertos', 'details.ajustes__plegable');

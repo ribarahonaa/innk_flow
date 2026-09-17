@@ -1678,13 +1678,46 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
 /* ── Evaluaciones hechas ────────────────────────────────────────────────── */
 .nowrap { white-space: nowrap; }
 .evaluators { display: inline-flex; gap: 3px; margin-left: 6px; }
-.assessment-group { padding: 14px 0; border-bottom: 1px solid var(--borde); }
-.assessment-group:last-child { border-bottom: 0; }
-.assessment-group__title { margin: 0 0 10px; font-size: 14px; }
+
+/* ── Ideas a evaluar: una fila por idea, que se despliega ───────────────── */
+/* Grilla y no <table>: un <details> no puede abarcar una fila de tabla. El
+   encabezado y cada fila comparten las columnas, así que se alinean sin
+   tabla. Afuera, dos columnas —lo que se lee y las acciones— porque las
+   acciones no pueden ir adentro del `summary`. */
+.filas-de-ideas { display: grid; }
+.filas-de-ideas__encabezado,
+.fila-de-idea {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8.5rem;
+  column-gap: 12px;
+  align-items: start;
+}
+.filas-de-ideas__encabezado {
+  padding-bottom: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.fila-de-idea { padding: 10px 0; border-top: 1px solid var(--tenue); }
+.filas-de-ideas__columnas,
+.fila-de-idea__resumen {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr) 8rem 4.5rem 5rem;
+  column-gap: 12px;
+  align-items: center;
+}
+.fila-de-idea__resumen { list-style: none; }
+.fila-de-idea__resumen::-webkit-details-marker { display: none; }
+.fila-de-idea__plegable > .fila-de-idea__resumen { cursor: pointer; }
+.fila-de-idea__flecha { display: inline-block; color: var(--muted); transition: transform .15s; }
+.fila-de-idea__plegable[open] > .fila-de-idea__resumen .fila-de-idea__flecha { transform: rotate(90deg); }
+.fila-de-idea__desglose { display: grid; gap: 8px; margin: 10px 0 0 calc(1rem + 12px); }
+.fila-de-idea__acciones { display: flex; justify-content: flex-end; align-items: center; gap: 6px; flex-wrap: wrap; }
 
 .assessment-detail {
   padding: 11px 13px;
-  margin-bottom: 8px;
   border: 1px solid var(--borde);
   border-left-width: 3px;
   border-radius: 8px;

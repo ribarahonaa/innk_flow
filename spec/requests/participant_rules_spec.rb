@@ -109,7 +109,7 @@ RSpec.describe "reglas de quien participa", type: :request do
       get challenge_step_path(challenge, step_named("Técnica"))
 
       expect(response.body).not_to include(elena.name)
-      expect(response.body).not_to include("Evaluaciones hechas")
+      expect(response.body).not_to include("fila-de-idea__desglose")
     end
 
     it "pero sí el resultado de SU idea, en su ficha" do
