@@ -24,9 +24,10 @@
   = render "shared/ia_respuesta"
 
   - if suggestions.any?
-    .panel.ai-panel
-      %h2.section-title
-        Propuestas de la IA
-        %span{ class: chip_de_ia }= suggestions.size
-      - suggestions.each do |suggestion|
-        = render "shared/ai_suggestion", suggestion: suggestion
+    .card.ai-panel
+      .card-body
+        %h2.section-title
+          Propuestas de la IA
+          %span{ class: chip_de_ia }= suggestions.size
+        - suggestions.each do |suggestion|
+          = render "shared/ai_suggestion", suggestion: suggestion

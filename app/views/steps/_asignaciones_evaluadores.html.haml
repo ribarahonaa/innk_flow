@@ -1,3 +1,7 @@
+-# Editar quién evalúa y cuánto pesa. En la cara de configuración es una
+-# tarjeta; en la de ejecución vive adentro de los ajustes (`tarjeta: false`)
+-# y la lista para leer está en la referencia (`_quien_evalua`).
+-#
 -# Quién evalúa este módulo y cuánto pesa su voto.
 -#
 -# Va en las DOS caras: se puede sumar a alguien con el módulo en curso. Lo que
@@ -17,7 +21,7 @@
   - evaluaron = step.assessments.current.group(:evaluator_id).count
   - hay_pesos = asignaciones.any?(&:weighted?)
   - cerrado = step.completed? || step.skipped?
-  .panel
+  = render layout: "steps/bloque", locals: { tarjeta: local_assigns.fetch(:tarjeta, true) } do
     .section-head
       %h2.section-title
         Quién evalúa

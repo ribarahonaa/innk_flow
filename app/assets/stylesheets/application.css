@@ -771,6 +771,18 @@ body {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
+/* `card-body` es flex en columna con `gap: 8px`, y en flex los márgenes NO
+   colapsan: el de abajo de un título, el gap y el de arriba de lo que sigue se
+   suman. En `.panel` —bloque— colapsaban, así que la misma tarjeta salía 14px
+   más suelta entre el título y la pista, y 22px entre el título y la tabla.
+   A cada margen se le descuenta el gap; `card-body` no se toca. */
+.card-body > .section-title { margin-bottom: 6px; }
+.card-body > .section-head .section-title { margin-bottom: 2px; }
+.card-body > .section-title + .field-hint { margin-top: 0; }
+.card-body > .table-scroll > .table { margin-top: 10px; }
+/* Su propio `margin-top` ya no colapsa con el del párrafo de arriba: con la
+   lista vacía la línea bajaba 22px. El borde y su relleno separan igual. */
+.card-body > .assignment-add { margin-top: 0; }
 
 /* ── Auth ───────────────────────────────────────────────────────────────── */
 .auth-body {
@@ -1216,6 +1228,30 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
 .step-progress { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 .progress-bar { height: 6px; background: var(--bg); border-radius: 99px; overflow: hidden; }
 .progress-bar__fill { height: 100%; background: var(--accent); border-radius: 99px; }
+
+/* ── Ajustes del módulo ─────────────────────────────────────────────────── */
+/* Lo que se edita en la cara de ejecución pero casi nunca, plegado al final. */
+.ajustes__titulo {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+}
+.ajustes__titulo::-webkit-details-marker { display: none; }
+.ajustes__titulo::before {
+  content: "▸";
+  display: inline-block;
+  color: var(--muted);
+  transition: transform .15s;
+}
+.ajustes__plegable[open] > .ajustes__titulo::before { transform: rotate(90deg); }
+.ajustes__titulo .section-title { margin: 0; }
+.ajustes__contenido { display: grid; gap: 20px; margin-top: 16px; }
+
+/* El pedido a la IA arriba de la lista sobre la que actúa, separado de ella. */
+.pedido-a-la-ia { padding-bottom: 16px; border-bottom: 1px solid var(--tenue); }
+.pedido-a-la-ia .ai-actions { margin-bottom: 8px; }
 
 /* ── Lista de campos del formulario ─────────────────────────────────────── */
 .field-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
@@ -1695,7 +1731,17 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
 .ai-hint__reason { color: var(--muted); }
 
 /* ── Modo de IA de un módulo ────────────────────────────────────────────── */
-.ai-mode-card { border-style: dashed; border-color: var(--ia-borde); background: var(--ia-panel); }
+/* Ya no es una tarjeta: vive adentro de los ajustes plegados. Conserva el
+   recuadro punteado de la IA, que es lo que la distingue. */
+.ai-mode-card {
+  padding: 16px;
+  border: 1px dashed var(--ia-borde);
+  border-radius: var(--radius);
+  background: var(--ia-panel);
+}
+/* Adentro de los ajustes la fila tiene 34px menos que en su tarjeta, y el
+   título era lo primero que cedía: «El módulo» en dos renglones. */
+.ai-mode-card .section-title { flex: none; }
 .ai-mode-form { display: flex; align-items: center; gap: 8px; }
 /* Sin esto el `width: 100%` que traen los `input[type="text"]` de base se
    pelea con el `display: flex` del formulario: el nombre se estira y empuja

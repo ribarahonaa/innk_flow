@@ -502,6 +502,11 @@ async function shot(page, name, url, prepare) {
   await capturar(page, name);
 }
 
+// Los módulos cuya cara de ejecución ya está en tres zonas (plan 2b). Por
+// nombre del seed de `merma-bodega`, igual que el resto del recorrido. Cada
+// tarea del plan suma el suyo; al final están los siete.
+const MODULOS_EN_ZONAS = [/Evaluaci/i];
+
 (async () => {
   // Se limpia antes de empezar: una captura que dejó de tomarse queda en disco
   // como si siguiera siendo el estado actual, y eso es peor que no tenerla.
@@ -876,6 +881,20 @@ async function shot(page, name, url, prepare) {
       failures++;
       console.error(`[MODO IA] «${link.text}» no ofrece cambiar el modo de IA del módulo`);
     }
+
+    // Las tres zonas: la referencia existe, y quien recorre —admin— tiene
+    // los ajustes plegados al final. Sin esto, un módulo reordenado podía
+    // perder su columna sin que ninguna captura lo dijera.
+    if (MODULOS_EN_ZONAS.some((re) => re.test(link.text))) {
+      if (!(await page.locator('.app-aside').count())) {
+        failures++;
+        console.error(`[ZONAS] «${link.text}» no tiene columna de referencia`);
+      }
+      if (!(await page.locator('details.ajustes__plegable').count())) {
+        failures++;
+        console.error(`[ZONAS] «${link.text}» no tiene los ajustes plegados`);
+      }
+    }
   }
 
   // Quién evalúa y cuánto pesa su voto. La tabla y la columna existían desde
@@ -897,6 +916,16 @@ async function shot(page, name, url, prepare) {
   } else {
     failures++;
     console.error('[LINK] el desafío no tiene el módulo de evaluación de comité');
+  }
+
+  // Los ajustes abiertos. Plegados no salen en ninguna captura, y las guardas
+  // de contraste y de clases sólo miden lo que tiene caja: sin esto, lo de
+  // adentro quedaba sin medir.
+  if (comite) {
+    await page.goto(BASE + comite.href, { waitUntil: 'networkidle' });
+    await page.locator('details.ajustes__plegable').evaluate((el) => { el.open = true; });
+    await capturar(page, '09-16-ajustes-abiertos');
+    await revisarPlegableTrasMorph(page, '09-16-ajustes-abiertos', 'details.ajustes__plegable');
   }
 
   // La selección con filtros: cada idea pasa o no pasa cada condición, y se

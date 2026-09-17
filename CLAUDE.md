@@ -878,7 +878,15 @@ son opcionales y la grilla se acomoda sola con `:has()`**, así que ninguna
 pantalla declara su layout.
 
 - La regla de qué va dónde: **el centro es lo que se hace; la derecha es lo que
-  se consulta y no se edita** en el curso normal del trabajo.
+  se consulta y no se edita** en el curso normal del trabajo. En la cara de
+  ejecución de un módulo hay una tercera zona: **«Ajustes del módulo»**, una
+  tarjeta plegada al final del centro (`steps/_ajustes`) con lo que se edita
+  pero casi nunca —nombre, modo de IA, quién participa—. La referencia va en
+  orden fijo: progreso, lo propio del módulo, quién participa, configuración
+  congelada. Lo que se lee a la derecha y se edita abajo aparece dos veces a
+  propósito, **con la misma guarda en los dos lugares**
+  (`spec/requests/pantalla_del_modulo_spec.rb` lo prueba por rol). Un bloque
+  que va suelto o adentro de los ajustes toma su forma de `steps/_bloque`.
 - El drawer aparece solo si hay un desafío **guardado** en contexto
   (`ShellHelper#desafio_del_shell`). Dos guardas que parecen de más y no lo
   son: `/challenges/new` deja un `Challenge.new` sin slug y el `challenge_path`

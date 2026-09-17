@@ -12,7 +12,7 @@
 -# puede cambiar acá, sin volver al builder ni reiniciar el módulo.
 - return unless policy(step).advance?
 
-.panel.ai-mode-card
+.ai-mode-card
   .section-head
     %h2.section-title El módulo
     = form_with model: step, url: challenge_step_path(step.challenge, step), method: :patch, class: "ai-mode-form" do |f|

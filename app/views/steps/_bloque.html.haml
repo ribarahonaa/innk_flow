@@ -1,0 +1,11 @@
+-# Un bloque de la pantalla del módulo, con la forma que le toca según dónde
+-# va: tarjeta propia suelto en una columna, sección adentro de los ajustes
+-# plegados. Una tarjeta adentro de otra se lee como un error de maquetado.
+-#
+-#   = render layout: "steps/bloque", locals: { tarjeta: false } do
+-#     %h2.section-title …
+- if local_assigns.fetch(:tarjeta, true)
+  .card
+    .card-body= yield
+- else
+  %section.ajustes__seccion= yield
