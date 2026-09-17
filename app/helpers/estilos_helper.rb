@@ -119,6 +119,18 @@ module EstilosHelper
     "skipped" => "badge badge-soft badge-sm border-dashed"
   }.freeze
 
+  # El punto de estado de cada módulo en el drawer. Era un chip vaciado
+  # (`.flow-drawer .badge`), así que cambiar la variante de un chip cambiaba
+  # el color del punto sin que nadie lo buscara ahí. Mismos grupos que los
+  # chips; el color lo resuelve la hoja.
+  PUNTO_DE_ESTADO = {
+    "pending" => "flow-drawer__punto flow-drawer__punto--neutro",
+    "activating" => "flow-drawer__punto flow-drawer__punto--acento",
+    "active" => "flow-drawer__punto flow-drawer__punto--acento",
+    "completed" => "flow-drawer__punto flow-drawer__punto--ok",
+    "skipped" => "flow-drawer__punto flow-drawer__punto--warn"
+  }.freeze
+
   # Las claves son StepEntry::STATUSES. El brief original traía "skipped"
   # —que no es un status de StepEntry— y no mapeaba "advanced" ni
   # "eliminated", que son justo los dos con color propio en la hoja
@@ -142,6 +154,7 @@ module EstilosHelper
   def clase_de_diff(kind) = CLASE_DE_DIFF.fetch(kind.to_s, CLASE_DE_DIFF.fetch("changed"))
   def clase_de_resultado(status) = CLASE_DE_RESULTADO.fetch(status.to_s, CLASE_DE_RESULTADO.fetch("pending"))
   def clase_de_nodo_de_flujo(estado) = CLASE_DE_NODO_DE_FLUJO.fetch(estado.to_s, CLASE_DE_NODO_DE_FLUJO.fetch("pending"))
+  def punto_de_estado(estado) = PUNTO_DE_ESTADO.fetch(estado.to_s, PUNTO_DE_ESTADO.fetch("pending"))
   def chip(nombre) = CHIPS.fetch(nombre.to_s)
 
   # `_setup_progress.html.haml` ya arma su clase como ARREGLO y le suma otras

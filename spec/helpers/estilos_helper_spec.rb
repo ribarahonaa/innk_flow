@@ -86,6 +86,10 @@ RSpec.describe EstilosHelper, type: :helper do
     expect(sin_mapear(ChallengeStep::STATUSES, EstilosHelper::CLASE_DE_NODO_DE_FLUJO)).to be_empty
   end
 
+  it "cubre todos los estados de un módulo en el drawer" do
+    expect(sin_mapear(ChallengeStep::STATUSES, EstilosHelper::PUNTO_DE_ESTADO)).to be_empty
+  end
+
   # `pipeline_builder.vue` pinta el chip de un módulo recién agregado —que
   # todavía no pasó por `PipelinePresenter`— con la cadena escrita a mano.
   # Tiene que ser la MISMA que devuelve el helper para "pending", o un módulo

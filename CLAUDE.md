@@ -79,6 +79,8 @@ Al escribir capturas nuevas en `script/capture_screens.js`:
   revisión lo cortara)—. Hoy siembra los cinco `kind` pendientes y un set de
   criterios inline en su módulo de selección (`db/seeds.rb:360` en
   adelante), del que dependen varias capturas de las dos caras.
+  `con-salteado` existe sólo para la captura del módulo salteado
+  (`02b-salteado`).
 
 **Los system specs con navegador no cubren el recorrido.** Los servicios usan
 `with_lock` (SELECT FOR UPDATE) y eso deadlockea contra el pool compartido de
@@ -828,6 +830,8 @@ esta app.
   teniendo reglas, sólo que otras. Antes de renombrar, buscá la clase en
   selectores compuestos, descendientes y `:has()`, y en los localizadores de
   `script/capture_screens.js`.
+  Esas dos ya no cuelgan del chip: el borde va por `data-kind` y los puntos
+  del drawer son `flow-drawer__punto` (`EstilosHelper::PUNTO_DE_ESTADO`).
 
 #### Las tres capas, y de quién es cada regla
 

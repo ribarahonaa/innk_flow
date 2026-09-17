@@ -567,6 +567,15 @@ const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
   await page.waitForLoadState('networkidle');
 
   await shot(page, '02-challenges', '/challenges');
+
+  // Un módulo salteado en el mapa del flujo y en el drawer. Sin un seed que lo
+  // tenga, el nodo salteado quedó negro en el plan 2a sin que nada lo viera.
+  await shot(page, '02b-salteado', '/challenges/con-salteado');
+  if (!(await page.locator('.flow-drawer [title="Salteado"], .flow-strip .border-dashed').count())) {
+    failures++;
+    console.error('[SALTEADO] ni el drawer ni el mapa del flujo muestran el módulo salteado');
+  }
+
   await shot(page, '03-new-challenge', '/challenges/new');
 
   // Un desafío sin módulos ofrece las plantillas desde el builder.
@@ -1396,7 +1405,8 @@ const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
     ['91-oscuro-desafio', `/challenges/${CHALLENGE}`],
     ['92-oscuro-criterios', '/criteria_sets'],
     ['93-oscuro-ia', '/admin/ai_runs'],
-    ...oscuroDeModulos.filter(([, link]) => link).map(([nombre, link]) => [nombre, link.href])
+    ...oscuroDeModulos.filter(([, link]) => link).map(([nombre, link]) => [nombre, link.href]),
+    ['98-oscuro-salteado', '/challenges/con-salteado']
   ]) {
     await page.goto(BASE + url, { waitUntil: 'networkidle' });
     if (nombre === '90-oscuro-desafios') {
