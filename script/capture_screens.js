@@ -193,7 +193,15 @@ async function revisarReferencia(page, name) {
 async function revisarClasesDescartadas(page, name) {
   const huerfanas = await page.evaluate(() => {
     const sospechosas = [];
-    for (const el of document.querySelectorAll('[class*="badge"],[class*="btn"],[class*="alert"],.steps,.panel,.card,.table :is(th,td)')) {
+    // `.panel` y `.flow-drawer__punto` están en la lista aunque su CSS sea
+    // propio y escrito a mano: lo que esto atrapa no es sólo una clase que
+    // Tailwind no vio, es cualquier elemento que se quedó sin la regla que lo
+    // pintaba. El punto del drawer entró acá cuando dejó de ser un `badge`
+    // vaciado —antes lo cubría `[class*="badge"]`— y su fondo es un
+    // `color-mix()` sobre `--punto`: si ese token se rompe o se renombra, el
+    // `color-mix()` queda inválido, el fondo cae a transparente y el punto se
+    // vuelve invisible sin dejar rastro en el DOM.
+    for (const el of document.querySelectorAll('[class*="badge"],[class*="btn"],[class*="alert"],[class*="flow-drawer__punto"],.steps,.panel,.card,.table :is(th,td)')) {
       // Única excepción: la celda de `tr.cut-line` (línea de corte del
       // ranking, `steps/selection.html.haml`) anula padding y borde a
       // propósito con `!important` (`.cut-line td` en application.css) — no

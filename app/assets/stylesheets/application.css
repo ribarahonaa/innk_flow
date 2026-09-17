@@ -679,6 +679,16 @@ body {
    WCAG 1.4.11. La mezcla conserva el tono —que es lo que distingue un estado
    de otro— y le sube el brillo.
 
+   Y no le alcanza en los cuatro. Medido: en oscuro los cuatro pasan cómodos
+   (7,69 a 12,92:1) y en claro pasan tres (5,00 el acento, 5,13 el ok, 5,19 el
+   warn), pero el NEUTRO queda en 2,57:1, abajo del piso de 3:1 —en claro
+   `--color-base-content` es casi el mismo casi-negro que el panel, así que
+   aclararlo un 45% hacia el gris del panel no lo despega—. Nada lo mide:
+   `revisarContraste` saltea lo que no tiene texto, y el punto va vacío. Y nada
+   lo mostraba: hasta `02b-salteado` ninguna captura tenía un módulo PENDIENTE
+   en un desafío ya arrancado. Cambiar ese color es una decisión de producto
+   abierta, no un olvido.
+
    Clase propia y no un `badge` vaciado (`.flow-drawer .badge`): con
    `currentColor` el punto tomaba el color del texto del chip, así que
    cambiarle la variante a un chip le cambiaba el color al punto sin que nadie
