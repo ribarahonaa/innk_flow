@@ -230,7 +230,10 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       end
     end
 
-    before { as_company(company) { challenge.pipeline.start! } }
+    before do
+      as_company(company) { challenge.pipeline.start! }
+      expect(paso("ideation")).to be_active
+    end
 
     it "quien administra: el formulario leído a la derecha y el editor en los ajustes" do
       sign_in(admin, company: company)
@@ -248,6 +251,38 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       expect(zonas[:referencia]).to include("Formulario de postulación")
       expect(documento.at_css(".ajustes")).to be_nil
       expect(response.body).not_to include('data-island="form-editor"')
+    end
+
+    describe "la lista de ideas postuladas" do
+      let!(:pedro) { member("pedro@test.dev", :participant) }
+
+      before do
+        postular!(challenge, author: paula, titulo: "Sensores de peso")
+        postular!(challenge, author: pedro, titulo: "Cámaras en la merma")
+      end
+
+      # Quien participa compite por el mismo corte que las demás: ve sólo las
+      # ideas en las que participa (`IdeaPolicy::Scope`). Las otras pantallas
+      # de módulo ya filtraban con `@ideas_visibles`; idear no.
+      it "quien participa ve sólo la suya, y el contador cuenta lo que ve" do
+        sign_in(paula, company: company)
+        get challenge_step_path(challenge, paso("ideation"))
+
+        lista = documento.css(".app-main .card").find { |c| c.text.include?("Ideas postuladas") }
+        expect(lista.text).to include("Sensores de peso")
+        expect(lista.text).not_to include("Cámaras en la merma")
+        expect(lista.text).not_to include(pedro.name)
+        expect(lista.at_css(".section-title").text).to include("(1)")
+      end
+
+      it "quien administra las ve todas" do
+        sign_in(admin, company: company)
+        get challenge_step_path(challenge, paso("ideation"))
+
+        lista = documento.css(".app-main .card").find { |c| c.text.include?("Ideas postuladas") }
+        expect(lista.text).to include("Sensores de peso", "Cámaras en la merma")
+        expect(lista.at_css(".section-title").text).to include("(2)")
+      end
     end
   end
 end

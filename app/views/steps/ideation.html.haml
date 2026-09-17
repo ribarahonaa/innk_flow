@@ -10,18 +10,25 @@
 = render "steps/header", step: @step, handler: @handler
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 
+-# Quien participa ve sólo las ideas en las que participa: compite por el mismo
+-# corte que las demás. La regla vive en `IdeaPolicy::Scope` y llega como
+-# `@ideas_visibles` (`StepsController#show`), igual que en los otros módulos.
+-# El progreso de la referencia sigue contando todas: es un agregado, no dice
+-# de quién es cada idea. El contador de acá cuenta lo que la lista muestra.
+- postuladas = @handler.submitted_ideas.where(id: @ideas_visibles.to_a)
+
 .card
   .card-body
     .section-head
       %h2.section-title
         Ideas postuladas
-        %span.muted= " (#{@handler.submitted_ideas.count})"
+        %span.muted= " (#{postuladas.count})"
       - if @step.active? && policy(Idea.new(challenge: @step.challenge)).create?
         = link_to "Postular una idea", new_challenge_idea_path(@step.challenge), class: "btn btn-primary btn-sm"
     = render "shared/ai_actions", challenge: @step.challenge, mode: @step.effective_ai_mode,
              actions: [{ label: "Generar ideas candidatas", purpose: "generate_ideas", step_id: @step.id,
                          count: 3, count_options: (1..Flow::AI::Tasks::GenerateIdeas::MAX_COUNT).to_a }]
-    = render "ideas/list", ideas: @handler.submitted_ideas.includes(:current_version, :author).recent, challenge: @step.challenge
+    = render "ideas/list", ideas: postuladas.includes(:current_version, :author).recent, challenge: @step.challenge
 
 -# El formulario se sigue pudiendo corregir con el módulo abierto —su candado
 -# es `ideas.submitted.exists?`, más fino que `touched?`—, pero casi nunca: va

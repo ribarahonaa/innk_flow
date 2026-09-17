@@ -250,8 +250,10 @@ Dos reglas que no viven en el rol:
   aquellas en las que colabora—: compite por el mismo corte que las demás. La
   regla vive UNA vez, en `IdeaPolicy::Scope`, y las pantallas la aplican:
   `StepsController#show` publica `@ideas_visibles` y los módulos filtran con
-  eso lo que listan. Lo que no se ve da **404**, no 403. Quien administra,
-  acompaña o evalúa las ve todas: las tres cosas se hacen sobre el pool entero.
+  eso lo que listan. Idear se lo olvidó hasta el plan 2b —listaba todas las
+  postuladas—, que es exactamente lo que advertía `e3787a3`. Lo que no se ve
+  da **404**, no 403. Quien administra, acompaña o evalúa las ve todas: las
+  tres cosas se hacen sobre el pool entero.
 - **Pedirle a la IA que evalúe no es evaluar.** El botón —y el lote «evaluar
   todas con IA»— es de quien evalúa en el módulo, por asignación o por
   administrarlo, no de `update_pipeline?`. Y va **sin idea**: quien participa

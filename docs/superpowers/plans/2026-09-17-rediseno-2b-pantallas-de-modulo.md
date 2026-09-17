@@ -2467,6 +2467,134 @@ EOF
 
 ---
 
+### Task 7b: Quien participa ve en idear sólo las ideas en las que participa
+
+**Agregada después de la Tarea 7**, por decisión de Raúl sobre un hallazgo de su revisión. **No es del rediseño: es una fuga de lectura que ya estaba.** La pantalla de idear lista `@handler.submitted_ideas` sin filtrar, así que quien participa ve título y autor de TODAS las ideas postuladas. `CLAUDE.md` dice que ve sólo las que creó o en las que colabora, y `e3787a3` aplicó esa regla en evaluación, evolución y selección con `@ideas_visibles` —que publica `StepsController#show`— y advirtió: «la quinta que liste ideas se olvidaría». Idear es la quinta. Va en su propio commit para que se lea como lo que es.
+
+El **progreso** de la referencia («5 de 5 ideas postuladas») se queda como está: es un agregado, no dice de quién es cada idea —la misma decisión que tomó `e3787a3` con el contador del corte—. El **contador del encabezado** de la lista sí pasa a contar lo que la lista muestra: «Ideas postuladas (5)» arriba de una sola fila se lee como un error.
+
+**Files:**
+- Modify: `app/views/steps/ideation.html.haml` (la tarjeta «Ideas postuladas»)
+- Modify: `spec/requests/pantalla_del_modulo_spec.rb` (`describe "idear"`)
+
+**Interfaces:**
+- Consumes: `@ideas_visibles` (un `Set` de ids, `StepsController#show:33`, de `policy_scope(Idea)`); `postular!`, `member`, `documento`, `paso` del spec.
+
+- [ ] **Step 1: El spec que falla**
+
+En `spec/requests/pantalla_del_modulo_spec.rb`, adentro de `describe "idear"`:
+
+1. El `before` pasa a confirmar que el módulo arrancó (la trampa de la Tarea 5: `start!` devuelve un resultado fallido sin levantar, y la pantalla sería la de configuración):
+
+```ruby
+    before do
+      as_company(company) { challenge.pipeline.start! }
+      expect(paso("ideation")).to be_active
+    end
+```
+
+2. Los ejemplos nuevos:
+
+```ruby
+    describe "la lista de ideas postuladas" do
+      let!(:pedro) { member("pedro@test.dev", :participant) }
+
+      before do
+        postular!(challenge, author: paula, titulo: "Sensores de peso")
+        postular!(challenge, author: pedro, titulo: "Cámaras en la merma")
+      end
+
+      # Quien participa compite por el mismo corte que las demás: ve sólo las
+      # ideas en las que participa (`IdeaPolicy::Scope`). Las otras pantallas
+      # de módulo ya filtraban con `@ideas_visibles`; idear no.
+      it "quien participa ve sólo la suya, y el contador cuenta lo que ve" do
+        sign_in(paula, company: company)
+        get challenge_step_path(challenge, paso("ideation"))
+
+        lista = documento.css(".app-main .card").find { |c| c.text.include?("Ideas postuladas") }
+        expect(lista.text).to include("Sensores de peso")
+        expect(lista.text).not_to include("Cámaras en la merma")
+        expect(lista.text).not_to include(pedro.name)
+        expect(lista.at_css(".section-title").text).to include("(1)")
+      end
+
+      it "quien administra las ve todas" do
+        sign_in(admin, company: company)
+        get challenge_step_path(challenge, paso("ideation"))
+
+        lista = documento.css(".app-main .card").find { |c| c.text.include?("Ideas postuladas") }
+        expect(lista.text).to include("Sensores de peso", "Cámaras en la merma")
+        expect(lista.at_css(".section-title").text).to include("(2)")
+      end
+    end
+```
+
+Run: `make spec-file FILE=spec/requests/pantalla_del_modulo_spec.rb`
+Expected: FAIL en «quien participa ve sólo la suya» (ve «Cámaras en la merma» y el contador dice «(2)»). «Quien administra las ve todas» pasa: es la regla que ya se cumplía. Si la de quien participa **no** falla, pará: el fixture no reproduce la fuga (revisá que las dos ideas estén `submitted` y que `pedro.name` no sea igual al de `paula`).
+
+- [ ] **Step 2: El filtro**
+
+En `app/views/steps/ideation.html.haml`, arriba de la tarjeta:
+
+```haml
+-# Quien participa ve sólo las ideas en las que participa: compite por el mismo
+-# corte que las demás. La regla vive en `IdeaPolicy::Scope` y llega como
+-# `@ideas_visibles` (`StepsController#show`), igual que en los otros módulos.
+-# El progreso de la referencia sigue contando todas: es un agregado, no dice
+-# de quién es cada idea. El contador de acá cuenta lo que la lista muestra.
+- postuladas = @handler.submitted_ideas.where(id: @ideas_visibles.to_a)
+```
+
+Y en la tarjeta, las dos líneas que usan `@handler.submitted_ideas`:
+
+```haml
+        %span.muted= " (#{postuladas.count})"
+```
+
+```haml
+    = render "ideas/list", ideas: postuladas.includes(:current_version, :author).recent, challenge: @step.challenge
+```
+
+- [ ] **Step 3: Verde**
+
+Run: `make spec-file FILE=spec/requests/pantalla_del_modulo_spec.rb`
+Expected: PASS.
+
+Run: `make spec`
+Expected: verde. `ideas_spec` («muestra el formulario declarado, el progreso y las ideas», como admin) tiene que seguir pasando sin tocarlo.
+
+Run: `make screens`
+Expected: verde. `make screens` recorre como admin: `09-1-step-postulaci-n-de-ideas` no cambia.
+
+- [ ] **Step 4: `CLAUDE.md`**
+
+En «Los cuatro roles», en el bullet «**Quien participa ve solo las ideas en las que participa**», después de «los módulos filtran con eso lo que listan.», sumá: «Idear se lo olvidó hasta el plan 2b —listaba todas las postuladas—, que es exactamente lo que advertía `e3787a3`.»
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add app/views/steps/ideation.html.haml spec/requests/pantalla_del_modulo_spec.rb CLAUDE.md docs/superpowers/plans/2026-09-17-rediseno-2b-pantallas-de-modulo.md
+git commit -F - <<'MSG'
+Quien participa ve en idear sólo las ideas en las que participa
+
+La pantalla de idear listaba todas las ideas postuladas, con título y autor,
+a quien participa. La regla —ve sólo las que creó o en las que colabora—
+vive en `IdeaPolicy::Scope` y llega como `@ideas_visibles`; evaluación,
+evolución y selección ya filtraban con eso desde `e3787a3`, que advertía que
+la quinta pantalla que listara ideas se iba a olvidar. Era idear.
+
+El contador de la lista cuenta lo que la lista muestra. El progreso de la
+referencia sigue contando todas: es un agregado y no dice de quién es cada
+idea. No es del rediseño: la fuga estaba antes y la encontró la revisión de
+la Tarea 7 del plan 2b.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_014gkhXcuX5q5pNYj9oZdAZU
+MSG
+```
+
+---
+
 ### Task 8: Reportería
 
 **Files:**
