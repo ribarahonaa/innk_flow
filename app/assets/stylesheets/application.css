@@ -1697,10 +1697,6 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
 .feedback-resolve__note { flex: 1; font-size: 12px; padding: 6px 9px; }
 .feedback-item__resolution { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; font-size: 11.5px; }
 
-/* ── Evaluaciones hechas ────────────────────────────────────────────────── */
-.nowrap { white-space: nowrap; }
-.evaluators { display: inline-flex; gap: 3px; margin-left: 6px; }
-
 /* ── Ideas a evaluar: una fila por idea, que se despliega ───────────────── */
 /* Grilla y no <table>: un <details> no puede abarcar una fila de tabla. El
    encabezado y cada fila comparten las columnas, así que se alinean sin
@@ -1737,6 +1733,10 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
 .fila-de-idea__plegable[open] > .fila-de-idea__resumen .fila-de-idea__flecha { transform: rotate(90deg); }
 .fila-de-idea__desglose { display: grid; gap: 8px; margin: 10px 0 0 calc(1rem + 12px); }
 .fila-de-idea__acciones { display: flex; justify-content: flex-end; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* Las iniciales de quien ya evaluó, en la celda del contador de la fila
+   (`steps/_celdas_de_evaluacion`). Encabezaba una sección «Evaluaciones
+   hechas» que dejó de existir cuando el desglose se mudó adentro de la fila. */
+.evaluators { display: inline-flex; gap: 3px; margin-left: 6px; }
 
 .assessment-detail {
   padding: 11px 13px;

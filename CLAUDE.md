@@ -247,7 +247,11 @@ Dos reglas que no viven en el rol:
   **nadie evalúa una idea de la que participa**, ni siquiera quien administra.
   Por eso el mínimo de evaluaciones baja por idea cuando su autor está entre
   quienes evalúan: esperar el mínimo entero trabaría el módulo esperando una
-  evaluación imposible.
+  evaluación imposible. El link «Evaluar» de cada fila pregunta la misma policy
+  que autoriza el controller —`policy(Assessment.new(challenge_step:, idea:))`—
+  y no `step.active?` a secas: con eso lo veía en todas las filas quien evalúa
+  sin asignación en ese módulo, y quien acompaña el desafío, que no es
+  `manager?`. Los dos se comían un 403 al apretarlo.
 - **No todas las voces pesan igual.** `step_assignments.weight` entra en el
   agregado, en la dispersión y en el promedio por criterio. Dos reglas que no
   se ven en el código si no se buscan: los pesos **solo** entran cuando alguien

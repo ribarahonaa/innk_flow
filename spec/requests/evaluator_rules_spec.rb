@@ -152,6 +152,31 @@ RSpec.describe "reglas de quien evalúa", type: :request do
     end
   end
 
+  # Evaluar depende de la ASIGNACIÓN, no del rol, y el link tiene que decir lo
+  # mismo que la puerta: `AssessmentsController#new` autoriza
+  # `AssessmentPolicy#create?`. La fila lo ofrecía con sólo mirar que el módulo
+  # estuviera activo y que la idea no fuera propia, así que a quien evalúa sin
+  # asignación en ESTE módulo —y a quien acompaña el desafío, que tampoco es
+  # `manager?`— le aparecía «Evaluar» en todas las filas y le rebotaba con 403.
+  describe "el link «Evaluar» de cada fila" do
+    it "se lo ofrece a quien tiene la asignación" do
+      sign_in(elena, company: company)
+      get challenge_step_path(challenge, step)
+
+      expect(response.body).to include(new_challenge_step_assessment_path(challenge, step, idea_id: ajena.id))
+    end
+
+    it "no se lo ofrece a quien evalúa sin asignación en este módulo" do
+      as_company(company) { step.step_assignments.find_by(user_id: emilio.id).destroy! }
+
+      sign_in(emilio, company: company)
+      get challenge_step_path(challenge, step)
+
+      expect(response.body).not_to include(new_challenge_step_assessment_path(challenge, step, idea_id: ajena.id))
+      expect(response.body).not_to include(new_challenge_step_assessment_path(challenge, step, idea_id: propia.id))
+    end
+  end
+
   # Pedirle a la IA que evalúe todo lo que falta.
   #
   # Dos cosas que se rompen fácil y por eso están acá: que el botón sea de

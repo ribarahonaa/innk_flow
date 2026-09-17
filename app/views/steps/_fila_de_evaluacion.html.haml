@@ -51,7 +51,13 @@
     - if step.active? && propia
       %span.field-hint Es tu idea
     - elsif step.active?
-      = link_to "Evaluar", new_challenge_step_assessment_path(challenge, step, idea_id: entry.idea_id), class: "btn btn-ghost btn-sm"
+      -# El link tiene que decir lo mismo que la puerta: `AssessmentsController#new`
+      -# autoriza `AssessmentPolicy#create?`, y evaluar depende de la ASIGNACIÓN al
+      -# módulo, no del rol. Ofrecido con sólo mirar `step.active?`, a quien evalúa
+      -# sin asignación en este módulo —y a quien acompaña el desafío, que no es
+      -# `manager?`— le aparecía en todas las filas y le rebotaba con 403.
+      - if policy(Assessment.new(challenge_step: step, idea: entry.idea)).create?
+        = link_to "Evaluar", new_challenge_step_assessment_path(challenge, step, idea_id: entry.idea_id), class: "btn btn-ghost btn-sm"
       - if step.effective_ai_mode != "human" && manda
         = button_to "IA", challenge_ai_requests_path(challenge, purpose: "evaluate_idea", step_id: step.id, idea_id: entry.idea_id),
                     class: "btn btn-ghost btn-sm", title: "Que la IA evalúe esta idea"
