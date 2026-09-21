@@ -53,9 +53,14 @@
         %span.muted · sin fuente de puntaje: el orden es manual
 
     - if handler.piso_aplicado?(completo)
+      - cruzaron = completo.count(&:por_el_piso?)
       %p.rule-line
         %strong Pasan por el mínimo:
         = "el corte dejaba pasar menos de #{Flow::Texto.contar(handler.cut_min, "idea")}, así que avanzan las mejores aunque no lo alcancen."
+        -# El mínimo gana también sobre los filtros, y eso hay que decirlo: una
+        -# idea con un filtro fallado arriba de la línea no se explica sola.
+        - if cruzaron.positive?
+          = "El mínimo manda también sobre los filtros: incluye #{Flow::Texto.contar(cruzaron, "idea")} que no #{cruzaron > 1 ? "pasan" : "pasa"} los filtros."
 
     - combine_campo = Flow::StepSettings.fields("selection").find { |c| c[:key] == "score_source.combine" }
     - combine_valor = step.settings.dig("score_source", "combine")

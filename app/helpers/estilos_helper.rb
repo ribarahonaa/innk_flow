@@ -79,6 +79,10 @@ module EstilosHelper
     "aca" => "badge badge-primary badge-xs font-semibold whitespace-nowrap ml-2",
     "no_pasa" => "badge badge-soft badge-error badge-xs font-semibold whitespace-nowrap ml-2",
     "sin_responder" => "badge badge-soft badge-warning badge-xs font-semibold whitespace-nowrap ml-2",
+    # Avanza por el piso del corte SIN pasar los filtros. Comparte la clase con
+    # «sin responder» a propósito: las dos dicen «mirá esta fila», y nunca caen
+    # juntas —el piso no completa con una idea que tiene un filtro pendiente—.
+    "por_piso" => "badge badge-soft badge-warning badge-xs font-semibold whitespace-nowrap ml-2",
     "derivado" => "badge badge-soft badge-primary badge-xs font-bold ml-1.5",
     "evaluador" => "badge badge-soft badge-xs font-semibold",
     "evaluador_ia" => "badge badge-soft badge-secondary badge-xs font-semibold"

@@ -249,4 +249,76 @@ RSpec.describe "la pantalla de una selección", type: :request do
       expect(response.body).not_to include("Pasan por el mínimo")
     end
   end
+  # El piso gana también sobre los filtros, así que existe la idea que avanza
+  # CON un filtro fallado. Dos cosas se rompen si la pantalla no se entera: la
+  # casilla iba `disabled` por no pasar el filtro —y una casilla deshabilitada
+  # no se envía, así que confirmar el corte la dejaba afuera igual—, y la fila
+  # no decía por qué una idea con ✗ estaba arriba de la línea.
+  describe "cuando el piso sube una idea que no pasa un filtro" do
+    let!(:verificable) do
+      as_company(company) do
+        set = CriteriaSet.create!(name: "Filtros verificables", scope: "library")
+        set.criteria.create!(name: "Tiene costo", key: "costo_presente", weight: 1,
+                             source: "automatic",
+                             source_config: { "check" => "field_present", "field_key" => "costo" })
+        set.refresh_status!
+        set
+      end
+    end
+
+    # Ninguna idea declara el costo: las dos fallan el filtro, así que sin el
+    # piso no avanzaría ninguna.
+    let!(:otro) do
+      as_company(company) do
+        c = create(:challenge, name: "Piso con filtros", ai_default_mode: "human")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
+        evaluacion = c.steps.create!(kind: "evaluation", position: 2, name: "Técnica", slug: "tecnica")
+        c.steps.create!(kind: "selection", position: 3, name: "Corte", criteria_set: verificable,
+                        config: { "cut" => { "mode" => "threshold", "value" => 0.95, "min" => 1 } })
+
+        %w[Alta Baja].each_with_index do |titulo, index|
+          idea = create(:idea, challenge: c, author: paula, status: "active")
+          Flow::Ideas::PublishVersion.new(idea, payload: { "titulo" => titulo }, author: paula).call
+          idea.update!(submitted_at: Time.current)
+          evaluacion.step_entries.create!(idea: idea, status: "done",
+                                          result: { "score" => 0.6 - (index * 0.2) })
+        end
+
+        c.update!(status: "running")
+        evaluacion.update!(status: "completed")
+        c
+      end
+    end
+
+    def corte_con_filtro
+      as_company(company) do
+        paso = otro.steps.reload.find(&:selection?)
+        Flow::Handlers::Base.for(paso).activate!
+        paso.reload
+      end
+    end
+
+    def idea_llamada(titulo) = as_company(company) { otro.ideas.detect { |i| i.title == titulo } }
+    def casilla(html, idea) = html[/<input[^>]*id="advance_#{idea.id}"[^>]*>/]
+
+    it "deja tildar la que sube por el piso: deshabilitada no se enviaba" do
+      get challenge_step_path(otro, corte_con_filtro)
+
+      marcada = casilla(response.body, idea_llamada("Alta"))
+      expect(marcada).to include("checked")
+      expect(marcada).not_to include("disabled")
+    end
+
+    it "sigue sin dejar tildar la que ni el piso alcanzó" do
+      get challenge_step_path(otro, corte_con_filtro)
+
+      expect(casilla(response.body, idea_llamada("Baja"))).to include("disabled")
+    end
+
+    it "dice en la fila por qué avanza una idea con un filtro fallado" do
+      get challenge_step_path(otro, corte_con_filtro)
+
+      expect(response.body).to include("pasa por el mínimo")
+    end
+  end
 end

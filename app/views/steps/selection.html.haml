@@ -8,6 +8,10 @@
 -# filas salteadas no marca nada.
 - ranking = completo.select { |row| @ideas_visibles.include?(row.idea.id) }
 - ve_todo = ranking.size == completo.size
+-# La línea va DESPUÉS de la última que avanza, no en `above.size`: con el piso
+-# cruzando los filtros, las que avanzan dejaron de ser un prefijo contiguo del
+-# ranking (una que pasa los filtros pero no tiene puntaje queda en el medio).
+- corte_en = ranking.rindex(&:above_cut?).to_i + 1
 - gates = @handler.gate_criteria
 
 = render "steps/header", step: @step, handler: @handler
@@ -63,7 +67,7 @@
               %th= source.name
         %tbody
           - ranking.each_with_index do |row, index|
-            - if ve_todo && index == above.size && above.size < ranking.size
+            - if ve_todo && index == corte_en && corte_en < ranking.size
               %tr.cut-line
                 %td{ colspan: 4 + gates.size + @handler.source_steps.size }
                   %span.cut-line__label= "línea de corte · #{t("flow.cut_modes.#{@handler.cut_mode}")}"
@@ -72,8 +76,12 @@
                 -# Con el módulo cerrado la casilla se podía tildar y no hacía
                 -# nada: no hay formulario que enviar. Se muestra lo que pasó.
                 - if decidible
+                  -# Una casilla deshabilitada NO se envía. Deshabilitarla por no
+                  -# pasar un filtro dejaba afuera del corte a la que el piso
+                  -# subió justamente por encima de los filtros: quedaba tildada
+                  -# y al confirmar no avanzaba.
                   = check_box_tag "advancing_idea_ids[]", row.idea.id, row.above_cut?, id: "advance_#{row.idea.id}",
-                                  disabled: !row.passes_gates?, form: corte_id
+                                  disabled: !row.passes_gates? && !row.por_el_piso?, form: corte_id
                 - elsif fuera_aca.key?(row.idea.id)
                   %span.gate.gate--fail{ title: "No avanzó en este módulo" } ✗
                 - else
@@ -87,6 +95,11 @@
                 - if row.failed_gates.any?
                   %span{ class: chip("no_pasa"), title: row.failed_gates.map { |g| g[:name] }.join(", ") }
                     = "no pasa #{Flow::Texto.contar(row.failed_gates.size, 'filtro')}"
+                  -# Y arriba de la línea de corte igual, porque el mínimo manda
+                  -# sobre los filtros. Sin decirlo, una fila con ✗ que avanza
+                  -# se lee como un error de la app.
+                  - if row.por_el_piso?
+                    %span{ class: chip("por_piso") } pasa por el mínimo
                 - elsif row.pending_gates.any?
                   %span{ class: chip("sin_responder") }= "#{Flow::Texto.contar(row.pending_gates.size, 'filtro')} sin responder"
                 -# La acción va donde está la idea. Antes había una tarjeta aparte
@@ -155,7 +168,7 @@
     .card
       .card-body
         %h2.section-title Confirmar el corte
-        %p.muted Avanzan las ideas tildadas arriba. Las que no pasan un filtro no se pueden tildar.
+        %p.muted Avanzan las ideas tildadas arriba. Las que no pasan un filtro no se pueden tildar, salvo las que el mínimo subió igual.
         .field
           = label_tag :reason, "Motivo del corte (queda en el registro)"
           = text_field_tag :reason, nil, placeholder: "El comité priorizó impacto sobre esfuerzo"
