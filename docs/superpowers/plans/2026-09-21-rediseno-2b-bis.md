@@ -922,10 +922,54 @@ Expected: `[CLASES] 20-not-found: … panel …`
 
 Sacarlo y volver a correr hasta verde.
 
+- [ ] **Step 4b: La captura que faltaba, `assessments/new`**
+
+Eran NUEVE pantallas sin captura, no ocho. El spec dio `assessments/new` por
+cubierta por `09-11-panel-evaluacion`, y esa captura es de **otra vista**:
+navega a `/steps/<id>`, o sea `steps/evaluation`. `assessments` no aparece en
+ninguna parte de `script/capture_screens.js`.
+
+Lo destapó la Tarea 6 al ir a comparar su captura y encontrar que no era la
+suya. Migró esa pantalla verificándola a mano contra la app corriendo, que es
+lo correcto para no reportar sobre una imagen que no prueba nada, pero deja la
+única vista del plan sin guarda.
+
+Se llega por link desde el módulo de evaluación, con el botón «Evaluar» de una
+fila cuya idea no sea del propio usuario. En `merma-bodega` el módulo
+«Evaluación de comité» lo tiene. El nombre: `21-evaluar-idea`.
+
+```js
+  // La ficha de evaluación: el formulario que se llena para puntuar una idea.
+  // No la cubría ninguna captura —`09-11-panel-evaluacion` es la pantalla del
+  // MÓDULO, no ésta— y por eso la tarea 6 tuvo que verificarla a mano.
+  const aComite = stepLinks.find((l) => l.text.match(/comit/i));
+  if (aComite) {
+    await page.goto(BASE + aComite.href, { waitUntil: 'networkidle' });
+    const aEvaluar = page.locator('a:has-text("Evaluar")').first();
+    if (!(await aEvaluar.count())) {
+      failures++;
+      console.error('[LINK] el módulo de comité no ofrece evaluar ninguna idea');
+    } else {
+      await aEvaluar.click();
+      await page.waitForURL(/\/assessments\/new/);
+      await capturar(page, '21-evaluar-idea');
+    }
+  }
+```
+
+Va junto al resto de las capturas del bloque «Las pantallas que nadie
+fotografiaba», y **sube el recorrido de 59 a 60**. Ajustá los conteos
+esperados de los pasos siguientes.
+
+Si el link «Evaluar» no aparece, la guarda `[LINK]` lo dice: quien recorre es
+admin, y el link se ofrece por `AssessmentPolicy#create?`, que depende de la
+ASIGNACIÓN al módulo y no del rol. Si falla, el seed cambió y hay que mirarlo,
+no sacar la guarda.
+
 - [ ] **Step 5: Correr todo**
 
 Run: `make yarn-build && make spec && make screens`
-Expected: 919 examples 0 failures; 59 capturas, sin errores.
+Expected: 919 examples 0 failures; 60 capturas, sin errores.
 
 - [ ] **Step 6: Corregir CLAUDE.md**
 
@@ -944,7 +988,7 @@ Su sección de alcance dice que las islas Vue, incluidas sus tarjetas internas, 
 - [ ] **Step 8: Correr todo una vez más y commitear**
 
 Run: `make yarn-build && make spec && make screens`
-Expected: 919 examples 0 failures; 59 capturas, sin errores.
+Expected: 919 examples 0 failures; 60 capturas, sin errores.
 
 ```bash
 git add app/assets/stylesheets/application.css script/capture_screens.js CLAUDE.md docs/superpowers/specs
@@ -971,7 +1015,7 @@ CLAUDE.md y el spec del 2b dicen lo que quedó.
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
 
-- [ ] **Step 9: Mirar las 59 capturas**
+- [ ] **Step 9: Mirar las 60 capturas**
 
 Es el cierre del plan y lo único que no hace una máquina. Comparar contra `tmp/screenshots-antes-2b/` donde haya equivalente.
 
@@ -981,7 +1025,7 @@ Es el cierre del plan y lo único que no hace una máquina. Comparar contra `tmp
 
 - `grep -rnE '(\.panel\b|class[:=].*"[^"]*\bpanel\b)' app/ script/` no devuelve nada fuera de los ocho asertos que esperan cero.
 - `make spec`: 919 examples, 0 failures.
-- `make screens`: 59 capturas, sin errores.
+- `make screens`: 60 capturas, sin errores.
 - `[CLASES]` visto cazando un `.panel` reintroducido.
-- Las 59 capturas miradas.
+- Las 60 capturas miradas.
 - CLAUDE.md y el spec del 2b dicen lo que quedó.
