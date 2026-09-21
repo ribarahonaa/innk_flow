@@ -8,7 +8,7 @@
 
     <div v-if="versionCreated" class="alert alert-soft alert-success">{{ versionCreated }}</div>
 
-    <div class="panel">
+    <div class="card"><div class="card-body">
       <div class="field">
         <label>Nombre del set</label>
         <input v-model="form.name" type="text" placeholder="Evaluación técnica" />
@@ -17,9 +17,9 @@
         <label>Descripción</label>
         <input v-model="form.description" type="text" placeholder="Para qué sirve y cuándo usarlo" />
       </div>
-    </div>
+    </div></div>
 
-    <div class="panel">
+    <div class="card"><div class="card-body">
       <div class="section-head">
         <div>
           <h2 class="section-title">Criterios</h2>
@@ -61,7 +61,7 @@
           <button type="button" class="btn btn-ghost btn-sm" @click="preset('gate')">Filtros de admisibilidad</button>
         </template>
       </div>
-    </div>
+    </div></div>
 
     <div class="editor-actions">
       <span v-if="issues.length" class="field-hint field-hint--warn">{{ issues[0] }}</span>
