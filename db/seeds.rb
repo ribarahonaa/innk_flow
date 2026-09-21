@@ -127,6 +127,9 @@ Flow::Tenant.bypass! do
     # Filtros del corte: condiciones de sí/no que la idea tiene que cumplir
     # para seguir. No dan puntaje —eso lo trae la evaluación previa— sino que
     # habilitan o dejan afuera.
+    # El seed se corre varias veces: los sets de la biblioteca no cuelgan del
+    # desafío, así que se limpian aparte o quedan duplicados.
+    CriteriaSet.library.where(name: "Filtros de pase a comité").destroy_all
     filtros = CriteriaSet.create!(name: "Filtros de pase a comité", scope: "library",
                                   description: "Lo mínimo para que valga la pena discutirla en comité.")
     [
