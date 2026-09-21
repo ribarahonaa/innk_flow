@@ -2,170 +2,195 @@
 
 ## Objetivo
 
-El **plan 2b del rediseño**: la pantalla del módulo, en sus dos caras. La cara
-de ejecución pasa a tres zonas —el trabajo al centro, lo que se consulta en la
-columna de referencia, y los ajustes que casi nunca se tocan plegados al
-final—, la de configuración junta lo que estaba partido en tarjetas sueltas, y
-todo eso migra de `.panel` al `card` de DaisyUI.
+Dos cosas, las dos terminadas y mergeadas.
 
-El spec cubría sólo eso. Las revisiones encontraron además **tres fugas de
-lectura preexistentes** (idear, reportería y el registro de decisiones de
-selección) y **dos controles fantasma**; los cinco se arreglaron con decisión
-de Raúl, cada uno en su commit.
+**Los siete menores** que la revisión final del plan 2b dejó pasar: guardas que
+no podían fallar, un N+1, una regla de rol escrita en una vista, niveles de
+título desparejos.
 
-Rama `rediseno-2b`, **sin mergear y sin pushear**.
+**El plan 2b-bis del rediseño**: el resto de la app de la clase propia `.panel`
+al `card` de DaisyUI —42 tarjetas en 23 vistas HAML y 4 en dos islas Vue— y
+después borrar la regla, sus tres selectores compuestos y la guarda `[CARD]`.
+`.panel` ya no existe.
 
 ## Estado actual
 
-- **Mergeado y pusheado.** `master` y `origin/master` están en `4915f14`, el
-  merge de `rediseno-2b` (`--no-ff`, como las integraciones anteriores). El
-  árbol del merge es idéntico al de la rama verificada, así que lo que corrió
-  en verde es exactamente lo que quedó en `master`. La rama local
-  `rediseno-2b` (`b7a48d6`) sigue existiendo, sin borrar.
-- **Verificación sobre `c76a6e7`, la punta de la rama:** `make spec` 915
-  ejemplos, 0 fallas.
-  `make screens` 52 capturas, «Sin errores de JS ni respuestas >= 400», con
-  todas las guardas en silencio.
-- **Revisión final de la rama hecha** (subagente, rama entera contra `master`):
-  dos hallazgos «arreglar antes de mergear», los dos arreglados y
-  re-revisados. Lo que quedó son menores que no bloquean, listados abajo.
-- **Las guardas nuevas de `make screens`**, todas vistas fallar antes de
-  darlas por buenas: `[CARD]` (una `card` se ve igual que un `.panel`),
-  `[PLEGABLE]` (un `<details>` abierto sobrevive al morph), `[REFERENCIA]`
-  (la columna entra en una pantalla, a 1440×1000 y a 1100×900), `[ZONAS]`,
-  `[DESGLOSE]`, `[SALTEADO]` y `[PUNTOS]` (contraste de los puntos del
-  drawer, con conteo esperado fijo).
-- **Hechos del entorno que muerden** (siguen valiendo):
-  - El push por SSH no anda; va por HTTPS con el token de `gh`:
-    `git -c credential.helper= -c credential.helper='!gh auth git-credential' push https://github.com/ribarahonaa/innk_flow.git <ref>`.
-  - **El contenedor `app` no recompila CSS ni JS solo:** `make yarn-build`
-    antes de `make screens`.
-  - `make seed` ahora crea además `con-salteado`, el desafío que existe sólo
-    para fotografiar un módulo salteado.
+- **Todo mergeado y pusheado.** `master` y `origin/master` están en `eec32c9`.
+  Dos integraciones `--no-ff`: `00fb1b3` (los menores) y `eec32c9` (el 2b-bis).
+  En los dos casos el árbol del merge quedó idéntico al de la rama verificada.
+- **Verificación, corrida por el controller y no sólo reportada:**
+  `make spec` 919 ejemplos 0 fallas · `make screens` **62 capturas**, sin
+  errores de JS ni respuestas >= 400.
+- El recorrido pasó de 52 capturas a 62. **Nueve pantallas no tenían ninguna**,
+  y dos de ellas lo destaparon recién al ir a usarlas.
+- `.panel` no queda en vistas, islas, hoja ni builds. Lo único que sobrevive
+  son comentarios históricos de `application.css`, conservados a propósito.
+- **Ramas locales sin borrar**: `menores-2b`, `rediseno-2b`, `rediseno-2b-bis`.
+  En `origin` siguen `doc-404-403`, `rediseno-2a` y
+  `arreglos-de-permisos-y-demo`.
+
+### Hechos del entorno que muerden
+
+- El push por SSH no anda. Va por HTTPS con el token de `gh`:
+  `git -c credential.helper= -c credential.helper='!gh auth git-credential' push https://github.com/ribarahonaa/innk_flow.git <ref>`.
+  `git fetch` a secas también rebota: hay que darle la URL HTTPS igual.
+- **El contenedor `app` no recompila CSS ni JS solo:** `make yarn-build` antes
+  de `make screens` siempre que se toque la hoja o una isla.
+- **Nunca un worktree para ejecutar planes acá.** `docker-compose.yml` monta
+  `.` en `/rails`, así que `make spec` y `make screens` corren SIEMPRE contra
+  el checkout principal: un worktree verificaría el árbol equivocado y daría
+  verde sobre código que no es el editado.
+- **Dos corridas de `make screens` en paralelo se pisan.** Borra y reescribe
+  `tmp/screenshots/` entero al arrancar. Ya arruinó una verificación: un
+  revisor se quedó a mitad de comparar capturas porque otra tarea empezó a
+  reescribirle el directorio.
+- `make seed` siembra ahora **tres** desafíos que existen sólo para el
+  recorrido: `sin-formulario`, `con-salteado` y `comite-abierto`.
 
 ## Archivos y cambios
 
-**El rediseño (11 tareas del plan)**
+**Los siete menores** (rama `menores-2b`, merge `00fb1b3`)
 
-- `steps/_bloque` y `steps/_ajustes`: dos partials de layout que dan la forma.
-  Un bloque es tarjeta suelto y `%section` adentro de los ajustes, así que
-  nunca hay una tarjeta dentro de otra.
-- Las cinco caras de ejecución en tres zonas. **Selección quedó sin columna de
-  referencia**, decidido midiendo: con ella, a 1440 la columna «Idea» caía a
-  205px y a 1280 la tabla pedía scroll horizontal (evidencia en el cuerpo de
-  `96ad0b6`).
-- **Evaluación:** «Evaluaciones hechas» desaparece; cada idea es una fila que
-  se despliega con su desglose, y sólo para quien puede ver quién puso qué. La
-  pantalla pasó de 4.239px de alto a 1.027.
-- **La referencia entra en una pantalla:** listas de una línea sin recuadro
-  —la densidad la decide la zona, `.app-aside .field-list`— y, debajo de
-  1280px, una sola fila que se desliza de costado.
-- **`card` con el aspecto de `.panel` en una sola regla** (`--card-p`,
-  `--card-fs`), y un gancho en `application.js` que evita que el morph le
-  saque el `open` a un `<details>`.
-- Los seis chips escritos a mano pasan a `badge` vía `EstilosHelper::CHIPS`;
-  el borde por tipo de feedback pasa a `data-kind` y los puntos del drawer a
-  clase propia, para que dejen de colgar del color de un chip.
-- `spec/requests/pantalla_del_modulo_spec.rb` (nuevo): qué hay en cada zona,
-  **por rol**, en los cinco kinds.
+- `da3edda` — la pasada oscura abre los plegables. **El menor no existía**: las
+  guardas ya medían adentro de un `<details>` cerrado. Quedó el cambio por la
+  foto, y se corrigió el comentario falso que también estaba en la pasada clara.
+- `be86ee4` — cada módulo del recorrido cae en exactamente una lista de
+  `MODULOS_*`. Antes, renombrar uno lo sacaba de las dos y sus zonas dejaban de
+  chequearse sin que nada lo dijera.
+- `f9073e3` — el nivel del título lo pone la zona: `h3` en la referencia, `h2`
+  al centro. `.section-title` da tamaño y color por clase, así que el nivel no
+  se ve en pantalla: sólo ordena el outline.
+- `f04f1bc` — el resumen del plegable sale de las mismas guardas que sus
+  bloques. Divergía en UNA pantalla: evolución con el desafío cerrado.
+- `dd63a68` — `ve_el_pool` pasa de la vista a `ChallengePolicy#read_pool?`.
+- `d0662ea` — **eran dos N+1, uno tapando al otro.** El reportado
+  (`assessment.stale?`) medía cero consultas propias porque el caché del
+  request se las comía; el de abajo era la lista de pendientes sin `includes`.
+  Cuatro filas pasaron de 6 consultas a `ideas` a 2.
+- `98f931d` — la referencia de reportería sigue el orden que CLAUDE.md declara.
 
-**Los cinco arreglos que no eran del rediseño** (cada uno en su commit, con su
-spec visto fallar)
+**El 2b-bis** (rama `rediseno-2b-bis`, merge `eec32c9`, 19 commits)
 
-- `e475cb2` — idear listaba todas las ideas postuladas a quien participa.
-- `be644ec` — reportería mostraba ranking, matriz y resumen narrativo enteros;
-  ahora ve lo agregado y sus propias ideas, y las descargas quedan para quien
-  puede generarlas.
-- `947096c` — el registro de decisiones de selección listaba las ideas de
-  todo el mundo.
-- `82b5f26` y `c76a6e7` — el botón «IA» de cada fila: era sólo de quien
-  administra, y encima desaparecía en la fila de la idea propia. Ahora es de
-  quien evalúa el módulo, también sobre su propia idea.
-- `38a8934` — «Evaluar» se le ofrecía a quien no está asignado y rebotaba en
-  403.
+- `315be1c` `f544454` — spec y plan.
+- `d0fb7bd` `f182f45` — las capturas que faltaban, y sacar `13-home`.
+- `fb3f6ff` `c461304` `cd97eb8` `40e9a82` `4edf290` `1655f06` — las seis tandas
+  del swap: sistema, ideas, desafíos, criterios/IA/miembros, ficha de
+  evaluación, islas.
+- `62084ff` — **se borra `pages/home.html.haml` y su controller.** Era
+  inalcanzable: `routes.rb:113` es `root "challenges#index"` y nada ruteaba a
+  `PagesController#home`. `skip_pundit?` lo nombraba, así que borrarlo sin
+  tocar esa línea reventaba con `NameError`.
+- `1413414` — `comite-abierto`, fixture de un solo propósito.
+- `c69faad` — se borra `.panel`: la regla, sus tres selectores compuestos y
+  `[CARD]`.
+- `880c874` — los seis hallazgos de la revisión final de la rama.
+- `c8afc0f` — el seed duplicaba «Filtros de pase a comité» en cada corrida.
+
+**Lo que no era el swap y salió al hacerlo**
+
+- El `%td: %code=` de `criteria_sets/show:20` era sintaxis de **Slim**, no de
+  HAML: salía `<td:>%code= criterion.key</td:>` y la columna «Clave» mostraba
+  el literal. Arreglado en la tanda que migraba esa vista.
+- El seed duplicaba un set de biblioteca: la línea 96 tenía su `destroy_all` y
+  la 130 no.
 
 ## Intentos fallidos
 
-- **La referencia completa no entraba en una pantalla.** Evaluación medía
-  1.395px de columna y a 1100px de ancho empujaba el título del módulo a
-  y=807. Se arregló compactando por zona y con una fila horizontal; si algún
-  módulo suma tarjetas, `[REFERENCIA]` lo marca (evaluación usa 971 de 1.000).
-- **Selección con referencia no se lee**, medido a tres anchos. Por eso es la
-  excepción declarada del spec.
-- **Tres pruebas del plan no podían fallar, y las tres las encontró la
-  revisión:**
-  - la de la tarjeta junta miraba el texto entero, así que pasaba igual con
-    una tarjeta anidada adentro (se probó con la mutación decisiva);
-  - la del setup de selección nunca llegaba a arrancar el módulo: `start!`
-    devuelve un resultado fallido **sin levantar excepción**, y la pantalla
-    era la de configuración. Desde ahí, cada describe afirma `be_active`;
-  - `[PUNTOS]` no fallaba si no encontraba ningún punto que medir, el mismo
-    modo de falla que el muestrario ya había sufrido.
-- **`[CLASES]` es ciega a un renombre consistente**: si la clase y su regla se
-  renombran juntas, no dice nada. Se comprobó renombrando el punto del drawer
-  en el helper y en las cinco reglas: sólo `[PUNTOS]` cantó.
-- **La pasada oscura no abre ningún plegable**, así que lo que está adentro no
-  se mide en oscuro. Anotado abajo.
-- **HAML no acepta un comentario `-#` entre el cuerpo de un `if` y su `else`**
-  a la misma indentación: rompe el pareo con «else is indented at wrong
-  level». El comentario va adentro de la rama.
-- **Un `puts` del seed vale la pena**: `pipeline.start!` devuelve un Result y
-  no revienta, así que un seed que no arranca se ve «sin error».
+**Lo que se creyó y no era.** Vale la pena leer esta sección entera: el patrón
+se repitió seis veces.
+
+- **El menor de los plegables no existía.** Un `<details>` cerrado NO le saca la
+  caja a sus descendientes en Chromium, así que `medirContraste` y
+  `revisarClasesDescartadas` ya medían adentro. Comprobado de dos formas: 138 y
+  37 elementos con caja adentro del desglose y de los ajustes, idénticos
+  abierto y cerrado en los dos temas; y un `.badge` de 1,20:1 metido adentro,
+  que `[CONTRASTE]` reportó en seis pantallas **incluidas las que lo tienen
+  cerrado**.
+- **Tres reportes seguidos acertaron la conclusión y erraron la razón**, y dos
+  de esas razones falsas quedaron grabadas en mensajes de commit (`c461304`).
+  La correcta, medida: el `p { flex-grow: 1 }` de `card-body` sólo estira
+  cuando el contenedor **tiene espacio sobrante que repartir**. Y hay DOS
+  grillas de tarjetas que se comportan distinto: en `challenges/index` las
+  tarjetas llevan `.challenge-card` con `display: block` **sin capa**, que le
+  gana al flex de DaisyUI; en `criteria_sets/index` son `.card` a secas y el
+  sobrante sí se reparte adentro. Está escrito en la hoja.
+- **La tabla de cobertura del spec se armó leyendo NOMBRES de captura**, no a
+  qué URL va cada una. Costó dos defectos: `13-home` fotografiaba el índice de
+  desafíos (mismo md5 que `02-challenges`) y `09-11-panel-evaluacion` es la
+  pantalla del módulo, no `assessments/new`. Las dos las destaparon las tareas
+  al ir a usarlas.
+- **`.panel` se escribe de DOS formas** y todos los conteos del plan veían una:
+  la abreviatura de HAML y el atributo de cadena
+  (`class: "panel challenge-card"`). Lo grave no era el conteo: el paso que
+  autorizaba el borrado de la regla usaba ese mismo grep. El que sirve:
+  `grep -rnE '(\.panel\b|class[:=].*"[^"]*\bpanel\b)'`.
+- **`.empty-state` dentro de un `card-body` flex desarma la pantalla.** Medido:
+  el botón pasó de 147px a **1350px** de ancho y el hueco título→texto de 17 a
+  39px. Ninguna captura miraba las cinco pantallas vacías. Se arregla con
+  `.card-body.empty-state { display: block; }` y ahora hay dos capturas.
+- **Una regla por elemento alcanza más de lo que su comentario dice.**
+  `.card-body > h1` es (0,1,1) y `.page-title` (0,1,0): le ganaba y le comía
+  4px a tres vistas más de las declaradas. Acotada con `:not([class])`.
+
+**Datos del seed que bloquearon capturas, y cómo se resolvieron**
+
+- `sin-formulario` tiene **cero ideas**: no sirve para fotografiar `ideas/new`
+  ni `ideas/edit`. Se usa `merma-bodega`, que es el del recorrido.
+- En `merma-bodega` la postulación está `completed`, así que **no existe el
+  link «Postular una idea»** — se va por `goto` con guarda.
+- **Ningún desafío sembrado dejaba un módulo de evaluación `activo`**, y el
+  link «Evaluar» lo exige además de la policy. Por eso se sembró
+  `comite-abierto`.
+- `sessions#destroy` no está en las excepciones de `require_company`, así que
+  cerrar sesión de una cuenta multiempresa **rebota en `/select_company`**.
+
+**Lo que se perdió al borrar `[CARD]`, y no se reemplazó del todo.** `[CLASES]`
+caza un `.panel` reintroducido —se lo vio fallar— pero marca un elemento sólo
+si no tiene fondo **Y** no tiene relleno **Y** no tiene borde, y en un `.card`
+el relleno es siempre 0 porque vive en el `card-body`. `[CARD]` era lo único
+que medía el **aspecto**: los 20px de `--card-p`, los 14px de `--card-fs` y la
+sombra. Hoy nada vigila que DaisyUI no recupere sus 24px por default.
 
 ## Próximos pasos
 
-1. **Mirar las capturas**, que es lo único del 2b que no hizo una máquina:
-   `tmp/screenshots/` tiene las 52 de HEAD y `tmp/screenshots-antes-2b/` las
-   de partida, con los mismos nombres. Las que más cambiaron:
-   `09-3` y `09-5` (evaluación), `09-16-ajustes-abiertos`, `09-17-desglose`,
-   `09-4` (selección), `09-1` (idear), `09-7` (reportería) y `02b-salteado`.
-2. **Menores que la revisión final dejó pasar**, en orden de valor:
-   - la pasada oscura no abre plegables, así que el desglose y los ajustes no
-     se miden en oscuro (se cierra abriendo el `details` en
-     `94-oscuro-evaluacion`);
-   - `MODULOS_EN_ZONAS` / `MODULOS_SOLO_AJUSTES` dejan de chequear en silencio
-     si alguien renombra un módulo del seed: un `else` que sume una falla;
-   - niveles de título desparejos entre las cinco pantallas (`h2` en
-     «Cómo quedó configurado», `h3` en el resto de la referencia);
-   - el `resumen` del plegable es texto fijo y con el desafío cerrado nombra
-     un bloque que no está;
-   - `ve_el_pool = !current_membership.participant?` es una regla de rol
-     escrita en una vista, y `CLAUDE.md` insiste en que viva una sola vez;
-   - un N+1 movido: `assessment.stale?` carga la idea por evaluación;
-   - reportería pone la configuración congelada primero y las descargas
-     después, al revés del orden que `CLAUDE.md` declara para la referencia:
-     hay que invertirlo o acotar la frase.
-3. **Plan 2b-bis:** el resto de las pantallas a `card` (ficha de la idea, alta
-   y edición, ficha de evaluación, desafíos, criterios, miembros, IA,
-   errores). `.panel` se borra cuando no quede ninguna. La guarda `[CARD]` se
-   borra con él.
-4. **Plan 2c:** las islas Vue. Ahí espera el CSS muerto del editor de
-   criterios (`criterion-row*`, `checks-help`, `inline-label`) y `.btn-link`.
-5. **Tres temas de seguridad preexistentes, sin arreglar** (los mismos del
-   handoff anterior): la sesión de quien perdió la membresía sigue viva; los
-   links de adjuntos de Active Storage no vencen y quedan fuera de Pundit; se
-   puede asignar a evaluar a alguien con rol `participant` por POST directo.
-6. **Ramas mergeadas sin borrar**: en `origin` siguen `doc-404-403`,
-   `rediseno-2a` y `arreglos-de-permisos-y-demo` —el intento de esta sesión lo
-   bloqueó el filtro de permisos, que no deja borrar ramas remotas— y en local
-   queda `rediseno-2b`, ya mergeada. Borrarlas es de Raúl:
+1. **Mirar las 62 capturas.** Es lo único de los dos planes que no hizo una
+   máquina. Las nuevas: `14-ai-run`, `15-criteria-set`, `16-idea-new`,
+   `17-idea-edit`, `18-select-company`, `18b-desafios-vacio`,
+   `18c-criterios-vacio`, `19-forbidden`, `20-not-found`, `21-evaluar-idea`.
+2. **Plan 2c: las islas Vue.** Es lo que queda del rediseño. El CSS muerto que
+   espera ahí ya está confirmado con **cero** usos: `checks-help`,
+   `inline-label` y `.btn-link`; `.criterion-row*` sólo aparece como nombre de
+   componente Vue, no como clase.
+3. **Dos hallazgos sin decidir**, los dos anotados y sin tocar:
+   - **`criteria_sets#show` es una pantalla huérfana**: nada en la app la
+     linkea. O se linkea desde el índice, o se borra.
+   - **Evolución hace 3 consultas a `ideas`** con una sola idea sembrada
+     (`evolution.html.haml:15` y `:22`). No se determinó si escala: haría falta
+     un seteo de varias ideas prearranque.
+4. **Evolución no tiene encabezados en el centro**: el título de cada tarjeta
+   de feedback es un `link_to` con clase propia, no un `h2`. Misma familia que
+   el menor de los niveles de título, otra pantalla.
+5. **Tres temas de seguridad preexistentes, sin arreglar** (vienen de handoffs
+   anteriores y no se verificaron en esta sesión): la sesión de quien perdió la
+   membresía sigue viva; los links de adjuntos de Active Storage no vencen y
+   quedan fuera de Pundit; se puede asignar a evaluar a alguien con rol
+   `participant` por POST directo.
+6. **Ramas mergeadas sin borrar.** Es de Raúl:
 
    ```bash
-   git branch -d rediseno-2b
+   git branch -d menores-2b rediseno-2b rediseno-2b-bis
    git -c credential.helper= -c credential.helper='!gh auth git-credential' \
      push https://github.com/ribarahonaa/innk_flow.git \
-     --delete doc-404-403 rediseno-2a arreglos-de-permisos-y-demo rediseno-2b
+     --delete doc-404-403 rediseno-2a arreglos-de-permisos-y-demo
    ```
 
-**Decisiones tomadas en esta sesión** (las nueve están en los mensajes de
-commit; éstas son las que cambian lo que se ve o condicionan lo que sigue):
+**Decisiones de Raúl en esta sesión**
 
-- Selección **sin** columna de referencia.
-- Quien participa, en reportería, ve lo agregado y sus propias ideas; el
-  resumen narrativo no, porque nombra ideas ajenas.
-- En el registro de decisiones ve sus filas, conservando quién decidió, cuándo
-  y el motivo del corte.
-- El punto de un módulo pendiente se aclaró de 2,57:1 a 3,71:1 para cumplir el
-  piso de 3:1 de WCAG para lo que no es texto.
-- Pedirle a la IA que evalúe es de quien evalúa el módulo, también sobre su
-  propia idea.
+- `ve_el_pool` pasa a un predicado nuevo (`read_pool?`) y **no** se reusa
+  `curate_pool?`: leer un resumen no decide nada, y quien evalúa ve el pool
+  entero.
+- `pages/home.html.haml` se **borra** por inalcanzable, no se migra a ciegas.
+- El bug del `%td:` se arregla en la tanda que migra esa vista, no antes.
+- `comite-abierto` queda como fixture sembrada.
+- El commit de cierre va **antes** del merge, para que la regresión medida de
+  las pantallas vacías no entre a `master`.
