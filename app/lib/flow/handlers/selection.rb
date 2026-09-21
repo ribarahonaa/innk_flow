@@ -20,6 +20,12 @@ module Flow
         def pending_gates = gates.select { |gate| gate[:passed].nil? }
         def failed_gates = gates.select { |gate| gate[:passed] == false }
         def eligible? = passes_gates? && above_cut?
+
+        # Entró por el piso: avanza SIN pasar los filtros. Lo pregunta la
+        # pantalla —una idea arriba de la línea con un ✗ al lado se lee como un
+        # error de la app— y también la casilla del corte, que no se puede
+        # deshabilitar por no pasar un filtro si igual va a avanzar.
+        def por_el_piso? = above_cut && !passes_gates?
       end
 
       def can_activate?
@@ -103,13 +109,11 @@ module Flow
           [row.passes_gates? ? 0 : 1, row.score.nil? ? 1 : 0, -(row.score || 0), row.idea.created_at]
         end
 
-        eligible = ordered.select(&:passes_gates?)
-        cutoff = cut_size(eligible)
+        avanzan = quienes_avanzan(ordered)
 
         ordered.each_with_index.map do |row, index|
-          within = row.passes_gates? && eligible.index(row).to_i < cutoff && (row.scored? || no_score_source?)
           Row.new(idea: row.idea, entry: row.entry, score: row.score, rank: index + 1,
-                  sources: row.sources, above_cut: within, gates: row.gates)
+                  sources: row.sources, above_cut: avanzan.include?(row.idea.id), gates: row.gates)
         end
       end
 
@@ -241,13 +245,20 @@ module Flow
       # Recibe las filas ya calculadas porque `ranking` NO se memoiza a
       # propósito —`record_verdict!` invalida en el medio— y la pantalla ya lo
       # tiene: sin el parámetro, cada render lo calculaba dos veces, y ahí
-      # adentro hay una consulta por criterio y por idea.
+      # adentro hay una consulta por criterio y por idea. Tiene que ser el
+      # ranking ENTERO y no el filtrado por visibilidad: se cuenta cuántas
+      # quedaron arriba del corte, y una lista recortada da de menos.
       def piso_aplicado?(filas = ranking)
         return false if cut_min.zero? || manual_cut? || no_score_source?
 
         elegibles = filas.select(&:passes_gates?)
         evaluadas = elegibles.count(&:scored?)
-        cut_base(elegibles, evaluadas) < [cut_min, evaluadas].min
+        # Lo que la regla SOLA dejaba pasar, contra lo que efectivamente pasó.
+        # Con el piso cruzando los filtros el tope ya no es el subconjunto
+        # elegible: comparar contra `[cut_min, evaluadas].min` decía que no
+        # hubo piso justamente cuando el piso fue lo único que hizo avanzar a
+        # alguien (con todas filtradas, `evaluadas` es cero).
+        [cut_base(elegibles, evaluadas), evaluadas].min < filas.count(&:above_cut?)
       end
 
       protected
@@ -376,6 +387,34 @@ module Flow
 
         scored = ordered.count(&:scored?)
         [[cut_base(ordered, scored), cut_min].max, scored].min
+      end
+
+      # Quiénes quedan arriba del corte, en dos pasadas: la regla decide entre
+      # las que pasaron los filtros, y si con eso avanzan menos que el mínimo,
+      # el piso completa con las que no los pasaron.
+      def quienes_avanzan(ordered)
+        elegibles = ordered.select(&:passes_gates?)
+        dentro = elegibles.select { |row| row.scored? || no_score_source? }.first(cut_size(elegibles))
+
+        (dentro + relleno_del_piso(ordered, dentro.size)).map { |row| row.idea.id }.to_set
+      end
+
+      # El piso gana también sobre los FILTROS: si después de filtrar avanzan
+      # menos ideas que el mínimo, se completa con las mejores puntuadas de las
+      # que fallaron alguna condición. Sin esto, un corte en «IA automática»
+      # cerraba el desafío con cero finalistas —justo lo que el piso existe
+      # para evitar—, porque el mínimo se calculaba SOLO entre las que ya
+      # habían pasado los filtros y los filtros lo bajaban en silencio.
+      #
+      # Un filtro sin responder no cuenta como fallado: no es un «no», es un
+      # «todavía no», y completar con él daría por perdida una idea que nadie
+      # miró. `can_complete?` ya traba el cierre hasta que alguien lo conteste.
+      def relleno_del_piso(ordered, ya_avanzan)
+        faltan = cut_min - ya_avanzan
+        return [] if faltan <= 0 || manual_cut? || no_score_source?
+
+        ordered.select { |row| !row.passes_gates? && row.pending_gates.empty? && row.scored? }
+               .first(faltan)
       end
 
       def cut_base(ordered, scored)

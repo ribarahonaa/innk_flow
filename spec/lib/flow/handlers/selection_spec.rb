@@ -325,6 +325,90 @@ RSpec.describe Flow::Handlers::Selection do
     end
   end
 
+  # El piso existe para que un corte automático no deje el desafío sin
+  # finalistas, y los filtros lo anulaban en silencio: se calculaba SOLO entre
+  # las ideas que ya habían pasado los filtros, así que con todas filtradas el
+  # mínimo bajaba a cero. El piso gana también sobre los filtros.
+  describe "el piso cuando los filtros dejan menos ideas que el mínimo" do
+    let(:filtro_automatico) do
+      set = CriteriaSet.create!(name: "Filtro verificable")
+      set.criteria.create!(name: "Tiene costo", key: "tiene_costo", weight: 1, source: "automatic",
+                           source_config: { "check" => "field_present", "field_key" => "costo" })
+      set.refresh_status!
+      set
+    end
+
+    let(:filtro_de_veredicto) do
+      set = CriteriaSet.create!(name: "Filtro de veredicto")
+      set.criteria.create!(name: "¿Es viable?", key: "es_viable", weight: 1,
+                           source: "manual", scale_type: "boolean")
+      set.refresh_status!
+      set
+    end
+
+    def con_filtro(set, cut)
+      step = challenge.steps.create!(kind: "selection", position: 4, name: "Corte",
+                                     criteria_set: set, config: { "cut" => cut })
+      challenge.update!(status: "running")
+      tecnica.update!(status: "completed")
+      comite.update!(status: "completed")
+      Flow::Handlers::Base.for(step).activate!
+      described_class.new(step.reload)
+    end
+
+    # Ninguna idea declara el costo, así que las cinco fallan el filtro.
+    let(:corte_imposible) { { "mode" => "threshold", "value" => 0.95, "min" => 2 } }
+
+    it "completa con las mejores aunque hayan fallado un filtro" do
+      handler = con_filtro(filtro_automatico, corte_imposible)
+      above = handler.ranking.select(&:above_cut?)
+
+      expect(above.map { _1.idea.title }).to eq(["Idea E", "Idea D"])
+      expect(above.map(&:passes_gates?).uniq).to eq([false])
+    end
+
+    # El piso COMPLETA, no reemplaza: primero entran las que pasaron los
+    # filtros y recién después se rellena con las que no.
+    it "cuenta primero las que sí pasaron el filtro" do
+      Flow::Ideas::PublishVersion.new(ideas[0], payload: ideas[0].payload.merge("costo" => "8 celdas")).call
+      handler = con_filtro(filtro_automatico, corte_imposible)
+      above = handler.ranking.select(&:above_cut?)
+
+      expect(above.map { _1.idea.title }).to eq(["Idea A", "Idea E"])
+      expect(above.map(&:por_el_piso?)).to eq([false, true])
+    end
+
+    # Un veredicto sin responder no es un «no», es un «todavía no»: completar
+    # con él sería dar por perdida una idea que nadie miró. `can_complete?` ya
+    # traba el cierre hasta que se responda.
+    it "no completa con una idea que tiene un filtro sin responder" do
+      handler = con_filtro(filtro_de_veredicto, corte_imposible)
+
+      expect(handler.ranking.count(&:above_cut?)).to be_zero
+    end
+
+    it "sigue sin prometer más ideas de las que hay evaluadas" do
+      handler = con_filtro(filtro_automatico, { "mode" => "threshold", "value" => 0.95, "min" => 99 })
+
+      expect(handler.ranking.count(&:above_cut?)).to eq(5)
+    end
+
+    it "la pantalla se entera de que el piso tuvo que cruzar los filtros" do
+      handler = con_filtro(filtro_automatico, corte_imposible)
+
+      expect(handler).to be_piso_aplicado
+    end
+
+    # Es el caso que motivó el piso: el módulo en automático cierra solo, y sin
+    # esto cerraba con cero finalistas.
+    it "al cerrar el módulo, las que subieron por el piso avanzan de verdad" do
+      handler = con_filtro(filtro_automatico, corte_imposible)
+      handler.complete!
+
+      expect(challenge.ideas.alive.count).to eq(2)
+      expect(SelectionDecision.where(outcome: "advance").count).to eq(2)
+    end
+  end
   # Un filtro de sí/no sin responder traba el cierre del módulo. Con la
   # selección en «Solo IA» eso era un callejón sin salida: el módulo prometía
   # correr solo y se quedaba esperando a una persona.
