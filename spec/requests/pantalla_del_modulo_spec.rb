@@ -348,6 +348,7 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
 
     describe "lo que ve cada quien" do
       let!(:pedro) { member("pedro@test.dev", :participant) }
+      let!(:gina) { member("gina@test.dev", :gestor) }
 
       let!(:challenge) do
         as_company(company) do
@@ -411,6 +412,21 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
         expect(tarjeta("Ranking").text).to include("Sensores de peso", "Cámaras en la merma")
         expect(response.body).to include("quedó última por esfuerzo")
         expect(zonas[:referencia]).to include("Descargas", "Excel", "PDF")
+      end
+
+      # El cuarto rol, que es el único que `ChallengePolicy#read_pool?` mira
+      # distinto: leer el pool ajeno pregunta además si llega al desafío, y un
+      # gestor llega sólo a los que le asignaron. Asignado, ve el resumen como
+      # quien administra o evalúa; sin asignar, la pantalla entera le da 404 y
+      # no hay nada que filtrar.
+      it "quien acompaña el desafío: el pool entero, sin descargas" do
+        as_company(company) { ChallengeGestor.create!(challenge: challenge, user: gina) }
+        sign_in(gina, company: company)
+        get challenge_step_path(challenge, paso("reporting"))
+
+        expect(tarjeta("Ranking").text).to include("Sensores de peso", "Cámaras en la merma")
+        expect(response.body).to include("quedó última por esfuerzo")
+        expect(zonas[:referencia]).not_to include("Descargas")
       end
 
       # El «sin pedido a la IA» de arriba no afirma nada: el desafío corre en

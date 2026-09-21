@@ -41,4 +41,18 @@ class ChallengePolicy < ApplicationPolicy
   # lo que se le asigna, no decide qué se fusiona. Y no mira si hay una ronda
   # de evolución abierta, porque comparar no edita ninguna idea.
   def curate_pool? = manager? || (membership.present? && membership.gestor? && reaches_challenge?(record))
+
+  # LEER el pool ajeno: hoy, el resumen narrativo de reportería, que nombra
+  # ideas por título. Quien participa ve sólo las ideas en las que participa
+  # (`IdeaPolicy::Scope`), así que un resumen que nombra las otras le muestra
+  # justo lo que el resto de esa pantalla le filtra.
+  #
+  # No es `curate_pool?`, aunque las dos pregunten por el pool entero: curar es
+  # mirarlo para DECIDIR qué se fusiona, y por eso deja afuera a quien evalúa a
+  # propósito. Leer un resumen no decide nada, y quien evalúa ve el pool
+  # completo igual que quien administra o acompaña.
+  #
+  # Vivía escrita en la vista (`!current_membership.participant?`), que es el
+  # único lugar donde una regla de rol no se puede auditar.
+  def read_pool? = reaches_challenge?(record) && !membership.participant?
 end

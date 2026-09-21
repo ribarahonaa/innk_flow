@@ -6,8 +6,9 @@
 -# el embudo, la distribución y la participación son conteos y no dicen de
 -# quién es cada idea; el ranking y la matriz se filtran con `@ideas_visibles`
 -# (`IdeaPolicy::Scope`, que para quien administra, acompaña o evalúa es el
--# pool entero). El resumen narrativo nombra ideas ajenas: no se le muestra.
-- ve_el_pool = !current_membership.participant?
+-# pool entero). El resumen narrativo nombra ideas ajenas: no se le muestra, y
+-# esa es una regla de ROL, así que vive en la policy y no acá.
+- ve_el_pool = policy(@challenge).read_pool?
 - ranking = data["ranking"].select { |row| @ideas_visibles.include?(row["idea_id"]) }
 - matrix = data["matrix"]
 - filas_de_matriz = matrix["rows"].select { |row| @ideas_visibles.include?(row["idea_id"]) }
