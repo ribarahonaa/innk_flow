@@ -77,10 +77,12 @@ module Flow
           { key: "cut.min", type: "number", default: 0, min: 0,
             label: "Mínimo de ideas que pasan",
             depends_on: { key: "cut.mode", not: "manual" },
-            hint: "0 es sin piso. Cuando hay piso GANA sobre la regla: con «puntaje mínimo 0,8» " \
-                  "y piso 3 pasan las 3 mejores aunque ninguna llegue a 0,8. Existe para que un " \
-                  "corte en IA automática no deje el desafío sin finalistas. Nunca pasan más " \
-                  "ideas de las que hay evaluadas." }
+            hint: "0 es sin piso. Cuando hay piso GANA sobre la regla Y sobre los filtros: con " \
+                  "«puntaje mínimo 0,8» y piso 3 pasan las 3 mejores aunque ninguna llegue a 0,8, " \
+                  "y si los filtros dejan menos de 3 se completa con las mejores que no los " \
+                  "cumplen —la pantalla las marca—. Existe para que un corte en IA automática no " \
+                  "deje el desafío sin finalistas. No completa con una idea que tiene un filtro " \
+                  "sin responder, y nunca pasan más ideas de las que hay evaluadas." }
         ],
         advanced: [
           { key: "score_source.combine", type: "select", default: "weighted_avg",
