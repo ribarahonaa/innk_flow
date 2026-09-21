@@ -35,122 +35,126 @@
     - if @ideation_step && policy(@challenge).curate_pool?
       = render "shared/ai_actions", challenge: @challenge, mode: @ideation_step.effective_ai_mode,
                actions: [{ label: "Detectar duplicados", purpose: "detect_duplicates", idea_id: @idea.id, step_id: @ideation_step.id }]
-    .panel
-      %h2.section-title Contenido
-      %p.muted= "Versión vigente: #{@idea.current_version&.label}"
-      %dl.answer-list
-        - @fields.each do |field|
-          - value = @idea.payload[field.key]
-          -# La acción va al lado de la etiqueta, no debajo: un `button_to` es
-          -# un form y en bloque parecía el valor del campo.
-          %dt.answer-list__label
-            %span= field.label
-            -# Un adjunto no se reescribe con IA: `coauthor_field` trabaja
-            -# sobre texto y ahí no hay texto que mejorar.
-            - if field.field_type != "file" && @ideation_step && @ideation_step.effective_ai_mode != "human" && policy(@idea).update?
-              = button_to "Mejorar con IA",
-                          challenge_ai_requests_path(@challenge, purpose: "coauthor_field", idea_id: @idea.id, step_id: @ideation_step.id, field_key: field.key),
-                          class: "link-button"
-          - if field.field_type == "file"
-            - attachment = @attachments[field.key]
-            %dd{ class: ("is-empty" if attachment.nil?) }
-              - if attachment
-                = link_to attachment.file.filename.to_s, rails_blob_path(attachment.file, disposition: "attachment")
-              - else
-                = "—"
-          - else
-            %dd{ class: ("is-empty" if value.blank?) }
-              = value.is_a?(Array) ? value.join(", ") : (value.presence || "—")
+    .card
+      .card-body
+        %h2.section-title Contenido
+        %p.muted= "Versión vigente: #{@idea.current_version&.label}"
+        %dl.answer-list
+          - @fields.each do |field|
+            - value = @idea.payload[field.key]
+            -# La acción va al lado de la etiqueta, no debajo: un `button_to` es
+            -# un form y en bloque parecía el valor del campo.
+            %dt.answer-list__label
+              %span= field.label
+              -# Un adjunto no se reescribe con IA: `coauthor_field` trabaja
+              -# sobre texto y ahí no hay texto que mejorar.
+              - if field.field_type != "file" && @ideation_step && @ideation_step.effective_ai_mode != "human" && policy(@idea).update?
+                = button_to "Mejorar con IA",
+                            challenge_ai_requests_path(@challenge, purpose: "coauthor_field", idea_id: @idea.id, step_id: @ideation_step.id, field_key: field.key),
+                            class: "link-button"
+            - if field.field_type == "file"
+              - attachment = @attachments[field.key]
+              %dd{ class: ("is-empty" if attachment.nil?) }
+                - if attachment
+                  = link_to attachment.file.filename.to_s, rails_blob_path(attachment.file, disposition: "attachment")
+                - else
+                  = "—"
+            - else
+              %dd{ class: ("is-empty" if value.blank?) }
+                = value.is_a?(Array) ? value.join(", ") : (value.presence || "—")
 
     - if @results.any?
-      .panel
-        %h2.section-title Cómo le fue
-        %ul.result-list
-          - @results.each do |resultado|
-            - entry = resultado[:entry]
-            %li{ class: clase_de_resultado(entry.status) }
-              %span.result__step= resultado[:step].name
-              %span.result__outcome= t("flow.entry_statuses.#{entry.status}", default: entry.status.humanize)
-              - if resultado[:score]
-                %span.result__score= "#{(resultado[:score].to_f * 100).round}%"
+      .card
+        .card-body
+          %h2.section-title Cómo le fue
+          %ul.result-list
+            - @results.each do |resultado|
+              - entry = resultado[:entry]
+              %li{ class: clase_de_resultado(entry.status) }
+                %span.result__step= resultado[:step].name
+                %span.result__outcome= t("flow.entry_statuses.#{entry.status}", default: entry.status.humanize)
+                - if resultado[:score]
+                  %span.result__score= "#{(resultado[:score].to_f * 100).round}%"
 
     = render "ideas/contributors", idea: @idea, challenge: @challenge,
              can_manage: policy(@idea).manage_contributors?, candidates: @contributor_candidates
 
     - if @feedback&.any?
-      .panel
-        %h2.section-title
-          Feedback recibido
-          %span.muted= " (#{@feedback.count { |i| !i.open? }}/#{@feedback.size} atendidos)"
-        -# Del otro lado del módulo: la IA sabía proponer feedback y no sabía
-        -# ayudar a responderlo. La propuesta pasa por su autor —es su idea—,
-        -# así que cae en el panel de revisión como cualquier otra.
-        - abierto = @feedback.find(&:open?)
-        - paso_evolucion = abierto&.challenge_step
-        -# Y si no se puede hacer nada con ellos, decir por qué: verlos sin
-        -# ninguna acción y sin explicación es lo mismo que la pantalla que no
-        -# ofrecía postular —no distingue entre «cerró la ronda» y «no soy
-        -# quien puede»—. Un comentario HAML entre `if` y `elsif` corta la
-        -# cadena, así que va acá arriba.
-        - if paso_evolucion && policy(@idea).update? && paso_evolucion.active?
-          %p.field-hint Podés cerrarlos uno por uno, o publicar una versión que los responda.
-          = render "shared/ai_actions", challenge: @challenge, mode: paso_evolucion.effective_ai_mode,
-                   actions: [{ label: "Reescribir la idea con el feedback", purpose: "evolve_idea",
-                               idea_id: @idea.id, step_id: paso_evolucion.id }]
-        - elsif abierto
-          %p.field-hint
-            - if paso_evolucion && !paso_evolucion.active?
-              = "La ronda «#{paso_evolucion.name}» ya cerró: los comentarios quedan como están."
-            - else
-              Solo quien participa de esta idea —o quien administra el desafío— puede atenderlos.
+      .card
+        .card-body
+          %h2.section-title
+            Feedback recibido
+            %span.muted= " (#{@feedback.count { |i| !i.open? }}/#{@feedback.size} atendidos)"
+          -# Del otro lado del módulo: la IA sabía proponer feedback y no sabía
+          -# ayudar a responderlo. La propuesta pasa por su autor —es su idea—,
+          -# así que cae en el panel de revisión como cualquier otra.
+          - abierto = @feedback.find(&:open?)
+          - paso_evolucion = abierto&.challenge_step
+          -# Y si no se puede hacer nada con ellos, decir por qué: verlos sin
+          -# ninguna acción y sin explicación es lo mismo que la pantalla que no
+          -# ofrecía postular —no distingue entre «cerró la ronda» y «no soy
+          -# quien puede»—. Un comentario HAML entre `if` y `elsif` corta la
+          -# cadena, así que va acá arriba.
+          - if paso_evolucion && policy(@idea).update? && paso_evolucion.active?
+            %p.field-hint Podés cerrarlos uno por uno, o publicar una versión que los responda.
+            = render "shared/ai_actions", challenge: @challenge, mode: paso_evolucion.effective_ai_mode,
+                     actions: [{ label: "Reescribir la idea con el feedback", purpose: "evolve_idea",
+                                 idea_id: @idea.id, step_id: paso_evolucion.id }]
+          - elsif abierto
+            %p.field-hint
+              - if paso_evolucion && !paso_evolucion.active?
+                = "La ronda «#{paso_evolucion.name}» ya cerró: los comentarios quedan como están."
+              - else
+                Solo quien participa de esta idea —o quien administra el desafío— puede atenderlos.
 
-        - @rondas.each do |paso, comentarios|
-          - abiertos = comentarios.count(&:open?)
-          - resumen = "#{comentarios.size - abiertos} de #{Flow::Texto.contar(comentarios.size, 'comentario')} atendidos"
-          -# La ronda en curso, abierta y arriba. Las cerradas se pueden abrir
-          -# —la historia no se esconde— pero plegadas no se confunden con lo
-          -# que hay que atender ahora.
-          - if paso.active?
-            .feedback-round
-              %p.feedback-round__head
-                %strong= paso.name
-                %span{ class: chip_de_estado("active") } en curso
-                %span.muted= " · #{resumen}"
-              %ul.feedback-list
-                - comentarios.each do |item|
-                  = render "shared/feedback_item", item: item, challenge: @challenge
-          - else
-            %details.feedback-round.feedback-round--cerrada
-              %summary.feedback-round__head
-                %strong= paso.name
-                %span{ class: chip_de_estado("skipped") }= t("flow.statuses.#{paso.status}").downcase
-                %span.muted= " · #{resumen}"
-              %ul.feedback-list
-                - comentarios.each do |item|
-                  = render "shared/feedback_item", item: item, challenge: @challenge
+          - @rondas.each do |paso, comentarios|
+            - abiertos = comentarios.count(&:open?)
+            - resumen = "#{comentarios.size - abiertos} de #{Flow::Texto.contar(comentarios.size, 'comentario')} atendidos"
+            -# La ronda en curso, abierta y arriba. Las cerradas se pueden abrir
+            -# —la historia no se esconde— pero plegadas no se confunden con lo
+            -# que hay que atender ahora.
+            - if paso.active?
+              .feedback-round
+                %p.feedback-round__head
+                  %strong= paso.name
+                  %span{ class: chip_de_estado("active") } en curso
+                  %span.muted= " · #{resumen}"
+                %ul.feedback-list
+                  - comentarios.each do |item|
+                    = render "shared/feedback_item", item: item, challenge: @challenge
+            - else
+              %details.feedback-round.feedback-round--cerrada
+                %summary.feedback-round__head
+                  %strong= paso.name
+                  %span{ class: chip_de_estado("skipped") }= t("flow.statuses.#{paso.status}").downcase
+                  %span.muted= " · #{resumen}"
+                %ul.feedback-list
+                  - comentarios.each do |item|
+                    = render "shared/feedback_item", item: item, challenge: @challenge
 
   %aside.idea-layout__side
-    .panel
-      %h2.section-title
-        Historial
-        %span.muted= " (#{@versions.size})"
-      %ol.version-timeline
-        - @versions.reverse_each do |version|
-          %li.version-timeline__item{ class: ("is-current" if version.current?) }
-            .version-timeline__head
-              %span{ class: chip("version") }= version.label
-              - if version.current?
-                %span.muted vigente
-            .version-timeline__meta
-              = version.author_name
-              - if version.by_ai?
-                %span{ class: chip_de_ia } IA
-            - if version.change_note.present?
-              %p.version-timeline__note= version.change_note
-            - if version.source_step
-              %p.muted.version-timeline__source= "desde «#{version.source_step.name}»"
-            %p.muted.version-timeline__date= l(version.created_at, format: :short)
-      - if @versions.size > 1
-        = link_to "Ver cambios entre versiones",
-                  diff_challenge_idea_path(@challenge, @idea, a: @versions.first.id, b: @versions.last.id),
-                  class: "btn btn-ghost btn-block"
+    .card
+      .card-body
+        %h2.section-title
+          Historial
+          %span.muted= " (#{@versions.size})"
+        %ol.version-timeline
+          - @versions.reverse_each do |version|
+            %li.version-timeline__item{ class: ("is-current" if version.current?) }
+              .version-timeline__head
+                %span{ class: chip("version") }= version.label
+                - if version.current?
+                  %span.muted vigente
+              .version-timeline__meta
+                = version.author_name
+                - if version.by_ai?
+                  %span{ class: chip_de_ia } IA
+              - if version.change_note.present?
+                %p.version-timeline__note= version.change_note
+              - if version.source_step
+                %p.muted.version-timeline__source= "desde «#{version.source_step.name}»"
+              %p.muted.version-timeline__date= l(version.created_at, format: :short)
+        - if @versions.size > 1
+          = link_to "Ver cambios entre versiones",
+                    diff_challenge_idea_path(@challenge, @idea, a: @versions.first.id, b: @versions.last.id),
+                    class: "btn btn-ghost btn-block"

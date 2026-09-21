@@ -1,11 +1,12 @@
 - content_for :title, "Postular una idea"
-.panel.narrow
-  %p.breadcrumb= link_to @challenge.name, challenge_path(@challenge)
-  %h1.page-title Postular una idea
-  %p.muted Se guarda como borrador. Podés seguir editándola hasta postularla.
+.card.narrow
+  .card-body
+    %p.breadcrumb= link_to @challenge.name, challenge_path(@challenge)
+    %h1.page-title Postular una idea
+    %p.muted Se guarda como borrador. Podés seguir editándola hasta postularla.
 
-  = form_with url: challenge_ideas_path(@challenge), method: :post, multipart: true do
-    = render "ideas/form_fields", fields: @fields, payload: {}, attachments: []
-    .form-actions
-      = link_to "Cancelar", challenge_path(@challenge), class: "btn btn-ghost"
-      = submit_tag "Guardar borrador", class: "btn btn-primary"
+    = form_with url: challenge_ideas_path(@challenge), method: :post, multipart: true do
+      = render "ideas/form_fields", fields: @fields, payload: {}, attachments: []
+      .form-actions
+        = link_to "Cancelar", challenge_path(@challenge), class: "btn btn-ghost"
+        = submit_tag "Guardar borrador", class: "btn btn-primary"

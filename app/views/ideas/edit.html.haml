@@ -1,19 +1,20 @@
 - content_for :title, "Editar idea"
-.panel.narrow
-  %p.breadcrumb= link_to @idea.title, challenge_idea_path(@challenge, @idea)
-  %h1.page-title Editar idea
-  .alert.alert-soft.alert-warning
-    %div
-      Guardar no pisa el contenido: publica la versión
-      %strong= "v#{(@idea.versions.maximum(:number) || 0) + 1}"
-      y la anterior queda en el historial.
+.card.narrow
+  .card-body
+    %p.breadcrumb= link_to @idea.title, challenge_idea_path(@challenge, @idea)
+    %h1.page-title Editar idea
+    .alert.alert-soft.alert-warning
+      %div
+        Guardar no pisa el contenido: publica la versión
+        %strong= "v#{(@idea.versions.maximum(:number) || 0) + 1}"
+        y la anterior queda en el historial.
 
-  = form_with url: challenge_idea_path(@challenge, @idea), method: :patch, multipart: true do
-    = render "ideas/form_fields", fields: @fields, payload: @idea.payload,
-             attachments: @idea.current_version&.attachments.to_a
-    .field
-      = label_tag :change_note, "Qué cambiaste (opcional)"
-      = text_field_tag :change_note, nil, placeholder: "Ajusté el alcance según el feedback"
-    .form-actions
-      = link_to "Cancelar", challenge_idea_path(@challenge, @idea), class: "btn btn-ghost"
-      = submit_tag "Publicar versión", class: "btn btn-primary"
+    = form_with url: challenge_idea_path(@challenge, @idea), method: :patch, multipart: true do
+      = render "ideas/form_fields", fields: @fields, payload: @idea.payload,
+               attachments: @idea.current_version&.attachments.to_a
+      .field
+        = label_tag :change_note, "Qué cambiaste (opcional)"
+        = text_field_tag :change_note, nil, placeholder: "Ajusté el alcance según el feedback"
+      .form-actions
+        = link_to "Cancelar", challenge_idea_path(@challenge, @idea), class: "btn btn-ghost"
+        = submit_tag "Publicar versión", class: "btn btn-primary"
