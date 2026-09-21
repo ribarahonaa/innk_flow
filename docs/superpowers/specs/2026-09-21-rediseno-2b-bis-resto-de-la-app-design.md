@@ -33,12 +33,20 @@ guarda del recorrido las mira. Se resuelve en la tarea 1.
 
 ## 1 · Alcance
 
-**Entra:** las 42 apariciones de `.panel` en 24 vistas HAML, más las 4 de las
-dos islas. Total 46.
+**Entra:** las 41 apariciones de `.panel` en 23 vistas HAML, más las 4 de las
+dos islas. Total 45.
+
+> **Corregido durante la ejecución.** Este spec contaba 42 en 24 vistas e
+> incluía `app/views/pages/home.html.haml`, dándola por alcanzable en `/`. No
+> lo es: `config/routes.rb:113` es `root "challenges#index"` y nada rutea a
+> `PagesController#home`. La captura `13-home` de la Tarea 1 resultó ser un
+> duplicado byte a byte de `02-challenges`. Esa vista se BORRA (Tarea 2b), no
+> se migra: migrar a ciegas una pantalla que nadie puede abrir es lo contrario
+> de lo que la Tarea 1 existe para garantizar.
 
 | Familia | Vistas | `.panel` |
 |---|---|---|
-| Sistema | `errors/forbidden`, `errors/not_found`, `pages/home`, `sessions/select_company`, `notifications/index`, `shared/_setup_outline` | 6 |
+| Sistema | `errors/forbidden`, `errors/not_found`, `sessions/select_company`, `notifications/index`, `shared/_setup_outline` | 5 |
 | Ideas | `ideas/index` (2), `show` (4), `new`, `edit`, `diff` (2), `_contributors` | 11 |
 | Desafíos | `challenges/index`, `show` (2), `new`, `builder` (3), `previews/show` (2) | 9 |
 | Criterios, IA y miembros | `criteria_sets/index` (2), `show`, `_form`, `ai_runs/index`, `ai_runs/show` (3), `memberships/index` (3) | 11 |
@@ -103,7 +111,6 @@ la miraba.
 
 | Captura | Cómo se llega |
 |---|---|
-| `pages/home` | `/` como admin |
 | `ai_runs/show` | clic en una fila de `/admin/ai_runs` |
 | `criteria_sets/show` | clic en el nombre de un set, no en «Editar» |
 | `ideas/new` | «Postular una idea» desde la lista |

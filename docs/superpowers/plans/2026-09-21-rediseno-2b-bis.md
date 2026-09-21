@@ -2,7 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Migrar las 42 apariciones de `.panel` en 24 vistas HAML y las 4 de las dos islas Vue a `card` + `card-body`, y borrar `.panel` y la guarda `[CARD]`.
+**Goal:** Migrar las 41 apariciones de `.panel` en 23 vistas HAML y las 4 de las dos islas Vue a `card` + `card-body`, borrar la vista muerta que quedaba, y borrar `.panel` y la guarda `[CARD]`.
+
+**Corrección sobre el spec:** el spec contaba 42 usos en 24 vistas e incluía `app/views/pages/home.html.haml`, suponiéndola alcanzable en `/`. No lo es: `config/routes.rb:113` es `root "challenges#index"` y **nada rutea a `PagesController#home`**. Se borra en la Tarea 2b en vez de migrarse. Lo destapó la captura `13-home` de la Tarea 1, que resultó ser un duplicado byte a byte de `02-challenges`.
 
 **Architecture:** La plomería ya existe: el 2b dejó en `application.css` una regla `.card` con el aspecto exacto de `.panel` (`--card-p: 20px`, `--card-fs: 14px`). Cada vista pasa a escribir `.card` > `.card-body` y nada más. Lo único que se ajusta es el espaciado que el `gap` de `card-body` mueve, porque en flex los márgenes no colapsan. Las ocho pantallas que hoy no tiene ninguna captura se fotografían PRIMERO, con `.panel` todavía puesto.
 
@@ -68,6 +70,8 @@ El criterio único: **lo que es de la caja externa —ancho, margen, borde, fond
 ## Task 1: Las ocho capturas que faltan
 
 Ninguna guarda mira hoy `ai_runs/show`, `criteria_sets/show`, `errors/forbidden`, `errors/not_found`, `ideas/edit`, `ideas/new`, `pages/home` ni `sessions/select_company`. Sin esto, un tercio de la migración va a ciegas.
+
+> **Resultado, anotado al ejecutar:** siete de las ocho se fotografiaron. La octava no se puede: `/` sirve `challenges#index` y **nada rutea a `pages/home`**. La captura `13-home` salió duplicada byte a byte de `02-challenges`, y se saca. Esa vista se borra en la Tarea 2b. El recorrido queda en **59** capturas, no 60.
 
 **Files:**
 - Modify: `script/capture_screens.js`
@@ -307,7 +311,6 @@ Seis pantallas chicas, de una tarjeta cada una. Van primero porque es donde el a
 **Files:**
 - Modify: `app/views/errors/forbidden.html.haml:1`
 - Modify: `app/views/errors/not_found.html.haml:1`
-- Modify: `app/views/pages/home.html.haml:1`
 - Modify: `app/views/sessions/select_company.html.haml:1`
 - Modify: `app/views/notifications/index.html.haml:10` (`.panel.empty-state`)
 - Modify: `app/views/shared/_setup_outline.html.haml:4` (`.panel.setup`)
@@ -323,7 +326,7 @@ No sólo la línea del `.panel`: hay que ver qué queda adentro, porque todo eso
 
 - [ ] **Step 2: Aplicar la tabla de formas**
 
-Cuatro son el caso base. Ejemplo, `app/views/pages/home.html.haml`:
+Tres son el caso base. Ejemplo, `app/views/errors/not_found.html.haml`:
 
 ```haml
 -# Antes
@@ -343,7 +346,7 @@ Cuatro son el caso base. Ejemplo, `app/views/pages/home.html.haml`:
 
 Run:
 ```bash
-grep -n "\.panel" app/views/errors/*.haml app/views/pages/home.html.haml \
+grep -n "\.panel" app/views/errors/*.haml \
   app/views/sessions/select_company.html.haml \
   app/views/notifications/index.html.haml app/views/shared/_setup_outline.html.haml
 ```
@@ -352,11 +355,11 @@ Expected: sin salida.
 - [ ] **Step 4: Correr el recorrido**
 
 Run: `make screens`
-Expected: 60 capturas, sin errores. En particular sin `[PANEL]` (una `card` sin `card-body`) ni `[RITMO]`.
+Expected: 59 capturas, sin errores. En particular sin `[PANEL]` (una `card` sin `card-body`) ni `[RITMO]`.
 
 - [ ] **Step 5: Comparar las seis capturas contra las de antes**
 
-`13-home`, `18-select-company`, `19-forbidden`, `20-not-found`, `09-13-avisos`, `03c-paso-a-paso`. Lo que hay que mirar es el ESPACIADO: el `gap` de 8px de `card-body` se suma a los márgenes de títulos y párrafos, que en `.panel` colapsaban. Si algo quedó más suelto, descontarle al margen lo que el gap ya pone, con una regla en la hoja:
+`18-select-company`, `19-forbidden`, `20-not-found`, `09-13-avisos`, `03c-paso-a-paso`. Lo que hay que mirar es el ESPACIADO: el `gap` de 8px de `card-body` se suma a los márgenes de títulos y párrafos, que en `.panel` colapsaban. Si algo quedó más suelto, descontarle al margen lo que el gap ya pone, con una regla en la hoja:
 
 ```css
 /* `card-body` es flex en columna con `gap: 8px`, y en flex los márgenes NO
@@ -377,13 +380,113 @@ Expected: 919 examples, 0 failures.
 git add app/views app/assets/stylesheets/application.css
 git commit -m "Las seis pantallas de sistema pasan a card
 
-Errores, home, elegir empresa, avisos y el paso a paso. Seis pantallas de una
+Errores, elegir empresa, avisos y el paso a paso. Cinco pantallas de una
 tarjeta: es donde el ajuste de espaciado se calibra barato, antes de aplicarlo
 a una familia entera.
+
+home quedó afuera: no es alcanzable y se borra en su propio commit.
 
 card-body es flex en columna con gap, y en flex los márgenes NO colapsan, así
 que el cambio de clase mueve el espaciado por su cuenta.
 [Describir acá qué se ajustó y por qué, o decir que no hizo falta.]
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+## Task 2b: Borrar `pages/home`, que nadie puede abrir
+
+`app/views/pages/home.html.haml` tiene un `.panel`, así que mientras exista
+`.panel` no se puede borrar. Pero **no es alcanzable**: `config/routes.rb:113`
+es `root "challenges#index"` y no hay ninguna ruta a `PagesController#home`.
+El comentario del propio controller lo dice: «Placeholder. En Fase 2 la raíz
+pasa a ser el índice de desafíos» — fase que ya ocurrió. La vista todavía
+anuncia «Fase 1 — tenencia, sesión y semillas».
+
+Decisión de Raúl: se borra. Migrar a ciegas una pantalla que nadie puede ver
+es lo contrario de lo que la Tarea 1 vino a garantizar.
+
+**Files:**
+- Delete: `app/views/pages/home.html.haml`
+- Delete: `app/controllers/pages_controller.rb`
+- Modify: `app/controllers/application_controller.rb:29`
+
+**Interfaces:**
+- Consumes: nada.
+- Produces: una vista menos en el alcance (41 usos, no 42).
+
+- [ ] **Step 1: Confirmar que sigue sin ser alcanzable**
+
+Run: `grep -rn "pages#\|PagesController\|pages/home" config/ app/ spec/`
+Expected: **sólo** `app/controllers/pages_controller.rb` y la línea 29 de
+`application_controller.rb`. Ninguna ruta, ningún render, ningún spec.
+
+Si aparece cualquier otra cosa, **pará**: la vista no está muerta y esta tarea
+no corresponde.
+
+- [ ] **Step 2: Sacar `PagesController` de `skip_pundit?`**
+
+`application_controller.rb:29` dice hoy:
+
+```ruby
+  # Sesión y páginas sin recurso no tienen qué autorizar.
+  def skip_pundit?
+    is_a?(SessionsController) || is_a?(PagesController)
+  end
+```
+
+Borrar el controller sin tocar esto revienta la app con `NameError` en el
+primer request. Queda:
+
+```ruby
+  # La sesión no tiene qué autorizar: todavía no hay membresía con la cual.
+  def skip_pundit?
+    is_a?(SessionsController)
+  end
+```
+
+El comentario cambia con la línea: ya no hay «páginas sin recurso».
+
+- [ ] **Step 3: Borrar los dos archivos**
+
+```bash
+git rm app/views/pages/home.html.haml app/controllers/pages_controller.rb
+```
+
+- [ ] **Step 4: Correr la suite**
+
+Run: `make spec`
+Expected: 919 examples, 0 failures.
+
+`spec/requests/authentication_spec.rb` usa `root_path`, que es
+`challenges#index` y no cambia. Si algún ejemplo se cae, es que algo sí
+llegaba a `PagesController` y el Step 1 no lo vio: **pará y reportalo**.
+
+- [ ] **Step 5: Correr el recorrido**
+
+Run: `make screens`
+Expected: 59 capturas, sin errores. **Son 59 y no 60**: la Tarea 1 saca su
+captura `13-home` en el mismo ciclo de arreglos, porque fotografiaba
+`challenges#index` y era un duplicado byte a byte de `02-challenges`.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add -A
+git commit -m "Se borra la pantalla que nadie podía abrir
+
+app/views/pages/home.html.haml tenía un .panel, y mientras existiera .panel no
+se podía borrar. Pero no es alcanzable: routes.rb:113 es root
+challenges#index y nada rutea a PagesController#home. El comentario del propio
+controller dice que es un placeholder para cuando la raíz pase a ser el índice
+de desafíos — ya pasó. La vista seguía anunciando «Fase 1».
+
+Lo destapó la captura que la tarea 1 le sumó: 13-home.png y 02-challenges.png
+tenían el MISMO md5. La guarda nueva estaba fotografiando otra pantalla.
+
+PagesController sale también de skip_pundit?, que lo nombraba: borrarlo sin
+eso revienta con NameError en el primer request.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
@@ -421,7 +524,7 @@ Expected: sin salida.
 - [ ] **Step 4: Correr el recorrido**
 
 Run: `make screens`
-Expected: 60 capturas, sin errores.
+Expected: 59 capturas, sin errores.
 
 - [ ] **Step 5: Comparar las capturas**
 
@@ -481,7 +584,7 @@ Expected: sin salida.
 - [ ] **Step 4: Correr el recorrido**
 
 Run: `make screens`
-Expected: 60 capturas, sin errores, sin `[ISLA]`.
+Expected: 59 capturas, sin errores, sin `[ISLA]`.
 
 - [ ] **Step 5: Comparar las capturas**
 
@@ -576,7 +679,7 @@ Expected: sin salida.
 - [ ] **Step 4: Correr el recorrido**
 
 Run: `make screens`
-Expected: 60 capturas, sin errores, sin `[ISLA]` (el editor de criterios monta sobre el placeholder de `_form`).
+Expected: 59 capturas, sin errores, sin `[ISLA]` (el editor de criterios monta sobre el placeholder de `_form`).
 
 - [ ] **Step 5: Comparar las capturas**
 
@@ -645,7 +748,7 @@ Expected: sin salida.
 - [ ] **Step 5: Correr el recorrido**
 
 Run: `make screens`
-Expected: 60 capturas, sin errores. Sin `[CONTRASTE]`: las dos tarjetas de IA tienen fondo propio (`--ia-panel`), y un chip adentro se mide contra ese fondo.
+Expected: 59 capturas, sin errores. Sin `[CONTRASTE]`: las dos tarjetas de IA tienen fondo propio (`--ia-panel`), y un chip adentro se mide contra ese fondo.
 
 - [ ] **Step 6: Comparar la captura**
 
@@ -722,7 +825,7 @@ Expected: el build sin errores, y el grep sin salida fuera de comentarios.
 - [ ] **Step 5: Correr el recorrido**
 
 Run: `make screens`
-Expected: 60 capturas, sin errores, sin `[ISLA]`, sin `[JS ERROR]`.
+Expected: 59 capturas, sin errores, sin `[ISLA]`, sin `[JS ERROR]`.
 
 **Un bug de Vue no lo atrapa ningún spec de Ruby.** Si la isla no monta, `make spec` sigue en verde y la pantalla queda en blanco; la guarda que lo dice es `[ISLA]` y el `.island-placeholder` sin montar.
 
@@ -793,17 +896,17 @@ Actualizar de paso el comentario de la cabecera de la hoja, que dice que cada pa
 
 - [ ] **Step 4: Ver que `[CLASES]` caza un `.panel` reintroducido**
 
-Es el reemplazo de `[CARD]` y hay que verlo funcionar, no suponerlo. Poner a mano un `.panel` en una vista del recorrido —por ejemplo `app/views/pages/home.html.haml`— y correr:
+Es el reemplazo de `[CARD]` y hay que verlo funcionar, no suponerlo. Poner a mano un `.panel` en una vista del recorrido —por ejemplo `app/views/errors/not_found.html.haml`, que se fotografía como `20-not-found`— y correr:
 
 Run: `make yarn-build && make screens`
-Expected: `[CLASES] 13-home: … panel …`
+Expected: `[CLASES] 20-not-found: … panel …`
 
 Sacarlo y volver a correr hasta verde.
 
 - [ ] **Step 5: Correr todo**
 
 Run: `make yarn-build && make spec && make screens`
-Expected: 919 examples 0 failures; 60 capturas, sin errores.
+Expected: 919 examples 0 failures; 59 capturas, sin errores.
 
 - [ ] **Step 6: Corregir CLAUDE.md**
 
@@ -822,7 +925,7 @@ Su sección de alcance dice que las islas Vue, incluidas sus tarjetas internas, 
 - [ ] **Step 8: Correr todo una vez más y commitear**
 
 Run: `make yarn-build && make spec && make screens`
-Expected: 919 examples 0 failures; 60 capturas, sin errores.
+Expected: 919 examples 0 failures; 59 capturas, sin errores.
 
 ```bash
 git add app/assets/stylesheets/application.css script/capture_screens.js CLAUDE.md docs/superpowers/specs
@@ -849,7 +952,7 @@ CLAUDE.md y el spec del 2b dicen lo que quedó.
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
 
-- [ ] **Step 9: Mirar las 60 capturas**
+- [ ] **Step 9: Mirar las 59 capturas**
 
 Es el cierre del plan y lo único que no hace una máquina. Comparar contra `tmp/screenshots-antes-2b/` donde haya equivalente.
 
@@ -859,7 +962,7 @@ Es el cierre del plan y lo único que no hace una máquina. Comparar contra `tmp
 
 - `grep -rn "\.panel\b" app/ script/` no devuelve nada fuera de los ocho asertos que esperan cero.
 - `make spec`: 919 examples, 0 failures.
-- `make screens`: 60 capturas, sin errores.
+- `make screens`: 59 capturas, sin errores.
 - `[CLASES]` visto cazando un `.panel` reintroducido.
-- Las 60 capturas miradas.
+- Las 59 capturas miradas.
 - CLAUDE.md y el spec del 2b dicen lo que quedó.
