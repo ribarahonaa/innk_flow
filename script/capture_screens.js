@@ -611,9 +611,10 @@ async function shot(page, name, url, prepare) {
   await capturar(page, name);
 }
 
-// Los módulos cuya cara de ejecución ya está en tres zonas (plan 2b). Por
-// nombre del seed de `merma-bodega`, igual que el resto del recorrido. Cada
-// tarea del plan suma el suyo; al final están todos menos las selecciones.
+// Los módulos cuya cara de ejecución está en tres zonas (plan 2b): todos menos
+// las selecciones. Por nombre del seed de `merma-bodega`, igual que el resto
+// del recorrido — y por eso el loop exige que cada módulo caiga en exactamente
+// una de las dos listas: si no, renombrarlo en el seed lo deja sin chequear.
 const MODULOS_EN_ZONAS = [/Evaluaci/i, /Ronda de feedback/i, /Postulaci/i, /Reporte/i];
 // Las selecciones van sin referencia —con la columna puesta el ranking no
 // entraba en el centro—, pero los ajustes plegados sí los tienen.
@@ -1021,7 +1022,24 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     // Las tres zonas: la referencia existe, y quien recorre —admin— tiene
     // los ajustes plegados al final. Sin esto, un módulo reordenado podía
     // perder su columna sin que ninguna captura lo dijera.
-    if (MODULOS_EN_ZONAS.some((re) => re.test(link.text))) {
+    const enZonas = MODULOS_EN_ZONAS.some((re) => re.test(link.text));
+    const soloAjustes = MODULOS_SOLO_AJUSTES.some((re) => re.test(link.text));
+
+    // Las dos listas van por NOMBRE del seed, así que renombrar un módulo lo
+    // saca de las dos y sus zonas dejan de chequearse sin que nada lo diga: es
+    // el mismo «se cumple sola» que `[PUNTOS]` ya pagó, y acá no hay ni una
+    // lista vacía que mirar, porque el `if` simplemente no entra. Cada módulo
+    // del recorrido tiene que caer en EXACTAMENTE una de las dos, así que el
+    // caso malo es que las dos digan lo mismo: ninguna (renombrado, o un kind
+    // nuevo sin lista) o las dos (listas que se solapan y se pisan).
+    if (enZonas === soloAjustes) {
+      failures++;
+      console.error(enZonas
+        ? `[ZONAS] «${link.text}» cae en las dos listas de MODULOS_*, que se contradicen: con referencia y sin referencia`
+        : `[ZONAS] «${link.text}» no cae en ninguna de las dos listas de MODULOS_*: nadie chequea sus zonas`);
+    }
+
+    if (enZonas) {
       if (!(await page.locator('.app-aside').count())) {
         failures++;
         console.error(`[ZONAS] «${link.text}» no tiene columna de referencia`);
@@ -1032,8 +1050,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       }
       await revisarReferencia(page, nombre);
     }
-    if (MODULOS_SOLO_AJUSTES.some((re) => re.test(link.text)) &&
-        !(await page.locator('details.ajustes__plegable').count())) {
+    if (soloAjustes && !(await page.locator('details.ajustes__plegable').count())) {
       failures++;
       console.error(`[ZONAS] «${link.text}» no tiene los ajustes plegados`);
     }
