@@ -28,7 +28,17 @@
               - if assessment.by_ai?
                 %span{ class: chip_de_ia } IA
               %span{ class: chip("version") }= assessment.idea_version.label
-              - if assessment.stale?
+              -# Contra `entry.idea`, que la fila ya tiene cargada y que la
+              -# línea de al lado usa para el label: todas las evaluaciones de
+              -# esta fila son de esa idea (`hechas.fetch(entry.idea_id)`).
+              -#
+              -# `Assessment#stale?` pregunta lo mismo por su PROPIA
+              -# asociación, que no viaja en el `includes` de `hechas`: una
+              -# consulta por evaluación para releer un objeto que ya está en
+              -# memoria. Estuvo tapado por el caché de consultas mientras la
+              -# lista de pendientes cargaba las ideas de a una con el mismo
+              -# SQL; en cuanto ésa pasó a preloadearse, apareció.
+              - if entry.idea.stale_for?(assessment.idea_version_id)
                 %span{ class: chip("desactualizada") }= "la idea ya va por #{entry.idea.current_version&.label}"
               - if assessment.normalized_score
                 %span.assessment-detail__score= "#{(assessment.normalized_score.to_f * 100).round(1)}%"

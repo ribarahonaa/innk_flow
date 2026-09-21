@@ -916,9 +916,13 @@ pantalla declara su layout.
   tarjeta plegada al final del centro (`steps/_ajustes`) con lo que se edita
   pero casi nunca —nombre, modo de IA, quién participa—. La referencia va en
   orden fijo: progreso, lo propio del módulo, quién participa, configuración
-  congelada. Lo que se lee a la derecha y se edita abajo aparece dos veces a
-  propósito, **con la misma guarda en los dos lugares**
-  (`spec/requests/pantalla_del_modulo_spec.rb` lo prueba por rol). Un bloque
+  congelada —reportería lo tuvo al revés hasta que hubo guarda—. Lo que se lee
+  a la derecha y se edita abajo aparece dos veces a propósito, **con la misma
+  guarda en los dos lugares**. Las dos cosas las prueba
+  `spec/requests/pantalla_del_modulo_spec.rb`: los bloques por rol, y el orden
+  con la secuencia de títulos de cada pantalla. Un título que esa lista no
+  conoce vuelve marcado con `¿?` en vez de desaparecer, así que sumar una
+  tarjeta a la columna obliga a decir dónde va. Un bloque
   que va suelto o adentro de los ajustes toma su forma de `steps/_bloque`.
   **Selección es la única cara de ejecución sin referencia**: su tabla de
   ranking no entra en el centro angosto (plan 2b, Tarea 5). Los ajustes

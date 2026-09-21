@@ -61,8 +61,20 @@
             = text_field_tag :body, nil, placeholder: "Qué le falta o qué mejorarías", required: true
             = submit_tag "Comentar", class: "btn btn-ghost btn-sm"
 
--# Nombre, modo de IA y quiénes acompañan: se editan acá, pero casi nunca.
-- if policy(@step).advance? || policy(@challenge).update_pipeline?
-  = render layout: "steps/ajustes", locals: { resumen: "nombre, modo de IA y quiénes acompañan" } do
+-# El resumen del plegado se arma con las MISMAS guardas que los bloques de
+-# adentro, y el plegable entero se dibuja si quedó alguno. Con el texto fijo,
+-# el resumen podía anunciar un bloque que la guarda no servía —y abrirlo para
+-# no encontrarlo es el mismo control fantasma que esta pantalla vino a sacar—.
+-#
+-# Acá no es hipotético: quiénes acompañan cuelga de `update_pipeline?`, que
+-# suma `&& !closed?` sobre `manager?`, y el nombre y el modo de IA cuelgan de
+-# `advance?`, que es `manager?` a secas. Con el desafío cerrado el plegable
+-# anunciaba un bloque que adentro no estaba. Es la única de las cinco donde
+-# los dos bloques no preguntan lo mismo.
+- ajustes = []
+- ajustes += ["nombre", "modo de IA"] if policy(@step).advance?
+- ajustes << "quiénes acompañan" if policy(@challenge).update_pipeline?
+- if ajustes.any?
+  = render layout: "steps/ajustes", locals: { resumen: ajustes.to_sentence } do
     = render "steps/ai_mode", step: @step
     = render "steps/asignaciones_gestores", step: @step, candidates: @gestor_candidates, tarjeta: false

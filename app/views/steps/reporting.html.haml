@@ -6,8 +6,9 @@
 -# el embudo, la distribución y la participación son conteos y no dicen de
 -# quién es cada idea; el ranking y la matriz se filtran con `@ideas_visibles`
 -# (`IdeaPolicy::Scope`, que para quien administra, acompaña o evalúa es el
--# pool entero). El resumen narrativo nombra ideas ajenas: no se le muestra.
-- ve_el_pool = !current_membership.participant?
+-# pool entero). El resumen narrativo nombra ideas ajenas: no se le muestra, y
+-# esa es una regla de ROL, así que vive en la policy y no acá.
+- ve_el_pool = policy(@challenge).read_pool?
 - ranking = data["ranking"].select { |row| @ideas_visibles.include?(row["idea_id"]) }
 - matrix = data["matrix"]
 - filas_de_matriz = matrix["rows"].select { |row| @ideas_visibles.include?(row["idea_id"]) }
@@ -16,11 +17,14 @@
 -# que le rebotaba con 403.
 - pide_resumen = policy(@challenge).update_pipeline?
 
--# Reportería no tiene progreso: la referencia se lleva la configuración y las
--# descargas, y el centro es el reporte.
+-# Reportería no tiene progreso ni quién participa: la referencia se lleva las
+-# descargas y la configuración, y el centro es el reporte.
+-#
+-# En el orden fijo de la columna: las descargas son lo propio del módulo y la
+-# configuración va última, porque es lo que no cambia. Estaban al revés.
 - content_for :referencia do
-  = render "steps/config_congelada", step: @step
   = render "steps/descargas", step: @step, handler: @handler, data: data
+  = render "steps/config_congelada", step: @step
 
 = render "steps/header", step: @step, handler: @handler
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
@@ -157,8 +161,13 @@
                     - else
                       %span.muted —
 
-- if policy(@step).advance?
-  = render layout: "steps/ajustes", locals: { resumen: "nombre y modo de IA" } do
+-# El resumen del plegado se arma con las MISMAS guardas que los bloques de
+-# adentro, y el plegable entero se dibuja si quedó alguno. Con el texto fijo,
+-# el resumen podía anunciar un bloque que la guarda no servía —y abrirlo para
+-# no encontrarlo es el mismo control fantasma que esta pantalla vino a sacar—.
+- ajustes = policy(@step).advance? ? ["nombre", "modo de IA"] : []
+- if ajustes.any?
+  = render layout: "steps/ajustes", locals: { resumen: ajustes.to_sentence } do
     = render "steps/ai_mode", step: @step
 
 -# El sondeo pega cada 4s contra `reports#statuses`, que pide `report?`: sin esta

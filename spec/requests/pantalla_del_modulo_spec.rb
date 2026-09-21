@@ -32,6 +32,62 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       ajustes: documento.at_css(".ajustes")&.text.to_s }
   end
 
+  # La columna de referencia es una zona de CONSULTA colgada del `%h1` de la
+  # pantalla, y sus tarjetas van todas en `h3`: el `h2` es de las tarjetas del
+  # centro, que es el trabajo. `.section-title` define tamaño, peso y color por
+  # clase y no por etiqueta, así que un nivel desparejo no se ve en pantalla ni
+  # lo agarra `make screens` — sólo desordena el outline, que es justamente lo
+  # que usa quien navega con lector de pantalla.
+  # La referencia va en ORDEN FIJO (CLAUDE.md): el progreso primero, después lo
+  # propio del módulo, después quién participa y al final la configuración, que
+  # no cambia. Cada kind trae un subconjunto, así que lo que se prueba pantalla
+  # por pantalla es la secuencia que le toca.
+  ORDEN_DE_LA_REFERENCIA = [
+    "Progreso",
+    # Lo propio del módulo.
+    "Criterios", "Formulario de postulación", "Descargas",
+    # Quién participa.
+    "Quién evalúa", "Quiénes acompañan",
+    "Cómo quedó configurado"
+  ].freeze
+
+  # Un título que la lista no conoce vuelve marcado con `¿?` en vez de
+  # desaparecer: si se cayera en silencio, sumar una tarjeta a la columna —o
+  # renombrar una— dejaría esta guarda pasando sin mirarla.
+  def titulos_de_la_referencia
+    documento.css(".app-aside .section-title").map do |nodo|
+      texto = nodo.text.strip
+      ORDEN_DE_LA_REFERENCIA.find { |t| texto.start_with?(t) } || "¿#{texto.lines.first.to_s.strip}?"
+    end
+  end
+
+  def titulos_de_mas_en_la_referencia
+    documento.css(".app-aside h1, .app-aside h2").map { |n| "#{n.name}: #{n.text.strip}" }
+  end
+
+  # Cuenta las consultas a una tabla durante el bloque. Para los N+1: el número
+  # que importa no es cuántas consultas hace la pantalla sino si CRECE con las
+  # filas, así que los ejemplos siembran varias y fijan un tope que no depende
+  # de cuántas haya.
+  def consultas_a(tabla)
+    sql = []
+    sub = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+      next if payload[:name] == "SCHEMA" || payload[:cached]
+
+      next unless payload[:sql].include?(%(FROM "#{tabla}"))
+
+      # Con el origen: el número solo dice que sobran consultas, no cuál de
+      # las tres lecturas de la misma lista las hace. Encontrar ESTE N+1 llevó
+      # a `evaluation.html.haml:13` y no a donde el reporte decía.
+      origen = caller.grep(%r{/app/}).first(2)
+      sql << "#{payload[:sql][0, 70]}\n      <- #{origen.join("\n      <- ")}"
+    end
+    yield
+    sql
+  ensure
+    ActiveSupport::Notifications.unsubscribe(sub)
+  end
+
   def postular!(challenge, author:, titulo:)
     as_company(company) do
       i = create(:idea, challenge: challenge, author: author)
@@ -66,6 +122,8 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       expect(zonas[:referencia]).to include("Progreso", "Criterios", "Quién evalúa", elena.name, "Cómo quedó configurado")
       expect(zonas[:ajustes]).to include("Ajustes del módulo", "Modo de IA", "Peso")
       expect(documento.at_css(".ajustes details.ajustes__plegable")).not_to be_nil
+      expect(titulos_de_mas_en_la_referencia).to be_empty
+      expect(titulos_de_la_referencia).to eq(["Progreso", "Criterios", "Quién evalúa", "Cómo quedó configurado"])
     end
 
     it "quien evalúa: la referencia sin la lista de asignaciones, y sin ajustes" do
@@ -133,6 +191,52 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
         expect(documento.at_css(".fila-de-idea__plegable")).to be_nil
         expect(response.body).not_to include(elena.name)
       end
+    end
+  end
+
+  # Un N+1 se ve con varias filas o no se ve. Este grupo tiene su propio desafío
+  # porque las ideas tienen que estar postuladas ANTES de que el módulo
+  # arranque: las entradas las arma `activate!`, que es idempotente, así que
+  # sumar ideas después no crea filas nuevas.
+  describe "el desglose con varias ideas" do
+    let!(:challenge) do
+      as_company(company) do
+        c = create(:challenge, name: "Merma", ai_default_mode: "human")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
+        c.steps.create!(kind: "evaluation", position: 2, name: "Técnica", config: { "min_assessments" => 1 })
+        c
+      end
+    end
+
+    before do
+      ideas = ["Sensores", "Cámaras", "Balanza", "Turnos"].map { |t| postular!(challenge, author: paula, titulo: t) }
+      as_company(company) do
+        challenge.pipeline.start!
+        challenge.pipeline.advance!
+        evaluacion = challenge.steps.reload.find(&:evaluation?)
+        ideas.each do |idea|
+          evaluacion.assessments.create!(idea: idea, idea_version_id: idea.current_version_id,
+                                         evaluator: elena, actor_type: "human", status: "submitted",
+                                         submitted_at: Time.current, normalized_score: 0.4)
+          evaluacion.handler.recompute_entry!(StepEntry.find_by(challenge_step_id: evaluacion.id, idea_id: idea.id))
+        end
+      end
+    end
+
+    # La pantalla leía la MISMA lista de entradas tres veces, y una de ellas
+    # —la de los pendientes— sin `includes`: `complete?` toca `entry.idea`
+    # (lo pide `min_assessments_for`), así que cargaba una idea por fila.
+    it "no carga la idea una vez por evaluación" do
+      sign_in(admin, company: company)
+      consultas = consultas_a("ideas") { get challenge_step_path(challenge, paso("evaluation")) }
+
+      # Cuatro filas con su evaluación, y sólo DOS consultas a `ideas`: la de
+      # `@ideas_visibles` (`IdeaPolicy::Scope`, en el controller) y el preload
+      # de `progress`. Las dos son una por pantalla; ninguna crece con las
+      # filas, que es lo único que este ejemplo cuida. Antes eran seis.
+      expect(documento.css(".fila-de-idea").size).to eq(4)
+      expect(documento.css(".assessment-detail").size).to eq(4)
+      expect(consultas.size).to eq(2), consultas.join("\n")
     end
   end
 
@@ -261,7 +365,34 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
 
       expect(zonas[:referencia]).to include("Progreso", "Quiénes acompañan", "Cómo quedó configurado")
       expect(zonas[:ajustes]).to include("Ajustes del módulo", "Modo de IA", "Elegí a quién sumar")
+      # Fija el texto entero: el orden de los bloques y el conector que pone
+      # `to_sentence`, que sale del locale (`:es`, vía rails-i18n) y en inglés
+      # diría «and».
+      expect(documento.at_css(".ajustes__titulo .muted").text).to eq("nombre, modo de IA y quiénes acompañan")
+      expect(titulos_de_la_referencia).to eq(["Progreso", "Quiénes acompañan", "Cómo quedó configurado"])
       expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
+      expect(titulos_de_mas_en_la_referencia).to be_empty
+    end
+
+    # El resumen plegado anuncia QUÉ hay adentro, así que tiene que salir de
+    # las mismas guardas que los bloques. «Quiénes acompañan» cuelga de
+    # `update_pipeline?`, que suma `&& !closed?` sobre `manager?`; el nombre y
+    # el modo de IA cuelgan de `advance?`, que es `manager?` a secas y sigue
+    # siendo verdadero con el desafío cerrado. Es la ÚNICA de las cinco
+    # pantallas donde los dos bloques no preguntan lo mismo.
+    #
+    # `close!` cierra el desafío sin tocar los módulos, así que un módulo
+    # activo con el desafío cerrado es un estado alcanzable: quien administra
+    # cortó el desafío antes de terminar el flujo.
+    it "con el desafío cerrado el resumen no anuncia quiénes acompañan" do
+      as_company(company) { challenge.pipeline.close! }
+      sign_in(admin, company: company)
+      get challenge_step_path(challenge, paso("evolution"))
+
+      resumen = documento.at_css(".ajustes__titulo .muted").text
+      expect(resumen).to include("nombre", "modo de IA")
+      expect(resumen).not_to include("quiénes acompañan")
+      expect(zonas[:ajustes]).not_to include("Elegí a quién sumar")
     end
 
     it "quien participa: sin quiénes acompañan y sin ajustes" do
@@ -305,11 +436,14 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
         expect(zonas[:referencia]).not_to include("Embudo")
         expect(zonas[:ajustes]).to include("Ajustes del módulo", "Modo de IA")
         expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
+        expect(titulos_de_mas_en_la_referencia).to be_empty
+        expect(titulos_de_la_referencia).to eq(["Descargas", "Cómo quedó configurado"])
       end
     end
 
     describe "lo que ve cada quien" do
       let!(:pedro) { member("pedro@test.dev", :participant) }
+      let!(:gina) { member("gina@test.dev", :gestor) }
 
       let!(:challenge) do
         as_company(company) do
@@ -375,6 +509,21 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
         expect(zonas[:referencia]).to include("Descargas", "Excel", "PDF")
       end
 
+      # El cuarto rol, que es el único que `ChallengePolicy#read_pool?` mira
+      # distinto: leer el pool ajeno pregunta además si llega al desafío, y un
+      # gestor llega sólo a los que le asignaron. Asignado, ve el resumen como
+      # quien administra o evalúa; sin asignar, la pantalla entera le da 404 y
+      # no hay nada que filtrar.
+      it "quien acompaña el desafío: el pool entero, sin descargas" do
+        as_company(company) { ChallengeGestor.create!(challenge: challenge, user: gina) }
+        sign_in(gina, company: company)
+        get challenge_step_path(challenge, paso("reporting"))
+
+        expect(tarjeta("Ranking").text).to include("Sensores de peso", "Cámaras en la merma")
+        expect(response.body).to include("quedó última por esfuerzo")
+        expect(zonas[:referencia]).not_to include("Descargas")
+      end
+
       # El «sin pedido a la IA» de arriba no afirma nada: el desafío corre en
       # modo `human`, donde `shared/ai_actions` no dibuja botones para NADIE.
       # La guarda que se quiere probar es `pide_resumen`
@@ -430,6 +579,8 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       expect(zonas[:referencia]).to include("Progreso", "Formulario de postulación", "Cómo quedó configurado")
       expect(documento.at_css('.ajustes [data-island="form-editor"]')).not_to be_nil
       expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
+      expect(titulos_de_mas_en_la_referencia).to be_empty
+      expect(titulos_de_la_referencia).to eq(["Progreso", "Formulario de postulación", "Cómo quedó configurado"])
     end
 
     it "quien participa: lee el formulario, sin editor ni ajustes" do
@@ -513,6 +664,25 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       expect(tarjeta).not_to be_nil
       expect(tarjeta.text).to include("Proponer criterios con IA")
       expect(tarjeta.css(".card, .panel")).to be_empty
+    end
+
+    # `steps/config_congelada` sirve en DOS zonas con niveles distintos: a la
+    # derecha es una tarjeta de consulta (`h3`, como el resto de la columna) y
+    # acá es el reemplazo de la tarjeta «El módulo» para quien no puede
+    # configurar, o sea una tarjeta del centro como cualquier otra (`h2`). Por
+    # eso el nivel es un local y no una constante del partial.
+    it "el resumen de sólo lectura de la cara de configuración es una tarjeta del centro" do
+      sign_in(paula, company: company)
+      get challenge_step_path(challenge, paso("evaluation"))
+
+      # La cara de configuración no tiene columna de referencia: lo que se
+      # configura es el trabajo de esa pantalla, no algo que se consulte.
+      expect(documento.at_css(".app-aside")).to be_nil
+
+      titulo = documento.css(".section-title").find { |n| n.text.strip.start_with?("Cómo") }
+      expect(titulo).not_to be_nil
+      expect(titulo.text.strip).to eq("Cómo está configurado")
+      expect(titulo.name).to eq("h2")
     end
 
     it "el título del formulario y su acción de IA están en la misma tarjeta" do
