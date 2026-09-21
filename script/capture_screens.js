@@ -136,7 +136,7 @@ async function revisarFormsAnidados(page, name, url) {
 // mirando —a simple vista el borde doble parece una separación—.
 async function revisarRitmo(page, name) {
   const pegadas = await page.evaluate(() => {
-    const paneles = [...document.querySelectorAll('.app-main > .panel, .app-main > .card')];
+    const paneles = [...document.querySelectorAll('.app-main > .card')];
     let juntas = 0;
     for (let i = 1; i < paneles.length; i++) {
       const anterior = paneles[i - 1].getBoundingClientRect();
@@ -193,14 +193,17 @@ async function revisarReferencia(page, name) {
 async function revisarClasesDescartadas(page, name) {
   const huerfanas = await page.evaluate(() => {
     const sospechosas = [];
-    // `.panel` y `.flow-drawer__punto` están en la lista aunque su CSS sea
-    // propio y escrito a mano: lo que esto atrapa no es sólo una clase que
-    // Tailwind no vio, es cualquier elemento que se quedó sin la regla que lo
-    // pintaba. El punto del drawer entró acá cuando dejó de ser un `badge`
-    // vaciado —antes lo cubría `[class*="badge"]`— y su fondo es un
-    // `color-mix()` sobre `--punto`: si ese token se rompe o se renombra, el
-    // `color-mix()` queda inválido, el fondo cae a transparente y el punto se
-    // vuelve invisible sin dejar rastro en el DOM.
+    // `.panel` está en la lista aunque ya no tenga ninguna regla: es la
+    // guarda contra que alguien la reintroduzca — sin CSS detrás queda sin
+    // fondo, sin relleno y sin borde, que es exactamente lo que esto atrapa.
+    // `.flow-drawer__punto` está por otro motivo, con CSS propio y escrito a
+    // mano: lo que esto atrapa no es sólo una clase que Tailwind no vio, es
+    // cualquier elemento que se quedó sin la regla que lo pintaba. El punto
+    // del drawer entró acá cuando dejó de ser un `badge` vaciado —antes lo
+    // cubría `[class*="badge"]`— y su fondo es un `color-mix()` sobre
+    // `--punto`: si ese token se rompe o se renombra, el `color-mix()` queda
+    // inválido, el fondo cae a transparente y el punto se vuelve invisible
+    // sin dejar rastro en el DOM.
     for (const el of document.querySelectorAll('[class*="badge"],[class*="btn"],[class*="alert"],[class*="flow-drawer__punto"],.steps,.panel,.card,.table :is(th,td)')) {
       // Única excepción: la celda de `tr.cut-line` (línea de corte del
       // ranking, `steps/selection.html.haml`) anula padding y borde a
@@ -242,7 +245,7 @@ async function revisarTarjetasViejas(page, name) {
   );
   if (viejas > 0) {
     failures++;
-    console.error(`[PANEL] ${name}: ${viejas} elementos \`card\` sin \`card-body\`; tienen que ser \`panel\``);
+    console.error(`[PANEL] ${name}: ${viejas} elementos \`card\` sin \`card-body\`: es un error de maquetado, no una tarjeta sin migrar`);
   }
 }
 
@@ -421,9 +424,9 @@ async function revisarPuntos(page, name, tema, esperados) {
 
 // Las variantes que la app usa, medidas en el tema activo aunque ninguna
 // pantalla del recorrido las muestre en ese tema. Se inyectan en una tarjeta
-// (`.card-body` o `.panel`) de una pantalla real —con la hoja y el tema de
-// verdad—, se miden y se sacan. Sin esto la pasada oscura midió CERO avisos y
-// dio verde: las cuatro pantallas que recorre no tienen ninguno.
+// (`.card-body`) de una pantalla real —con la hoja y el tema de verdad—, se
+// miden y se sacan. Sin esto la pasada oscura midió CERO avisos y dio verde:
+// las cuatro pantallas que recorre no tienen ninguno.
 //
 // Falla también si mide menos muestras de las que declara, para que no
 // vuelva a pasar en verde sin haber medido nada.
@@ -483,7 +486,7 @@ const MUESTRARIO_ATENUADO = [
 
 async function revisarMuestrario(page, tema) {
   await page.evaluate(({ plenas, atenuadas }) => {
-    const destino = document.querySelector('.card-body') || document.querySelector('.panel') || document.querySelector('.app-main') || document.body;
+    const destino = document.querySelector('.card-body') || document.querySelector('.app-main') || document.body;
     const caja = document.createElement('div');
     caja.dataset.muestrario = '';
     const muestra = (clase, padre) => {
@@ -523,46 +526,6 @@ async function revisarMuestrario(page, tema) {
   if (bajos.length) {
     failures++;
     console.error(`[CONTRASTE] muestrario ${tema}: ${bajos.map((m) => `${m.clase} ${m.ratio.toFixed(2)}:1`).join(' · ')}`);
-  }
-}
-
-// Mientras convivan `.panel` y `.card`, una tarjeta migrada tiene que verse
-// igual que una sin migrar: si no, cada pantalla del plan 2b cambia de aspecto
-// por la tarjeta y no por lo que se decidió cambiarle. Se inyectan las dos en
-// la pantalla real —con la hoja y el tema de verdad— y se comparan los estilos
-// computados. Se borra junto con `.panel`, al final del plan 2b-bis.
-async function revisarCardComoPanel(page, tema) {
-  const diferencias = await page.evaluate(() => {
-    const destino = document.querySelector('.app-main') || document.body;
-    const panel = document.createElement('div');
-    panel.className = 'panel';
-    panel.textContent = 'panel';
-    const card = document.createElement('div');
-    card.className = 'card';
-    const body = document.createElement('div');
-    body.className = 'card-body';
-    body.textContent = 'card';
-    card.appendChild(body);
-    destino.append(panel, card);
-
-    const p = getComputedStyle(panel);
-    const c = getComputedStyle(card);
-    const b = getComputedStyle(body);
-    const pares = {
-      'background-color': [p.backgroundColor, c.backgroundColor],
-      'border-top': [`${p.borderTopWidth} ${p.borderTopStyle} ${p.borderTopColor}`, `${c.borderTopWidth} ${c.borderTopStyle} ${c.borderTopColor}`],
-      'border-radius': [p.borderTopLeftRadius, c.borderTopLeftRadius],
-      'box-shadow': [p.boxShadow, c.boxShadow],
-      'padding': [`${p.paddingTop} ${p.paddingLeft}`, `${b.paddingTop} ${b.paddingLeft}`],
-      'font-size': [p.fontSize, b.fontSize]
-    };
-    panel.remove();
-    card.remove();
-    return Object.entries(pares).filter(([, [a, z]]) => a !== z).map(([k, [a, z]]) => `${k}: panel ${a} · card ${z}`);
-  });
-  if (diferencias.length) {
-    failures++;
-    console.error(`[CARD] ${tema}: la card no se ve como el panel — ${diferencias.join(' | ')}`);
   }
 }
 
@@ -1512,14 +1475,12 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // las tres variantes, así que se miden a mano acá, con la hoja y el tema de
   // verdad, antes de pasar a oscuro.
   await revisarMuestrario(page, 'claro');
-  await revisarCardComoPanel(page, 'claro');
 
   // ── Las pantallas que nadie fotografiaba ────────────────────────────────
   //
-  // Estas vistas usan `.panel` y ninguna guarda las miraba: `[CARD]`,
+  // Estas vistas no tenían ninguna captura y ninguna guarda las miraba:
   // `[PANEL]`, `[RITMO]`, `[CONTRASTE]` y `[CLASES]` sólo ven lo que el
-  // recorrido abre. Van ANTES de migrarlas, en verde con `.panel` puesto:
-  // así se prueba que la captura funciona, no que la migración funcionó.
+  // recorrido abre.
   //
   // El plan original contaba OCHO, con `pages/home.html.haml` como
   // `13-home`. Esa captura no existe y no puede existir: `config/routes.rb`
@@ -1602,6 +1563,35 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       await aEditar.click();
       await page.waitForURL(/\/edit/);
       await capturar(page, '17-idea-edit');
+    }
+  }
+
+  // La ficha de evaluación: el formulario que se llena para puntuar una idea.
+  // No la cubría ninguna captura —`09-11-panel-evaluacion` es la pantalla del
+  // MÓDULO, no ésta— y por eso la tarea 6 tuvo que verificarla a mano.
+  //
+  // No sale de `merma-bodega`: ahí el flujo corrió entero y sus dos módulos
+  // de evaluación quedan `completed`, así que ninguna fila ofrece «Evaluar»
+  // —la vista exige `step.active?` además de la policy
+  // (`steps/_fila_de_evaluacion.html.haml`)—. `comite-abierto` existe sólo
+  // para esto: un módulo de evaluación TODAVÍA activo, con una idea real de
+  // otra persona.
+  await page.goto(`${BASE}/challenges/comite-abierto`, { waitUntil: 'networkidle' });
+  const aComite = page.locator('.table-link', { hasText: /comit/i }).first();
+  if (!(await aComite.count())) {
+    failures++;
+    console.error('[LINK] «comite-abierto» no tiene el módulo de evaluación de comité');
+  } else {
+    await aComite.click();
+    await page.waitForURL(/\/steps\/[^/]+$/);
+    const aEvaluar = page.locator('a:has-text("Evaluar")').first();
+    if (!(await aEvaluar.count())) {
+      failures++;
+      console.error('[LINK] el módulo de comité no ofrece evaluar ninguna idea');
+    } else {
+      await aEvaluar.click();
+      await page.waitForURL(/\/assessments\/new/);
+      await capturar(page, '21-evaluar-idea');
     }
   }
 
@@ -1692,7 +1682,6 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     await page.goto(BASE + url, { waitUntil: 'networkidle' });
     if (nombre === '90-oscuro-desafios') {
       await revisarMuestrario(page, 'oscuro');
-      await revisarCardComoPanel(page, 'oscuro');
     }
     // Los mismos dos drawers que la pasada clara, por la misma razón:
     // `con-salteado` tiene pendiente, en curso y salteado, y el completado

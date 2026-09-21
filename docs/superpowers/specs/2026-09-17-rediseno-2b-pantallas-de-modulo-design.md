@@ -230,6 +230,12 @@ ellos tarjetas con una sola cosa adentro. Pasan a ser **una** `card`.
 Las tarjetas **de adentro** de las islas —la barra de «Volver / Guardar set»,
 la de la descripción, la de la lista de criterios— son del 2c.
 
+> **Corregido en el 2b-bis.** El markup de tarjeta de las dos islas
+> (`pipeline_builder.vue`, `criteria_editor.vue`, cuatro lugares) se llevó ahí
+> igual: sin esos cuatro, `.panel` no se podía borrar, que era la promesa de
+> este mismo spec. El resto de las islas —comportamiento, el CSS muerto del
+> editor de criterios, `.btn-link`— sigue siendo 2c.
+
 ---
 
 ## 4 · Lo que se arrastra del 2a
@@ -271,7 +277,11 @@ comporta un aviso merece su propio paso.
 ## Fuera de alcance
 
 - `.panel` → `card` fuera de la pantalla del módulo: 2b-bis.
-- Las islas Vue, incluidas sus tarjetas internas: 2c.
+- Las islas Vue, incluidas sus tarjetas internas: 2c. **Corregido en el
+  2b-bis:** se llevó las cuatro tarjetas internas (`pipeline_builder.vue`,
+  `criteria_editor.vue`) porque sin ellas `.panel` no se podía borrar, que es
+  lo que este mismo spec prometía. El resto de las islas —comportamiento, el
+  CSS muerto del editor de criterios, `.btn-link`— sigue siendo 2c.
 - Policies, dominio, motor, IA: nada. Si algo de esto parece necesitar un
   cambio de permiso, es un hallazgo y se consulta.
 - Qué pantallas existen y qué hace cada una: igual que en el spec original.

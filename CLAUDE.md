@@ -43,15 +43,18 @@ No hay linter configurado.
 app corriendo con un navegador y falla si hay error de JS, HTTP >= 400, si
 queda un `.island-placeholder` sin montar o si un elemento se quedó **sin
 ninguna regla detrás** (`[CLASES]`) —una clase que Tailwind no vio al escanear,
-pero también un `.panel`, un `.card` o el punto del drawer que perdió la regla
-que lo pintaba por un renombre o por un token roto; eso se revisa en todas las
-pantallas del recorrido, no en algunas: vive en `capturar()`—. También falla si
-un `.badge` o un `.alert` mide menos de 4,5:1 de contraste en claro o en oscuro
-(`[CONTRASTE]`, en cada pantalla y en el muestrario), si un punto de estado del
-drawer mide menos de 3:1 —el piso de WCAG 1.4.11 para lo que no es texto—
-(`[PUNTOS]`, en los dos temas), si aparece un `card` sin `card-body`
-(`[PANEL]`) o si el `card` de DaisyUI dejó de verse como el `.panel` que
-reemplaza (`[CARD]`). Y falla si una pantalla de módulo pierde su forma: sin
+pero también un `.card` o el punto del drawer que perdió la regla que lo
+pintaba por un renombre o por un token roto, o un `.panel` reintroducido: la
+clase ya no tiene ninguna regla en la hoja, así que un elemento con esa clase
+sola queda sin fondo, sin relleno y sin borde, y eso es justo lo que esto
+caza; eso se revisa en todas las pantallas del recorrido, no en algunas: vive
+en `capturar()`—. También falla si un `.badge` o un `.alert` mide menos de
+4,5:1 de contraste en claro o en oscuro (`[CONTRASTE]`, en cada pantalla y en
+el muestrario), si un punto de estado del drawer mide menos de 3:1 —el piso de
+WCAG 1.4.11 para lo que no es texto— (`[PUNTOS]`, en los dos temas), o si
+aparece un `card` sin `card-body` (`[PANEL]`): las tarjetas de la app son
+`card` + `card-body` en todas partes, y un `card` sin su `card-body` es un
+error de maquetado. Y falla si una pantalla de módulo pierde su forma: sin
 columna de referencia o sin los ajustes plegados (`[ZONAS]`), con el plegable
 cerrándose solo al morfear (`[PLEGABLE]`), sin la fila desplegable del desglose
 de evaluación (`[DESGLOSE]`) o sin el módulo salteado en el drawer y el mapa
@@ -777,19 +780,23 @@ Sass se jubiló entero. El archivo de salida conserva el nombre, así que el
 La fase 1 migró la plomería, las clases dinámicas, el tema y el shell. El plan
 2a pasó el vocabulario que se repite a componentes: las tablas son `table`, los
 avisos `alert alert-soft`, las cuatro familias de chips (estado, origen, tipo
-de feedback e IA) y los nodos del mapa del flujo son `badge`, y las tarjetas
-esperan su `card` + `card-body` bajo el nombre `.panel`. Las marcas sueltas
-—versión, desactualizada, «acá está el flujo», no pasa un filtro, filtros sin
-responder, derivado, las iniciales de quien evaluó— son `badge` vía
-`EstilosHelper::CHIPS`, y se piden por nombre con `chip("version")`: un nombre
-que no existe revienta, porque es un error de código y no un estado nuevo del
-dominio. El plan **2b** hizo las cinco pantallas de módulo: las tres zonas del
-shell —trabajo al centro, referencia a la derecha, «Ajustes del módulo»
-plegados al final—, la cara de configuración junta en la misma pantalla, y
-`.panel` → `card` + `card-body` **ahí y sólo ahí**. El resto de la app sigue en
-`.panel`: ésas son 2b-bis, y las islas Vue son 2c. `.step-card`, `.flow-strip`
-y `.empty-state` siguen siendo clases propias a propósito: son vocabulario de
-esta app.
+de feedback e IA) y los nodos del mapa del flujo son `badge`, y las tarjetas de
+la app se renombraron a `.panel`, a la espera de `card` + `card-body`. Las
+marcas sueltas —versión, desactualizada, «acá está el flujo», no pasa un
+filtro, filtros sin responder, derivado, las iniciales de quien evaluó— son
+`badge` vía `EstilosHelper::CHIPS`, y se piden por nombre con
+`chip("version")`: un nombre que no existe revienta, porque es un error de
+código y no un estado nuevo del dominio. El plan **2b** hizo las cinco
+pantallas de módulo: las tres zonas del shell —trabajo al centro, referencia a
+la derecha, «Ajustes del módulo» plegados al final—, la cara de configuración
+junta en la misma pantalla, y `.panel` → `card` + `card-body` **ahí**. El plan
+**2b-bis** se llevó el resto: las 23 vistas HAML que quedaban y el markup de
+tarjeta de las dos islas Vue (`pipeline_builder`, `criteria_editor`) —cuatro
+lugares que el spec del 2b no había contado—, y con eso **`.panel` no existe
+más**: la regla se borró de la hoja. Lo que sigue siendo 2c es el resto de las
+islas: su comportamiento, el CSS muerto del editor de criterios y
+`.btn-link`. `.step-card`, `.flow-strip` y `.empty-state` siguen siendo clases
+propias a propósito: son vocabulario de esta app.
 
 #### Lo que más fácil se rompe
 
@@ -861,14 +868,17 @@ el vocabulario que es de esta app y se repite (`.flow-strip`, `.step-card`,
 aparece en más de dos vistas, es un componente, no doce utilidades.**
 
 `card` de DaisyUI está **habilitada**, y el aspecto lo pone la hoja: una
-regla `.card` pegada a `.panel` le da superficie, borde, radio y sombra, y
-fija `--card-p` y `--card-fs` a lo que mide `.panel`. En las vistas se
-escribe `.card` > `.card-body` y nada más. Estuvo excluida porque declara
-`display: flex`, y habilitarla convertía de golpe todas las tarjetas en
-columnas flex; por eso las tarjetas de la app se llaman **`.panel`** hasta
-que cada pantalla pasa a `card` (planes 2b y 2b-bis). `make screens` falla si
-aparece un `card` sin `card-body` (`[PANEL]`) y si una `card` no se ve igual
-que un `.panel` (`[CARD]`, que se borra con `.panel`).
+regla `.card` le da superficie, borde, radio y sombra, y fija `--card-p` y
+`--card-fs` a lo que medía `.panel` —20px de relleno, la letra del `body`—.
+En las vistas se escribe `.card` > `.card-body` y nada más. Estuvo excluida
+porque declara `display: flex`, y habilitarla convertía de golpe todas las
+tarjetas en columnas flex; por eso las tarjetas de la app se llamaron
+**`.panel`** hasta que cada pantalla pasó a `card` (planes 2b y 2b-bis) —ya no
+queda ninguna, la regla se borró—. `make screens` falla si aparece un `card`
+sin `card-body` (`[PANEL]`): una `card` sin su `card-body` es un error de
+maquetado, no una tarjeta sin migrar. Y si aparece un `.panel` reintroducido
+—sin ninguna regla detrás, así que queda sin fondo, sin relleno y sin
+borde— lo caza `[CLASES]`.
 
 **La capa decide quién gana, y no es la especificidad.** Las clases propias de
 la app van **sin capa**, y una regla sin capa le gana a cualquier `@layer` —o
@@ -956,9 +966,9 @@ pantalla declara su layout.
 - **El ritmo lo pone `.app-main`**, que es `flex` en columna con `gap`. Las
   tarjetas tienen `margin: 0` a propósito: un margen por tarjeta rompería las
   grillas, donde son hermanas con su propio `gap`. Vale igual para `card`: ni
-  la regla que le da el aspecto de `.panel` ni `card-body` declaran margen, así
-  que las pantallas ya migradas (plan 2b) siguen el mismo ritmo y no hay dos
-  reglas que mantener. Antes no había ninguno de los dos y las tarjetas se
+  la regla que le da el aspecto que tenía `.panel` ni `card-body` declaran
+  margen, así que toda la app sigue el mismo ritmo y no hay dos reglas que
+  mantener. Antes no había ninguno de los dos y las tarjetas se
   **tocaban** — la página era una columna blanca continua partida por
   hairlines. No se ve mirando (el borde doble parece una separación): se ve
   midiendo, y hay guarda en las capturas (`[RITMO]`).

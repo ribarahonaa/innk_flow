@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
-/* `card` de DaisyUI está HABILITADA, pero ninguna tarjeta la usa todavía.
-   Estuvo excluida porque además de pintar declara `display: flex`,
+/* `card` de DaisyUI está HABILITADA y es lo que usan todas las tarjetas de la
+   app. Estuvo excluida porque además de pintar declara `display: flex`,
    `flex-direction: column` y `position: relative`, y habilitarla convertía de
    golpe todas las tarjetas de la app en columnas flex. Para poder habilitarla
-   sin tocar ninguna, las tarjetas de la app se renombraron a `.panel`. Cada
-   pantalla pasa de `.panel` a `card` + `card-body` cuando le toca (plan 2b),
-   y `.panel` se borra cuando no quede ninguna. */
+   sin tocar ninguna, las tarjetas de la app se renombraron primero a
+   `.panel`, y cada pantalla pasó de `.panel` a `card` + `card-body` en su
+   turno (plan 2b y 2b-bis). `.panel` ya se borró: no queda ninguna. */
 @plugin "daisyui" {
   themes: false;
 }
@@ -520,9 +520,6 @@ body {
    Y la prosa lleva su propia medida: un párrafo a 1.440px de línea no se lee
    por más que la tarjeta sí quiera ese ancho. */
 .app-main { max-width: var(--trabajo); width: 100%; margin-inline: auto; }
-.app-main > .panel p:not([class]),
-.app-main > .panel .muted,
-.app-main > .panel .field-hint,
 .app-main > .card p:not([class]),
 .app-main > .card .muted,
 .app-main > .card .field-hint,
@@ -787,14 +784,6 @@ body {
      flujo, y apilar dos líneas por paso lo duplica. El nombre alcanza; el
      detalle está a un clic. */
   .flow-drawer__hint { display: none; }
-}
-
-.panel {
-  background: var(--surface);
-  border: 1px solid var(--borde);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 20px;
 }
 
 /* La tarjeta de DaisyUI con el aspecto de `.panel`. El componente trae el
