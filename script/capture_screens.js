@@ -611,6 +611,31 @@ async function shot(page, name, url, prepare) {
   await capturar(page, name);
 }
 
+// Una pantalla de error es la ÚNICA que se fotografía con un estado >= 400, y
+// hay que poder hacerlo sin aflojar la regla: un `>= 400 se ignora` a secas
+// volvería ciega la corrida entera, que es lo que esta guarda evita.
+//
+// `estadoEsperado` vale para la navegación siguiente y sólo para el documento
+// principal. Si llega OTRO estado, sigue fallando: lo que se declara es cuál,
+// no que no importe.
+let estadoEsperado = null;
+
+// Como `shot()`, pero la pantalla responde con el estado declarado. Falla si
+// responde con otro —incluido un 200—: una pantalla de error que dejó de
+// serlo es exactamente lo que esto tiene que decir.
+async function shotConEstado(page, name, url, status) {
+  estadoEsperado = status;
+  const respuesta = await page.goto(BASE + url, { waitUntil: 'networkidle' });
+  if (respuesta.status() !== status) {
+    failures++;
+    console.error(`[ESTADO] ${name}: se esperaba ${status} y respondió ${respuesta.status()}`);
+  }
+  await revisarTexto(page, name);
+  await revisarRitmo(page, name);
+  await capturar(page, name);
+  estadoEsperado = null;
+}
+
 // Los módulos cuya cara de ejecución está en tres zonas (plan 2b): todos menos
 // las selecciones. Por nombre del seed de `merma-bodega`, igual que el resto
 // del recorrido — y por eso el loop exige que cada módulo caiga en exactamente
@@ -641,7 +666,12 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
 
   page.on('pageerror', (e) => { failures++; console.error(`[JS ERROR] ${e.message}`); });
   page.on('response', (r) => {
-    if (r.status() >= 400) { failures++; console.error(`[HTTP ${r.status()}] ${r.url()}`); }
+    if (r.status() < 400) return;
+    // Sólo el documento principal de la navegación declarada. Un asset o un
+    // fetch que devuelva 403 sigue siendo una falla.
+    if (estadoEsperado && r.status() === estadoEsperado && r.request().isNavigationRequest()) return;
+    failures++;
+    console.error(`[HTTP ${r.status()}] ${r.url()}`);
   });
 
   await shot(page, '01-login', '/login');
@@ -1483,6 +1513,138 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // verdad, antes de pasar a oscuro.
   await revisarMuestrario(page, 'claro');
   await revisarCardComoPanel(page, 'claro');
+
+  // ── Las pantallas que nadie fotografiaba ────────────────────────────────
+  //
+  // Ocho vistas usan `.panel` y ninguna guarda las miraba: `[CARD]`,
+  // `[PANEL]`, `[RITMO]`, `[CONTRASTE]` y `[CLASES]` sólo ven lo que el
+  // recorrido abre. Van ANTES de migrarlas, en verde con `.panel` puesto:
+  // así se prueba que la captura funciona, no que la migración funcionó.
+  await shot(page, '13-home', '/');
+
+  // La ficha de una corrida de IA, que no es el índice.
+  await page.goto(`${BASE}/admin/ai_runs`, { waitUntil: 'networkidle' });
+  const aRun = page.locator('.table-link').first();
+  if (!(await aRun.count())) {
+    failures++;
+    console.error('[LINK] el índice de corridas de IA no ofrece ninguna ficha');
+  } else {
+    await aRun.click();
+    await page.waitForURL(/\/ai_runs\//);
+    await capturar(page, '14-ai-run');
+  }
+
+  // La ficha de un set de criterios: el NOMBRE, no «Editar» —eso ya es
+  // `10b-criteria-editor`, que es la pantalla de edición—.
+  //
+  // `criteria_sets/index.html.haml` es una grilla de tarjetas, no una tabla:
+  // no hay ningún `.table-link` ahí, y el NOMBRE del set no es un link —sólo
+  // «Editar» lo es—. La ficha (`criteria_sets#show`) existe y está ruteada,
+  // pero HOY ninguna vista de la app linkea a ella (`grep criteria_set_path`
+  // sólo encuentra `edit_criteria_set_path` y `promote_criteria_set_path`):
+  // se llega derivando el id del link a «Editar», que sí existe.
+  await page.goto(`${BASE}/criteria_sets`, { waitUntil: 'networkidle' });
+  const editarSet = page.locator('a:has-text("Editar")').first();
+  if (!(await editarSet.count())) {
+    failures++;
+    console.error('[LINK] la biblioteca de criterios no ofrece ningún set');
+  } else {
+    const hrefEditar = await editarSet.getAttribute('href');
+    const idSet = hrefEditar?.match(/\/criteria_sets\/([^/]+)\/edit/)?.[1];
+    if (!idSet) {
+      failures++;
+      console.error(`[LINK] no se pudo extraer el id del set de «${hrefEditar}»`);
+    } else {
+      await page.goto(`${BASE}/criteria_sets/${idSet}`, { waitUntil: 'networkidle' });
+      await capturar(page, '15-criteria-set');
+    }
+  }
+
+  // Postular una idea. `IdeaPolicy#create?` no mira el estado del módulo
+  // —sólo que haya membresía y no sea gestor—, así que quien administra
+  // siempre puede abrir el formulario. Lo que SÍ depende del estado es el
+  // LINK: `ideas/index.html.haml` sólo ofrece «Postular una idea» mientras
+  // `ideacion&.active?`, y en `merma-bodega` ese módulo ya está `completed`
+  // —arrancó y cerró, como el resto del flujo que este recorrido recorre—.
+  // No hay otro desafío sembrado con la postulación todavía abierta que no
+  // esté reservado para otra captura (`con-salteado`, `recorrido-ia`) o que
+  // no sea dato armado a mano fuera de `db/seeds.rb`. No se aprieta
+  // «Guardar»: la captura no deja un borrador sembrado en la base.
+  await page.goto(`${BASE}/challenges/${CHALLENGE}/ideas/new`, { waitUntil: 'networkidle' });
+  if (!(await page.locator('h1:has-text("Postular una idea")').count())) {
+    failures++;
+    console.error('[LINK] /ideas/new no renderizó el formulario de postulación');
+  }
+  await capturar(page, '16-idea-new');
+
+  await page.goto(`${BASE}/challenges/${CHALLENGE}/ideas`, { waitUntil: 'networkidle' });
+  const aIdeaExistente = page.locator('a.idea-list__link').first();
+  if (!(await aIdeaExistente.count())) {
+    failures++;
+    console.error('[LINK] la lista de ideas no tiene ninguna idea');
+  } else {
+    await aIdeaExistente.click();
+    await page.waitForURL(/\/ideas\//);
+    const aEditar = page.locator('a:has-text("Editar")').first();
+    if (!(await aEditar.count())) {
+      failures++;
+      console.error('[LINK] la ficha de la idea no ofrece editarla');
+    } else {
+      await aEditar.click();
+      await page.waitForURL(/\/edit/);
+      await capturar(page, '17-idea-edit');
+    }
+  }
+
+  // ── Las tres que piden otra sesión ──────────────────────────────────────
+  //
+  // Van últimas de la pasada clara: el recorrido como admin ya terminó, así
+  // que cambiar de usuario acá no le saca la sesión a ninguna captura.
+  const salir = async () => {
+    await page.goto(`${BASE}/challenges`, { waitUntil: 'networkidle' });
+    // `require_company` es un before_action GLOBAL (`ApplicationController`) y
+    // `SessionsController#destroy` no está en la lista de excepciones: sin
+    // empresa elegida, el propio `DELETE /logout` rebota a `/select_company`
+    // en vez de cerrar la sesión. Pasa con `multi@demo.test` recién entrado
+    // —es el estado que deja `18-select-company`—, así que hay que elegir
+    // cualquiera antes de poder salir.
+    if (new URL(page.url()).pathname === '/select_company') {
+      await page.click('.company-list button, .company-list input[type="submit"]');
+      await page.waitForLoadState('networkidle');
+    }
+    await page.click('form[action="/logout"] button, form[action="/logout"] input[type="submit"]');
+    await page.waitForURL(/\/login/, { timeout: 10000 });
+  };
+  const entrar = async (email) => {
+    await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
+    await page.fill('input[name="email"]', email);
+    await page.fill('input[name="password"]', 'Test1234');
+    await page.click('input[type="submit"]');
+    await page.waitForLoadState('networkidle');
+  };
+
+  // Elegir empresa: `multi@demo.test` es la cuenta que el seed deja con dos
+  // membresías, así que el login la manda acá en vez de a los desafíos.
+  await salir();
+  await entrar('multi@demo.test');
+  await capturar(page, '18-select-company');
+
+  // El 403. Quien participa SÍ ve el desafío —`ChallengeStepPolicy#show?` es
+  // cualquiera de la empresa— pero no lo arma: `ChallengePolicy#builder?` es
+  // `manager?`. Es el 403 legítimo que CLAUDE.md describe, no un oráculo de
+  // existencia: fotografiar un 403 sobre algo que no se debería ver sería
+  // fotografiar un bug.
+  await salir();
+  await entrar('part1@demo.test');
+  await shotConEstado(page, '19-forbidden', `/challenges/${CHALLENGE}/builder`, 403);
+
+  // El 404, sobre un slug que no existe.
+  await shotConEstado(page, '20-not-found', '/challenges/no-existe', 404);
+
+  // Vuelve el admin: la pasada oscura sigue después y recorre pantallas que
+  // sólo quien administra ve.
+  await salir();
+  await entrar('admin@demo.test');
 
   // ── Tema oscuro ──────────────────────────────────────────────────────────
   //
