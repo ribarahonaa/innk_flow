@@ -5,30 +5,32 @@
     %h1.page-title Cambios entre versiones
     %p.muted= @diff.summary
 
-.panel
-  = form_with url: diff_challenge_idea_path(@challenge, @idea), method: :get, class: "diff-picker" do
-    .field
-      = label_tag :a, "Desde"
-      = select_tag :a, options_for_select(@versions.map { |v| ["#{v.label} · #{l(v.created_at, format: :short)}", v.id] }, @from.id)
-    .field
-      = label_tag :b, "Hasta"
-      = select_tag :b, options_for_select(@versions.map { |v| ["#{v.label} · #{l(v.created_at, format: :short)}", v.id] }, @to.id)
-    = submit_tag "Comparar", class: "btn btn-ghost"
+.card
+  .card-body
+    = form_with url: diff_challenge_idea_path(@challenge, @idea), method: :get, class: "diff-picker" do
+      .field
+        = label_tag :a, "Desde"
+        = select_tag :a, options_for_select(@versions.map { |v| ["#{v.label} · #{l(v.created_at, format: :short)}", v.id] }, @from.id)
+      .field
+        = label_tag :b, "Hasta"
+        = select_tag :b, options_for_select(@versions.map { |v| ["#{v.label} · #{l(v.created_at, format: :short)}", v.id] }, @to.id)
+      = submit_tag "Comparar", class: "btn btn-ghost"
 
-.panel
-  - if @diff.changes.empty?
-    %p.muted No hay diferencias entre #{@from.label} y #{@to.label}.
-  - else
-    - @diff.changes.each do |change|
-      .diff-row
-        %h3.diff-row__label
-          = change.label
-          %span{ class: clase_de_diff(change.kind) }
-            = { added: "agregado", removed: "vaciado", changed: "modificado" }[change.kind]
-        .diff-row__panes
-          .diff-pane.diff-pane--from
-            %span.diff-pane__tag= @from.label
-            %p= change.from.presence || "—"
-          .diff-pane.diff-pane--to
-            %span.diff-pane__tag= @to.label
-            %p= change.to.presence || "—"
+.card
+  .card-body
+    - if @diff.changes.empty?
+      %p.muted No hay diferencias entre #{@from.label} y #{@to.label}.
+    - else
+      - @diff.changes.each do |change|
+        .diff-row
+          %h3.diff-row__label
+            = change.label
+            %span{ class: clase_de_diff(change.kind) }
+              = { added: "agregado", removed: "vaciado", changed: "modificado" }[change.kind]
+          .diff-row__panes
+            .diff-pane.diff-pane--from
+              %span.diff-pane__tag= @from.label
+              %p= change.from.presence || "—"
+            .diff-pane.diff-pane--to
+              %span.diff-pane__tag= @to.label
+              %p= change.to.presence || "—"

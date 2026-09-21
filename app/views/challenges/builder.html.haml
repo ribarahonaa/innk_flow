@@ -13,39 +13,42 @@
 -# Un desafío sin módulos puede haber nacido en blanco. Armar seis módulos a
 -# mano por haberse arrepentido no es razonable: las plantillas siguen ahí.
 - if @challenge.draft? && @challenge.steps.empty? && policy(@challenge).update_pipeline?
-  .panel
-    %h2.section-title Empezar de una plantilla
-    %p.muted Un flujo armado que después editás entero.
-    .template-picker
-      - Flow::FlowTemplates::TEMPLATES.each do |template|
-        .template-option
-          %strong= template[:name]
-          = render "challenges/template_outline", template: template
-          %p.muted= template[:description]
-          = button_to "Usar esta", apply_template_challenge_path(@challenge, template: template[:key]),
-                      class: "btn btn-ghost btn-sm"
+  .card
+    .card-body
+      %h2.section-title Empezar de una plantilla
+      %p.muted Un flujo armado que después editás entero.
+      .template-picker
+        - Flow::FlowTemplates::TEMPLATES.each do |template|
+          .template-option
+            %strong= template[:name]
+            = render "challenges/template_outline", template: template
+            %p.muted= template[:description]
+            = button_to "Usar esta", apply_template_challenge_path(@challenge, template: template[:key]),
+                        class: "btn btn-ghost btn-sm"
 
 -# Asistencia para ARMAR el flujo. Disponible cualquiera sea el modo del
 -# desafío: elegir "solo personas" define cómo se trabaja dentro de cada
 -# módulo, no si su dueño puede pedir ayuda para diseñarlo.
 - if policy(@challenge).update_pipeline?
-  .panel
-    %h2.section-title Armar el flujo con IA
-    - if @challenge.draft?
-      %p.muted La IA lee el brief y propone qué módulos usar, en qué orden y con qué configuración. Revisás la propuesta antes de que se aplique.
-      = render "shared/ai_actions", challenge: @challenge, mode: @challenge.ai_default_mode, always: true,
-               actions: [{ label: "Proponer el flujo", purpose: "propose_pipeline" }]
-    - else
-      %p.muted
-        El flujo ya arrancó, así que no se puede reemplazar entero: los módulos ejecutados son parte del historial del desafío.
-        Podés seguir agregando módulos a mano después del último ejecutado.
+  .card
+    .card-body
+      %h2.section-title Armar el flujo con IA
+      - if @challenge.draft?
+        %p.muted La IA lee el brief y propone qué módulos usar, en qué orden y con qué configuración. Revisás la propuesta antes de que se aplique.
+        = render "shared/ai_actions", challenge: @challenge, mode: @challenge.ai_default_mode, always: true,
+                 actions: [{ label: "Proponer el flujo", purpose: "propose_pipeline" }]
+      - else
+        %p.muted
+          El flujo ya arrancó, así que no se puede reemplazar entero: los módulos ejecutados son parte del historial del desafío.
+          Podés seguir agregando módulos a mano después del último ejecutado.
 
 -# Isla Vue. Las props vienen serializadas del server (PipelinePresenter), no
 -# de un fetch al montar: una vuelta de red menos y la tenencia la garantiza
 -# el scope de Ruby.
 %div{ "data-island": "pipeline-builder", data: { props: @props.to_json } }
-  .panel.island-placeholder
-    %p.muted Cargando el editor de flujo…
+  .card
+    .card-body.island-placeholder
+      %p.muted Cargando el editor de flujo…
 
 = javascript_include_tag "packs/pipeline_builder", defer: true, nonce: content_security_policy_nonce
 

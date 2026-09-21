@@ -1,16 +1,17 @@
 -# El camino, antes de que el desafío exista. La pantalla de creación es el
 -# paso 1 y tiene que mostrar qué viene después, aunque todavía no haya nada
 -# a dónde ir.
-.panel.setup
-  .setup__head
-    %h2.section-title
-      Configurar el desafío
-      %span.setup__count= "paso 1 de #{Flow::Setup.outline.size}"
-  %ol.setup__steps
-    - Flow::Setup.outline.each_with_index do |(label, hint), index|
-      %li.setup__step{ class: index.zero? ? "setup__step--current" : "setup__step--outline" }
-        %span.setup__link
-          %span.setup__mark= index + 1
-          %span.setup__body
-            %span.setup__label= label
-            %span.setup__hint= hint
+.card.setup
+  .card-body
+    .setup__head
+      %h2.section-title
+        Configurar el desafío
+        %span.setup__count= "paso 1 de #{Flow::Setup.outline.size}"
+    %ol.setup__steps
+      - Flow::Setup.outline.each_with_index do |(label, hint), index|
+        %li.setup__step{ class: index.zero? ? "setup__step--current" : "setup__step--outline" }
+          %span.setup__link
+            %span.setup__mark= index + 1
+            %span.setup__body
+              %span.setup__label= label
+              %span.setup__hint= hint

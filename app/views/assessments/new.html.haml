@@ -13,47 +13,49 @@
 .idea-layout
   .idea-layout__main
     - if @ai_scores.any? && !@prefill
-      .panel.ai-guide-banner
-        %h2.section-title
-          La IA ya evaluó esta idea
-          %span{ class: chip_de_ia } IA
-        %p.muted Vas a ver su valor y su razón junto a cada criterio. Podés partir de ahí y ajustar.
-        = link_to "Precargar con los valores de la IA",
-                  new_challenge_step_assessment_path(@challenge, @step, idea_id: @idea.id, prefill: "ai"),
-                  class: "btn btn-ghost btn-sm"
+      .card.ai-guide-banner
+        .card-body
+          %h2.section-title
+            La IA ya evaluó esta idea
+            %span{ class: chip_de_ia } IA
+          %p.muted Vas a ver su valor y su razón junto a cada criterio. Podés partir de ahí y ajustar.
+          = link_to "Precargar con los valores de la IA",
+                    new_challenge_step_assessment_path(@challenge, @step, idea_id: @idea.id, prefill: "ai"),
+                    class: "btn btn-ghost btn-sm"
 
-    .panel
-      %h2.section-title Ficha de evaluación
-      - if @prefill
-        .alert.alert-soft.alert-warning
-          Precargado con los valores de la IA. Revisá cada criterio antes de guardar: la evaluación queda a tu nombre.
-      = form_with url: challenge_step_assessments_path(@challenge, @step), method: :post do
-        = hidden_field_tag :idea_id, @idea.id
-
-        - @handler.scored_criteria.each do |criterion|
-          - record = Criterion.find_by(id: criterion["id"])
-          - existing = @assessment.assessment_scores.detect { |s| s.criterion_key == criterion["key"] }
-          - ai_score = @ai_scores[criterion["key"]]
-          - value_now = existing&.raw_value
-          - value_now = ai_score&.raw_value if @prefill && value_now.blank?
-          = render "assessments/criterion_field", criterion: criterion, record: record,
-                   value_now: value_now, ai_score: ai_score, comment: existing&.comment
-
-        - derived = @handler.criteria_snapshot.select { _1["scale_type"] == "formula" }
-        - if derived.any?
+    .card
+      .card-body
+        %h2.section-title Ficha de evaluación
+        - if @prefill
           .alert.alert-soft.alert-warning
-            %div
-              %strong Criterios derivados:
-              = derived.map { _1["name"] }.join(", ")
-              se calculan solos al guardar, a partir de los anteriores.
+            Precargado con los valores de la IA. Revisá cada criterio antes de guardar: la evaluación queda a tu nombre.
+        = form_with url: challenge_step_assessments_path(@challenge, @step), method: :post do
+          = hidden_field_tag :idea_id, @idea.id
 
-        .field
-          = label_tag :overall_comment, "Comentario general"
-          = text_area_tag :overall_comment, @assessment.overall_comment, rows: 3
+          - @handler.scored_criteria.each do |criterion|
+            - record = Criterion.find_by(id: criterion["id"])
+            - existing = @assessment.assessment_scores.detect { |s| s.criterion_key == criterion["key"] }
+            - ai_score = @ai_scores[criterion["key"]]
+            - value_now = existing&.raw_value
+            - value_now = ai_score&.raw_value if @prefill && value_now.blank?
+            = render "assessments/criterion_field", criterion: criterion, record: record,
+                     value_now: value_now, ai_score: ai_score, comment: existing&.comment
 
-        .form-actions
-          = link_to "Cancelar", challenge_step_path(@challenge, @step), class: "btn btn-ghost"
-          = submit_tag "Guardar evaluación", class: "btn btn-primary"
+          - derived = @handler.criteria_snapshot.select { _1["scale_type"] == "formula" }
+          - if derived.any?
+            .alert.alert-soft.alert-warning
+              %div
+                %strong Criterios derivados:
+                = derived.map { _1["name"] }.join(", ")
+                se calculan solos al guardar, a partir de los anteriores.
+
+          .field
+            = label_tag :overall_comment, "Comentario general"
+            = text_area_tag :overall_comment, @assessment.overall_comment, rows: 3
+
+          .form-actions
+            = link_to "Cancelar", challenge_step_path(@challenge, @step), class: "btn btn-ghost"
+            = submit_tag "Guardar evaluación", class: "btn btn-primary"
 
   %aside.idea-layout__side
     -# Quién puede pedirlo no es quien administra: lo autoriza
@@ -69,24 +71,27 @@
     -# lo que autorizó el controller, y va ÚLTIMO en el `&&` para que el EXISTS
     -# sobre `step_assignments` no corra cuando el bloque ni se muestra.
     - if @ai_scores.empty? && @step.effective_ai_mode != "human" && policy(Assessment.new(challenge_step: @step)).create?
-      .panel
-        %h2.section-title ¿Querés que la IA te guíe?
-        %p.muted.field-hint Evalúa con los mismos criterios y te muestra qué pondría en cada uno, con su razón.
-        = button_to "Pedir la guía de la IA",
-                    challenge_ai_requests_path(@challenge, purpose: "evaluate_idea", step_id: @step.id, idea_id: @idea.id),
-                    class: "btn btn-ghost btn-sm btn-block"
+      .card
+        .card-body
+          %h2.section-title ¿Querés que la IA te guíe?
+          %p.muted.field-hint Evalúa con los mismos criterios y te muestra qué pondría en cada uno, con su razón.
+          = button_to "Pedir la guía de la IA",
+                      challenge_ai_requests_path(@challenge, purpose: "evaluate_idea", step_id: @step.id, idea_id: @idea.id),
+                      class: "btn btn-ghost btn-sm btn-block"
 
     - if @ai_assessment&.overall_comment.present?
-      .panel.assessment-detail--ai
-        %h2.section-title
-          Comentario general de la IA
-          %span{ class: chip_de_ia } IA
-        %p.assessment-detail__comment= @ai_assessment.overall_comment
+      .card.assessment-detail--ai
+        .card-body
+          %h2.section-title
+            Comentario general de la IA
+            %span{ class: chip_de_ia } IA
+          %p.assessment-detail__comment= @ai_assessment.overall_comment
 
-    .panel
-      %h2.section-title La idea
-      %dl.answer-list
-        - (@challenge.pipeline.ideation_step&.form_fields&.ordered || []).each do |field|
-          - value = @idea.payload[field.key]
-          %dt= field.label
-          %dd{ class: ("is-empty" if value.blank?) }= value.presence || "—"
+    .card
+      .card-body
+        %h2.section-title La idea
+        %dl.answer-list
+          - (@challenge.pipeline.ideation_step&.form_fields&.ordered || []).each do |field|
+            - value = @idea.payload[field.key]
+            %dt= field.label
+            %dd{ class: ("is-empty" if value.blank?) }= value.presence || "—"

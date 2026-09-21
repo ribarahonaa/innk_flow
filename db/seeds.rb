@@ -127,6 +127,9 @@ Flow::Tenant.bypass! do
     # Filtros del corte: condiciones de sí/no que la idea tiene que cumplir
     # para seguir. No dan puntaje —eso lo trae la evaluación previa— sino que
     # habilitan o dejan afuera.
+    # El seed se corre varias veces: los sets de la biblioteca no cuelgan del
+    # desafío, así que se limpian aparte o quedan duplicados.
+    CriteriaSet.library.where(name: "Filtros de pase a comité").destroy_all
     filtros = CriteriaSet.create!(name: "Filtros de pase a comité", scope: "library",
                                   description: "Lo mínimo para que valga la pena discutirla en comité.")
     [
@@ -503,6 +506,40 @@ Flow::Tenant.bypass! do
     salteado.pipeline.start!
     salteado.steps.reload.find(&:evolution?).handler.skip!(reason: "Sin gestores disponibles este mes")
 
+    # Un módulo de evaluación TODAVÍA activo, con una idea real que evaluar:
+    # es lo único que puede ofrecer el link «Evaluar» de una fila.
+    # `AssessmentPolicy#create?` depende de la asignación y no del rol, pero
+    # la VISTA además exige `step.active?`
+    # (`steps/_fila_de_evaluacion.html.haml`), y ningún otro desafío sembrado
+    # deja un módulo de evaluación en ese estado: `merma-bodega` corre el
+    # flujo entero y sus dos evaluaciones quedan `completed`; el de
+    # `con-salteado` queda `pending`, porque lo suyo es el módulo SALTEADO y
+    # no el de evaluación. Propio y no compartido, como manda CLAUDE.md —
+    # existe sólo para la captura `21-evaluar-idea`.
+    Challenge.where(slug: "comite-abierto").destroy_all
+    abierto = Challenge.create!(
+      slug: "comite-abierto",
+      name: "Reordenar el picking nocturno",
+      brief: "El turno de la noche arma los pedidos con el layout pensado para el de día: " \
+             "buscamos cómo acortar el recorrido sin tocar el layout.",
+      ai_default_mode: "human"
+    )
+    abierto.pipeline.insert(kind: "ideation", after: :end, name: "Postulación")
+    abierto.pipeline.insert(kind: "evaluation", after: :end, name: "Evaluación de comité")
+    abierto_ideacion = abierto.pipeline.ideation_step
+    abierto_ideacion.form_fields.create!(key: "titulo", label: "Título", field_type: "text", required: true,
+                                         position: 0, config: { "is_title" => true })
+    abierto.pipeline.start!
+    idea_abierta = Idea.create!(challenge: abierto, author: User.find_by!(email: "part2@demo.test"),
+                                status: "draft", origin: "human")
+    Flow::Ideas::PublishVersion.new(
+      idea_abierta, payload: { "titulo" => "Reordenar las góndolas del picking nocturno" },
+      author: idea_abierta.author, actor_type: "human", source_step: abierto_ideacion,
+      change_note: "Creación de la idea"
+    ).call
+    idea_abierta.update!(submitted_at: Time.current)
+    abierto.pipeline.advance!  # → Evaluación de comité (activo, con la idea adentro)
+
     # Un desafío SIN módulos, para la captura del selector de plantillas.
     # Antes el script de capturas creaba uno en cada corrida y no lo borraba:
     # la base de desarrollo terminó con dieciséis «desafio-de-prueba-N».
@@ -529,6 +566,8 @@ Flow::Tenant.bypass! do
     # estado y sin módulo salteado— sin una línea que lo diga.
     puts "Desafío con salteado: #{salteado.reload.name} (#{salteado.status}, " \
          "salteado: #{salteado.steps.reload.find(&:skipped?)&.name || 'NINGUNO'})"
+    puts "Desafío con comité abierto: #{abierto.reload.name} " \
+         "(módulo activo: #{abierto.pipeline.active_step&.name})"
   end
 
   puts ""

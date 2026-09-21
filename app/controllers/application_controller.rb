@@ -24,8 +24,8 @@ class ApplicationController < ActionController::Base
     action_name == "index" ? verify_policy_scoped : verify_authorized
   end
 
-  # Sesión y páginas sin recurso no tienen qué autorizar.
+  # La sesión no tiene qué autorizar: todavía no hay membresía con la cual.
   def skip_pundit?
-    is_a?(SessionsController) || is_a?(PagesController)
+    is_a?(SessionsController)
   end
 end

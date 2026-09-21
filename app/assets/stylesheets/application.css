@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
-/* `card` de DaisyUI está HABILITADA, pero ninguna tarjeta la usa todavía.
-   Estuvo excluida porque además de pintar declara `display: flex`,
+/* `card` de DaisyUI está HABILITADA y es lo que usan todas las tarjetas de la
+   app. Estuvo excluida porque además de pintar declara `display: flex`,
    `flex-direction: column` y `position: relative`, y habilitarla convertía de
    golpe todas las tarjetas de la app en columnas flex. Para poder habilitarla
-   sin tocar ninguna, las tarjetas de la app se renombraron a `.panel`. Cada
-   pantalla pasa de `.panel` a `card` + `card-body` cuando le toca (plan 2b),
-   y `.panel` se borra cuando no quede ninguna. */
+   sin tocar ninguna, las tarjetas de la app se renombraron primero a
+   `.panel`, y cada pantalla pasó de `.panel` a `card` + `card-body` en su
+   turno (plan 2b y 2b-bis). `.panel` ya se borró: no queda ninguna. */
 @plugin "daisyui" {
   themes: false;
 }
@@ -520,9 +520,6 @@ body {
    Y la prosa lleva su propia medida: un párrafo a 1.440px de línea no se lee
    por más que la tarjeta sí quiera ese ancho. */
 .app-main { max-width: var(--trabajo); width: 100%; margin-inline: auto; }
-.app-main > .panel p:not([class]),
-.app-main > .panel .muted,
-.app-main > .panel .field-hint,
 .app-main > .card p:not([class]),
 .app-main > .card .muted,
 .app-main > .card .field-hint,
@@ -789,23 +786,15 @@ body {
   .flow-drawer__hint { display: none; }
 }
 
-.panel {
-  background: var(--surface);
-  border: 1px solid var(--borde);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 20px;
-}
-
 /* La tarjeta de DaisyUI con el aspecto de `.panel`. El componente trae el
    radio y `display: flex` en columna, y nada más: ni fondo, ni borde, ni
    sombra. Escribir `card-border bg-base-100 shadow-sm` en cada vista sería la
    regla de los componentes al revés, así que el aspecto vive acá, una vez.
 
-   `--card-p` y `--card-fs` son lo que mide `.panel`: 20px de relleno —DaisyUI
-   pone 24— y la letra del `body`. Va PEGADA a `.panel` y antes de `.ai-panel`
-   y `.narrative-card`: con la misma especificidad y sin capa, gana la que
-   viene después, y esas tienen que seguir pisando borde y fondo. */
+   `--card-p` y `--card-fs` son 20px de relleno —DaisyUI pone 24— y la letra
+   del `body`. Va antes de `.ai-panel` y `.narrative-card`: con la misma
+   especificidad y sin capa, gana la que viene después, y esas tienen que
+   seguir pisando borde y fondo. */
 .card {
   --card-p: 20px;
   --card-fs: 14px;
@@ -826,6 +815,11 @@ body {
 /* Su propio `margin-top` ya no colapsa con el del párrafo de arriba: con la
    lista vacía la línea bajaba 22px. El borde y su relleno separan igual. */
 .card-body > .assignment-add { margin-top: 0; }
+/* `errors/forbidden`, `errors/not_found` y `sessions/select_company` titulan
+   con un `%h1` sin clase: sin `.page-title` que le fije el margen, corre el
+   default del Preflight (`margin-block: .67em`, ~19px). Ya no colapsa con el
+   párrafo de abajo, así que el título quedaba ~21px más lejos de su texto. */
+.card-body > h1:not([class]) { margin-bottom: 0; }
 
 /* ── Auth ───────────────────────────────────────────────────────────────── */
 .auth-body {
@@ -886,9 +880,10 @@ input:focus, textarea:focus, select:focus {
    `btn` se migró: es autocontenida y el mapeo es directo. Las reglas propias
    se borraron y las de DaisyUI toman su lugar.
 
-   `card` tampoco colisiona ya: la tarjeta de esta app pasó a llamarse
-   `.panel`, y el `card` de DaisyUI quedó habilitada sin que nada la use
-   todavía. Ver el comentario del @plugin, arriba.
+   `card` tampoco colisiona ya: es la tarjeta de esta app. Las 46 tarjetas de
+   la app son `card` + `card-body`, con el aspecto de la vieja `.panel`
+   puesto encima (arriba, en la regla `.card`). Ver el comentario del
+   @plugin, más arriba todavía.
 
    `btn-link` tampoco: el de DaisyUI es una variante de botón con la altura de
    `btn`, y el de acá es una acción en medio de una frase, sin padding ni
@@ -1020,6 +1015,11 @@ input:focus, textarea:focus, select:focus {
 .field-hint--warn { color: var(--warn); }
 .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
 .empty-state { text-align: center; padding: 44px 20px; }
+/* `.empty-state` vive en el `card-body`, que es flex en columna: sin esto el
+   botón se estira a todo el ancho (`align-items` default es `stretch`) y los
+   márgenes del título y el párrafo dejan de colapsar. Bloque, como era con
+   `.panel`. */
+.card-body.empty-state { display: block; }
 
 /* ── Índice de desafíos ─────────────────────────────────────────────────── */
 .challenge-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }

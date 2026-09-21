@@ -136,7 +136,7 @@ async function revisarFormsAnidados(page, name, url) {
 // mirando —a simple vista el borde doble parece una separación—.
 async function revisarRitmo(page, name) {
   const pegadas = await page.evaluate(() => {
-    const paneles = [...document.querySelectorAll('.app-main > .panel, .app-main > .card')];
+    const paneles = [...document.querySelectorAll('.app-main > .card')];
     let juntas = 0;
     for (let i = 1; i < paneles.length; i++) {
       const anterior = paneles[i - 1].getBoundingClientRect();
@@ -193,14 +193,17 @@ async function revisarReferencia(page, name) {
 async function revisarClasesDescartadas(page, name) {
   const huerfanas = await page.evaluate(() => {
     const sospechosas = [];
-    // `.panel` y `.flow-drawer__punto` están en la lista aunque su CSS sea
-    // propio y escrito a mano: lo que esto atrapa no es sólo una clase que
-    // Tailwind no vio, es cualquier elemento que se quedó sin la regla que lo
-    // pintaba. El punto del drawer entró acá cuando dejó de ser un `badge`
-    // vaciado —antes lo cubría `[class*="badge"]`— y su fondo es un
-    // `color-mix()` sobre `--punto`: si ese token se rompe o se renombra, el
-    // `color-mix()` queda inválido, el fondo cae a transparente y el punto se
-    // vuelve invisible sin dejar rastro en el DOM.
+    // `.panel` está en la lista aunque ya no tenga ninguna regla: es la
+    // guarda contra que alguien la reintroduzca — sin CSS detrás queda sin
+    // fondo, sin relleno y sin borde, que es exactamente lo que esto atrapa.
+    // `.flow-drawer__punto` está por otro motivo, con CSS propio y escrito a
+    // mano: lo que esto atrapa no es sólo una clase que Tailwind no vio, es
+    // cualquier elemento que se quedó sin la regla que lo pintaba. El punto
+    // del drawer entró acá cuando dejó de ser un `badge` vaciado —antes lo
+    // cubría `[class*="badge"]`— y su fondo es un `color-mix()` sobre
+    // `--punto`: si ese token se rompe o se renombra, el `color-mix()` queda
+    // inválido, el fondo cae a transparente y el punto se vuelve invisible
+    // sin dejar rastro en el DOM.
     for (const el of document.querySelectorAll('[class*="badge"],[class*="btn"],[class*="alert"],[class*="flow-drawer__punto"],.steps,.panel,.card,.table :is(th,td)')) {
       // Única excepción: la celda de `tr.cut-line` (línea de corte del
       // ranking, `steps/selection.html.haml`) anula padding y borde a
@@ -228,21 +231,20 @@ async function revisarClasesDescartadas(page, name) {
   }
 }
 
-// Ningún elemento puede tener la clase `card` VIEJA de esta app —un `card`
-// SIN `card-body` adentro—: se renombró a `.panel` para poder habilitar el
-// `card` de DaisyUI, que declara `display: flex` y convertiría en columna
-// flex a cualquier tarjeta vieja que haya quedado. El plan 2b migra
-// `.panel` a `card` + `card-body` pantalla por pantalla, así que un `card`
-// CON `card-body` es la forma nueva y no tiene que hacer fallar esto. Se
-// mira en el DOM y no en el fuente porque una clase la puede armar un `.js`
-// o una isla en tiempo de ejecución, donde un `grep` no llega.
-async function revisarTarjetasViejas(page, name) {
-  const viejas = await page.evaluate(
+// Ningún `.card` puede quedar sin su `.card-body` adentro: `card` declara
+// `display: flex` en columna, así que un `.card` sin `.card-body` mete a sus
+// hijos directos en ese layout flex en vez del bloque que esperan — es un
+// error de maquetado, no una tarjeta que quedó sin migrar (`.panel` ya no
+// existe: no queda contra qué migrar). Se mira en el DOM y no en el fuente
+// porque una clase la puede armar un `.js` o una isla en tiempo de ejecución,
+// donde un `grep` no llega.
+async function revisarCardSinBody(page, name) {
+  const sinBody = await page.evaluate(
     () => document.querySelectorAll('.card:not(:has(> .card-body))').length
   );
-  if (viejas > 0) {
+  if (sinBody > 0) {
     failures++;
-    console.error(`[PANEL] ${name}: ${viejas} elementos \`card\` sin \`card-body\`; tienen que ser \`panel\``);
+    console.error(`[PANEL] ${name}: ${sinBody} elementos \`card\` sin \`card-body\`: es un error de maquetado, no una tarjeta sin migrar`);
   }
 }
 
@@ -421,9 +423,9 @@ async function revisarPuntos(page, name, tema, esperados) {
 
 // Las variantes que la app usa, medidas en el tema activo aunque ninguna
 // pantalla del recorrido las muestre en ese tema. Se inyectan en una tarjeta
-// (`.card-body` o `.panel`) de una pantalla real —con la hoja y el tema de
-// verdad—, se miden y se sacan. Sin esto la pasada oscura midió CERO avisos y
-// dio verde: las cuatro pantallas que recorre no tienen ninguno.
+// (`.card-body`) de una pantalla real —con la hoja y el tema de verdad—, se
+// miden y se sacan. Sin esto la pasada oscura midió CERO avisos y dio verde:
+// las cuatro pantallas que recorre no tienen ninguno.
 //
 // Falla también si mide menos muestras de las que declara, para que no
 // vuelva a pasar en verde sin haber medido nada.
@@ -483,7 +485,7 @@ const MUESTRARIO_ATENUADO = [
 
 async function revisarMuestrario(page, tema) {
   await page.evaluate(({ plenas, atenuadas }) => {
-    const destino = document.querySelector('.card-body') || document.querySelector('.panel') || document.querySelector('.app-main') || document.body;
+    const destino = document.querySelector('.card-body') || document.querySelector('.app-main') || document.body;
     const caja = document.createElement('div');
     caja.dataset.muestrario = '';
     const muestra = (clase, padre) => {
@@ -526,46 +528,6 @@ async function revisarMuestrario(page, tema) {
   }
 }
 
-// Mientras convivan `.panel` y `.card`, una tarjeta migrada tiene que verse
-// igual que una sin migrar: si no, cada pantalla del plan 2b cambia de aspecto
-// por la tarjeta y no por lo que se decidió cambiarle. Se inyectan las dos en
-// la pantalla real —con la hoja y el tema de verdad— y se comparan los estilos
-// computados. Se borra junto con `.panel`, al final del plan 2b-bis.
-async function revisarCardComoPanel(page, tema) {
-  const diferencias = await page.evaluate(() => {
-    const destino = document.querySelector('.app-main') || document.body;
-    const panel = document.createElement('div');
-    panel.className = 'panel';
-    panel.textContent = 'panel';
-    const card = document.createElement('div');
-    card.className = 'card';
-    const body = document.createElement('div');
-    body.className = 'card-body';
-    body.textContent = 'card';
-    card.appendChild(body);
-    destino.append(panel, card);
-
-    const p = getComputedStyle(panel);
-    const c = getComputedStyle(card);
-    const b = getComputedStyle(body);
-    const pares = {
-      'background-color': [p.backgroundColor, c.backgroundColor],
-      'border-top': [`${p.borderTopWidth} ${p.borderTopStyle} ${p.borderTopColor}`, `${c.borderTopWidth} ${c.borderTopStyle} ${c.borderTopColor}`],
-      'border-radius': [p.borderTopLeftRadius, c.borderTopLeftRadius],
-      'box-shadow': [p.boxShadow, c.boxShadow],
-      'padding': [`${p.paddingTop} ${p.paddingLeft}`, `${b.paddingTop} ${b.paddingLeft}`],
-      'font-size': [p.fontSize, b.fontSize]
-    };
-    panel.remove();
-    card.remove();
-    return Object.entries(pares).filter(([, [a, z]]) => a !== z).map(([k, [a, z]]) => `${k}: panel ${a} · card ${z}`);
-  });
-  if (diferencias.length) {
-    failures++;
-    console.error(`[CARD] ${tema}: la card no se ve como el panel — ${diferencias.join(' | ')}`);
-  }
-}
-
 // La captura y las revisiones que solo piden la pantalla ya pintada.
 //
 // La mayoría de las pantallas no se abren por URL —se llega a ellas con un
@@ -597,7 +559,7 @@ async function abrirPlegables(page) {
 async function capturar(page, name) {
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
   await revisarClasesDescartadas(page, name);
-  await revisarTarjetasViejas(page, name);
+  await revisarCardSinBody(page, name);
   await revisarContraste(page, name);
   shots.push(name);
 }
@@ -609,6 +571,31 @@ async function shot(page, name, url, prepare) {
   await revisarFormsAnidados(page, name, url);
   await revisarRitmo(page, name);
   await capturar(page, name);
+}
+
+// Una pantalla de error es la ÚNICA que se fotografía con un estado >= 400, y
+// hay que poder hacerlo sin aflojar la regla: un `>= 400 se ignora` a secas
+// volvería ciega la corrida entera, que es lo que esta guarda evita.
+//
+// `estadoEsperado` vale para la navegación siguiente y sólo para el documento
+// principal. Si llega OTRO estado, sigue fallando: lo que se declara es cuál,
+// no que no importe.
+let estadoEsperado = null;
+
+// Como `shot()`, pero la pantalla responde con el estado declarado. Falla si
+// responde con otro —incluido un 200—: una pantalla de error que dejó de
+// serlo es exactamente lo que esto tiene que decir.
+async function shotConEstado(page, name, url, status) {
+  estadoEsperado = status;
+  const respuesta = await page.goto(BASE + url, { waitUntil: 'networkidle' });
+  if (respuesta.status() !== status) {
+    failures++;
+    console.error(`[ESTADO] ${name}: se esperaba ${status} y respondió ${respuesta.status()}`);
+  }
+  await revisarTexto(page, name);
+  await revisarRitmo(page, name);
+  await capturar(page, name);
+  estadoEsperado = null;
 }
 
 // Los módulos cuya cara de ejecución está en tres zonas (plan 2b): todos menos
@@ -641,7 +628,12 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
 
   page.on('pageerror', (e) => { failures++; console.error(`[JS ERROR] ${e.message}`); });
   page.on('response', (r) => {
-    if (r.status() >= 400) { failures++; console.error(`[HTTP ${r.status()}] ${r.url()}`); }
+    if (r.status() < 400) return;
+    // Sólo el documento principal de la navegación declarada. Un asset o un
+    // fetch que devuelva 403 sigue siendo una falla.
+    if (estadoEsperado && r.status() === estadoEsperado && r.request().isNavigationRequest()) return;
+    failures++;
+    console.error(`[HTTP ${r.status()}] ${r.url()}`);
   });
 
   await shot(page, '01-login', '/login');
@@ -1482,7 +1474,203 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // las tres variantes, así que se miden a mano acá, con la hoja y el tema de
   // verdad, antes de pasar a oscuro.
   await revisarMuestrario(page, 'claro');
-  await revisarCardComoPanel(page, 'claro');
+
+  // ── Las pantallas que nadie fotografiaba ────────────────────────────────
+  //
+  // Estas vistas no tenían ninguna captura y ninguna guarda las miraba:
+  // `[PANEL]`, `[RITMO]`, `[CONTRASTE]` y `[CLASES]` sólo ven lo que el
+  // recorrido abre.
+  //
+  // El plan original contaba OCHO, con `pages/home.html.haml` como
+  // `13-home`. Esa captura no existe y no puede existir: `config/routes.rb`
+  // declara `root "challenges#index"` y no hay ninguna ruta a
+  // `PagesController#home` — el propio controller trae el comentario
+  // «Placeholder. En Fase 2 la raíz pasa a ser el índice de desafíos», fase
+  // que ya ocurrió. `/` sirve el mismo índice que ya fotografía
+  // `02-challenges` (comprobado: mismo md5 byte a byte que `13-home` daba).
+  // `pages/home.html.haml` ya se borró por muerta, en otra tarea del plan;
+  // acá no queda nada de esa vista que fotografiar.
+
+  // La ficha de una corrida de IA, que no es el índice.
+  await page.goto(`${BASE}/admin/ai_runs`, { waitUntil: 'networkidle' });
+  const aRun = page.locator('.table-link').first();
+  if (!(await aRun.count())) {
+    failures++;
+    console.error('[LINK] el índice de corridas de IA no ofrece ninguna ficha');
+  } else {
+    await aRun.click();
+    await page.waitForURL(/\/ai_runs\//);
+    // `capturar()` no corre `[RITMO]` —lo corre `shot()`, y acá se navega por
+    // link y no por `shot()`— y ésta es de las pocas capturas nuevas donde
+    // importa: `ai_runs/show` pone hasta tres `.card` hermanas directas de
+    // `.app-main` (prompt, respuesta, sugerencias derivadas).
+    await revisarRitmo(page, '14-ai-run');
+    await capturar(page, '14-ai-run');
+  }
+
+  // La ficha de un set de criterios: el NOMBRE, no «Editar» —eso ya es
+  // `10b-criteria-editor`, que es la pantalla de edición—.
+  //
+  // `criteria_sets/index.html.haml` es una grilla de tarjetas, no una tabla:
+  // no hay ningún `.table-link` ahí, y el NOMBRE del set no es un link —sólo
+  // «Editar» lo es—. La ficha (`criteria_sets#show`) existe y está ruteada,
+  // pero HOY ninguna vista de la app linkea a ella (`grep criteria_set_path`
+  // sólo encuentra `edit_criteria_set_path` y `promote_criteria_set_path`):
+  // se llega derivando el id del link a «Editar», que sí existe.
+  await page.goto(`${BASE}/criteria_sets`, { waitUntil: 'networkidle' });
+  const editarSet = page.locator('a:has-text("Editar")').first();
+  if (!(await editarSet.count())) {
+    failures++;
+    console.error('[LINK] la biblioteca de criterios no ofrece ningún set');
+  } else {
+    const hrefEditar = await editarSet.getAttribute('href');
+    const idSet = hrefEditar?.match(/\/criteria_sets\/([^/]+)\/edit/)?.[1];
+    if (!idSet) {
+      failures++;
+      console.error(`[LINK] no se pudo extraer el id del set de «${hrefEditar}»`);
+    } else {
+      await page.goto(`${BASE}/criteria_sets/${idSet}`, { waitUntil: 'networkidle' });
+      // Misma razón que en `14-ai-run`: se llega por `goto`, no por `shot()`.
+      // `criteria_sets/show` es hija directa de `.app-main`, así que
+      // `.app-main > .card` matchea.
+      await revisarRitmo(page, '15-criteria-set');
+      await capturar(page, '15-criteria-set');
+    }
+  }
+
+  // Postular una idea. `IdeaPolicy#create?` no mira el estado del módulo
+  // —sólo que haya membresía y no sea gestor—, así que quien administra
+  // siempre puede abrir el formulario. Lo que SÍ depende del estado es el
+  // LINK: `ideas/index.html.haml` sólo ofrece «Postular una idea» mientras
+  // `ideacion&.active?`, y en `merma-bodega` ese módulo ya está `completed`
+  // —arrancó y cerró, como el resto del flujo que este recorrido recorre—.
+  // No hay otro desafío sembrado con la postulación todavía abierta que no
+  // esté reservado para otra captura (`con-salteado`, `recorrido-ia`) o que
+  // no sea dato armado a mano fuera de `db/seeds.rb`. No se aprieta
+  // «Guardar»: la captura no deja un borrador sembrado en la base.
+  await page.goto(`${BASE}/challenges/${CHALLENGE}/ideas/new`, { waitUntil: 'networkidle' });
+  if (!(await page.locator('h1:has-text("Postular una idea")').count())) {
+    failures++;
+    console.error('[LINK] /ideas/new no renderizó el formulario de postulación');
+  }
+  await capturar(page, '16-idea-new');
+
+  await page.goto(`${BASE}/challenges/${CHALLENGE}/ideas`, { waitUntil: 'networkidle' });
+  const aIdeaExistente = page.locator('a.idea-list__link').first();
+  if (!(await aIdeaExistente.count())) {
+    failures++;
+    console.error('[LINK] la lista de ideas no tiene ninguna idea');
+  } else {
+    await aIdeaExistente.click();
+    await page.waitForURL(/\/ideas\//);
+    const aEditar = page.locator('a:has-text("Editar")').first();
+    if (!(await aEditar.count())) {
+      failures++;
+      console.error('[LINK] la ficha de la idea no ofrece editarla');
+    } else {
+      await aEditar.click();
+      await page.waitForURL(/\/edit/);
+      await capturar(page, '17-idea-edit');
+    }
+  }
+
+  // La ficha de evaluación: el formulario que se llena para puntuar una idea.
+  // No la cubría ninguna captura —`09-11-panel-evaluacion` es la pantalla del
+  // MÓDULO, no ésta— y por eso la tarea 6 tuvo que verificarla a mano.
+  //
+  // No sale de `merma-bodega`: ahí el flujo corrió entero y sus dos módulos
+  // de evaluación quedan `completed`, así que ninguna fila ofrece «Evaluar»
+  // —la vista exige `step.active?` además de la policy
+  // (`steps/_fila_de_evaluacion.html.haml`)—. `comite-abierto` existe sólo
+  // para esto: un módulo de evaluación TODAVÍA activo, con una idea real de
+  // otra persona.
+  await page.goto(`${BASE}/challenges/comite-abierto`, { waitUntil: 'networkidle' });
+  const aComite = page.locator('.table-link', { hasText: /comit/i }).first();
+  if (!(await aComite.count())) {
+    failures++;
+    console.error('[LINK] «comite-abierto» no tiene el módulo de evaluación de comité');
+  } else {
+    await aComite.click();
+    await page.waitForURL(/\/steps\/[^/]+$/);
+    const aEvaluar = page.locator('a:has-text("Evaluar")').first();
+    if (!(await aEvaluar.count())) {
+      failures++;
+      console.error('[LINK] el módulo de comité no ofrece evaluar ninguna idea');
+    } else {
+      await aEvaluar.click();
+      await page.waitForURL(/\/assessments\/new/);
+      await capturar(page, '21-evaluar-idea');
+    }
+  }
+
+  // ── Las tres que piden otra sesión ──────────────────────────────────────
+  //
+  // Van últimas de la pasada clara: el recorrido como admin ya terminó, así
+  // que cambiar de usuario acá no le saca la sesión a ninguna captura.
+  const salir = async () => {
+    await page.goto(`${BASE}/challenges`, { waitUntil: 'networkidle' });
+    // `require_company` es un before_action GLOBAL (`ApplicationController`) y
+    // `SessionsController#destroy` no está en la lista de excepciones: sin
+    // empresa elegida, el propio `DELETE /logout` rebota a `/select_company`
+    // en vez de cerrar la sesión. Pasa con `multi@demo.test` recién entrado
+    // —es el estado que deja `18-select-company`—, así que hay que elegir
+    // cualquiera antes de poder salir.
+    if (new URL(page.url()).pathname === '/select_company') {
+      await page.click('.company-list button, .company-list input[type="submit"]');
+      await page.waitForLoadState('networkidle');
+    }
+    await page.click('form[action="/logout"] button, form[action="/logout"] input[type="submit"]');
+    await page.waitForURL(/\/login/, { timeout: 10000 });
+  };
+  const entrar = async (email) => {
+    await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
+    await page.fill('input[name="email"]', email);
+    await page.fill('input[name="password"]', 'Test1234');
+    await page.click('input[type="submit"]');
+    await page.waitForLoadState('networkidle');
+  };
+
+  // Elegir empresa: `multi@demo.test` es la cuenta que el seed deja con dos
+  // membresías, así que el login la manda acá en vez de a los desafíos.
+  await salir();
+  await entrar('multi@demo.test');
+  await capturar(page, '18-select-company');
+
+  // Las cinco `.card-body.empty-state` de la app (A1) no las abre ningún otro
+  // paso del recorrido. «Otra Empresa» —la segunda del seed— no tiene ningún
+  // desafío ni ningún set, y es la única puerta alcanzable acá: se elige por
+  // NOMBRE y no por posición, porque el orden de `@memberships` no está
+  // declarado en ningún lado.
+  // `choose_company_path` redirige a `root_path`, que sirve `challenges#index`
+  // pero deja la URL en `/` —`root "challenges#index"`—: `waitForURL` a
+  // `/challenges` nunca dispara. Se espera el título de la pantalla.
+  await page.click('.company-list button:has-text("Otra Empresa")');
+  await page.waitForSelector('h1.page-title:has-text("Desafíos")');
+  await capturar(page, '18b-desafios-vacio');
+
+  // Por link —el nav de arriba—, no `goto`: es el mismo camino que recorrería
+  // cualquiera, y `manages_challenges?` lo ofrece porque acá `multi@demo.test`
+  // es admin.
+  await page.click('.app-nav__link:has-text("Criterios")');
+  await page.waitForURL(/\/criteria_sets$/);
+  await capturar(page, '18c-criterios-vacio');
+
+  // El 403. Quien participa SÍ ve el desafío —`ChallengeStepPolicy#show?` es
+  // cualquiera de la empresa— pero no lo arma: `ChallengePolicy#builder?` es
+  // `manager?`. Es el 403 legítimo que CLAUDE.md describe, no un oráculo de
+  // existencia: fotografiar un 403 sobre algo que no se debería ver sería
+  // fotografiar un bug.
+  await salir();
+  await entrar('part1@demo.test');
+  await shotConEstado(page, '19-forbidden', `/challenges/${CHALLENGE}/builder`, 403);
+
+  // El 404, sobre un slug que no existe.
+  await shotConEstado(page, '20-not-found', '/challenges/no-existe', 404);
+
+  // Vuelve el admin: la pasada oscura sigue después y recorre pantallas que
+  // sólo quien administra ve.
+  await salir();
+  await entrar('admin@demo.test');
 
   // ── Tema oscuro ──────────────────────────────────────────────────────────
   //
@@ -1521,7 +1709,6 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     await page.goto(BASE + url, { waitUntil: 'networkidle' });
     if (nombre === '90-oscuro-desafios') {
       await revisarMuestrario(page, 'oscuro');
-      await revisarCardComoPanel(page, 'oscuro');
     }
     // Los mismos dos drawers que la pasada clara, por la misma razón:
     // `con-salteado` tiene pendiente, en curso y salteado, y el completado

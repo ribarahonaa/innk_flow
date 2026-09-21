@@ -23,65 +23,67 @@
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 
 - if @challenge.brief.present?
-  .panel
-    %h2.section-title Brief
-    %p= simple_format(@challenge.brief)
+  .card
+    .card-body
+      %h2.section-title Brief
+      %p= simple_format(@challenge.brief)
 
 - hechos = @challenge.steps.count { |s| %w[completed skipped].include?(s.status) }
 - actual = @challenge.steps.find(&:active?)
-.panel
-  .section-head
-    %h2.section-title Flujo
-    -# Dónde está el proceso, sin tener que leer la tabla fila por fila.
-    %span.muted
-      - if @challenge.draft?
-        = "#{Flow::Texto.contar(@challenge.steps.size, 'módulo')} · sin arrancar"
-      - elsif actual
-        = "#{hechos} de #{@challenge.steps.size} · ahora: #{actual.name}"
-      - else
-        = "#{hechos} de #{@challenge.steps.size} · flujo terminado"
-  = render "challenges/flow_strip", challenge: @challenge
+.card
+  .card-body
+    .section-head
+      %h2.section-title Flujo
+      -# Dónde está el proceso, sin tener que leer la tabla fila por fila.
+      %span.muted
+        - if @challenge.draft?
+          = "#{Flow::Texto.contar(@challenge.steps.size, 'módulo')} · sin arrancar"
+        - elsif actual
+          = "#{hechos} de #{@challenge.steps.size} · ahora: #{actual.name}"
+        - else
+          = "#{hechos} de #{@challenge.steps.size} · flujo terminado"
+    = render "challenges/flow_strip", challenge: @challenge
 
-  - if @report.errors.any?
-    .alert.alert-soft.alert-error
-      %div
-        %strong Falta resolver:
+    - if @report.errors.any?
+      .alert.alert-soft.alert-error
+        %div
+          %strong Falta resolver:
+          %ul
+            - @report.errors.each do |error|
+              %li= error
+    - if @report.warnings.any?
+      .alert.alert-soft.alert-warning
         %ul
-          - @report.errors.each do |error|
-            %li= error
-  - if @report.warnings.any?
-    .alert.alert-soft.alert-warning
-      %ul
-        - @report.warnings.each do |warning|
-          %li= warning
+          - @report.warnings.each do |warning|
+            %li= warning
 
-  -# La columna solo aparece si alguien la usa: siete guiones en fila no son
-  -# información, son ruido con encabezado.
-  - encadenados = @challenge.steps.any?(&:source_step)
-  %table.table
-    %thead
-      %tr
-        %th #
-        %th Módulo
-        %th Estado
-        %th Modo IA
-        - if encadenados
-          %th Toma insumo de
-    %tbody
-      - @challenge.steps.each_with_index do |step, index|
-        %tr{ class: step.active? ? "is-active" : ("is-touched" if step.touched?) }
-          %td.muted= index + 1
-          %td
-            = link_to challenge_step_path(@challenge, step), class: "table-link" do
-              %strong= step.name
-            %span.muted= " (#{t("flow.kinds.#{step.kind}")})"
-            - if step.active?
-              %span{ class: chip("aca") } acá está el flujo
-          %td
-            %span{ class: chip_de_estado(step.status) }= t("flow.statuses.#{step.status}")
-          %td.muted= t("flow.ai_modes.#{step.effective_ai_mode}")
+    -# La columna solo aparece si alguien la usa: siete guiones en fila no son
+    -# información, son ruido con encabezado.
+    - encadenados = @challenge.steps.any?(&:source_step)
+    %table.table
+      %thead
+        %tr
+          %th #
+          %th Módulo
+          %th Estado
+          %th Modo IA
           - if encadenados
-            %td.muted= step.source_step&.name || "—"
+            %th Toma insumo de
+      %tbody
+        - @challenge.steps.each_with_index do |step, index|
+          %tr{ class: step.active? ? "is-active" : ("is-touched" if step.touched?) }
+            %td.muted= index + 1
+            %td
+              = link_to challenge_step_path(@challenge, step), class: "table-link" do
+                %strong= step.name
+              %span.muted= " (#{t("flow.kinds.#{step.kind}")})"
+              - if step.active?
+                %span{ class: chip("aca") } acá está el flujo
+            %td
+              %span{ class: chip_de_estado(step.status) }= t("flow.statuses.#{step.status}")
+            %td.muted= t("flow.ai_modes.#{step.effective_ai_mode}")
+            - if encadenados
+              %td.muted= step.source_step&.name || "—"
 
 -# Los gestores se configuran en el módulo de evolución. Acá aparecen SOLO si
 -# quedaron sin módulo donde administrarlos —alguien lo borró después de

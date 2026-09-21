@@ -2,7 +2,8 @@
 -# los declara Flow::CriterionSettings y el server los manda serializados. Antes
 -# esta pantalla pedía escribir el JSON a mano.
 %div{ "data-island": "criteria-editor", data: { props: @props.to_json } }
-  .panel.island-placeholder
-    %p.muted Cargando el editor de criterios…
+  .card
+    .card-body.island-placeholder
+      %p.muted Cargando el editor de criterios…
 
 = javascript_include_tag "packs/criteria_editor", defer: true, nonce: content_security_policy_nonce
