@@ -42,6 +42,29 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
     documento.css(".app-aside h1, .app-aside h2").map { |n| "#{n.name}: #{n.text.strip}" }
   end
 
+  # Cuenta las consultas a una tabla durante el bloque. Para los N+1: el número
+  # que importa no es cuántas consultas hace la pantalla sino si CRECE con las
+  # filas, así que los ejemplos siembran varias y fijan un tope que no depende
+  # de cuántas haya.
+  def consultas_a(tabla)
+    sql = []
+    sub = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+      next if payload[:name] == "SCHEMA" || payload[:cached]
+
+      next unless payload[:sql].include?(%(FROM "#{tabla}"))
+
+      # Con el origen: el número solo dice que sobran consultas, no cuál de
+      # las tres lecturas de la misma lista las hace. Encontrar ESTE N+1 llevó
+      # a `evaluation.html.haml:13` y no a donde el reporte decía.
+      origen = caller.grep(%r{/app/}).first(2)
+      sql << "#{payload[:sql][0, 70]}\n      <- #{origen.join("\n      <- ")}"
+    end
+    yield
+    sql
+  ensure
+    ActiveSupport::Notifications.unsubscribe(sub)
+  end
+
   def postular!(challenge, author:, titulo:)
     as_company(company) do
       i = create(:idea, challenge: challenge, author: author)
@@ -144,6 +167,52 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
         expect(documento.at_css(".fila-de-idea__plegable")).to be_nil
         expect(response.body).not_to include(elena.name)
       end
+    end
+  end
+
+  # Un N+1 se ve con varias filas o no se ve. Este grupo tiene su propio desafío
+  # porque las ideas tienen que estar postuladas ANTES de que el módulo
+  # arranque: las entradas las arma `activate!`, que es idempotente, así que
+  # sumar ideas después no crea filas nuevas.
+  describe "el desglose con varias ideas" do
+    let!(:challenge) do
+      as_company(company) do
+        c = create(:challenge, name: "Merma", ai_default_mode: "human")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
+        c.steps.create!(kind: "evaluation", position: 2, name: "Técnica", config: { "min_assessments" => 1 })
+        c
+      end
+    end
+
+    before do
+      ideas = ["Sensores", "Cámaras", "Balanza", "Turnos"].map { |t| postular!(challenge, author: paula, titulo: t) }
+      as_company(company) do
+        challenge.pipeline.start!
+        challenge.pipeline.advance!
+        evaluacion = challenge.steps.reload.find(&:evaluation?)
+        ideas.each do |idea|
+          evaluacion.assessments.create!(idea: idea, idea_version_id: idea.current_version_id,
+                                         evaluator: elena, actor_type: "human", status: "submitted",
+                                         submitted_at: Time.current, normalized_score: 0.4)
+          evaluacion.handler.recompute_entry!(StepEntry.find_by(challenge_step_id: evaluacion.id, idea_id: idea.id))
+        end
+      end
+    end
+
+    # La pantalla leía la MISMA lista de entradas tres veces, y una de ellas
+    # —la de los pendientes— sin `includes`: `complete?` toca `entry.idea`
+    # (lo pide `min_assessments_for`), así que cargaba una idea por fila.
+    it "no carga la idea una vez por evaluación" do
+      sign_in(admin, company: company)
+      consultas = consultas_a("ideas") { get challenge_step_path(challenge, paso("evaluation")) }
+
+      # Cuatro filas con su evaluación, y sólo DOS consultas a `ideas`: la de
+      # `@ideas_visibles` (`IdeaPolicy::Scope`, en el controller) y el preload
+      # de `progress`. Las dos son una por pantalla; ninguna crece con las
+      # filas, que es lo único que este ejemplo cuida. Antes eran seis.
+      expect(documento.css(".fila-de-idea").size).to eq(4)
+      expect(documento.css(".assessment-detail").size).to eq(4)
+      expect(consultas.size).to eq(2), consultas.join("\n")
     end
   end
 

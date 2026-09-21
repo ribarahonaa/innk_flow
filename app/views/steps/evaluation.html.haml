@@ -10,7 +10,14 @@
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
 
 - manda = policy(@challenge).update_pipeline?
-- pendientes = @step.step_entries.reject { |e| @handler.complete?(e) }
+-# UNA sola lectura de las entradas para toda la pantalla, con la idea y lo que
+-# la fila dibuja de ella ya cargado. `complete?` toca `entry.idea` —lo pide
+-# `min_assessments_for`, que descuenta a quien participa de la idea—, así que
+-# armar la lista de pendientes sobre la asociación pelada cargaba una idea por
+-# fila. Y más abajo se volvía a leer lo mismo con el preload puesto: la misma
+-# lista, tres veces.
+- entries = @step.step_entries.includes(idea: %i[current_version author idea_contributors]).to_a
+- pendientes = entries.reject { |e| @handler.complete?(e) }
 -# Quién ve esto no es quién administra: evaluar depende de la ASIGNACIÓN, así
 -# que un evaluador asignado también le pide una mano a la IA. Va sin idea a
 -# propósito —pedirle a la IA que evalúe no es evaluar—; el porqué largo está
@@ -47,14 +54,13 @@
         ideas que no evalúes vas a ver el resultado, no quién puso qué.
     %p.muted.field-hint
       Las de la IA cuentan igual que las de una persona: mismo peso en el promedio.
-    - if @step.step_entries.empty?
+    - if entries.empty?
       %p.muted Todavía no hay ideas en este módulo.
     - else
       -# El detalle de cada evaluación vive en la fila de su idea. Era una
       -# sección aparte —quince bloques abiertos debajo de la tabla— y la idea
       -# aparecía dos veces en la pantalla.
       - hechas = @step.assessments.current.submitted_ones.includes(:evaluator, :assessment_scores, :idea_version).group_by(&:idea_id)
-      - entries = @step.step_entries.includes(idea: %i[current_version author idea_contributors])
       .filas-de-ideas
         .filas-de-ideas__encabezado
           .filas-de-ideas__columnas
