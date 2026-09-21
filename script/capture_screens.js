@@ -1516,11 +1516,20 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
 
   // ── Las pantallas que nadie fotografiaba ────────────────────────────────
   //
-  // Ocho vistas usan `.panel` y ninguna guarda las miraba: `[CARD]`,
+  // Estas vistas usan `.panel` y ninguna guarda las miraba: `[CARD]`,
   // `[PANEL]`, `[RITMO]`, `[CONTRASTE]` y `[CLASES]` sólo ven lo que el
   // recorrido abre. Van ANTES de migrarlas, en verde con `.panel` puesto:
   // así se prueba que la captura funciona, no que la migración funcionó.
-  await shot(page, '13-home', '/');
+  //
+  // El plan original contaba OCHO, con `pages/home.html.haml` como
+  // `13-home`. Esa captura no existe y no puede existir: `config/routes.rb`
+  // declara `root "challenges#index"` y no hay ninguna ruta a
+  // `PagesController#home` — el propio controller trae el comentario
+  // «Placeholder. En Fase 2 la raíz pasa a ser el índice de desafíos», fase
+  // que ya ocurrió. `/` sirve el mismo índice que ya fotografía
+  // `02-challenges` (comprobado: mismo md5 byte a byte que `13-home` daba).
+  // `pages/home.html.haml` se borra por muerta en otra tarea del plan; acá
+  // no queda nada de esa vista que fotografiar.
 
   // La ficha de una corrida de IA, que no es el índice.
   await page.goto(`${BASE}/admin/ai_runs`, { waitUntil: 'networkidle' });
