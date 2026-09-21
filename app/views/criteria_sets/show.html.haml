@@ -4,21 +4,23 @@
     %p.breadcrumb= link_to "Criterios", criteria_sets_path
     %h1.page-title= @set.name
   = link_to "Editar", edit_criteria_set_path(@set), class: "btn btn-ghost"
-.panel
-  %table.table
-    %thead
-      %tr
-        %th Criterio
-        %th Clave
-        %th Origen
-        %th Qué mide
-        %th Peso
-    %tbody
-      - @set.criteria.each do |criterion|
+.card
+  .card-body
+    %table.table
+      %thead
         %tr
-          %td= criterion.name
-          %td: %code= criterion.key
-          %td
-            %span{ class: chip_de_origen(criterion.source) }= t("flow.criterion_sources.#{criterion.source}")
-          %td.muted= criterion.summary
-          %td.muted= "#{(criterion.weight.to_f * 100).round}%"
+          %th Criterio
+          %th Clave
+          %th Origen
+          %th Qué mide
+          %th Peso
+      %tbody
+        - @set.criteria.each do |criterion|
+          %tr
+            %td= criterion.name
+            %td
+              %code= criterion.key
+            %td
+              %span{ class: chip_de_origen(criterion.source) }= t("flow.criterion_sources.#{criterion.source}")
+            %td.muted= criterion.summary
+            %td.muted= "#{(criterion.weight.to_f * 100).round}%"

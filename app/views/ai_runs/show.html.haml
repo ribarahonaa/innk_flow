@@ -10,29 +10,32 @@
 - if @run.error.present?
   .alert.alert-soft.alert-error= @run.error
 
-.panel
-  %h2.section-title Prompt
-  %pre.code-block= JSON.pretty_generate(@run.prompt)
+.card
+  .card-body
+    %h2.section-title Prompt
+    %pre.code-block= JSON.pretty_generate(@run.prompt)
 
-.panel
-  %h2.section-title Respuesta
-  %pre.code-block= @run.response ? JSON.pretty_generate(@run.response) : "—"
+.card
+  .card-body
+    %h2.section-title Respuesta
+    %pre.code-block= @run.response ? JSON.pretty_generate(@run.response) : "—"
 
 - if @run.ai_suggestions.any?
-  .panel
-    %h2.section-title Sugerencias derivadas
-    %table.table
-      %thead
-        %tr
-          %th Estado
-          %th Revisó
-          %th Cuándo
-          %th Nota
-      %tbody
-        - @run.ai_suggestions.each do |suggestion|
+  .card
+    .card-body
+      %h2.section-title Sugerencias derivadas
+      %table.table
+        %thead
           %tr
-            %td
-              %span{ class: chip_de_estado(suggestion.pending? ? "pending" : "completed") }= suggestion.status
-            %td.muted= suggestion.reviewed_by&.name || (suggestion.auto_accepted_at ? "automático" : "—")
-            %td.muted= suggestion.reviewed_at ? l(suggestion.reviewed_at, format: :short) : "—"
-            %td.muted= suggestion.review_note
+            %th Estado
+            %th Revisó
+            %th Cuándo
+            %th Nota
+        %tbody
+          - @run.ai_suggestions.each do |suggestion|
+            %tr
+              %td
+                %span{ class: chip_de_estado(suggestion.pending? ? "pending" : "completed") }= suggestion.status
+              %td.muted= suggestion.reviewed_by&.name || (suggestion.auto_accepted_at ? "automático" : "—")
+              %td.muted= suggestion.reviewed_at ? l(suggestion.reviewed_at, format: :short) : "—"
+              %td.muted= suggestion.review_note
