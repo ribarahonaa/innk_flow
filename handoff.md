@@ -25,9 +25,14 @@ después borrar la regla, sus tres selectores compuestos y la guarda `[CARD]`.
   y dos de ellas lo destaparon recién al ir a usarlas.
 - `.panel` no queda en vistas, islas, hoja ni builds. Lo único que sobrevive
   son comentarios históricos de `application.css`, conservados a propósito.
-- **Ramas locales sin borrar**: `menores-2b`, `rediseno-2b`, `rediseno-2b-bis`.
-  En `origin` siguen `doc-404-403`, `rediseno-2a` y
-  `arreglos-de-permisos-y-demo`.
+- **Todas las ramas mergeadas están borradas**, local y remoto: queda sólo
+  `master` en los dos lados. Se verificó una por una antes de tocarlas —las
+  locales con `git branch --merged master`, las remotas comprobando que su
+  punta fuera ancestro de `master`—. El `ls-remote` destapó tres que ningún
+  handoff listaba (`menores-2b`, `rediseno-2b`, `rediseno-2b-bis` también
+  existían en `origin`); también estaban mergeadas y se fueron.
+- **El borrado de ramas remotas ya funciona.** El handoff anterior decía que lo
+  bloqueaba el filtro de permisos; esta vez pasó sin problema.
 
 ### Hechos del entorno que muerden
 
@@ -175,15 +180,6 @@ sombra. Hoy nada vigila que DaisyUI no recupere sus 24px por default.
    membresía sigue viva; los links de adjuntos de Active Storage no vencen y
    quedan fuera de Pundit; se puede asignar a evaluar a alguien con rol
    `participant` por POST directo.
-6. **Ramas mergeadas sin borrar.** Es de Raúl:
-
-   ```bash
-   git branch -d menores-2b rediseno-2b rediseno-2b-bis
-   git -c credential.helper= -c credential.helper='!gh auth git-credential' \
-     push https://github.com/ribarahonaa/innk_flow.git \
-     --delete doc-404-403 rediseno-2a arreglos-de-permisos-y-demo
-   ```
-
 **Decisiones de Raúl en esta sesión**
 
 - `ve_el_pool` pasa a un predicado nuevo (`read_pool?`) y **no** se reusa
