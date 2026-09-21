@@ -12,14 +12,18 @@
 -# tiene `configure?` sobre un módulo TODAVÍA pendiente. Ahí «quedó fijado
 -# cuando arrancó» sería falso —el módulo ni arrancó—, así que el aviso
 -# distingue los dos casos.
+-#
+-# El nivel del título lo pone la zona, no el partial: `h3` a la derecha, donde
+-# es una tarjeta de consulta más de la columna, y `h2` en la cara de
+-# configuración, donde reemplaza a la tarjeta «El módulo» del form y es una
+-# tarjeta del centro. `.section-title` da tamaño, peso y color por CLASE, así
+-# que el nivel no se ve en pantalla: sólo ordena el outline.
+- nivel = local_assigns.fetch(:nivel, 3)
+- titulo = step.touched? ? "Cómo quedó configurado" : "Cómo está configurado"
 .card
   .card-body
     .section-head
-      %h2.section-title
-        - if step.touched?
-          Cómo quedó configurado
-        - else
-          Cómo está configurado
+      = content_tag(:"h#{nivel}", titulo, class: "section-title")
     %p.field-hint
       - if step.touched?
         🔒 Quedó fijado cuando arrancó el módulo.

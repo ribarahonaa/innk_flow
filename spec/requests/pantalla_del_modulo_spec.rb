@@ -32,6 +32,16 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       ajustes: documento.at_css(".ajustes")&.text.to_s }
   end
 
+  # La columna de referencia es una zona de CONSULTA colgada del `%h1` de la
+  # pantalla, y sus tarjetas van todas en `h3`: el `h2` es de las tarjetas del
+  # centro, que es el trabajo. `.section-title` define tamaño, peso y color por
+  # clase y no por etiqueta, así que un nivel desparejo no se ve en pantalla ni
+  # lo agarra `make screens` — sólo desordena el outline, que es justamente lo
+  # que usa quien navega con lector de pantalla.
+  def titulos_de_mas_en_la_referencia
+    documento.css(".app-aside h1, .app-aside h2").map { |n| "#{n.name}: #{n.text.strip}" }
+  end
+
   def postular!(challenge, author:, titulo:)
     as_company(company) do
       i = create(:idea, challenge: challenge, author: author)
@@ -66,6 +76,7 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       expect(zonas[:referencia]).to include("Progreso", "Criterios", "Quién evalúa", elena.name, "Cómo quedó configurado")
       expect(zonas[:ajustes]).to include("Ajustes del módulo", "Modo de IA", "Peso")
       expect(documento.at_css(".ajustes details.ajustes__plegable")).not_to be_nil
+      expect(titulos_de_mas_en_la_referencia).to be_empty
     end
 
     it "quien evalúa: la referencia sin la lista de asignaciones, y sin ajustes" do
@@ -262,6 +273,7 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       expect(zonas[:referencia]).to include("Progreso", "Quiénes acompañan", "Cómo quedó configurado")
       expect(zonas[:ajustes]).to include("Ajustes del módulo", "Modo de IA", "Elegí a quién sumar")
       expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
+      expect(titulos_de_mas_en_la_referencia).to be_empty
     end
 
     it "quien participa: sin quiénes acompañan y sin ajustes" do
@@ -305,6 +317,7 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
         expect(zonas[:referencia]).not_to include("Embudo")
         expect(zonas[:ajustes]).to include("Ajustes del módulo", "Modo de IA")
         expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
+        expect(titulos_de_mas_en_la_referencia).to be_empty
       end
     end
 
@@ -430,6 +443,7 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       expect(zonas[:referencia]).to include("Progreso", "Formulario de postulación", "Cómo quedó configurado")
       expect(documento.at_css('.ajustes [data-island="form-editor"]')).not_to be_nil
       expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
+      expect(titulos_de_mas_en_la_referencia).to be_empty
     end
 
     it "quien participa: lee el formulario, sin editor ni ajustes" do
@@ -513,6 +527,25 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       expect(tarjeta).not_to be_nil
       expect(tarjeta.text).to include("Proponer criterios con IA")
       expect(tarjeta.css(".card, .panel")).to be_empty
+    end
+
+    # `steps/config_congelada` sirve en DOS zonas con niveles distintos: a la
+    # derecha es una tarjeta de consulta (`h3`, como el resto de la columna) y
+    # acá es el reemplazo de la tarjeta «El módulo» para quien no puede
+    # configurar, o sea una tarjeta del centro como cualquier otra (`h2`). Por
+    # eso el nivel es un local y no una constante del partial.
+    it "el resumen de sólo lectura de la cara de configuración es una tarjeta del centro" do
+      sign_in(paula, company: company)
+      get challenge_step_path(challenge, paso("evaluation"))
+
+      # La cara de configuración no tiene columna de referencia: lo que se
+      # configura es el trabajo de esa pantalla, no algo que se consulte.
+      expect(documento.at_css(".app-aside")).to be_nil
+
+      titulo = documento.css(".section-title").find { |n| n.text.strip.start_with?("Cómo") }
+      expect(titulo).not_to be_nil
+      expect(titulo.text.strip).to eq("Cómo está configurado")
+      expect(titulo.name).to eq("h2")
     end
 
     it "el título del formulario y su acción de IA están en la misma tarjeta" do
