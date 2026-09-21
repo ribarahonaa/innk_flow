@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Migrar las 41 apariciones de `.panel` en 23 vistas HAML y las 4 de las dos islas Vue a `card` + `card-body`, borrar la vista muerta que quedaba, y borrar `.panel` y la guarda `[CARD]`.
+**Goal:** Migrar las 42 apariciones de `.panel` en 23 vistas HAML y las 4 de las dos islas Vue a `card` + `card-body`, borrar la vista muerta que quedaba, y borrar `.panel` y la guarda `[CARD]`.
 
 **Corrección sobre el spec:** el spec contaba 42 usos en 24 vistas e incluía `app/views/pages/home.html.haml`, suponiéndola alcanzable en `/`. No lo es: `config/routes.rb:113` es `root "challenges#index"` y **nada rutea a `PagesController#home`**. Se borra en la Tarea 2b en vez de migrarse. Lo destapó la captura `13-home` de la Tarea 1, que resultó ser un duplicado byte a byte de `02-challenges`.
 
@@ -20,6 +20,13 @@
 - Cada tarea termina con `make spec` y `make screens` en verde y **un commit**.
 - **Ningún cambio de permiso, dominio, motor ni IA.** Si algo parece necesitarlo, es un hallazgo: se anota, se consulta, y va en commit propio fuera de este plan.
 - **Ninguna clase interpolada.** `spec/lint/clases_interpoladas_spec.rb` mira HAML, `.vue` y `.js`.
+- **`.panel` se escribe de DOS formas y todo grep tiene que ver las dos.** La abreviatura de HAML (`.panel`) y el atributo de cadena (`class: "panel challenge-card"`, `challenges/index.html.haml:18`). Los conteos originales de este plan salieron de `grep "\.panel"` y por eso se comieron una. El grep que sirve:
+
+  ```bash
+  grep -rnE '(\.panel\b|class:.*"[^"]*\bpanel\b)' app/views/ --include=*.haml
+  ```
+
+  En las islas `.vue` la única forma es el atributo: `class="… panel …"`.
 - **Nunca `goto` a un desafío que también se usa a mano.** Para el recorrido existen `sin-formulario` y `con-salteado`; `merma-bodega` es el del seed.
 - Commits terminan con:
   ```
@@ -557,7 +564,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 Nueve usos en cinco vistas. Dos son `.panel.island-placeholder` y `.panel.empty-state`, que cambian de nivel.
 
 **Files:**
-- Modify: `app/views/challenges/index.html.haml:10` (`.panel.empty-state`)
+- Modify: `app/views/challenges/index.html.haml:10` (`.panel.empty-state`) **y `:18`** (`class: "panel challenge-card"`, forma de atributo)
 - Modify: `app/views/challenges/show.html.haml:26,32`
 - Modify: `app/views/challenges/new.html.haml:8`
 - Modify: `app/views/challenges/builder.html.haml:16,32,47` (la 47 es `.panel.island-placeholder`)
@@ -573,6 +580,16 @@ Nueve usos en cinco vistas. Dos son `.panel.island-placeholder` y `.panel.empty-
 - [ ] **Step 2: Aplicar la tabla de formas**
 
 Seis son el caso base. Las dos `.panel.empty-state` van a `.card` > `.card-body.empty-state`; la `.panel.island-placeholder` de `builder` va a `.card` > `.card-body.island-placeholder`.
+
+**La décima no se escribe como las otras nueve.** `challenges/index.html.haml:18` es un `link_to` con la clase en un atributo de cadena:
+
+```haml
+= link_to challenge_path(challenge), class: "panel challenge-card" do
+```
+
+Queda `class: "card challenge-card"`, con el contenido dentro de un `.card-body`. `.challenge-card` pone borde en hover y `display: block`: es caja externa, se queda arriba.
+
+Y es **la única tarjeta del plan que vive en una grilla de filas de alto parejo** (`.challenge-grid` es `display: grid` sin `align-items`, o sea `stretch`). El `p { flex-grow: 1 }` de `card-body` sólo estira cuando el contenedor tiene espacio sobrante que repartir, así que acá es donde puede verse. **Mirá `02-challenges` con desafíos de descripciones de largos distintos**: si un párrafo se estira, se arregla con una regla en la hoja.
 
 **El placeholder de la isla tiene una trampa propia:** lo reemplaza Vue al montar, y `make screens` falla si queda un `.island-placeholder` sin montar. Después de este cambio, confirmar en `05-builder` que la isla montó (`data-island-mounted="true"`).
 
@@ -873,7 +890,9 @@ Borrar `.panel`, limpiar las cinco menciones que quedan en el script y corregir 
 
 - [ ] **Step 1: Confirmar que no queda ningún uso en todo el repo**
 
-Run: `grep -rn "\.panel\b" app/ spec/ script/ | grep -v "ai-panel\|ia-panel\|flow-drawer__panel"`
+Run: `grep -rnE '(\.panel\b|class[:=].*"[^"]*\bpanel\b)' app/ spec/ script/ | grep -v "ai-panel\|ia-panel\|flow-drawer__panel"`
+
+**Las dos formas, no sólo la abreviatura.** Con `grep "\.panel"` a secas, un `class: "panel …"` vivo no aparece y la regla se borra igual: la tarjeta pierde su aspecto en silencio. Pasó de verdad en este plan — los conteos originales se comieron `challenges/index.html.haml:18`.
 Expected: sólo las menciones de `application.css` y `capture_screens.js` que esta tarea borra, y los ocho asertos de `spec/requests/pantalla_del_modulo_spec.rb`, que esperan **cero** y siguen valiendo.
 
 Si aparece un uso en una vista o en una isla, esta tarea no puede empezar.
@@ -960,7 +979,7 @@ Es el cierre del plan y lo único que no hace una máquina. Comparar contra `tmp
 
 ## Definición de terminado
 
-- `grep -rn "\.panel\b" app/ script/` no devuelve nada fuera de los ocho asertos que esperan cero.
+- `grep -rnE '(\.panel\b|class[:=].*"[^"]*\bpanel\b)' app/ script/` no devuelve nada fuera de los ocho asertos que esperan cero.
 - `make spec`: 919 examples, 0 failures.
 - `make screens`: 59 capturas, sin errores.
 - `[CLASES]` visto cazando un `.panel` reintroducido.
