@@ -231,21 +231,20 @@ async function revisarClasesDescartadas(page, name) {
   }
 }
 
-// Ningún elemento puede tener la clase `card` VIEJA de esta app —un `card`
-// SIN `card-body` adentro—: se renombró a `.panel` para poder habilitar el
-// `card` de DaisyUI, que declara `display: flex` y convertiría en columna
-// flex a cualquier tarjeta vieja que haya quedado. El plan 2b migra
-// `.panel` a `card` + `card-body` pantalla por pantalla, así que un `card`
-// CON `card-body` es la forma nueva y no tiene que hacer fallar esto. Se
-// mira en el DOM y no en el fuente porque una clase la puede armar un `.js`
-// o una isla en tiempo de ejecución, donde un `grep` no llega.
-async function revisarTarjetasViejas(page, name) {
-  const viejas = await page.evaluate(
+// Ningún `.card` puede quedar sin su `.card-body` adentro: `card` declara
+// `display: flex` en columna, así que un `.card` sin `.card-body` mete a sus
+// hijos directos en ese layout flex en vez del bloque que esperan — es un
+// error de maquetado, no una tarjeta que quedó sin migrar (`.panel` ya no
+// existe: no queda contra qué migrar). Se mira en el DOM y no en el fuente
+// porque una clase la puede armar un `.js` o una isla en tiempo de ejecución,
+// donde un `grep` no llega.
+async function revisarCardSinBody(page, name) {
+  const sinBody = await page.evaluate(
     () => document.querySelectorAll('.card:not(:has(> .card-body))').length
   );
-  if (viejas > 0) {
+  if (sinBody > 0) {
     failures++;
-    console.error(`[PANEL] ${name}: ${viejas} elementos \`card\` sin \`card-body\`: es un error de maquetado, no una tarjeta sin migrar`);
+    console.error(`[PANEL] ${name}: ${sinBody} elementos \`card\` sin \`card-body\`: es un error de maquetado, no una tarjeta sin migrar`);
   }
 }
 
@@ -560,7 +559,7 @@ async function abrirPlegables(page) {
 async function capturar(page, name) {
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
   await revisarClasesDescartadas(page, name);
-  await revisarTarjetasViejas(page, name);
+  await revisarCardSinBody(page, name);
   await revisarContraste(page, name);
   shots.push(name);
 }
@@ -1489,8 +1488,8 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // «Placeholder. En Fase 2 la raíz pasa a ser el índice de desafíos», fase
   // que ya ocurrió. `/` sirve el mismo índice que ya fotografía
   // `02-challenges` (comprobado: mismo md5 byte a byte que `13-home` daba).
-  // `pages/home.html.haml` se borra por muerta en otra tarea del plan; acá
-  // no queda nada de esa vista que fotografiar.
+  // `pages/home.html.haml` ya se borró por muerta, en otra tarea del plan;
+  // acá no queda nada de esa vista que fotografiar.
 
   // La ficha de una corrida de IA, que no es el índice.
   await page.goto(`${BASE}/admin/ai_runs`, { waitUntil: 'networkidle' });
@@ -1501,6 +1500,11 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   } else {
     await aRun.click();
     await page.waitForURL(/\/ai_runs\//);
+    // `capturar()` no corre `[RITMO]` —lo corre `shot()`, y acá se navega por
+    // link y no por `shot()`— y ésta es de las pocas capturas nuevas donde
+    // importa: `ai_runs/show` pone hasta tres `.card` hermanas directas de
+    // `.app-main` (prompt, respuesta, sugerencias derivadas).
+    await revisarRitmo(page, '14-ai-run');
     await capturar(page, '14-ai-run');
   }
 
@@ -1526,6 +1530,10 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       console.error(`[LINK] no se pudo extraer el id del set de «${hrefEditar}»`);
     } else {
       await page.goto(`${BASE}/criteria_sets/${idSet}`, { waitUntil: 'networkidle' });
+      // Misma razón que en `14-ai-run`: se llega por `goto`, no por `shot()`.
+      // `criteria_sets/show` es hija directa de `.app-main`, así que
+      // `.app-main > .card` matchea.
+      await revisarRitmo(page, '15-criteria-set');
       await capturar(page, '15-criteria-set');
     }
   }
@@ -1627,6 +1635,25 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   await salir();
   await entrar('multi@demo.test');
   await capturar(page, '18-select-company');
+
+  // Las cinco `.card-body.empty-state` de la app (A1) no las abre ningún otro
+  // paso del recorrido. «Otra Empresa» —la segunda del seed— no tiene ningún
+  // desafío ni ningún set, y es la única puerta alcanzable acá: se elige por
+  // NOMBRE y no por posición, porque el orden de `@memberships` no está
+  // declarado en ningún lado.
+  // `choose_company_path` redirige a `root_path`, que sirve `challenges#index`
+  // pero deja la URL en `/` —`root "challenges#index"`—: `waitForURL` a
+  // `/challenges` nunca dispara. Se espera el título de la pantalla.
+  await page.click('.company-list button:has-text("Otra Empresa")');
+  await page.waitForSelector('h1.page-title:has-text("Desafíos")');
+  await capturar(page, '18b-desafios-vacio');
+
+  // Por link —el nav de arriba—, no `goto`: es el mismo camino que recorrería
+  // cualquiera, y `manages_challenges?` lo ofrece porque acá `multi@demo.test`
+  // es admin.
+  await page.click('.app-nav__link:has-text("Criterios")');
+  await page.waitForURL(/\/criteria_sets$/);
+  await capturar(page, '18c-criterios-vacio');
 
   // El 403. Quien participa SÍ ve el desafío —`ChallengeStepPolicy#show?` es
   // cualquiera de la empresa— pero no lo arma: `ChallengePolicy#builder?` es

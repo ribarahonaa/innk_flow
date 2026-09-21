@@ -62,6 +62,17 @@ del flujo (`[SALTEADO]`). Corrélo después de tocar vistas, islas o CSS — un 
 de Vue no lo atrapa ningún spec de Ruby (un `__VUE_OPTIONS_API__` mal puesto
 dejó el builder en blanco y la suite en verde).
 
+**«Falla si hay HTTP >= 400» tiene una excepción, angosta a propósito.** Dos
+pantallas se fotografían con un error encima aposta —el 403 de `19-forbidden`
+y el 404 de `20-not-found`—, y sin una excepción declarada eso reventaría la
+corrida. `shotConEstado` fija `estadoEsperado` antes de navegar; mientras está
+puesto, sólo se perdona el DOCUMENTO PRINCIPAL de ESA navegación, y sólo si
+responde exactamente con el estado declarado. Un asset o un `fetch` que
+devuelva >= 400 en el medio no se perdona nunca, y si el documento principal
+responde con otra cosa —un 200 donde se esperaba un 403, por ejemplo— sigue
+fallando, con su propia guarda (`[ESTADO]`). Lo angosto es lo que sostiene la
+regla: perdonar «>= 400» a secas la dejaría ciega para siempre.
+
 Al escribir capturas nuevas en `script/capture_screens.js`:
 
 - Navegá **por link**, no con `goto`. Turbo no dispara `DOMContentLoaded` al
@@ -92,7 +103,11 @@ Al escribir capturas nuevas en `script/capture_screens.js`:
   criterios inline en su módulo de selección (`db/seeds.rb:360` en
   adelante), del que dependen varias capturas de las dos caras.
   `con-salteado` existe sólo para la captura del módulo salteado
-  (`02b-salteado`).
+  (`02b-salteado`). `comite-abierto` existe sólo para `21-evaluar-idea`: es
+  el único desafío sembrado que deja un módulo de evaluación **activo** —en
+  `merma-bodega` el flujo corre entero y sus dos evaluaciones quedan
+  `completed`, y en `con-salteado` lo activo es el módulo salteado, no uno
+  de evaluación—, y sin uno activo ninguna fila ofrece «Evaluar».
 
 **Los system specs con navegador no cubren el recorrido.** Los servicios usan
 `with_lock` (SELECT FOR UPDATE) y eso deadlockea contra el pool compartido de
@@ -879,6 +894,25 @@ sin `card-body` (`[PANEL]`): una `card` sin su `card-body` es un error de
 maquetado, no una tarjeta sin migrar. Y si aparece un `.panel` reintroducido
 —sin ninguna regla detrás, así que queda sin fondo, sin relleno y sin
 borde— lo caza `[CLASES]`.
+
+**`[CARD]` se retiró y no se reemplazó.** Medía el ASPECTO de una `card`
+contra `.panel`: los 20px de `--card-p`, los 14px de `--card-fs` y la sombra.
+Sin `.panel` no queda contra qué comparar, así que se borró con ella.
+`[CLASES]` no cubre ese hueco: marca un elemento sólo si no tiene fondo Y no
+tiene relleno Y no tiene borde, y en una `card` el relleno vive en
+`card-body` —en la `card` misma siempre es 0—, así que ahí el chequeo se
+reduce a «tiene fondo o tiene borde». Hoy nada vigila que DaisyUI no recupere
+sus 24px de relleno por default. No es un defecto —no hay contra qué
+comparar sin `.panel`—, pero que nadie lo dé por cubierto.
+
+**Dos grillas con el mismo aspecto y mecánica distinta.** En
+`challenges/index` las tarjetas son `.challenge-card`, que declara
+`display: block` **sin capa** —y una regla sin capa le gana al `display: flex`
+de DaisyUI, que vive en un `@layer`—: el `<a>` nunca es contenedor flex, así
+que su `card-body` no hereda el alto sobrante de la fila. En
+`criteria_sets/index` son `.card` a secas: ahí sí es flex, el sobrante se
+reparte ADENTRO y el botón «Editar» queda pegado abajo. Se ven igual; el
+motivo no es el mismo.
 
 **La capa decide quién gana, y no es la especificidad.** Las clases propias de
 la app van **sin capa**, y una regla sin capa le gana a cualquier `@layer` —o
