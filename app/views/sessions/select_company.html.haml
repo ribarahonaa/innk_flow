@@ -1,11 +1,12 @@
-.panel
-  %h1 Elegí una empresa
-  %p.muted Tu cuenta tiene acceso a más de una.
-  %ul.company-list
-    - @memberships.each do |membership|
-      %li
-        = button_to membership.company.name,
-                    choose_company_path,
-                    params: { company_id: membership.company_id },
-                    class: "btn btn-ghost btn-block"
-        %span.muted= membership.role
+.card
+  .card-body
+    %h1 Elegí una empresa
+    %p.muted Tu cuenta tiene acceso a más de una.
+    %ul.company-list
+      - @memberships.each do |membership|
+        %li
+          = button_to membership.company.name,
+                      choose_company_path,
+                      params: { company_id: membership.company_id },
+                      class: "btn btn-ghost btn-block"
+          %span.muted= membership.role

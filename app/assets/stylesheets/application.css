@@ -826,6 +826,11 @@ body {
 /* Su propio `margin-top` ya no colapsa con el del párrafo de arriba: con la
    lista vacía la línea bajaba 22px. El borde y su relleno separan igual. */
 .card-body > .assignment-add { margin-top: 0; }
+/* `errors/forbidden`, `errors/not_found` y `sessions/select_company` titulan
+   con un `%h1` sin clase: sin `.page-title` que le fije el margen, corre el
+   default del Preflight (`margin-block: .67em`, ~19px). Ya no colapsa con el
+   párrafo de abajo, así que el título quedaba ~21px más lejos de su texto. */
+.card-body > h1 { margin-bottom: 0; }
 
 /* ── Auth ───────────────────────────────────────────────────────────────── */
 .auth-body {
