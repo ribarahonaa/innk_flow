@@ -577,6 +577,23 @@ async function revisarCardComoPanel(page, tema) {
 // Sin números a propósito: este comentario, `README.md` y `CLAUDE.md` los
 // tenían, y los tres se desactualizaron cada vez que se sumó una captura. El
 // número real lo imprime la corrida al terminar.
+// Abre todos los `<details>` de la pantalla, para la FOTO.
+//
+// NO es cobertura de medición: un `<details>` cerrado NO le saca la caja a sus
+// descendientes, así que `medirContraste` y `revisarClasesDescartadas` —que
+// filtran por `getClientRects().length > 0`— ya miden lo de adentro con el
+// plegable cerrado. Medido de dos formas: contando elementos con caja adentro
+// del desglose y de los ajustes (138 y 37, idénticos abierto y cerrado, en los
+// dos temas), y metiendo un `.badge` de 1,20:1 adentro del desglose, que
+// `[CONTRASTE]` reportó en seis pantallas incluidas las que lo tienen cerrado.
+//
+// Lo que el plegable sí se lleva es la imagen: las cinco capturas oscuras de
+// módulo mostraban el `summary` y nada más, y mirar las capturas es la única
+// revisión del rediseño que no hace una máquina.
+async function abrirPlegables(page) {
+  await page.evaluate(() => document.querySelectorAll('details').forEach((d) => { d.open = true; }));
+}
+
 async function capturar(page, name) {
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
   await revisarClasesDescartadas(page, name);
@@ -1043,9 +1060,9 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     console.error('[LINK] el desafío no tiene el módulo de evaluación de comité');
   }
 
-  // Los ajustes abiertos. Plegados no salen en ninguna captura, y las guardas
-  // de contraste y de clases sólo miden lo que tiene caja: sin esto, lo de
-  // adentro quedaba sin medir.
+  // Los ajustes abiertos. Es por la FOTO: plegados no salen en ninguna captura.
+  // No por la medición —las guardas ya miden adentro de un plegable cerrado,
+  // ver `abrirPlegables`—, que es lo que este comentario decía y no era cierto.
   if (comite) {
     await page.goto(BASE + comite.href, { waitUntil: 'networkidle' });
 
@@ -1495,6 +1512,9 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     // oscuro.
     if (nombre === '98-oscuro-salteado') await revisarPuntos(page, nombre, 'oscuro', PUNTOS_DE_SALTEADO);
     if (nombre === '91-oscuro-desafio') await revisarPuntos(page, nombre, 'oscuro', PUNTOS_DE_MERMA);
+    // Después de `revisarPuntos` —que cuenta los puntos del drawer y no
+    // depende de lo plegado— y antes de la captura, que es lo que esto mejora.
+    await abrirPlegables(page);
     await capturar(page, nombre);
   }
   await page.emulateMedia({ colorScheme: 'light' });
