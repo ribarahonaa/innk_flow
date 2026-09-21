@@ -68,9 +68,14 @@
           = render "steps/fila_de_evaluacion", entry: entry, handler: @handler, challenge: @challenge,
                    step: @step, manda: manda, hechas: hechas, puede_pedir: puede_pedir
 
--# Nombre, modo de IA y quién evalúa: se editan acá, pero casi nunca. Cada
--# bloque trae su guarda; los ajustes se dibujan si a quien mira le toca uno.
-- if policy(@step).advance? || policy(@step).manage_assignments?
-  = render layout: "steps/ajustes", locals: { resumen: "nombre, modo de IA y quién evalúa" } do
+-# El resumen del plegado se arma con las MISMAS guardas que los bloques de
+-# adentro, y el plegable entero se dibuja si quedó alguno. Con el texto fijo,
+-# el resumen podía anunciar un bloque que la guarda no servía —y abrirlo para
+-# no encontrarlo es el mismo control fantasma que esta pantalla vino a sacar—.
+- ajustes = []
+- ajustes += ["nombre", "modo de IA"] if policy(@step).advance?
+- ajustes << "quién evalúa" if policy(@step).manage_assignments?
+- if ajustes.any?
+  = render layout: "steps/ajustes", locals: { resumen: ajustes.to_sentence } do
     = render "steps/ai_mode", step: @step
     = render "steps/asignaciones_evaluadores", step: @step, assignable: @assignable, tarjeta: false

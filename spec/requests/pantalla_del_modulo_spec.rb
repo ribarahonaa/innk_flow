@@ -272,8 +272,33 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
 
       expect(zonas[:referencia]).to include("Progreso", "Quiénes acompañan", "Cómo quedó configurado")
       expect(zonas[:ajustes]).to include("Ajustes del módulo", "Modo de IA", "Elegí a quién sumar")
+      # Fija el texto entero: el orden de los bloques y el conector que pone
+      # `to_sentence`, que sale del locale (`:es`, vía rails-i18n) y en inglés
+      # diría «and».
+      expect(documento.at_css(".ajustes__titulo .muted").text).to eq("nombre, modo de IA y quiénes acompañan")
       expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
       expect(titulos_de_mas_en_la_referencia).to be_empty
+    end
+
+    # El resumen plegado anuncia QUÉ hay adentro, así que tiene que salir de
+    # las mismas guardas que los bloques. «Quiénes acompañan» cuelga de
+    # `update_pipeline?`, que suma `&& !closed?` sobre `manager?`; el nombre y
+    # el modo de IA cuelgan de `advance?`, que es `manager?` a secas y sigue
+    # siendo verdadero con el desafío cerrado. Es la ÚNICA de las cinco
+    # pantallas donde los dos bloques no preguntan lo mismo.
+    #
+    # `close!` cierra el desafío sin tocar los módulos, así que un módulo
+    # activo con el desafío cerrado es un estado alcanzable: quien administra
+    # cortó el desafío antes de terminar el flujo.
+    it "con el desafío cerrado el resumen no anuncia quiénes acompañan" do
+      as_company(company) { challenge.pipeline.close! }
+      sign_in(admin, company: company)
+      get challenge_step_path(challenge, paso("evolution"))
+
+      resumen = documento.at_css(".ajustes__titulo .muted").text
+      expect(resumen).to include("nombre", "modo de IA")
+      expect(resumen).not_to include("quiénes acompañan")
+      expect(zonas[:ajustes]).not_to include("Elegí a quién sumar")
     end
 
     it "quien participa: sin quiénes acompañan y sin ajustes" do
