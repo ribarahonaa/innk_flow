@@ -517,7 +517,7 @@ Once usos en seis vistas.
 
 **Files:**
 - Modify: `app/views/criteria_sets/index.html.haml:9` (`.panel.empty-state`), `:16`
-- Modify: `app/views/criteria_sets/show.html.haml:7`
+- Modify: `app/views/criteria_sets/show.html.haml:7` (el `.panel`) **y `:20`** (un bug preexistente, ver Step 2b)
 - Modify: `app/views/criteria_sets/_form.html.haml:5` (`.panel.island-placeholder`)
 - Modify: `app/views/ai_runs/index.html.haml:21`
 - Modify: `app/views/ai_runs/show.html.haml:13,17,22`
@@ -533,6 +533,40 @@ Once usos en seis vistas.
 - [ ] **Step 2: Aplicar la tabla de formas**
 
 Nueve son el caso base. `criteria_sets/index.html.haml:9` es `.panel.empty-state` → `.card` > `.card-body.empty-state`. `criteria_sets/_form.html.haml:5` es `.panel.island-placeholder` → `.card` > `.card-body.island-placeholder`.
+
+- [ ] **Step 2b: Arreglar el `%td:` de `criteria_sets/show.html.haml:20`**
+
+Bug preexistente, destapado al fotografiar esa pantalla en la tarea 1.
+Decisión de Raúl: se arregla acá, que es cuando le toca a esta vista.
+
+La línea 20 dice:
+
+```haml
+          %td: %code= criterion.key
+```
+
+`%td: %code=` es sintaxis de **Slim**, no de HAML. HAML no la lee como
+anidamiento: toma `td:` como nombre de etiqueta y el resto como texto. Medido
+compilando el fragmento, no deducido:
+
+```
+%td: %code= 1+1   →   <td:>%code= 1+1</td:>
+```
+
+Etiqueta inválida, el Ruby nunca se evalúa, y la columna «Clave» muestra el
+texto literal `%code= criterion.key` en vez del valor. Va anidado de verdad:
+
+```haml
+          %td
+            %code= criterion.key
+```
+
+Verificar en el HTML servido que la columna «Clave» trae ahora la clave de cada
+criterio, y mirarlo en la captura `15-criteria-set`.
+
+**Nada más de esa vista.** Que `criteria_sets#show` sea una pantalla huérfana
+—nada en la app la linkea— es un hallazgo aparte y sin decidir: no se linkea ni
+se borra en esta tarea.
 
 - [ ] **Step 3: Confirmar que no quedó ninguno**
 
@@ -563,6 +597,11 @@ git commit -m "Criterios, corridas de IA y miembros pasan a \`card\`
 
 Once tarjetas en seis pantallas. \`ai_runs/show\` y \`memberships/index\` tienen
 tres cada una: es donde el ritmo entre tarjetas hermanas se nota.
+
+Y de paso el \`%td: %code=\` de criteria_sets/show, que es sintaxis de Slim y
+no de HAML: HAML tomaba \`td:\` como nombre de etiqueta y el resto como texto,
+así que la columna Clave mostraba el literal. Lo destapó la captura que la
+tarea 1 le sumó a esa pantalla, que hasta ahora no tenía ninguna.
 
 [Describir el ajuste de espaciado, o decir que no hizo falta.]
 
