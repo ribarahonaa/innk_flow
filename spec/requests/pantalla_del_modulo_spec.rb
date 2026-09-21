@@ -38,6 +38,29 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
   # clase y no por etiqueta, así que un nivel desparejo no se ve en pantalla ni
   # lo agarra `make screens` — sólo desordena el outline, que es justamente lo
   # que usa quien navega con lector de pantalla.
+  # La referencia va en ORDEN FIJO (CLAUDE.md): el progreso primero, después lo
+  # propio del módulo, después quién participa y al final la configuración, que
+  # no cambia. Cada kind trae un subconjunto, así que lo que se prueba pantalla
+  # por pantalla es la secuencia que le toca.
+  ORDEN_DE_LA_REFERENCIA = [
+    "Progreso",
+    # Lo propio del módulo.
+    "Criterios", "Formulario de postulación", "Descargas",
+    # Quién participa.
+    "Quién evalúa", "Quiénes acompañan",
+    "Cómo quedó configurado"
+  ].freeze
+
+  # Un título que la lista no conoce vuelve marcado con `¿?` en vez de
+  # desaparecer: si se cayera en silencio, sumar una tarjeta a la columna —o
+  # renombrar una— dejaría esta guarda pasando sin mirarla.
+  def titulos_de_la_referencia
+    documento.css(".app-aside .section-title").map do |nodo|
+      texto = nodo.text.strip
+      ORDEN_DE_LA_REFERENCIA.find { |t| texto.start_with?(t) } || "¿#{texto.lines.first.to_s.strip}?"
+    end
+  end
+
   def titulos_de_mas_en_la_referencia
     documento.css(".app-aside h1, .app-aside h2").map { |n| "#{n.name}: #{n.text.strip}" }
   end
@@ -100,6 +123,7 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       expect(zonas[:ajustes]).to include("Ajustes del módulo", "Modo de IA", "Peso")
       expect(documento.at_css(".ajustes details.ajustes__plegable")).not_to be_nil
       expect(titulos_de_mas_en_la_referencia).to be_empty
+      expect(titulos_de_la_referencia).to eq(["Progreso", "Criterios", "Quién evalúa", "Cómo quedó configurado"])
     end
 
     it "quien evalúa: la referencia sin la lista de asignaciones, y sin ajustes" do
@@ -345,6 +369,7 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       # `to_sentence`, que sale del locale (`:es`, vía rails-i18n) y en inglés
       # diría «and».
       expect(documento.at_css(".ajustes__titulo .muted").text).to eq("nombre, modo de IA y quiénes acompañan")
+      expect(titulos_de_la_referencia).to eq(["Progreso", "Quiénes acompañan", "Cómo quedó configurado"])
       expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
       expect(titulos_de_mas_en_la_referencia).to be_empty
     end
@@ -412,6 +437,7 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
         expect(zonas[:ajustes]).to include("Ajustes del módulo", "Modo de IA")
         expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
         expect(titulos_de_mas_en_la_referencia).to be_empty
+        expect(titulos_de_la_referencia).to eq(["Descargas", "Cómo quedó configurado"])
       end
     end
 
@@ -554,6 +580,7 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       expect(documento.at_css('.ajustes [data-island="form-editor"]')).not_to be_nil
       expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
       expect(titulos_de_mas_en_la_referencia).to be_empty
+      expect(titulos_de_la_referencia).to eq(["Progreso", "Formulario de postulación", "Cómo quedó configurado"])
     end
 
     it "quien participa: lee el formulario, sin editor ni ajustes" do

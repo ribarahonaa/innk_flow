@@ -17,11 +17,14 @@
 -# que le rebotaba con 403.
 - pide_resumen = policy(@challenge).update_pipeline?
 
--# Reportería no tiene progreso: la referencia se lleva la configuración y las
--# descargas, y el centro es el reporte.
+-# Reportería no tiene progreso ni quién participa: la referencia se lleva las
+-# descargas y la configuración, y el centro es el reporte.
+-#
+-# En el orden fijo de la columna: las descargas son lo propio del módulo y la
+-# configuración va última, porque es lo que no cambia. Estaban al revés.
 - content_for :referencia do
-  = render "steps/config_congelada", step: @step
   = render "steps/descargas", step: @step, handler: @handler, data: data
+  = render "steps/config_congelada", step: @step
 
 = render "steps/header", step: @step, handler: @handler
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
