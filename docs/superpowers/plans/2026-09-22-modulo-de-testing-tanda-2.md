@@ -137,14 +137,14 @@ RSpec.describe AiRun do
 
   it "acepta el propósito test_idea" do
     run = described_class.new(challenge: challenge, purpose: "test_idea",
-                              mode: "ai_assisted", status: "pending")
+                              mode: "ai_assisted", status: "queued")
 
     expect(run).to be_valid
   end
 
   it "la base también lo acepta, no sólo la validación" do
     run = described_class.new(challenge: challenge, purpose: "test_idea",
-                              mode: "ai_assisted", status: "pending")
+                              mode: "ai_assisted", status: "queued")
 
     expect { run.save!(validate: false) }.not_to raise_error
   end
