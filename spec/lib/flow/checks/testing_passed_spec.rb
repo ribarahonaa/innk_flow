@@ -42,7 +42,7 @@ RSpec.describe Flow::Checks::TestingPassed do
       resultado = check.call(idea)
 
       expect(resultado).to be_passed
-      expect(resultado.detail).to include("2")
+      expect(resultado.detail).to eq("Factible con 2 reservas")
     end
 
     it "con solo_factible, «con reservas» no pasa" do
@@ -68,7 +68,7 @@ RSpec.describe Flow::Checks::TestingPassed do
       resultado = check.call(idea)
 
       expect(resultado).to be_passed
-      expect(resultado.detail).to include("sin testear")
+      expect(resultado.detail).to eq("sin testear")
     end
 
     it "pero se puede configurar que no" do
@@ -101,5 +101,46 @@ RSpec.describe Flow::Checks::TestingPassed do
 
   it "declara su tipo en TYPES" do
     expect(Flow::Checks::Base::TYPES).to include("testing_passed")
+  end
+
+  # El detail no es texto de debug: se lee en la celda del filtro del
+  # ranking (Task 6), así que tiene que decir cuál caso fue y no tartamudear
+  # cuando el veredicto ya trae la palabra «reservas» adentro. Las seis
+  # combinaciones: tres veredictos, con y sin reservas cargadas.
+  describe "detail" do
+    it "factible, sin reservas" do
+      testear!(modulo_de_testing(2), "factible")
+      expect(check.call(idea).detail).to eq("Factible")
+    end
+
+    it "factible, con reservas cargadas" do
+      testear!(modulo_de_testing(2), "factible", reservas: %w[una otra])
+      expect(check.call(idea).detail).to eq("Factible con 2 reservas")
+    end
+
+    it "con reservas, sin reservas cargadas" do
+      testear!(modulo_de_testing(2), "con_reservas")
+      expect(check.call(idea).detail).to eq("Factible con reservas")
+    end
+
+    # El bug: el label de `con_reservas` YA dice «con reservas», así que
+    # sumarle el conteo encima con la redacción vieja duplicaba la frase
+    # («Factible con reservas con 2 reservas»).
+    it "con reservas, con reservas cargadas" do
+      testear!(modulo_de_testing(2), "con_reservas", reservas: %w[una otra])
+      expect(check.call(idea).detail).to eq("Factible con 2 reservas")
+    end
+
+    it "no factible, sin reservas" do
+      testear!(modulo_de_testing(2), "no_factible")
+      expect(check.call(idea).detail).to eq("No factible")
+    end
+
+    # Nada en el modelo impide que un testeo no factible traiga reservas
+    # cargadas: el texto tiene que servir igual.
+    it "no factible, con reservas cargadas" do
+      testear!(modulo_de_testing(2), "no_factible", reservas: %w[una otra])
+      expect(check.call(idea).detail).to eq("No factible con 2 reservas")
+    end
   end
 end

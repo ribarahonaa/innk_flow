@@ -38,13 +38,20 @@ module Flow
       def aceptados = ACEPTA.fetch(config["accepts"].to_s, ACEPTA.fetch("factible_o_con_reservas"))
 
       # El detalle se lee en la celda del filtro del ranking, así que dice cuál
-      # de los dos casos fue y no sólo si pasó.
+      # de los tres veredictos fue y no sólo si pasó.
+      #
+      # El label de `con_reservas` ya dice «Factible con reservas»: sumarle el
+      # conteo encima duplicaba la frase («Factible con reservas con 2
+      # reservas»). Con reservas cargadas la base pasa a ser la de `factible`
+      # a secas, y el conteo lo dice todo. Nada en el modelo impide que un
+      # `no_factible` traiga reservas, así que esto tiene que servir para los
+      # tres veredictos y no sólo para `con_reservas`.
       def detalle_de(test)
         reservas = Array(test.reservations).size
-        texto = I18n.t("flow.verdicts.#{test.verdict}")
-        return texto if reservas.zero?
+        return I18n.t("flow.verdicts.#{test.verdict}") if reservas.zero?
 
-        "#{texto} con #{Flow::Texto.contar(reservas, 'reserva')}"
+        clave = test.verdict == "con_reservas" ? "factible" : test.verdict
+        "#{I18n.t("flow.verdicts.#{clave}")} con #{Flow::Texto.contar(reservas, 'reserva')}"
       end
 
       def sin_testeo
