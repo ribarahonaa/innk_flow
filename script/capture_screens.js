@@ -1787,6 +1787,69 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     }
   }
 
+  // El filtro por testeo: una selección que corta usando el veredicto de
+  // testing (`testing_passed`), sin ninguna evaluación antes. Sale de
+  // `filtro-por-testeo`, propio y no compartido —el testing ya cerró con dos
+  // veredictos distintos, así que la celda del filtro muestra sus DOS
+  // estados: la idea factible pasa y la no factible no.
+  //
+  // No hace falta clasificar «Corte por factibilidad» en `MODULOS_EN_ZONAS` ni
+  // en `MODULOS_SOLO_AJUSTES`: el módulo es un `selection` más, y la forma de
+  // su pantalla (sin referencia, con los ajustes plegados) ya la prueba el
+  // loop de arriba sobre «Corte a top 3» y «Finalistas» —el mismo template,
+  // otro desafío—. Sumarlo ahí sería sólo documentación, y encima al revés:
+  // el nombre comparte «factibilidad» con la entrada que ya está en
+  // `MODULOS_EN_ZONAS` (puesta para «Prueba de factibilidad», el módulo de
+  // testing), así que agregarlo haría que las dos listas se contradigan sobre
+  // el mismo texto.
+  //
+  // Read-only a propósito: no se tilda ni se confirma el corte, así que
+  // `make screens` corrido dos veces sin volver a sembrar encuentra el mismo
+  // estado las dos veces.
+  await page.goto(BASE + '/challenges/filtro-por-testeo', { waitUntil: 'networkidle' });
+  const filtroLink = page
+    .locator('.table tr', { hasText: 'Corte por factibilidad' })
+    .locator('.table-link');
+  if (!(await filtroLink.count())) {
+    failures++;
+    console.error('[LINK] «filtro-por-testeo» no tiene el módulo de corte por factibilidad');
+  } else {
+    await Promise.all([
+      page.waitForURL(/\/steps\/[^/]+$/, { timeout: 15000 }),
+      filtroLink.first().click()
+    ]);
+    await page.waitForSelector('table.ranking-table', { timeout: 15000 });
+
+    const filaPasa = page.locator('tr', { hasText: 'Tablet para pedir desde la mesa' });
+    const filaFalla = page.locator('tr', { hasText: 'Cocina satélite en el subsuelo' });
+    const gatePasa = filaPasa.locator('.gate-cell .gate--pass');
+    const gateFalla = filaFalla.locator('.gate-cell .gate--fail');
+
+    if (!(await gatePasa.count()) || !(await gateFalla.count())) {
+      failures++;
+      console.error('[FILTROS] la celda del filtro no muestra los dos estados (una idea pasa la prueba, la otra no)');
+    } else {
+      // El texto sale de `TestingPassed#detalle_de` y viaja en el `title` del
+      // span (la celda sólo dibuja ✓/✗; el detalle es la explicación). La
+      // Task 5 le sacó la duplicación de «Factible con reservas con 2
+      // reservas»; acá las dos ideas no tienen reservas, así que el texto es
+      // el veredicto liso —y si volviera a ser un genérico «cumple»/«no
+      // cumple» en vez del veredicto, esto lo detecta—.
+      const detallePasa = (await gatePasa.getAttribute('title')) || '';
+      const detalleFalla = (await gateFalla.getAttribute('title')) || '';
+      if (detallePasa !== 'Factible') {
+        failures++;
+        console.error(`[FILTROS] el detalle de la idea factible dice «${detallePasa}», se esperaba «Factible»`);
+      }
+      if (detalleFalla !== 'No factible') {
+        failures++;
+        console.error(`[FILTROS] el detalle de la idea no factible dice «${detalleFalla}», se esperaba «No factible»`);
+      }
+    }
+
+    await capturar(page, '23-filtro-por-testeo');
+  }
+
   // ── Las tres que piden otra sesión ──────────────────────────────────────
   //
   // Van últimas de la pasada clara: el recorrido como admin ya terminó, así

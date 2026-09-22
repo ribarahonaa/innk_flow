@@ -599,6 +599,89 @@ Flow::Tenant.bypass! do
       tested_by: User.find_by!(email: "admin@demo.test")
     )
 
+    # Un desafío donde el testeo CORTA: el módulo de testing ya cerró con dos
+    # veredictos distintos, y la selección que sigue filtra por
+    # `testing_passed`. Es la única forma de que la captura muestre la celda
+    # del filtro con sus dos estados —la factible pasa, la no factible no—.
+    # Propio y no compartido, como manda CLAUDE.md: existe sólo para esto.
+    Challenge.where(slug: "filtro-por-testeo").destroy_all
+    filtro = Challenge.create!(
+      slug: "filtro-por-testeo",
+      name: "Reducir el tiempo de espera en mesa",
+      brief: "Buscamos formas de bajar el tiempo entre que alguien se sienta y recibe lo que pidió.",
+      ai_default_mode: "human"
+    )
+    filtro.pipeline.insert(kind: "ideation", after: :end, name: "Postulación")
+    filtro.pipeline.insert(kind: "testing", after: :end, name: "Prueba de factibilidad")
+    # `score_source.type: "manual"` porque este corte no ordena por puntaje de
+    # ninguna evaluación: sólo filtra por `testing_passed`. Sin esto,
+    # `Pipeline#validate` lo rechaza con «no tiene ninguna evaluación previa
+    # de la cual tomar puntaje» y `start!` no arranca el desafío — el mismo
+    # patrón que usan los specs de una selección sólo-filtro
+    # (`spec/requests/selection_screen_spec.rb`).
+    filtro.pipeline.insert(kind: "selection", after: :end, name: "Corte por factibilidad",
+                           config: { "score_source" => { "type" => "manual" } })
+
+    filtro_ideacion = filtro.pipeline.ideation_step
+    filtro_ideacion.form_fields.create!(key: "titulo", label: "Título", field_type: "text",
+                                        required: true, position: 0,
+                                        config: { "is_title" => true })
+
+    # El filtro vive en un set INLINE del módulo de selección: es de este
+    # módulo y no se comparte con ningún otro desafío.
+    filtro_seleccion = filtro.pipeline.steps.find { |s| s.kind == "selection" }
+    # Un set `inline` cuelga de SU MÓDULO por `owner_step_id`, no del desafío:
+    # es la forma que usa el resto del seed (`db/seeds.rb:430`).
+    set_de_filtro = CriteriaSet.create!(
+      name: "Filtro de factibilidad", scope: "inline", owner_step_id: filtro_seleccion.id,
+      description: "Sólo avanzan las ideas que pasaron la prueba."
+    )
+    set_de_filtro.criteria.create!(
+      name: "Pasó la prueba de factibilidad", key: "factible", weight: 1.0,
+      source: "automatic", scale_type: "boolean", position: 0,
+      source_config: { "check" => "testing_passed",
+                       "accepts" => "factible_o_con_reservas",
+                       "sin_testeo" => "no_pasa" }
+    )
+    set_de_filtro.refresh_status!
+    filtro_seleccion.update!(criteria_set_id: set_de_filtro.id)
+
+    filtro.pipeline.start!
+
+    ideas_del_filtro = [
+      ["Tablet para pedir desde la mesa", "factible"],
+      ["Cocina satélite en el subsuelo", "no_factible"]
+    ].map do |titulo, _|
+      idea = Idea.create!(challenge: filtro, author: User.find_by!(email: "part1@demo.test"),
+                          status: "draft", origin: "human")
+      Flow::Ideas::PublishVersion.new(
+        idea, payload: { "titulo" => titulo }, author: idea.author, actor_type: "human",
+        source_step: filtro_ideacion, change_note: "Creación de la idea"
+      ).call
+      idea.update!(submitted_at: Time.current)
+      idea
+    end
+
+    filtro.pipeline.advance!  # → Prueba de factibilidad
+    paso_de_prueba = filtro.pipeline.active_step
+
+    paso_de_prueba.handler.testear!(
+      idea: ideas_del_filtro[0], verdict: "factible",
+      situations: [{ "dimension" => "operativa", "escenario" => "Sábado a las 21, salón lleno",
+                     "resultado" => "aguanta", "detalle" => "La mesa pide sin esperar al mozo" }],
+      reservations: [], summary: "Aguanta el peor turno de la semana.",
+      tested_by: User.find_by!(email: "admin@demo.test")
+    )
+    paso_de_prueba.handler.testear!(
+      idea: ideas_del_filtro[1], verdict: "no_factible",
+      situations: [{ "dimension" => "economica", "escenario" => "Con el alquiler del subsuelo",
+                     "resultado" => "se_rompe", "detalle" => "El costo fijo se come el ahorro del turno" }],
+      reservations: [], summary: "No se paga con el volumen actual.",
+      tested_by: User.find_by!(email: "admin@demo.test")
+    )
+
+    filtro.pipeline.advance!  # → Corte por factibilidad (activo, con el filtro ya respondido)
+
     # Un desafío SIN módulos, para la captura del selector de plantillas.
     # Antes el script de capturas creaba uno en cada corrida y no lo borraba:
     # la base de desarrollo terminó con dieciséis «desafio-de-prueba-N».
