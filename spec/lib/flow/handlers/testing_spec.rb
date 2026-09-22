@@ -92,6 +92,17 @@ RSpec.describe Flow::Handlers::Testing do
       expect(reasons.join).to match(/Faltan 2 ideas por testear/)
     end
 
+    # El verbo también acuerda. «Faltan 1 idea» llegó a la pantalla y lo vio
+    # una persona mirando una captura, no un test: el ejemplo de arriba sólo
+    # ejercitaba el plural, que es donde la frase ya estaba bien.
+    it "con una sola sin testear, el verbo va en singular" do
+      handler = armar
+      testear(handler, ideas[0], "factible")
+      _, reasons = handler.can_complete?
+
+      expect(reasons.join).to include("Falta 1 idea por testear")
+    end
+
     it "se puede cerrar con todas testeadas" do
       handler = armar
       ideas.each { |idea| testear(handler, idea, "factible") }
