@@ -1,0 +1,7 @@
+- content_for :title, "Configurar · #{@step.name}"
+= render "steps/config/shell", step: @step
+= render "steps/config/modulo", step: @step, props: @settings_props
+-# El pie del paso a paso. Sin este render no hay ningún «siguiente →» que
+-# ofrecer y el recorrido se corta en este módulo — y no se nota mirando,
+-# porque el paso sigue apareciendo en el drawer.
+= render "shared/setup_nav", challenge: @challenge
