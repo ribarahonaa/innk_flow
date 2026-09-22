@@ -552,13 +552,24 @@ Flow::Tenant.bypass! do
     # de la tabla y los dos textos del botón («Testear» y «Re-testear»).
     # Ningún otro desafío sembrado deja un testing en ese estado. Propio y no
     # compartido, como manda CLAUDE.md — existe sólo para estas capturas.
+    #
+    # `ai_assisted` y no `human`: los otros dos desafíos con testing
+    # (`filtro-por-testeo`, humano; `sin-formulario`, cuyo módulo arranca y
+    # avanza enseguida) nunca dejaban ver el botón «IA» de la fila ni la
+    # tarjeta «¿Querés que la IA la ponga a prueba?» de `step_tests/new` —
+    # así que `[CLASES]`, `[CONTRASTE]` y `[PANEL]` nunca los midieron, que es
+    # justo cómo `flow.ai_purposes` se quedó sin `test_idea` sin que nada lo
+    # atrapara. En asistido el módulo no encola nada al arrancar (a
+    # diferencia de `ai_auto`), así que esto no agrega corridas de IA que
+    # ensucien el estado ni rompan la idempotencia entre corridas de
+    # `make screens`.
     Challenge.where(slug: "testeo-abierto").destroy_all
     testeo = Challenge.create!(
       slug: "testeo-abierto",
       name: "Reparto en bici para el último kilómetro",
       brief: "Queremos saber si las entregas de menos de 3 km se pueden hacer en bici " \
              "sin perder la ventana de entrega.",
-      ai_default_mode: "human"
+      ai_default_mode: "ai_assisted"
     )
     testeo.pipeline.insert(kind: "ideation", after: :end, name: "Postulación")
     testeo.pipeline.insert(kind: "testing", after: :end, name: "Prueba de factibilidad")

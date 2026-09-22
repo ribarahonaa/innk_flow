@@ -1656,6 +1656,19 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       failures++;
       console.error('[TESTING] el módulo no muestra las dos filas (una testeada, otra sin testear) con sus dos botones');
     }
+
+    // `testeo-abierto` corre en `ai_assisted` justamente para que este botón
+    // se pinte: en `human` (como quedó hasta acá) nunca se renderiza, y
+    // `[CLASES]`/`[CONTRASTE]`/`[PANEL]` de `capturar()` sólo miran lo que el
+    // DOM tiene puesto. Sin esta guarda, volver el módulo a modo humano
+    // reabriría en silencio el mismo punto ciego que dejó pasar
+    // `flow.ai_purposes` sin `test_idea`.
+    const iaEnFilas = await page.locator('tr', { hasText: idaTesteada }).locator('button', { hasText: 'IA' }).count()
+      && await page.locator('tr', { hasText: ideaSinTestear }).locator('button', { hasText: 'IA' }).count();
+    if (!iaEnFilas) {
+      failures++;
+      console.error('[TESTING] el módulo no ofrece el botón «IA» en las filas (¿volvió a modo humano?)');
+    }
     await capturar(page, '22-testing');
 
     // Las tres zonas de la cara de ejecución: la misma guarda que corre sobre
@@ -1753,6 +1766,15 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       await page.selectOption('select[name="verdict"]', veredictoNuevo);
       await page.fill('textarea[name="reservations"]', 'Confirmar el protocolo con el equipo de logística antes de escalar');
       await page.fill('input[name="summary"]', 'El protocolo de lluvia resolvió la única reserva pendiente.');
+
+      // La tarjeta «¿Querés que la IA la ponga a prueba?»: como el botón «IA»
+      // de la fila, sólo se sirve con el módulo activo y en un modo que no
+      // sea «Solo personas» — otra vez `testeo-abierto` en `ai_assisted`, y
+      // no `step_tests/new` de un desafío en modo humano, que la deja afuera.
+      if (!(await page.locator('.card', { hasText: '¿Querés que la IA la ponga a prueba?' }).count())) {
+        failures++;
+        console.error('[TESTING] step_tests/new no ofrece la tarjeta de pedirle el testeo a la IA');
+      }
 
       await capturar(page, '22b-testeo-nuevo');
 
