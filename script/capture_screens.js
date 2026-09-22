@@ -1831,19 +1831,20 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     } else {
       // El texto sale de `TestingPassed#detalle_de` y viaja en el `title` del
       // span (la celda sólo dibuja ✓/✗; el detalle es la explicación). La
-      // Task 5 le sacó la duplicación de «Factible con reservas con 2
-      // reservas»; acá las dos ideas no tienen reservas, así que el texto es
-      // el veredicto liso —y si volviera a ser un genérico «cumple»/«no
-      // cumple» en vez del veredicto, esto lo detecta—.
+      // idea factible no tiene reservas cargadas, así que el texto es el
+      // veredicto liso —y si volviera a ser un genérico «cumple»/«no cumple»
+      // en vez del veredicto, esto lo detecta—. La no factible SÍ trae una
+      // reserva cargada en el seed: fotografía el camino «con condiciones a
+      // resolver», que si no ninguna captura ve.
       const detallePasa = (await gatePasa.getAttribute('title')) || '';
       const detalleFalla = (await gateFalla.getAttribute('title')) || '';
       if (detallePasa !== 'Factible') {
         failures++;
         console.error(`[FILTROS] el detalle de la idea factible dice «${detallePasa}», se esperaba «Factible»`);
       }
-      if (detalleFalla !== 'No factible') {
+      if (detalleFalla !== 'No factible · 1 condición a resolver') {
         failures++;
-        console.error(`[FILTROS] el detalle de la idea no factible dice «${detalleFalla}», se esperaba «No factible»`);
+        console.error(`[FILTROS] el detalle de la idea no factible dice «${detalleFalla}», se esperaba «No factible · 1 condición a resolver»`);
       }
     }
 

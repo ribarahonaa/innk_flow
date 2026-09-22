@@ -676,7 +676,12 @@ Flow::Tenant.bypass! do
       idea: ideas_del_filtro[1], verdict: "no_factible",
       situations: [{ "dimension" => "economica", "escenario" => "Con el alquiler del subsuelo",
                      "resultado" => "se_rompe", "detalle" => "El costo fijo se come el ahorro del turno" }],
-      reservations: [], summary: "No se paga con el volumen actual.",
+      # Con reserva cargada a propósito: es el único testeo del seed que la
+      # trae, y es lo que hace que `23-filtro-por-testeo` fotografíe el
+      # detalle «con condiciones a resolver» (nada en el modelo impide que un
+      # `no_factible` traiga reservas — `Flow::Checks::TestingPassed`).
+      reservations: ["Compartir el subsuelo con otro local para bajar el costo fijo"],
+      summary: "No se paga con el volumen actual.",
       tested_by: User.find_by!(email: "admin@demo.test")
     )
 
