@@ -91,10 +91,21 @@ module Flow
           ChallengeStep::KINDS.map { |kind| NOTAS_POR_KIND[kind] ? "#{kind} (#{NOTAS_POR_KIND[kind]})" : kind }.join(", ")
         end
 
+        # `ai_mode` y `config` van OBLIGATORIOS, y no porque el modelo tenga que
+        # decidirlos: porque la API rechaza con 400 un schema con más de 24
+        # parámetros opcionales, y una variante por kind los multiplica. Con
+        # los dos opcionales eran 2 por kind —12 de 28— y el sexto kind cruzó
+        # el límite; el pedido moría con «too many optional parameters».
+        #
+        # No cambia lo que se puede proponer: `nil` sigue estando en el enum de
+        # `ai_mode` y significa «heredá el modo del desafío» (`apply!` lo lee
+        # con `.presence`), y un `config` vacío es «todos los defaults»
+        # (`StepSettings.filtrar` trata cualquier cosa que no sea Hash como
+        # `{}`). Lo único que cambia es que el modelo tiene que escribirlos.
         def paso(kind)
           {
             "type" => "object",
-            "required" => %w[kind name],
+            "required" => %w[kind name ai_mode config],
             "properties" => {
               "kind" => { "const" => kind },
               "name" => { "type" => "string" },

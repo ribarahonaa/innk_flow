@@ -1,12 +1,12 @@
 {
   "rationale": "El desafío busca ideas accionables y pilotables. Se propone una ronda de feedback antes de evaluar, para que las ideas lleguen a la evaluación con el alcance ya acotado, y dos cortes: uno amplio por criterios técnicos y uno final de comité.",
   "steps": [
-    { "kind": "ideation",   "name": "Postulación de ideas",  "config": { "min_ideas": 5 } },
-    { "kind": "evolution",  "name": "Ronda de feedback",     "ai_mode": "ai_assisted", "config": {} },
-    { "kind": "evaluation", "name": "Evaluación técnica",    "config": { "min_assessments": 2 } },
-    { "kind": "selection",  "name": "Corte a top 10",        "config": { "cut": { "mode": "top_n", "value": 10 } } },
-    { "kind": "evaluation", "name": "Evaluación de comité",  "ai_mode": "human", "config": { "min_assessments": 3 } },
-    { "kind": "selection",  "name": "Finalistas",            "config": { "cut": { "mode": "top_n", "value": 3 } } },
-    { "kind": "reporting",  "name": "Reporte de cierre",     "config": { "mode": "by_version" } }
+    { "kind": "ideation",   "name": "Postulación de ideas",  "ai_mode": null,           "config": { "min_ideas": 5 } },
+    { "kind": "evolution",  "name": "Ronda de feedback",     "ai_mode": "ai_assisted",  "config": {} },
+    { "kind": "evaluation", "name": "Evaluación técnica",    "ai_mode": null,           "config": { "min_assessments": 2 } },
+    { "kind": "selection",  "name": "Corte a top 10",        "ai_mode": null,           "config": { "cut": { "mode": "top_n", "value": 10 } } },
+    { "kind": "evaluation", "name": "Evaluación de comité",  "ai_mode": "human",        "config": { "min_assessments": 3 } },
+    { "kind": "selection",  "name": "Finalistas",            "ai_mode": null,           "config": { "cut": { "mode": "top_n", "value": 3 } } },
+    { "kind": "reporting",  "name": "Reporte de cierre",     "ai_mode": null,           "config": { "mode": "by_version" } }
   ]
 }

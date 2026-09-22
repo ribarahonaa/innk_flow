@@ -404,11 +404,19 @@ RSpec.describe "tareas de IA" do
     it "valida el config de cada paso contra el esquema de SU kind" do
       schema = described_class.new(challenge: challenge).schema
       con = lambda do |paso|
-        { "rationale" => "x", "steps" => [{ "kind" => "ideation", "name" => "Idear" }, paso] }
+        # `ai_mode` va en los dos pasos porque el schema lo pide obligatorio
+        # —lo son `ai_mode` y `config` desde que la API rechazó el pedido por
+        # tener más de 24 parámetros opcionales—. Sin esto el caso VÁLIDO no
+        # valida, y peor: el inválido fallaría por la clave que falta y no por
+        # el corte mal, que es lo que este ejemplo existe para probar.
+        { "rationale" => "x",
+          "steps" => [{ "kind" => "ideation", "name" => "Idear", "ai_mode" => nil, "config" => {} }, paso] }
       end
 
-      corte = { "kind" => "selection", "name" => "Corte", "config" => { "cut" => { "mode" => "top_n", "value" => 5 } } }
-      al_azar = { "kind" => "selection", "name" => "Corte", "config" => { "cut" => { "mode" => "al_azar" } } }
+      corte = { "kind" => "selection", "name" => "Corte", "ai_mode" => nil,
+                "config" => { "cut" => { "mode" => "top_n", "value" => 5 } } }
+      al_azar = { "kind" => "selection", "name" => "Corte", "ai_mode" => nil,
+                  "config" => { "cut" => { "mode" => "al_azar" } } }
 
       expect(Flow::AI::SchemaValidator.errors_for(con.(corte), schema)).to be_empty
       expect(Flow::AI::SchemaValidator.errors_for(con.(al_azar), schema)).not_to be_empty
