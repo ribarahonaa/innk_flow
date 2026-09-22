@@ -1702,6 +1702,19 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       failures++;
       console.error('[LINK] el módulo de testing no ofrece re-testear la idea ya testeada');
     } else {
+      // El seed deja esta idea en «Factible con reservas», con «Viernes de
+      // lluvia…» como escenario roto. Elegir siempre el mismo veredicto sólo
+      // probaba algo en la corrida 1: para la 2 el badge YA decía «Factible» y
+      // «Se rompió en» ya estaba en «—» antes de tocar nada, así que la
+      // aserción de abajo pasaba igual con un POST que no hiciera nada. Leer
+      // el estado ANTES de enviar y alternar contra él prueba lo mismo en
+      // cualquier corrida, resembrada o no.
+      const veredictoAntes = (await filaTesteada.locator('.badge').first().innerText()).trim();
+      const rompioAntes = (await filaTesteada.locator('td').nth(2).innerText()).trim();
+      const introduceFalla = rompioAntes === '—';
+      const veredictoNuevo = introduceFalla ? 'con_reservas' : 'factible';
+      const ETIQUETA_VEREDICTO = { factible: 'Factible', con_reservas: 'Factible con reservas', no_factible: 'No factible' };
+
       await Promise.all([
         page.waitForURL(/\/step_tests\/new/, { timeout: 15000 }),
         aReTestear.click()
@@ -1716,8 +1729,10 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
 
       await page.selectOption('select[name="situations[0][dimension]"]', 'tecnica');
       await page.fill('input[name="situations[0][escenario]"]', 'Reparto con lluvia sostenida toda la tarde');
-      await page.selectOption('select[name="situations[0][resultado]"]', 'aguanta');
-      await page.fill('input[name="situations[0][detalle]"]', 'La caja térmica no se moja ni pierde temperatura');
+      await page.selectOption('select[name="situations[0][resultado]"]', introduceFalla ? 'se_rompe' : 'aguanta');
+      await page.fill('input[name="situations[0][detalle]"]', introduceFalla
+        ? 'La caja térmica no alcanza a mantener la temperatura pasada la hora de reparto'
+        : 'La caja térmica no se moja ni pierde temperatura');
 
       await page.selectOption('select[name="situations[1][dimension]"]', 'operativa');
       await page.fill('input[name="situations[1][escenario]"]', 'Pico de pedidos al mediodía');
@@ -1729,7 +1744,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       await page.selectOption('select[name="situations[2][resultado]"]', 'aguanta');
       await page.fill('input[name="situations[2][detalle]"]', 'El costo por entrega ya no sube con la lluvia resuelta');
 
-      await page.selectOption('select[name="verdict"]', 'factible');
+      await page.selectOption('select[name="verdict"]', veredictoNuevo);
       await page.fill('textarea[name="reservations"]', 'Confirmar el protocolo con el equipo de logística antes de escalar');
       await page.fill('input[name="summary"]', 'El protocolo de lluvia resolvió la única reserva pendiente.');
 
@@ -1748,13 +1763,19 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       // Lo que ninguna guarda automática ve: que el re-testeo mandado con la
       // forma REAL del formulario (el hash indexado, no el arreglo de un
       // spec) quedó guardado de verdad, y no sólo que el POST respondió 200.
-      // Si el envío falla o el veredicto no aparece, esto tiene que fallar la
-      // corrida.
-      const veredictoActualizado = (await page.locator('tr', { hasText: idaTesteada })
-        .locator('.badge').first().innerText()).trim();
-      if (veredictoActualizado !== 'Factible') {
+      // Comparado contra el estado ANTES del envío (no contra un valor fijo):
+      // si el POST no hiciera nada, esto fallaría en cualquier corrida.
+      const filaActualizada = page.locator('tr', { hasText: idaTesteada });
+      const veredictoActualizado = (await filaActualizada.locator('.badge').first().innerText()).trim();
+      if (veredictoActualizado === veredictoAntes || veredictoActualizado !== ETIQUETA_VEREDICTO[veredictoNuevo]) {
         failures++;
-        console.error(`[TESTING] el veredicto del re-testeo enviado por el formulario no quedó guardado (se ve «${veredictoActualizado}»)`);
+        console.error(`[TESTING] el veredicto del re-testeo enviado por el formulario no quedó guardado (era «${veredictoAntes}», se ve «${veredictoActualizado}», se esperaba «${ETIQUETA_VEREDICTO[veredictoNuevo]}»)`);
+      }
+      const rompioDespues = (await filaActualizada.locator('td').nth(2).innerText()).trim();
+      const rompioEsperado = introduceFalla ? 'Reparto con lluvia sostenida toda la tarde' : '—';
+      if (rompioDespues === rompioAntes || rompioDespues !== rompioEsperado) {
+        failures++;
+        console.error(`[TESTING] «Se rompió en» del re-testeo no quedó guardado (era «${rompioAntes}», se ve «${rompioDespues}», se esperaba «${rompioEsperado}»)`);
       }
       // Y que re-testear una idea no le toque el estado a la otra: la mezcla
       // testeada/sin-testear tiene que sobrevivir para la próxima corrida.
