@@ -626,6 +626,8 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
   end
 
   describe "la pantalla de un testing en curso" do
+    let!(:pedro) { member("pedro@test.dev", :participant) }
+
     let!(:challenge) do
       as_company(company) do
         c = create(:challenge, name: "Merma", ai_default_mode: "human")
@@ -636,7 +638,12 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
     end
 
     before do
+      # Dos ideas de autores distintos, postuladas ANTES de arrancar el
+      # módulo: los `step_entries` los arma `Cohort.sync!` al activar, así
+      # que una idea que llegara después de `advance!` no tendría fila para
+      # nadie y el filtro de abajo no probaría nada.
       postular!(challenge, author: paula, titulo: "Sensores")
+      postular!(challenge, author: pedro, titulo: "Cámaras")
       as_company(company) do
         challenge.pipeline.start!
         challenge.pipeline.advance!
@@ -660,6 +667,26 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
 
       expect(response.body).to include("<details")
       expect(response.body).to include("modo de IA")
+    end
+
+    # `@ideas_visibles` (`IdeaPolicy::Scope`) filtra la tabla del centro igual
+    # que en las demás pantallas de módulo: quien participa compite por el
+    # mismo corte que las demás, y no ve las ideas ajenas.
+    it "quien participa ve sólo su idea en la tabla, no la ajena" do
+      sign_in(paula, company: company)
+      get challenge_step_path(challenge, paso("testing"))
+
+      tabla = documento.at_css(".app-main table.table")
+      expect(tabla.text).to include("Sensores")
+      expect(tabla.text).not_to include("Cámaras")
+    end
+
+    it "quien administra ve las dos" do
+      sign_in(admin, company: company)
+      get challenge_step_path(challenge, paso("testing"))
+
+      tabla = documento.at_css(".app-main table.table")
+      expect(tabla.text).to include("Sensores", "Cámaras")
     end
   end
 
