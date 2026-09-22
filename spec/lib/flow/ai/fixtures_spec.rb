@@ -19,11 +19,32 @@ RSpec.describe "fixtures de IA" do
   end
   let(:idea) { create(:idea, challenge: challenge) }
 
+  # La mayoría de las tareas no le preguntan nada al handler del `step` en su
+  # `#schema`: cualquier módulo alcanza para leerlo (`decide_verdicts` usa el
+  # handler sólo en `apply!`/`preview`, que este spec no ejercita). `test_idea`
+  # es la primera cuyo `#schema` sí lo toca (`min_situations`, `dimensions`,
+  # `severity`), y esos métodos sólo existen en el handler de su propio `kind`
+  # —`ChallengeStep#handler` despacha por `step.kind`—, así que necesita un
+  # `step` de ESE kind y no el de ideación de siempre. Mapa angosto a
+  # propósito: hoy es la única tarea que lo pide.
+  STEP_KIND_POR_PROPOSITO = { "test_idea" => "testing" }.freeze
+
+  # Memoizado por kind y no en un solo valor: si memoizara un único `step`,
+  # una segunda tarea que pidiera otro kind se llevaría puesto el step de la
+  # primera y su schema saldría mal en silencio.
+  def step_for(purpose)
+    kind = STEP_KIND_POR_PROPOSITO[purpose]
+    return step if kind.nil?
+
+    @steps_por_kind ||= {}
+    @steps_por_kind[kind] ||= challenge.steps.create!(kind: kind, position: 2)
+  end
+
   # Contexto mínimo para poder instanciar cada tarea y leer su schema.
   def task_for(purpose)
     Flow::AI::Tasks::Base.for(
       purpose,
-      challenge: challenge, step: step, idea: idea,
+      challenge: challenge, step: step_for(purpose), idea: idea,
       field: step.form_fields.first
     )
   end
@@ -52,7 +73,8 @@ RSpec.describe "fixtures de IA" do
 
   it "cada tarea declara un schema no vacío" do
     AiRun::PURPOSES.each do |purpose|
-      next if Flow::AI::Tasks::Base.for(purpose, challenge: challenge, step: step, idea: idea,
+      next if Flow::AI::Tasks::Base.for(purpose, challenge: challenge, step: step_for(purpose),
+                                        idea: idea,
                                         field: step.form_fields.first).schema.present?
 
       raise "#{purpose} no declara schema"
