@@ -9,7 +9,7 @@ class AiRun < ApplicationRecord
     suggest_criteria
     propose_pipeline suggest_form_fields generate_ideas coauthor_field
     detect_duplicates suggest_feedback evaluate_idea decide_verdicts evolve_idea
-    summarize_challenge
+    summarize_challenge test_idea
   ].freeze
   MODES = %w[ai_assisted ai_auto].freeze
   STATUSES = %w[queued running succeeded failed].freeze

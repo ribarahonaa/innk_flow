@@ -1,4 +1,4 @@
-\restrict WOHlTc7FdIOWFnXzjWg95qaIaxjRZp5tGLcXqdJUc02uciLWzQ60jKksLvZ6rmx
+\restrict FFBxWpX9Bq1Tw3v5lWLkdHA2i4eJslzzKPabGf8gz9WNzqkC3P1gkquhz8lknGL
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -140,7 +140,7 @@ CREATE TABLE public.ai_runs (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT ai_runs_mode_check CHECK (((mode)::text = ANY (ARRAY[('ai_assisted'::character varying)::text, ('ai_auto'::character varying)::text]))),
-    CONSTRAINT ai_runs_purpose_check CHECK (((purpose)::text = ANY (ARRAY[('propose_pipeline'::character varying)::text, ('suggest_form_fields'::character varying)::text, ('suggest_criteria'::character varying)::text, ('generate_ideas'::character varying)::text, ('coauthor_field'::character varying)::text, ('detect_duplicates'::character varying)::text, ('suggest_feedback'::character varying)::text, ('evaluate_idea'::character varying)::text, ('decide_verdicts'::character varying)::text, ('evolve_idea'::character varying)::text, ('summarize_challenge'::character varying)::text]))),
+    CONSTRAINT ai_runs_purpose_check CHECK (((purpose)::text = ANY ((ARRAY['propose_pipeline'::character varying, 'suggest_form_fields'::character varying, 'suggest_criteria'::character varying, 'generate_ideas'::character varying, 'coauthor_field'::character varying, 'detect_duplicates'::character varying, 'suggest_feedback'::character varying, 'evaluate_idea'::character varying, 'decide_verdicts'::character varying, 'evolve_idea'::character varying, 'summarize_challenge'::character varying, 'test_idea'::character varying])::text[]))),
     CONSTRAINT ai_runs_status_check CHECK (((status)::text = ANY (ARRAY[('queued'::character varying)::text, ('running'::character varying)::text, ('succeeded'::character varying)::text, ('failed'::character varying)::text])))
 );
 
@@ -268,7 +268,7 @@ CREATE TABLE public.challenge_steps (
     updated_at timestamp(6) without time zone NOT NULL,
     criteria_set_id uuid,
     CONSTRAINT challenge_steps_ai_mode_check CHECK (((ai_mode IS NULL) OR ((ai_mode)::text = ANY (ARRAY[('human'::character varying)::text, ('ai_assisted'::character varying)::text, ('ai_auto'::character varying)::text])))),
-    CONSTRAINT challenge_steps_kind_check CHECK (((kind)::text = ANY ((ARRAY['ideation'::character varying, 'evolution'::character varying, 'evaluation'::character varying, 'selection'::character varying, 'reporting'::character varying, 'testing'::character varying])::text[]))),
+    CONSTRAINT challenge_steps_kind_check CHECK (((kind)::text = ANY (ARRAY[('ideation'::character varying)::text, ('evolution'::character varying)::text, ('evaluation'::character varying)::text, ('selection'::character varying)::text, ('reporting'::character varying)::text, ('testing'::character varying)::text]))),
     CONSTRAINT challenge_steps_status_check CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('activating'::character varying)::text, ('active'::character varying)::text, ('completed'::character varying)::text, ('skipped'::character varying)::text])))
 );
 
@@ -688,8 +688,8 @@ CREATE TABLE public.step_tests (
     tested_at timestamp(6) without time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT step_tests_actor_type_check CHECK (((actor_type)::text = ANY ((ARRAY['human'::character varying, 'ai'::character varying])::text[]))),
-    CONSTRAINT step_tests_verdict_check CHECK (((verdict)::text = ANY ((ARRAY['factible'::character varying, 'con_reservas'::character varying, 'no_factible'::character varying])::text[])))
+    CONSTRAINT step_tests_actor_type_check CHECK (((actor_type)::text = ANY (ARRAY[('human'::character varying)::text, ('ai'::character varying)::text]))),
+    CONSTRAINT step_tests_verdict_check CHECK (((verdict)::text = ANY (ARRAY[('factible'::character varying)::text, ('con_reservas'::character varying)::text, ('no_factible'::character varying)::text])))
 );
 
 
@@ -2698,11 +2698,12 @@ ALTER TABLE ONLY public.step_tests
 -- PostgreSQL database dump complete
 --
 
-\unrestrict WOHlTc7FdIOWFnXzjWg95qaIaxjRZp5tGLcXqdJUc02uciLWzQ60jKksLvZ6rmx
+\unrestrict FFBxWpX9Bq1Tw3v5lWLkdHA2i4eJslzzKPabGf8gz9WNzqkC3P1gkquhz8lknGL
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260922120000'),
 ('20260921120000'),
 ('20260907140000'),
 ('20260904160000'),

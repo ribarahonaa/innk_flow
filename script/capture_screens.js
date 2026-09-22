@@ -606,7 +606,13 @@ async function shotConEstado(page, name, url, status) {
 // las selecciones. Por nombre del seed de `merma-bodega`, igual que el resto
 // del recorrido — y por eso el loop exige que cada módulo caiga en exactamente
 // una de las dos listas: si no, renombrarlo en el seed lo deja sin chequear.
-const MODULOS_EN_ZONAS = [/Evaluaci/i, /Ronda de feedback/i, /Postulaci/i, /Reporte/i, /factibilidad/i];
+// `/Prueba de factibilidad/i` y no `/factibilidad/i`: el nombre completo del
+// módulo de testing (que SÍ va en zonas) comparte la palabra «factibilidad»
+// con «Corte por factibilidad» (una selección, que NO va en zonas). Hoy es
+// inerte —el loop que consulta esta lista sólo recorre `merma-bodega`—, pero
+// una regex ancha haría fallar `[ZONAS]` por un falso positivo el día que
+// alguien la extienda a otro desafío, no por un defecto real.
+const MODULOS_EN_ZONAS = [/Evaluaci/i, /Ronda de feedback/i, /Postulaci/i, /Reporte/i, /Prueba de factibilidad/i];
 // Las selecciones van sin referencia —con la columna puesta el ranking no
 // entraba en el centro—, pero los ajustes plegados sí los tienen.
 const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
@@ -1650,6 +1656,19 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       failures++;
       console.error('[TESTING] el módulo no muestra las dos filas (una testeada, otra sin testear) con sus dos botones');
     }
+
+    // `testeo-abierto` corre en `ai_assisted` justamente para que este botón
+    // se pinte: en `human` (como quedó hasta acá) nunca se renderiza, y
+    // `[CLASES]`/`[CONTRASTE]`/`[PANEL]` de `capturar()` sólo miran lo que el
+    // DOM tiene puesto. Sin esta guarda, volver el módulo a modo humano
+    // reabriría en silencio el mismo punto ciego que dejó pasar
+    // `flow.ai_purposes` sin `test_idea`.
+    const iaEnFilas = await page.locator('tr', { hasText: idaTesteada }).locator('button', { hasText: 'IA' }).count()
+      && await page.locator('tr', { hasText: ideaSinTestear }).locator('button', { hasText: 'IA' }).count();
+    if (!iaEnFilas) {
+      failures++;
+      console.error('[TESTING] el módulo no ofrece el botón «IA» en las filas (¿volvió a modo humano?)');
+    }
     await capturar(page, '22-testing');
 
     // Las tres zonas de la cara de ejecución: la misma guarda que corre sobre
@@ -1748,6 +1767,15 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       await page.fill('textarea[name="reservations"]', 'Confirmar el protocolo con el equipo de logística antes de escalar');
       await page.fill('input[name="summary"]', 'El protocolo de lluvia resolvió la única reserva pendiente.');
 
+      // La tarjeta «¿Querés que la IA la ponga a prueba?»: como el botón «IA»
+      // de la fila, sólo se sirve con el módulo activo y en un modo que no
+      // sea «Solo personas» — otra vez `testeo-abierto` en `ai_assisted`, y
+      // no `step_tests/new` de un desafío en modo humano, que la deja afuera.
+      if (!(await page.locator('.card', { hasText: '¿Querés que la IA la ponga a prueba?' }).count())) {
+        failures++;
+        console.error('[TESTING] step_tests/new no ofrece la tarjeta de pedirle el testeo a la IA');
+      }
+
       await capturar(page, '22b-testeo-nuevo');
 
       // Sólo `input[type="submit"]`: el header global tiene un
@@ -1785,6 +1813,70 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
         console.error('[TESTING] re-testear una idea le movió el estado a la otra, que tenía que seguir sin testear');
       }
     }
+  }
+
+  // El filtro por testeo: una selección que corta usando el veredicto de
+  // testing (`testing_passed`), sin ninguna evaluación antes. Sale de
+  // `filtro-por-testeo`, propio y no compartido —el testing ya cerró con dos
+  // veredictos distintos, así que la celda del filtro muestra sus DOS
+  // estados: la idea factible pasa y la no factible no.
+  //
+  // No hace falta clasificar «Corte por factibilidad» en `MODULOS_EN_ZONAS` ni
+  // en `MODULOS_SOLO_AJUSTES`: el módulo es un `selection` más, y la forma de
+  // su pantalla (sin referencia, con los ajustes plegados) ya la prueba el
+  // loop de arriba sobre «Corte a top 3» y «Finalistas» —el mismo template,
+  // otro desafío—. Sumarlo ahí sería sólo documentación, y encima al revés:
+  // el nombre comparte «factibilidad» con la entrada que ya está en
+  // `MODULOS_EN_ZONAS` (puesta para «Prueba de factibilidad», el módulo de
+  // testing), así que agregarlo haría que las dos listas se contradigan sobre
+  // el mismo texto.
+  //
+  // Read-only a propósito: no se tilda ni se confirma el corte, así que
+  // `make screens` corrido dos veces sin volver a sembrar encuentra el mismo
+  // estado las dos veces.
+  await page.goto(BASE + '/challenges/filtro-por-testeo', { waitUntil: 'networkidle' });
+  const filtroLink = page
+    .locator('.table tr', { hasText: 'Corte por factibilidad' })
+    .locator('.table-link');
+  if (!(await filtroLink.count())) {
+    failures++;
+    console.error('[LINK] «filtro-por-testeo» no tiene el módulo de corte por factibilidad');
+  } else {
+    await Promise.all([
+      page.waitForURL(/\/steps\/[^/]+$/, { timeout: 15000 }),
+      filtroLink.first().click()
+    ]);
+    await page.waitForSelector('table.ranking-table', { timeout: 15000 });
+
+    const filaPasa = page.locator('tr', { hasText: 'Tablet para pedir desde la mesa' });
+    const filaFalla = page.locator('tr', { hasText: 'Cocina satélite en el subsuelo' });
+    const gatePasa = filaPasa.locator('.gate-cell .gate--pass');
+    const gateFalla = filaFalla.locator('.gate-cell .gate--fail');
+
+    if (!(await gatePasa.count()) || !(await gateFalla.count())) {
+      failures++;
+      console.error('[FILTROS] la celda del filtro no muestra los dos estados (una idea pasa la prueba, la otra no)');
+    } else {
+      // El texto sale de `TestingPassed#detalle_de` y viaja en el `title` del
+      // span (la celda sólo dibuja ✓/✗; el detalle es la explicación). La
+      // idea factible no tiene reservas cargadas, así que el texto es el
+      // veredicto liso —y si volviera a ser un genérico «cumple»/«no cumple»
+      // en vez del veredicto, esto lo detecta—. La no factible SÍ trae una
+      // reserva cargada en el seed: fotografía el camino «con condiciones a
+      // resolver», que si no ninguna captura ve.
+      const detallePasa = (await gatePasa.getAttribute('title')) || '';
+      const detalleFalla = (await gateFalla.getAttribute('title')) || '';
+      if (detallePasa !== 'Factible') {
+        failures++;
+        console.error(`[FILTROS] el detalle de la idea factible dice «${detallePasa}», se esperaba «Factible»`);
+      }
+      if (detalleFalla !== 'No factible · 1 condición a resolver') {
+        failures++;
+        console.error(`[FILTROS] el detalle de la idea no factible dice «${detalleFalla}», se esperaba «No factible · 1 condición a resolver»`);
+      }
+    }
+
+    await capturar(page, '23-filtro-por-testeo');
   }
 
   // ── Las tres que piden otra sesión ──────────────────────────────────────

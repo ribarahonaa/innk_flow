@@ -1,0 +1,21 @@
+{
+  "situaciones": [
+    { "dimension": "operativa",
+      "escenario": "Viernes de lluvia con 40 entregas en la franja de la tarde",
+      "resultado": "se_rompe",
+      "detalle": "Con lluvia la ventana de entrega se estira unos 25 minutos y el turno no alcanza a cerrar el reparto." },
+    { "dimension": "economica",
+      "escenario": "Con el costo actual por entrega y el volumen de un mes normal",
+      "resultado": "aguanta",
+      "detalle": "La inversión se paga en unos 14 meses, dentro de lo que el área ya aprueba sin comité." },
+    { "dimension": "tecnica",
+      "escenario": "Carga de baterías entre el turno de la mañana y el de la tarde",
+      "resultado": "aguanta",
+      "detalle": "Dos horas de carga alcanzan para el segundo turno completo." }
+  ],
+  "veredicto": "con_reservas",
+  "reservas": [
+    "Definir el protocolo para los días de lluvia antes de comprometer la ventana de entrega"
+  ],
+  "resumen": "Funciona en el día normal y se paga en plazo razonable; el problema es la lluvia, y hace falta un plan para esos días antes de prometer la ventana."
+}

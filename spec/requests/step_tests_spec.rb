@@ -100,4 +100,23 @@ RSpec.describe "testear una idea", type: :request do
     expect(response.body).to include("Operativa")
     expect(response.body).to include("Sensores")
   end
+
+  # `steps/testing` exige `@step.active?` además del permiso y el modo de IA
+  # para ofrecer «Pedir el testeo de la IA»; esta pantalla se olvidaba de esa
+  # tercera condición y con el módulo ya cerrado el botón quedaba ofrecido
+  # para escribir un `StepTest` nuevo sobre un módulo que ya no corre.
+  it "con el módulo cerrado no ofrece pedirle el testeo a la IA" do
+    p = paso
+    as_company(company) do
+      p.update!(ai_mode: "ai_assisted")
+      p.handler.testear!(idea: idea, verdict: "factible", situations: [], reservations: [],
+                         summary: "Aguanta", tested_by: admin)
+      p.handler.complete!
+    end
+
+    sign_in(admin, company: company)
+    get new_challenge_step_step_test_path(challenge, p, idea_id: idea.id)
+
+    expect(response.body).not_to include("Pedir el testeo de la IA")
+  end
 end

@@ -121,6 +121,7 @@ peso que cualquier otro criterio del set.
 | `version_count` | La idea evolucionó | `minimum` |
 | `feedback_addressed` | No quedó feedback sin atender **en la última ronda** | — |
 | `has_attachment` | Adjuntó un archivo | `field_key` |
+| `testing_passed` | Pasó su prueba de factibilidad, en el módulo de testing más reciente que la probó | `accepts`, `sin_testeo` |
 
 ```jsonc
 { "check": "field_present", "field_key": "costo", "min_length": 200 }
@@ -135,6 +136,20 @@ evoluciones, y un check no sabe en cuál lo están corriendo: solo tiene su
 todas, un comentario que quedó abierto en una ronda vieja bloqueaba a la idea
 para siempre: nadie vuelve a cerrar comentarios de una conversación que ya
 terminó.
+
+**`testing_passed` tiene el mismo problema, con otra tabla.** Un check no sabe
+en qué módulo lo corren, así que «el testeo» es el vigente del módulo de
+testing con la posición más alta entre los que probaron esa idea —igual que
+`feedback_addressed`, mirando todos un veredicto viejo decidiría para siempre—.
+`accepts` decide qué veredictos cuentan como aprobados: `solo_factible` o
+`factible_o_con_reservas` (el default). `sin_testeo` decide qué hace una idea
+que nadie testeó todavía: `pasa` (el default, por simetría con
+`feedback_addressed`: no se puede tener sin atender lo que nadie comentó) o
+`no_pasa`.
+
+```jsonc
+{ "check": "testing_passed", "accepts": "solo_factible", "sin_testeo": "no_pasa" }
+```
 
 ---
 

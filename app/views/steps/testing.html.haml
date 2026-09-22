@@ -8,6 +8,13 @@
 -# El veredicto y quién testeó son dos cosas distintas (como el puntaje y el
 -# desglose en evaluación): `manda` es lo que decide las dos.
 - manda = policy(@challenge).update_pipeline?
+-# Pedirle a la IA que testee lo autoriza `ChallengePolicy#update_pipeline?`
+-# (vía `AiSuggestionPolicy#request?`, porque `TestIdea.actua_sobre == :challenge`),
+-# NO `advance?`: son dos permisos distintos y por eso van en variables
+-# separadas, aunque hoy el valor coincida con `manda`. Ofrecer el botón con
+-# `puede_testear` lo dejaba visible con el desafío cerrado —`advance?` no
+-# mira `closed?`— y apretarlo rebotaba con 403.
+- puede_pedir_ia = policy(@challenge).update_pipeline?
 
 = render "steps/header", step: @step, handler: handler
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
@@ -68,6 +75,10 @@
                   = link_to(test ? "Re-testear" : "Testear",
                             new_challenge_step_step_test_path(@challenge, @step, idea_id: entry.idea_id),
                             class: "btn btn-ghost btn-sm")
+                - if puede_pedir_ia && @step.active? && @step.effective_ai_mode != "human"
+                  = button_to "IA", challenge_ai_requests_path(@challenge, purpose: "test_idea",
+                                                               step_id: @step.id, idea_id: entry.idea_id),
+                              class: "btn btn-ghost btn-sm", title: "Que la IA testee esta idea"
 
 - content_for :referencia do
   = render "steps/progreso", progress: handler.progress

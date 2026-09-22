@@ -9,7 +9,8 @@ module Flow
     # criterio automático puede sumar puntaje en una evaluación con el mismo
     # peso que uno manual, y actuar como filtro en una selección.
     class Base
-      TYPES = %w[field_present contributors_count version_count feedback_addressed has_attachment].freeze
+      TYPES = %w[field_present contributors_count version_count feedback_addressed
+                 has_attachment testing_passed].freeze
 
       Result = Data.define(:passed, :detail) do
         def passed? = passed
