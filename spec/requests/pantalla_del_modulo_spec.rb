@@ -767,14 +767,15 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
         c.steps.create!(kind: "evaluation", position: 3, name: "Técnica")
         c.steps.create!(kind: "selection", position: 4, name: "Corte")
         c.steps.create!(kind: "reporting", position: 5, name: "Informe")
+        c.steps.create!(kind: "testing", position: 6, name: "Prueba")
         c
       end
     end
 
-    it "no sirve ningún panel viejo en los cinco kinds" do
+    it "no sirve ningún panel viejo en los seis kinds" do
       sign_in(admin, company: company)
 
-      %w[ideation evolution evaluation selection reporting].each do |kind|
+      ChallengeStep::KINDS.each do |kind|
         get challenge_step_path(challenge, paso(kind))
         expect(documento.css(".panel").map { |n| n["class"] }).to eq([]), "quedó un .panel en #{kind}"
       end

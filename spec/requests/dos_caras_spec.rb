@@ -24,6 +24,7 @@ RSpec.describe "las dos caras de un módulo", type: :request do
       c.steps.create!(kind: "selection", position: 3, name: "Corte")
       c.steps.create!(kind: "reporting", position: 4, name: "Informe")
       c.steps.create!(kind: "evolution", position: 5, name: "Mejorar")
+      c.steps.create!(kind: "testing", position: 6, name: "Prueba")
       c
     end
   end
@@ -33,8 +34,8 @@ RSpec.describe "las dos caras de un módulo", type: :request do
   before { sign_in(admin, company: company) }
 
   describe "cara A: el módulo está pendiente" do
-    it "monta la isla de ajustes en los cinco kinds" do
-      %w[ideation evolution evaluation selection reporting].each do |kind|
+    it "monta la isla de ajustes en los seis kinds" do
+      ChallengeStep::KINDS.each do |kind|
         get challenge_step_path(challenge, paso(kind))
 
         expect(response.body).to include('data-island="step-settings"'),
@@ -404,12 +405,12 @@ RSpec.describe "las dos caras de un módulo", type: :request do
   end
 
   # El `before` de "cara B" arriba sólo hace `pipeline.start!`, y eso deja
-  # tocado ÚNICAMENTE a `ideation` — las cinco `it` de ese describe corren
-  # sobre un solo kind. Acá se activan los cinco directo por el handler (sin
-  # pasar por `pipeline.advance!`, que exigiría satisfacer el `can_complete?`
-  # de cada uno en orden) para probar la tarjeta congelada en los cinco, con
-  # `config` explícito para que haya algo real que afirmar.
-  describe "cara B en los cinco kinds: la configuración congelada muestra algo real" do
+  # tocado ÚNICAMENTE a `ideation` — las `it` de ese describe corren sobre un
+  # solo kind. Acá se activan los seis directo por el handler (sin pasar por
+  # `pipeline.advance!`, que exigiría satisfacer el `can_complete?` de cada
+  # uno en orden) para probar la tarjeta congelada en los seis, con `config`
+  # explícito para que haya algo real que afirmar.
+  describe "cara B en los seis kinds: la configuración congelada muestra algo real" do
     let!(:tocado) do
       as_company(company) do
         c = create(:challenge, name: "Recorrido completo", ai_default_mode: "human")
@@ -422,6 +423,8 @@ RSpec.describe "las dos caras de un módulo", type: :request do
                         config: { "mode" => "latest", "step_slugs" => %w[ideation evaluation] })
         c.steps.create!(kind: "evolution", position: 5, name: "Mejorar",
                         config: { "require_response" => true })
+        c.steps.create!(kind: "testing", position: 6, name: "Prueba",
+                        config: { "min_situations" => 5 })
         create(:idea, challenge: c, author: admin, status: "active").update!(submitted_at: Time.current)
         c.steps.reload.ordered.each { |s| Flow::Handlers::Base.for(s).activate! }
         c
@@ -434,8 +437,8 @@ RSpec.describe "las dos caras de un módulo", type: :request do
     # lo usa —tiene su propia tarjeta «Cómo se decide», con el mismo aviso en
     # minúscula (ver el reporte de la Task 5)— así que el chequeo va sin
     # distinguir mayúsculas.
-    it "queda tocado, con algún aviso de congelado, en los cinco kinds" do
-      %w[ideation evolution evaluation selection reporting].each do |kind|
+    it "queda tocado, con algún aviso de congelado, en los seis kinds" do
+      ChallengeStep::KINDS.each do |kind|
         get challenge_step_path(tocado, paso_tocado(kind))
 
         expect(response.body).not_to include('data-island="step-settings"'), "#{kind} no debería estar en cara A"
@@ -480,7 +483,7 @@ RSpec.describe "las dos caras de un módulo", type: :request do
   end
 
   # Fix de la revisión final de la rama: el `describe` de arriba pone `config:`
-  # a mano en los cinco kinds, y ése es el caso que NO ocurre en la práctica.
+  # a mano en los seis kinds, y ése es el caso que NO ocurre en la práctica.
   # `Api::V1::PipelinesController#create_added` siembra
   # `Flow::StepSettings.defaults`, pero `Flow::FlowTemplates` manda configs
   # PARCIALES y `db/seeds.rb` no manda ninguna: los dos caminos normales dejan
@@ -492,7 +495,7 @@ RSpec.describe "las dos caras de un módulo", type: :request do
     let!(:sin_config) do
       as_company(company) do
         c = create(:challenge, name: "Sin config", ai_default_mode: "human")
-        %w[ideation evolution evaluation selection reporting].each do |kind|
+        ChallengeStep::KINDS.each do |kind|
           c.pipeline.insert(kind: kind, after: :end)
         end
         seed_form!(c.steps.reload.find(&:ideation?))
