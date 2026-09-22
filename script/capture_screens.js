@@ -606,7 +606,13 @@ async function shotConEstado(page, name, url, status) {
 // las selecciones. Por nombre del seed de `merma-bodega`, igual que el resto
 // del recorrido — y por eso el loop exige que cada módulo caiga en exactamente
 // una de las dos listas: si no, renombrarlo en el seed lo deja sin chequear.
-const MODULOS_EN_ZONAS = [/Evaluaci/i, /Ronda de feedback/i, /Postulaci/i, /Reporte/i, /factibilidad/i];
+// `/Prueba de factibilidad/i` y no `/factibilidad/i`: el nombre completo del
+// módulo de testing (que SÍ va en zonas) comparte la palabra «factibilidad»
+// con «Corte por factibilidad» (una selección, que NO va en zonas). Hoy es
+// inerte —el loop que consulta esta lista sólo recorre `merma-bodega`—, pero
+// una regex ancha haría fallar `[ZONAS]` por un falso positivo el día que
+// alguien la extienda a otro desafío, no por un defecto real.
+const MODULOS_EN_ZONAS = [/Evaluaci/i, /Ronda de feedback/i, /Postulaci/i, /Reporte/i, /Prueba de factibilidad/i];
 // Las selecciones van sin referencia —con la columna puesta el ranking no
 // entraba en el centro—, pero los ajustes plegados sí los tienen.
 const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
