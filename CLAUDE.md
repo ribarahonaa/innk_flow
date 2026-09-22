@@ -561,10 +561,13 @@ copias ya alineadas por `Tasks::Base.scope_of`, la policy seguía arrancando con
 `return true if manager?`, y quien administra aplicaba sobre un desafío cerrado
 una propuesta que ya no podía pedir.
 
-Sumar una tarea es tocar **tres** lugares: la clase, `AiRun::PURPOSES` y el
+Sumar una tarea es tocar **cuatro** lugares: la clase, `AiRun::PURPOSES`, el
 CHECK de Postgres sobre `ai_runs.purpose` (hace falta una migración; si no, el
 run revienta con `PG::CheckViolation` antes de crearse y el error llega
-truncado).
+truncado) y `flow.ai_purposes` en `config/locales/es.yml` — sin esa clave el
+chip de la propuesta, `ai_runs/index` y `ai_runs/show` muestran el propósito en
+inglés por el fallback `humanize` (`test_idea` se quedó así hasta que se
+sumó).
 
 **A dónde responde un pedido a la IA depende de si ya cambió algo.** Por
 defecto al `turbo-frame` de las propuestas: así pedir no recarga la pantalla ni

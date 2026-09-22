@@ -162,6 +162,7 @@ es:
       detect_duplicates: "Detectar duplicados"
       suggest_feedback: "Sugerir feedback"
       evaluate_idea: "Evaluar idea"
+      test_idea: "Testear la idea"
       decide_verdicts: "Responder los filtros"
       evolve_idea: "Reescribir la idea con el feedback"
       summarize_challenge: "Resumen narrativo"

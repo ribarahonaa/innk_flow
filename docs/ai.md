@@ -179,9 +179,12 @@ para los tres modos.
 | `DecideVerdicts` | selección | Responde los filtros de sí/no (`selection_verdicts`) |
 | `SummarizeChallenge` | reporting | Crea un `report` de kind `narrative` |
 
-Sumar una tarea es tocar **tres** lugares: la clase, `AiRun::PURPOSES` y el
+Sumar una tarea es tocar **cuatro** lugares: la clase, `AiRun::PURPOSES`, el
 CHECK de Postgres sobre `ai_runs.purpose` (hace falta migración; si no, el run
-revienta con `PG::CheckViolation` antes de crearse y el error llega truncado).
+revienta con `PG::CheckViolation` antes de crearse y el error llega truncado) y
+`flow.ai_purposes` en `config/locales/es.yml` — sin esa clave el chip de la
+propuesta (`shared/_ai_suggestion`) y `ai_runs/index` y `ai_runs/show` muestran
+el propósito en inglés por el fallback `humanize`.
 
 ### Quién puede pedir cada tarea — y aceptarla
 
