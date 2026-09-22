@@ -19,9 +19,9 @@ final de rama entera en Opus.
 
 ## Estado actual
 
-- **`master` está en `700b6a5` y pusheado.** Local y remoto coinciden,
-  verificado con `ls-remote` contra el remoto de verdad y no contra la foto
-  local. No queda ninguna rama viva.
+- **`master` está pusheado y sincronizado** —el commit de este handoff es la
+  punta—, verificado con `ls-remote` contra el remoto de verdad y no contra la
+  foto local. No queda ninguna rama viva, ni local ni remota.
 - **`make spec` → 1010 ejemplos, 0 fallas.** **`make screens` → 66 capturas,
   0 errores**, dos corridas seguidas sin resembrar (corrido antes del último
   merge, que es sólo un spec).
@@ -163,6 +163,28 @@ tanda 1 (ver el handoff anterior en el historial de git) y cinco en la tanda 2:
 - **`button_to` es un `<form>` y muerde también en las capturas**: un selector
   `input[type=submit]` matcheaba el botón «Salir» del header global.
 
+## Hechos del entorno que muerden
+
+- **La base quedó con un solo desafío**, así que `make screens` **necesita
+  `make seed` antes**: el recorrido depende de siete desafíos sembrados y hoy
+  sólo está `merma-bodega`.
+- **Los specs corren en `app_test`, no en `app`.** `docker compose exec app
+  bundle exec rspec` usa el contenedor de desarrollo y devuelve 403 «Blocked
+  hosts» en **todos** los request specs — se ve como si la app estuviera rota.
+  Siempre `make spec*`.
+- **`make rails ARGS="…"` no hace nada**: el target abre una consola y descarta
+  `ARGS`. Los reales son `make migrate`, `make seed`, `make db-prepare-test`.
+- **El push por SSH no anda**: va por HTTPS con el token de `gh`. `git fetch`
+  también, y para que `--prune` limpie hace falta el refspec entero.
+- **`git rev-parse origin/master` lee una foto local, no el remoto.** Para
+  concluir algo del remoto, `ls-remote` primero.
+- **Nunca un worktree**: `docker-compose.yml` monta `.` en `/rails`, así que
+  todo corre contra el checkout principal.
+- **No corras dos `make screens` en paralelo**: borra `tmp/screenshots/` entero
+  al arrancar.
+- **Si despachás subagentes, decíles que no pushean.** Uno lo hizo sin que se
+  lo pidieran (ver arriba).
+
 ## Próximos pasos
 
 1. **`Pipeline#validate` vs `Selection#can_activate?`.** `validate` exige para
@@ -226,6 +248,8 @@ tanda 1 (ver el handoff anterior en el historial de git) y cinco en la tanda 2:
   `merma-bodega` — y **con respaldo previo**, al enterarse de que diez de los
   desafíos no vuelven con `make seed`.
 - **Borrar del remoto la rama que un subagente había publicado.**
+- **La guarda de paridad cubre las siete listas**, no sólo la que falló. Se le
+  propuso achicarla a una y eligió dejarla completa.
 
 ### Lo que sigue esperando una decisión suya
 
