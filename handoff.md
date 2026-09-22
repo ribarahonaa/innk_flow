@@ -2,12 +2,16 @@
 
 ## Objetivo
 
-Tres cosas, y las tres terminadas.
+Cuatro cosas, y las cuatro terminadas.
 
 **La tanda 1 del módulo de testing** —el sexto `kind` del flujo— ejecutada,
 revisada y mergeada. **La tanda 2** —la IA y el filtro— diseñada, planificada,
-ejecutada, revisada y mergeada. Y una **limpieza de la base de desarrollo**,
-que quedó con las cuentas y un solo desafío.
+ejecutada, revisada y mergeada. Una **limpieza de la base de desarrollo**, que
+quedó con las cuentas y un solo desafío. Y la **guarda de paridad entre los
+enums y sus rótulos** (merge `700b6a5`), que es la que habría cazado sola el
+hallazgo que bloqueó el merge de la tanda 2 — cubre las **siete** listas de
+`es.yml`, no sólo la que falló, y está vista fallar en las dos direcciones:
+cuando falta un rótulo y cuando sobra uno.
 
 Las dos tandas se ejecutaron con `superpowers:subagent-driven-development`: un
 subagente fresco por tarea, revisión por tarea con dos veredictos, y un review
@@ -15,12 +19,12 @@ final de rama entera en Opus.
 
 ## Estado actual
 
-- **`master` está en `d0c1878` y pusheado.** Local y remoto coinciden,
+- **`master` está en `700b6a5` y pusheado.** Local y remoto coinciden,
   verificado con `ls-remote` contra el remoto de verdad y no contra la foto
   local. No queda ninguna rama viva.
-- **`make spec` → 1002 ejemplos, 0 fallas**, corrido sobre el merge y no sólo
-  sobre la rama. **`make screens` → 66 capturas, 0 errores**, dos corridas
-  seguidas sin resembrar.
+- **`make spec` → 1010 ejemplos, 0 fallas.** **`make screens` → 66 capturas,
+  0 errores**, dos corridas seguidas sin resembrar (corrido antes del último
+  merge, que es sólo un spec).
 - **El módulo de testing está completo**: funciona a mano, en IA asistida y en
   IA automática, y una selección posterior puede filtrar por su veredicto.
 
@@ -161,13 +165,7 @@ tanda 1 (ver el handoff anterior en el historial de git) y cinco en la tanda 2:
 
 ## Próximos pasos
 
-1. **La guarda de paridad `flow.ai_purposes` ↔ `AiRun::PURPOSES`.** Es lo
-   primero. Nada la cuida hoy, y es exactamente la guarda que habría cazado
-   sola el hallazgo que bloqueó el merge de la tanda 2, en vez de depender de
-   que un revisor leyera el locale. Es un spec de lint corto, con la forma de
-   los que ya cuidan los mapeos de `EstilosHelper` contra sus enums.
-
-2. **`Pipeline#validate` vs `Selection#can_activate?`.** `validate` exige para
+1. **`Pipeline#validate` vs `Selection#can_activate?`.** `validate` exige para
    toda selección un `score_source` resoluble sin consultar los criterios
    propios del módulo; `can_activate?` sí los consulta. O sea que **una
    selección de sólo filtros no arranca el flujo** salvo que se le declare el
@@ -176,7 +174,7 @@ tanda 1 (ver el handoff anterior en el historial de git) y cinco en la tanda 2:
    `pantalla_del_modulo_spec.rb:255,303`), lo que refuerza que es un gap de
    producto y no ruido de test. Merece issue propio.
 
-3. **Las once FKs con `ON DELETE SET NULL` sin acotador** (del handoff
+2. **Las once FKs con `ON DELETE SET NULL` sin acotador** (del handoff
    anterior, sigue abierto). El helper ya está arreglado, así que no nacen
    nuevas, pero las viejas siguen rotas: `selection_verdicts.ai_run_id`,
    `idea_versions.source_step_id`, `ideas.current_version_id`,
@@ -188,15 +186,15 @@ tanda 1 (ver el handoff anterior en el historial de git) y cinco en la tanda 2:
    agregue revienta con `PG::NotNullViolation`. Es una migración de parche
    propia, con la forma de `20260831210000_fix_composite_fk_set_null.rb`.
 
-4. **`[FORMS]` no cubre las pantallas de formulario a las que se llega por
+3. **`[FORMS]` no cubre las pantallas de formulario a las que se llega por
    clic.** `revisarFormsAnidados` corre desde `shot()`, y las capturas que
    navegan y llaman `capturar()` directo se lo saltean. Es la guarda que
    CLAUDE.md nombra por el bug del corte. Arreglo del recorrido entero.
 
-5. **Nadie miró todavía las 66 capturas.** Sigue siendo lo único de las últimas
+4. **Nadie miró todavía las 66 capturas.** Sigue siendo lo único de las últimas
    cinco sesiones que no hizo una máquina.
 
-6. **Cuatro Menores del módulo de testing, diferidos con triage:**
+5. **Cuatro Menores del módulo de testing, diferidos con triage:**
    - `TestingPassed` no declara `config_errors`: un `accepts` desconocido cae
      al más permisivo en silencio. Sólo alcanzable por payload editado a mano;
      el editor es un `select`.
@@ -208,7 +206,7 @@ tanda 1 (ver el handoff anterior en el historial de git) y cinco en la tanda 2:
      Si alguna vez se arregla, se arreglan juntos.
    - `historial_de` ordena por `tested_at DESC` sin desempate.
 
-7. **Lo de handoffs anteriores que sigue abierto**: plan 2c (las islas Vue),
+6. **Lo de handoffs anteriores que sigue abierto**: plan 2c (las islas Vue),
    `SelectionsController#update` sin validación server-side de a quién se hace
    avanzar, `criteria_sets#show` huérfana, las 3 consultas de evolución, los
    tres temas de seguridad preexistentes, y que nada vigila el relleno por
