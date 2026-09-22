@@ -58,6 +58,25 @@ module Flow
           { key: "field_key", type: "select", source: "form_fields",
             label: "En qué campo", blank: "Cualquiera" }
         ]
+      },
+      "testing_passed" => {
+        summary: "Pasó su prueba de factibilidad.",
+        params: [
+          { key: "accepts", type: "select", default: "factible_o_con_reservas",
+            label: "Qué veredicto se acepta",
+            options: [
+              { value: "factible_o_con_reservas", label: "Factible, o factible con reservas" },
+              { value: "solo_factible", label: "Sólo factible" }
+            ] },
+          { key: "sin_testeo", type: "select", default: "pasa",
+            label: "Si nadie la testeó",
+            options: [
+              { value: "pasa", label: "Pasa el filtro" },
+              { value: "no_pasa", label: "No pasa el filtro" }
+            ],
+            hint: "Una idea que ningún módulo de testing probó. El default la deja pasar: " \
+                  "un filtro permisivo se aprieta, y uno restrictivo sorprende." }
+        ]
       }
     }.freeze
 

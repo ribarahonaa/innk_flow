@@ -145,6 +145,8 @@ es:
         label: "Atendió el feedback"
       has_attachment:
         label: "Adjuntó un archivo"
+      testing_passed:
+        label: "Pasó la prueba de factibilidad"
     scale_types:
       numeric: "Numérica"
       letter: "Notas / letras"
