@@ -47,6 +47,7 @@ alguien pide, no como el operario por defecto.
 | **Evaluación** | **Cubre el mínimo del módulo**: si pide 3 por idea, hace 3 | Nada. La IA es una opinión más que se puede pedir |
 | **Selección** | Responde los filtros de sí/no de cada idea | Nada: los propone y alguien los acepta |
 | **Reportería** | Escribe el resumen narrativo | Se pide desde la pantalla |
+| **Testing** | Testea todas las ideas del módulo, una corrida por idea | Nada: un veredicto de testeo es la respuesta del módulo para esa idea, se pide y alguien la acepta |
 
 Dos salvaguardas en «Idear»: no genera si el desafío **ya tiene** ideas de IA
 (reactivar el módulo no lo llena de duplicados), y las ideas nacen postuladas y
@@ -176,6 +177,7 @@ para los tres modos.
 | `SuggestFeedback` | evolution | Crea `feedback_items` |
 | `EvolveIdea` | evolution | **Publica una versión nueva** con el feedback aplicado, y lo cierra |
 | `EvaluateIdea` | evaluación | Crea un `assessment` con su desglose por criterio |
+| `TestIdea` | testing | Deja un veredicto de factibilidad con sus situaciones (`step_tests`) |
 | `DecideVerdicts` | selección | Responde los filtros de sí/no (`selection_verdicts`) |
 | `SummarizeChallenge` | reporting | Crea un `report` de kind `narrative` |
 
