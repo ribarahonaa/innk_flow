@@ -91,7 +91,13 @@ module Flow
       def on_complete
         step.step_entries.each do |entry|
           test = vigente_para(entry.idea_id)
-          entry.resolve!(status: "done",
+          # Sin testeo vigente la entry NO se da por hecha. `complete!` no
+          # pregunta `can_complete?` —lo pregunta quien lo llama—, así que un
+          # `done` incondicional le cree al llamador: un segundo camino de
+          # cierre dejaría la idea resuelta con el veredicto en `nil`, o sea
+          # probada según la tabla y sin probar en los hechos. Es la forma
+          # autocorrectiva de `Evaluation#recompute_entry!`.
+          entry.resolve!(status: test ? "done" : "in_progress",
                          result: entry.result.merge("verdict" => test&.verdict,
                                                     "tested_at" => test&.tested_at))
         end
