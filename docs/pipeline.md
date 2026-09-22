@@ -7,7 +7,7 @@ hardcodeado, con las transiciones en un `case` del controller. Es el mismo para
 todos los clientes: no hay forma de que una empresa evalúe dos veces, o corte
 antes de evaluar, o salte la etapa técnica.
 
-Acá el dueño del desafío arma su propio proceso con cinco tipos de módulo.
+Acá el dueño del desafío arma su propio proceso con seis tipos de módulo.
 
 | kind | Qué hace | Repetible |
 |---|---|---|
@@ -16,6 +16,7 @@ Acá el dueño del desafío arma su propio proceso con cinco tipos de módulo.
 | `evaluation` | Puntuación por criterios | Sí |
 | `selection` | Reduce el pool | Sí |
 | `reporting` | Reportes del estado en ese punto | Sí |
+| `testing` | Prueba la idea contra situaciones concretas y deja un veredicto de factibilidad | Sí |
 
 ---
 

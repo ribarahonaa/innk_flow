@@ -37,10 +37,11 @@
     -# (`resumen_de_configuracion`): `settings` sólo trae lo que alguien
     -# escribió, y evolución y reportería salían sin una sola fila.
     -#
-    -# El `else` no es alcanzable con los cinco kinds de hoy —todos declaran al
-    -# menos un campo con default— pero un kind nuevo sin entrada en el esquema
-    -# volvería a dejar la tarjeta muda, y decir «no hay nada» es lo único
-    -# honesto que se puede poner ahí.
+    -# El `else` no es alcanzable con los seis kinds de hoy —todos declaran al
+    -# menos un campo con default, testing incluido (`dimensions`,
+    -# `min_situations`)— pero un kind nuevo sin entrada en el esquema volvería
+    -# a dejar la tarjeta muda, y decir «no hay nada» es lo único honesto que
+    -# se puede poner ahí.
     - filas = resumen_de_configuracion(step)
     - if filas.any?
       %ul.field-list

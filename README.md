@@ -23,7 +23,7 @@ al mismo tiempo.
 
 ---
 
-## Los cinco módulos
+## Los seis módulos
 
 | kind | Qué hace | Repetible |
 |---|---|---|
@@ -32,6 +32,7 @@ al mismo tiempo.
 | `evaluation` | Puntuación por criterios, notas, rúbrica o fórmula | Sí |
 | `selection` | Reduce el pool: solo avanzan las mejores | Sí |
 | `reporting` | Reportes del estado en ese punto del flujo | Sí |
+| `testing` | Prueba cada idea contra situaciones concretas de ejecución y deja un veredicto de factibilidad (factible / con reservas / no factible) con su evidencia | Sí |
 
 **La regla dura:** en borrador el flujo se edita libremente; una vez arrancado
 solo se pueden agregar módulos **a partir del último ya ejecutado**. Nunca antes,
