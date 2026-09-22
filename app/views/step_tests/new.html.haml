@@ -58,7 +58,13 @@
 -# Son dos permisos distintos: con el desafío cerrado y el módulo todavía
 -# activo, `advance?` seguía dando `true` y el botón quedaba ofrecido para
 -# apretar un 403.
-- if @step.effective_ai_mode != "human" && policy(@challenge).update_pipeline?
+-#
+-# Y el módulo tiene que seguir activo: `steps/testing` exige `@step.active?`
+-# además del permiso y el modo de IA, pero esta pantalla se olvidaba de esa
+-# tercera condición. Con el módulo ya cerrado se entra igual por URL directa
+-# —`advance?` no mira `closed?`— y el botón escribía un `StepTest` nuevo
+-# sobre un módulo que ya no corre.
+- if @step.active? && @step.effective_ai_mode != "human" && policy(@challenge).update_pipeline?
   .card
     .card-body
       %h2.section-title ¿Querés que la IA la ponga a prueba?
