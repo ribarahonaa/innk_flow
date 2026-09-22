@@ -540,6 +540,58 @@ Flow::Tenant.bypass! do
     idea_abierta.update!(submitted_at: Time.current)
     abierto.pipeline.advance!  # → Evaluación de comité (activo, con la idea adentro)
 
+    # Un desafío con el módulo de TESTING activo, una idea ya testeada y otra
+    # sin testear: es la única forma de que la captura muestre las dos filas
+    # de la tabla y los dos textos del botón («Testear» y «Re-testear»).
+    # Ningún otro desafío sembrado deja un testing en ese estado. Propio y no
+    # compartido, como manda CLAUDE.md — existe sólo para estas capturas.
+    Challenge.where(slug: "testeo-abierto").destroy_all
+    testeo = Challenge.create!(
+      slug: "testeo-abierto",
+      name: "Reparto en bici para el último kilómetro",
+      brief: "Queremos saber si las entregas de menos de 3 km se pueden hacer en bici " \
+             "sin perder la ventana de entrega.",
+      ai_default_mode: "human"
+    )
+    testeo.pipeline.insert(kind: "ideation", after: :end, name: "Postulación")
+    testeo.pipeline.insert(kind: "testing", after: :end, name: "Prueba de factibilidad")
+    testeo_ideacion = testeo.pipeline.ideation_step
+    testeo_ideacion.form_fields.create!(key: "titulo", label: "Título", field_type: "text",
+                                        required: true, position: 0,
+                                        config: { "is_title" => true })
+    testeo.pipeline.start!
+
+    ideas_a_probar = ["Bicis eléctricas con caja térmica",
+                      "Tercerizar el último kilómetro a un courier local"].map do |titulo|
+      idea = Idea.create!(challenge: testeo, author: User.find_by!(email: "part2@demo.test"),
+                          status: "draft", origin: "human")
+      Flow::Ideas::PublishVersion.new(
+        idea, payload: { "titulo" => titulo }, author: idea.author, actor_type: "human",
+        source_step: testeo_ideacion, change_note: "Creación de la idea"
+      ).call
+      idea.update!(submitted_at: Time.current)
+      idea
+    end
+
+    testeo.pipeline.advance!  # → Prueba de factibilidad (activo, con las dos ideas)
+
+    # La primera queda testeada; la segunda sin testear.
+    testeo.pipeline.active_step.handler.testear!(
+      idea: ideas_a_probar.first,
+      verdict: "con_reservas",
+      situations: [
+        { "dimension" => "operativa", "escenario" => "Viernes de lluvia, 40 entregas",
+          "resultado" => "se_rompe", "detalle" => "Con lluvia la ventana se estira 25 minutos" },
+        { "dimension" => "economica", "escenario" => "Con el costo actual por entrega",
+          "resultado" => "aguanta", "detalle" => "Se paga en 14 meses" },
+        { "dimension" => "tecnica", "escenario" => "Carga de baterías entre turnos",
+          "resultado" => "aguanta", "detalle" => "Dos horas alcanzan" }
+      ],
+      reservations: ["Definir el protocolo para los días de lluvia"],
+      summary: "Funciona salvo con lluvia; hace falta un plan para esos días.",
+      tested_by: User.find_by!(email: "admin@demo.test")
+    )
+
     # Un desafío SIN módulos, para la captura del selector de plantillas.
     # Antes el script de capturas creaba uno en cada corrida y no lo borraba:
     # la base de desarrollo terminó con dieciséis «desafio-de-prueba-N».
