@@ -24,7 +24,20 @@ module Flow
         pass(detalle_de(test))
       end
 
-      def description = "pasó su prueba de factibilidad"
+      # Es el único check con params que no reflejaba su configuración: los
+      # otros cuatro sí lo hacen (`field_present`, `contributors_count`,
+      # `version_count`, `has_attachment`; `feedback_addressed` no tiene
+      # params). Con `accepts: solo_factible` la tarjeta «Cómo se decide»
+      # seguía diciendo «pasó su prueba de factibilidad» sobre un filtro que
+      # además rechaza «con reservas», y con `sin_testeo: no_pasa` no decía
+      # nada de que una idea sin testear queda afuera.
+      def description
+        base = aceptados == %w[factible] ? "pasó su prueba de factibilidad sin reservas" \
+                                          : "pasó su prueba de factibilidad, con reservas o sin ellas"
+        return base unless config["sin_testeo"].to_s == "no_pasa"
+
+        "#{base}; sin testear, no pasa"
+      end
 
       private
 
