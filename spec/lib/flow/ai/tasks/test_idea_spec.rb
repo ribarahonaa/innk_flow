@@ -77,8 +77,13 @@ RSpec.describe Flow::AI::Tasks::TestIdea do
     it "el rigor va en las situaciones y el veredicto lo dicta lo encontrado" do
       system = tarea(paso).messages.first[:content]
 
-      expect(system).to include("no_factible")
-      expect(system).to match(/con_reservas/)
+      # No alcanza con que las palabras aparezcan en algún lugar del prompt:
+      # un texto que dijera «nunca pongas no_factible» pasaría igual. Ata
+      # cada veredicto a la condición que lo justifica, dentro de la misma
+      # oración (el prompt pasa por `.squish`, así que no depende de la
+      # puntuación ni de dónde cortan las líneas del heredoc).
+      expect(system).to match(/no_factible[^.]*se rompe[^.]*detalle concreto/)
+      expect(system).to match(/con_reservas[^.]*condici[oó]n a resolver/)
     end
 
     it "la severidad configurada llega al prompt" do
