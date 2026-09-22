@@ -88,6 +88,14 @@ module EstilosHelper
     "evaluador_ia" => "badge badge-soft badge-secondary badge-xs font-semibold"
   }.freeze
 
+  # El veredicto de un testing. Vocabulario de dominio nuevo, no un estado del
+  # módulo: no cuelga de `CHIP_DE_ESTADO`, que no tiene variante de error.
+  CHIP_DE_VEREDICTO = {
+    "factible" => "badge badge-soft badge-success badge-sm font-semibold whitespace-nowrap",
+    "con_reservas" => "badge badge-soft badge-warning badge-sm font-semibold whitespace-nowrap",
+    "no_factible" => "badge badge-soft badge-error badge-sm font-semibold whitespace-nowrap"
+  }.freeze
+
   CLASE_DE_DIFF = {
     "added" => "diff-kind diff-kind--added",
     "removed" => "diff-kind diff-kind--removed",
@@ -160,6 +168,7 @@ module EstilosHelper
   def clase_de_nodo_de_flujo(estado) = CLASE_DE_NODO_DE_FLUJO.fetch(estado.to_s, CLASE_DE_NODO_DE_FLUJO.fetch("pending"))
   def punto_de_estado(estado) = PUNTO_DE_ESTADO.fetch(estado.to_s, PUNTO_DE_ESTADO.fetch("pending"))
   def chip(nombre) = CHIPS.fetch(nombre.to_s)
+  def chip_de_veredicto(veredicto) = CHIP_DE_VEREDICTO.fetch(veredicto.to_s, CHIP_DE_VEREDICTO.fetch("con_reservas"))
 
   # `_setup_progress.html.haml` ya arma su clase como ARREGLO y le suma otras
   # condicionales. Este helper devuelve solo la de estado; el arreglo se

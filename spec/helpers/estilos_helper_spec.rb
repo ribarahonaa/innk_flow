@@ -7,7 +7,8 @@ RSpec.describe EstilosHelper, type: :helper do
   # en dos specs, y un chip nuevo sumado a una y no a la otra quedaba sin medir.
   def todos_los_chips
     [EstilosHelper::CHIP_DE_ESTADO, EstilosHelper::CHIP_DE_ORIGEN, EstilosHelper::CLASE_DE_FEEDBACK,
-     EstilosHelper::CLASE_DE_NODO_DE_FLUJO, EstilosHelper::CHIPS].flat_map(&:values) << EstilosHelper::CHIP_DE_IA
+     EstilosHelper::CLASE_DE_NODO_DE_FLUJO, EstilosHelper::CHIPS, EstilosHelper::CHIP_DE_VEREDICTO]
+      .flat_map(&:values) << EstilosHelper::CHIP_DE_IA
   end
 
   it "devuelve el nombre completo, no un fragmento" do
@@ -88,6 +89,10 @@ RSpec.describe EstilosHelper, type: :helper do
 
   it "cubre todos los estados de un módulo en el drawer" do
     expect(sin_mapear(ChallengeStep::STATUSES, EstilosHelper::PUNTO_DE_ESTADO)).to be_empty
+  end
+
+  it "cubre todos los veredictos de un testing" do
+    expect(sin_mapear(StepTest::VERDICTS, EstilosHelper::CHIP_DE_VEREDICTO)).to be_empty
   end
 
   # `pipeline_builder.vue` pinta el chip de un módulo recién agregado —que

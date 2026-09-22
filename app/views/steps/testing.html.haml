@@ -1,0 +1,67 @@
+- content_for :title, @step.name
+
+- handler = @handler
+-# Quien participa ve solo las filas de sus ideas: la regla vive una vez, en
+-# `IdeaPolicy::Scope`, y el controller la publica en `@ideas_visibles`.
+- filas = @step.step_entries.includes(idea: %i[current_version author]).select { |e| @ideas_visibles.include?(e.idea_id) }
+- puede_testear = policy(@step).advance?
+
+= render "steps/header", step: @step, handler: handler
+= render "shared/ai_suggestions", suggestions: @pending_suggestions
+
+.card
+  .card-body
+    %h2.section-title
+      Ideas a prueba
+      %span.muted= " · #{handler.progress.done} de #{handler.progress.total} testeadas"
+
+    %table.table
+      %thead
+        %tr
+          %th Idea
+          %th Veredicto
+          %th Se rompió en
+          %th.text-right Acción
+      %tbody
+        - filas.each do |entry|
+          - test = handler.vigente_para(entry.idea_id)
+          %tr
+            %td
+              = link_to entry.idea.title, challenge_idea_path(@challenge, entry.idea), class: "table-link"
+              %span.muted= " · #{entry.idea.author.name}"
+            %td
+              - if test
+                %span{ class: chip_de_veredicto(test.verdict) }= t("flow.verdicts.#{test.verdict}")
+                %span.muted= " · #{test.tested_by_name}"
+              - else
+                %span.muted sin testear
+            %td.muted
+              - if test
+                = test.situaciones_rotas.any? ? test.situaciones_rotas.map { _1["escenario"] }.join(" · ") : "—"
+              - else
+                = "—"
+            %td.text-right
+              -# El link pregunta LA MISMA policy que autoriza al controller, no
+              -# `step.active?` a secas: con eso se le mostraba a quien se comía
+              -# un 403 al apretarlo (la lección del link «Evaluar»).
+              - if puede_testear && @step.active?
+                = link_to(test ? "Re-testear" : "Testear",
+                          new_challenge_step_step_test_path(@challenge, @step, idea_id: entry.idea_id),
+                          class: "btn btn-ghost btn-sm")
+
+- content_for :referencia do
+  = render "steps/progreso", progress: handler.progress
+
+  = render layout: "steps/bloque" do
+    %h3.section-title Veredictos
+    %ul.field-list
+      - handler.veredictos_contados.each do |veredicto, cuantos|
+        %li.field-list__item
+          %span= t("flow.verdicts.#{veredicto}")
+          %span.field-list__type= cuantos
+
+  = render "steps/config_congelada", step: @step
+
+- if puede_testear
+  = render layout: "steps/ajustes", locals: { resumen: ["nombre", "modo de IA"].to_sentence } do
+    = render "steps/ai_mode", step: @step

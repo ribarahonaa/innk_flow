@@ -45,7 +45,7 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
   ORDEN_DE_LA_REFERENCIA = [
     "Progreso",
     # Lo propio del módulo.
-    "Criterios", "Formulario de postulación", "Descargas",
+    "Criterios", "Formulario de postulación", "Descargas", "Veredictos",
     # Quién participa.
     "Quién evalúa", "Quiénes acompañan",
     "Cómo quedó configurado"
@@ -622,6 +622,44 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
         expect(lista.text).to include("Sensores de peso", "Cámaras en la merma")
         expect(lista.at_css(".section-title").text).to include("(2)")
       end
+    end
+  end
+
+  describe "la pantalla de un testing en curso" do
+    let!(:challenge) do
+      as_company(company) do
+        c = create(:challenge, name: "Merma", ai_default_mode: "human")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
+        c.steps.create!(kind: "testing", position: 2, name: "Prueba de factibilidad")
+        c
+      end
+    end
+
+    before do
+      postular!(challenge, author: paula, titulo: "Sensores")
+      as_company(company) do
+        challenge.pipeline.start!
+        challenge.pipeline.advance!
+        expect(paso("testing")).to be_active
+      end
+    end
+
+    # La referencia va en ORDEN FIJO. Sin bloque de «quién participa»: un
+    # testing no tiene testers asignados.
+    it "la referencia trae sus tres bloques, en orden" do
+      sign_in(admin, company: company)
+      get challenge_step_path(challenge, paso("testing"))
+
+      expect(titulos_de_mas_en_la_referencia).to be_empty
+      expect(titulos_de_la_referencia).to eq(["Progreso", "Veredictos", "Cómo quedó configurado"])
+    end
+
+    it "los ajustes van plegados al final, con el nombre y el modo de IA" do
+      sign_in(admin, company: company)
+      get challenge_step_path(challenge, paso("testing"))
+
+      expect(response.body).to include("<details")
+      expect(response.body).to include("modo de IA")
     end
   end
 

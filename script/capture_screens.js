@@ -441,6 +441,10 @@ const MUESTRARIO = [
   'badge badge-soft badge-primary badge-sm font-semibold whitespace-nowrap',
   'badge badge-soft badge-success badge-sm font-semibold whitespace-nowrap',
   'badge badge-soft badge-warning badge-sm font-semibold whitespace-nowrap',
+  // El veredicto de un testing (`CHIP_DE_VEREDICTO`). «Factible» y «con
+  // reservas» comparten cadena con `CHIP_DE_ESTADO` (arriba); «no factible»
+  // es la primera variante `badge-error` en tamaño `badge-sm`.
+  'badge badge-soft badge-error badge-sm font-semibold whitespace-nowrap',
   'badge badge-soft badge-primary badge-xs font-semibold whitespace-nowrap ml-1.5',
   'badge badge-soft badge-success badge-xs font-semibold whitespace-nowrap ml-1.5',
   'badge badge-soft badge-secondary badge-xs font-semibold whitespace-nowrap ml-1.5',

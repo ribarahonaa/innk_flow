@@ -173,3 +173,7 @@ es:
       running: "En curso"
       closed: "Cerrado"
       archived: "Archivado"
+    verdicts:
+      factible: "Factible"
+      con_reservas: "Factible con reservas"
+      no_factible: "No factible"
