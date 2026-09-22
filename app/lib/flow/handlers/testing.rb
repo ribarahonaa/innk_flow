@@ -39,7 +39,7 @@ module Flow
         faltan = sin_testear.size
         return [true, []] if faltan.zero?
 
-        [false, ["Faltan #{Flow::Texto.contar(faltan, "idea")} por testear."]]
+        [false, ["#{Flow::Texto.faltan(faltan, "idea")} por testear."]]
       end
 
       # Escribe el testeo nuevo y supera al anterior EN LA MISMA transacción:

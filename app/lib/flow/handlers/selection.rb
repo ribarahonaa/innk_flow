@@ -83,7 +83,7 @@ module Flow
         # se sabe si pasa o no.
         pending_verdicts = ranking.sum { |row| row.pending_gates.size }
         if pending_verdicts.positive?
-          reasons << "Faltan #{Flow::Texto.contar(pending_verdicts, "veredicto")} sobre los filtros."
+          reasons << "#{Flow::Texto.faltan(pending_verdicts, "veredicto")} sobre los filtros."
         end
 
         if manual_cut?

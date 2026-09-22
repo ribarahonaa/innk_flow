@@ -7,12 +7,20 @@
       <option v-for="opt in options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
     </select>
 
+    <!-- `size` con la cantidad de opciones: sin él el alto lo pone el CSS
+         (`.field select[multiple]`, calculado para cuatro filas) y la quinta
+         opción queda PARTIDA por el borde, sin nada que anuncie que hay más.
+         Pasó con las cinco dimensiones de un módulo de testing, y lo vio una
+         persona mirando una captura. Con `size` el navegador nunca corta una
+         fila al medio; el tope de 8 es para que una lista larga scrollee en
+         vez de empujar el formulario entero. -->
     <select
       v-else-if="field.type === 'multi_select'"
       :id="inputId"
       v-model="value"
       :name="inputName"
       multiple
+      :size="Math.min(Math.max(options.length, 4), 8)"
       :disabled="disabled"
     >
       <option v-for="opt in options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>

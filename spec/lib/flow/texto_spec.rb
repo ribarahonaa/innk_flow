@@ -6,6 +6,27 @@ require "rails_helper"
 # español eso se ve en pantalla —«2 condicións», «3 evaluacións»— y quedó así
 # hasta que alguien miró una captura.
 RSpec.describe Flow::Texto do
+  # `contar` acuerda el SUSTANTIVO, y con eso no alcanza: la frase que lo
+  # envuelve trae su propio verbo, y «Faltan 1 idea» se lee mal en la pantalla
+  # aunque «1 idea» esté bien. Mismo bug que el de arriba, un nivel más afuera,
+  # y descubierto igual: mirando una captura.
+  describe ".faltan" do
+    it "acuerda el verbo con el número, no sólo el sustantivo" do
+      expect(described_class.faltan(1, "idea")).to eq("Falta 1 idea")
+      expect(described_class.faltan(2, "idea")).to eq("Faltan 2 ideas")
+    end
+
+    it "pluraliza el sustantivo como `contar`" do
+      expect(described_class.faltan(2, "veredicto")).to eq("Faltan 2 veredictos")
+      expect(described_class.faltan(3, "condición")).to eq("Faltan 3 condiciones")
+    end
+
+    # Cero es plural en español: «Faltan 0 ideas», no «Falta 0 idea».
+    it "trata el cero como plural" do
+      expect(described_class.faltan(0, "idea")).to eq("Faltan 0 ideas")
+    end
+  end
+
   describe ".contar" do
     it "acuerda el sustantivo con el número" do
       expect(described_class.contar(1, "idea")).to eq("1 idea")
