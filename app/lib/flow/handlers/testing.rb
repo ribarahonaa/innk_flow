@@ -66,6 +66,24 @@ module Flow
         StepTest::VERDICTS.index_with { |v| vigentes.values.count { |t| t.verdict == v } }
       end
 
+      # EL VEREDICTO. Análogo a `Evaluation#score_visible_for?`: lo ve quien
+      # administra siempre, y quien participa de la idea recién cuando el
+      # módulo ya no sigue activo. Mientras corre puede venir un re-testeo, y
+      # mostrar un "no factible" que todavía puede cambiar sería un resultado
+      # a medias.
+      def verdict_visible_for?(idea, user:, manager: false)
+        return true if manager
+
+        !step.active? && idea.participates?(user)
+      end
+
+      # QUIÉN TESTEÓ. Análogo a `Evaluation#breakdown_visible_for?`: es el
+      # desglose, no el resultado. A diferencia de evaluación no hay a quién
+      # sumarle la excepción de "ya lo hizo": solo quien administra testea
+      # (`ChallengeStepPolicy#advance?`), así que el desglose es
+      # exclusivamente suyo.
+      def tester_visible_for?(manager: false) = manager
+
       protected
 
       # El resultado queda donde el resto de la app lo busca, igual que

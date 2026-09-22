@@ -637,13 +637,14 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       end
     end
 
+    # Dos ideas de autores distintos, postuladas ANTES de arrancar el módulo:
+    # los `step_entries` los arma `Cohort.sync!` al activar, así que una idea
+    # que llegara después de `advance!` no tendría fila para nadie y el filtro
+    # de abajo no probaría nada. Capturadas para testearlas más abajo.
+    let!(:idea_paula) { postular!(challenge, author: paula, titulo: "Sensores") }
+    let!(:idea_pedro) { postular!(challenge, author: pedro, titulo: "Cámaras") }
+
     before do
-      # Dos ideas de autores distintos, postuladas ANTES de arrancar el
-      # módulo: los `step_entries` los arma `Cohort.sync!` al activar, así
-      # que una idea que llegara después de `advance!` no tendría fila para
-      # nadie y el filtro de abajo no probaría nada.
-      postular!(challenge, author: paula, titulo: "Sensores")
-      postular!(challenge, author: pedro, titulo: "Cámaras")
       as_company(company) do
         challenge.pipeline.start!
         challenge.pipeline.advance!
@@ -687,6 +688,73 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
 
       tabla = documento.at_css(".app-main table.table")
       expect(tabla.text).to include("Sensores", "Cámaras")
+    end
+
+    # El veredicto y quién testeó son dos cosas distintas, como el puntaje y
+    # el desglose en evaluación (`Flow::Handlers::Evaluation#score_visible_for?`
+    # / `#breakdown_visible_for?`): quien administra los ve siempre, y quien
+    # participa de la idea recién ve el veredicto cuando el módulo cierra —y
+    # nunca ve quién testeó.
+    describe "el veredicto, con el módulo todavía activo" do
+      before do
+        as_company(company) do
+          paso("testing").handler.testear!(
+            idea: idea_paula, verdict: "no_factible", situations: [], reservations: [],
+            summary: "No pasa el filtro legal", tested_by: admin
+          )
+        end
+      end
+
+      it "quien participa no ve el veredicto ni quién testeó, sólo que está oculto" do
+        sign_in(paula, company: company)
+        get challenge_step_path(challenge, paso("testing"))
+
+        fila = documento.css(".app-main table.table tbody tr").find { |f| f.text.include?("Sensores") }
+        expect(fila.text).to include("oculto")
+        expect(fila.text).not_to include("No factible")
+        expect(fila.text).not_to include(admin.name)
+      end
+
+      it "quien administra ve el veredicto y quién testeó" do
+        sign_in(admin, company: company)
+        get challenge_step_path(challenge, paso("testing"))
+
+        fila = documento.css(".app-main table.table tbody tr").find { |f| f.text.include?("Sensores") }
+        expect(fila.text).to include("No factible", admin.name)
+      end
+    end
+
+    describe "el veredicto, con el módulo ya cerrado" do
+      before do
+        as_company(company) do
+          testing = paso("testing")
+          testing.handler.testear!(
+            idea: idea_paula, verdict: "no_factible", situations: [], reservations: [],
+            summary: "No pasa el filtro legal", tested_by: admin
+          )
+          # Directo por el handler, como en `selection_screen_spec.rb`: no hace
+          # falta que Pedro también tenga testeo vigente para probar la
+          # visibilidad del veredicto de Paula con el módulo cerrado.
+          testing.handler.complete!
+        end
+      end
+
+      it "quien participa ya ve el veredicto de su idea, pero no quién testeó" do
+        sign_in(paula, company: company)
+        get challenge_step_path(challenge, paso("testing"))
+
+        fila = documento.css(".app-main table.table tbody tr").find { |f| f.text.include?("Sensores") }
+        expect(fila.text).to include("No factible")
+        expect(fila.text).not_to include(admin.name)
+      end
+
+      it "quien administra sigue viendo las dos cosas" do
+        sign_in(admin, company: company)
+        get challenge_step_path(challenge, paso("testing"))
+
+        fila = documento.css(".app-main table.table tbody tr").find { |f| f.text.include?("Sensores") }
+        expect(fila.text).to include("No factible", admin.name)
+      end
     end
   end
 
