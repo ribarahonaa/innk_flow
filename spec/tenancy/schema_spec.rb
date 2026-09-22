@@ -94,4 +94,34 @@ RSpec.describe "esquema: aislamiento por empresa en la base" do
   it "el schema canónico es SQL (schema.rb no serializa FKs compuestas)" do
     expect(Rails.application.config.active_record.schema_format).to eq(:sql)
   end
+
+  # `ON DELETE SET NULL` sobre una FK compuesta nulea TODAS las columnas del
+  # lado local si no se acota con `(columna)` — company_id incluida, que es
+  # NOT NULL. Los tres tests de arriba son introspección estática y no lo
+  # ven: una FK compuesta sin acotador sigue siendo compuesta. Este borra de
+  # verdad para probar la garantía completa.
+  it "borrar el padre de un ON DELETE SET NULL compuesto no se lleva puesto company_id" do
+    company = without_tenant { create(:company) }
+
+    as_company(company) do
+      challenge = create(:challenge)
+      paso = challenge.steps.create!(kind: "testing", position: 1, slug: "testeo")
+      idea = create(:idea, challenge: challenge, status: "active")
+      Flow::Ideas::PublishVersion.new(idea, payload: { "titulo" => "Sensores" }).call
+      idea.reload
+
+      ai_run = AiRun.create!(purpose: "evaluate_idea", mode: "ai_assisted", status: "succeeded")
+      step_test = StepTest.create!(challenge_step: paso, idea: idea,
+                                    idea_version_id: idea.current_version_id,
+                                    verdict: "factible", tested_at: Time.current, ai_run: ai_run)
+
+      # Sin el acotador, esto revienta con PG::NotNullViolation sobre
+      # company_id ANTES de llegar a las aserciones de abajo.
+      expect { ai_run.destroy! }.not_to raise_error
+
+      step_test.reload
+      expect(step_test.ai_run_id).to be_nil
+      expect(step_test.company_id).to eq(company.id)
+    end
+  end
 end
