@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Lee primero el `README.md`: tiene los cinco módulos, la regla de mutación del
+Lee primero el `README.md`: tiene los seis módulos, la regla de mutación del
 pipeline y las decisiones de infraestructura. Los `docs/*.md` (`tenancy`, `ai`,
 `criteria`, `pipeline`) tienen el detalle. Esto es lo que no está ahí.
 
@@ -176,7 +176,7 @@ evolución y de reportería **entera vacía**: encabezado, aviso del candado y u
 para sacar. Se lee con `StepSettings.efectivo(kind, settings)` y se filtra con
 `StepSettings.visible?`, que espeja el `depends_on` de `config_field.vue` (con
 la regla de corte en «manual», «Valor del corte» no describe nada). Ojo con la
-suite: el fixture que probaba esa tarjeta ponía `config:` a mano en los cinco
+suite: el fixture que probaba esa tarjeta ponía `config:` a mano en los seis
 kinds, que es justo el caso que no ocurre en la práctica.
 
 **Todo `config` que llega de afuera pasa por `StepSettings.filtrar`**, venga
