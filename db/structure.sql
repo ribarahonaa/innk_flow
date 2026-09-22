@@ -1,4 +1,4 @@
-\restrict aIkeMqMIku5Fz1f2fFPdAJXMxJba1wpCSCOqyyWgyoVAROemF1ufBqyVq6WYmxN
+\restrict WOHlTc7FdIOWFnXzjWg95qaIaxjRZp5tGLcXqdJUc02uciLWzQ60jKksLvZ6rmx
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -2667,7 +2667,7 @@ ALTER TABLE ONLY public.step_entries
 --
 
 ALTER TABLE ONLY public.step_tests
-    ADD CONSTRAINT step_tests_ai_run_id_same_company FOREIGN KEY (ai_run_id, company_id) REFERENCES public.ai_runs(id, company_id) ON DELETE SET NULL;
+    ADD CONSTRAINT step_tests_ai_run_id_same_company FOREIGN KEY (ai_run_id, company_id) REFERENCES public.ai_runs(id, company_id) ON DELETE SET NULL (ai_run_id);
 
 
 --
@@ -2698,7 +2698,7 @@ ALTER TABLE ONLY public.step_tests
 -- PostgreSQL database dump complete
 --
 
-\unrestrict aIkeMqMIku5Fz1f2fFPdAJXMxJba1wpCSCOqyyWgyoVAROemF1ufBqyVq6WYmxN
+\unrestrict WOHlTc7FdIOWFnXzjWg95qaIaxjRZp5tGLcXqdJUc02uciLWzQ60jKksLvZ6rmx
 
 SET search_path TO "$user", public;
 
