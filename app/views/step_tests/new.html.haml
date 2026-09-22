@@ -51,3 +51,14 @@
       .form-actions
         = submit_tag "Guardar el testeo", class: "btn btn-primary"
         = link_to "Volver", challenge_step_path(@challenge, @step), class: "btn btn-ghost"
+
+- if @step.effective_ai_mode != "human"
+  .card
+    .card-body
+      %h2.section-title ¿Querés que la IA la ponga a prueba?
+      %p.muted.field-hint
+        Plantea las situaciones, prueba dónde se rompe y deja un veredicto con su evidencia.
+      = button_to "Pedir el testeo de la IA",
+                  challenge_ai_requests_path(@challenge, purpose: "test_idea",
+                                             step_id: @step.id, idea_id: @idea.id),
+                  class: "btn btn-ghost btn-sm btn-block"

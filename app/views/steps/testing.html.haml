@@ -68,6 +68,10 @@
                   = link_to(test ? "Re-testear" : "Testear",
                             new_challenge_step_step_test_path(@challenge, @step, idea_id: entry.idea_id),
                             class: "btn btn-ghost btn-sm")
+                - if puede_testear && @step.active? && @step.effective_ai_mode != "human"
+                  = button_to "IA", challenge_ai_requests_path(@challenge, purpose: "test_idea",
+                                                               step_id: @step.id, idea_id: entry.idea_id),
+                              class: "btn btn-ghost btn-sm", title: "Que la IA testee esta idea"
 
 - content_for :referencia do
   = render "steps/progreso", progress: handler.progress
