@@ -1,4 +1,4 @@
-\restrict 87rnXxgHXPkX15ranmkVEZbkIxgTfsrFXRum01Rse6UnPAVcxvW3SflycdRSFcs
+\restrict aIkeMqMIku5Fz1f2fFPdAJXMxJba1wpCSCOqyyWgyoVAROemF1ufBqyVq6WYmxN
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -140,7 +140,7 @@ CREATE TABLE public.ai_runs (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT ai_runs_mode_check CHECK (((mode)::text = ANY (ARRAY[('ai_assisted'::character varying)::text, ('ai_auto'::character varying)::text]))),
-    CONSTRAINT ai_runs_purpose_check CHECK (((purpose)::text = ANY ((ARRAY['propose_pipeline'::character varying, 'suggest_form_fields'::character varying, 'suggest_criteria'::character varying, 'generate_ideas'::character varying, 'coauthor_field'::character varying, 'detect_duplicates'::character varying, 'suggest_feedback'::character varying, 'evaluate_idea'::character varying, 'decide_verdicts'::character varying, 'evolve_idea'::character varying, 'summarize_challenge'::character varying])::text[]))),
+    CONSTRAINT ai_runs_purpose_check CHECK (((purpose)::text = ANY (ARRAY[('propose_pipeline'::character varying)::text, ('suggest_form_fields'::character varying)::text, ('suggest_criteria'::character varying)::text, ('generate_ideas'::character varying)::text, ('coauthor_field'::character varying)::text, ('detect_duplicates'::character varying)::text, ('suggest_feedback'::character varying)::text, ('evaluate_idea'::character varying)::text, ('decide_verdicts'::character varying)::text, ('evolve_idea'::character varying)::text, ('summarize_challenge'::character varying)::text]))),
     CONSTRAINT ai_runs_status_check CHECK (((status)::text = ANY (ARRAY[('queued'::character varying)::text, ('running'::character varying)::text, ('succeeded'::character varying)::text, ('failed'::character varying)::text])))
 );
 
@@ -268,7 +268,7 @@ CREATE TABLE public.challenge_steps (
     updated_at timestamp(6) without time zone NOT NULL,
     criteria_set_id uuid,
     CONSTRAINT challenge_steps_ai_mode_check CHECK (((ai_mode IS NULL) OR ((ai_mode)::text = ANY (ARRAY[('human'::character varying)::text, ('ai_assisted'::character varying)::text, ('ai_auto'::character varying)::text])))),
-    CONSTRAINT challenge_steps_kind_check CHECK (((kind)::text = ANY (ARRAY[('ideation'::character varying)::text, ('evolution'::character varying)::text, ('evaluation'::character varying)::text, ('selection'::character varying)::text, ('reporting'::character varying)::text]))),
+    CONSTRAINT challenge_steps_kind_check CHECK (((kind)::text = ANY ((ARRAY['ideation'::character varying, 'evolution'::character varying, 'evaluation'::character varying, 'selection'::character varying, 'reporting'::character varying, 'testing'::character varying])::text[]))),
     CONSTRAINT challenge_steps_status_check CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('activating'::character varying)::text, ('active'::character varying)::text, ('completed'::character varying)::text, ('skipped'::character varying)::text])))
 );
 
@@ -507,7 +507,7 @@ CREATE TABLE public.memberships (
     role character varying DEFAULT 'participant'::character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT memberships_role_check CHECK (((role)::text = ANY ((ARRAY['admin'::character varying, 'gestor'::character varying, 'evaluator'::character varying, 'participant'::character varying])::text[])))
+    CONSTRAINT memberships_role_check CHECK (((role)::text = ANY (ARRAY[('admin'::character varying)::text, ('gestor'::character varying)::text, ('evaluator'::character varying)::text, ('participant'::character varying)::text])))
 );
 
 
@@ -664,6 +664,32 @@ CREATE TABLE public.step_entries (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT step_entries_status_check CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('in_progress'::character varying)::text, ('done'::character varying)::text, ('advanced'::character varying)::text, ('eliminated'::character varying)::text])))
+);
+
+
+--
+-- Name: step_tests; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.step_tests (
+    id uuid DEFAULT public.uuid_generate_v7() NOT NULL,
+    company_id uuid NOT NULL,
+    challenge_step_id uuid NOT NULL,
+    idea_id uuid NOT NULL,
+    idea_version_id uuid NOT NULL,
+    verdict character varying NOT NULL,
+    situations jsonb DEFAULT '[]'::jsonb NOT NULL,
+    reservations jsonb DEFAULT '[]'::jsonb NOT NULL,
+    summary text,
+    actor_type character varying DEFAULT 'human'::character varying NOT NULL,
+    tested_by_id uuid,
+    ai_run_id uuid,
+    superseded_at timestamp(6) without time zone,
+    tested_at timestamp(6) without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT step_tests_actor_type_check CHECK (((actor_type)::text = ANY ((ARRAY['human'::character varying, 'ai'::character varying])::text[]))),
+    CONSTRAINT step_tests_verdict_check CHECK (((verdict)::text = ANY ((ARRAY['factible'::character varying, 'con_reservas'::character varying, 'no_factible'::character varying])::text[])))
 );
 
 
@@ -1103,6 +1129,22 @@ ALTER TABLE ONLY public.step_entries
 
 ALTER TABLE ONLY public.step_entries
     ADD CONSTRAINT step_entries_tenant_uniq UNIQUE (id, company_id);
+
+
+--
+-- Name: step_tests step_tests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.step_tests
+    ADD CONSTRAINT step_tests_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: step_tests step_tests_tenant_uniq; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.step_tests
+    ADD CONSTRAINT step_tests_tenant_uniq UNIQUE (id, company_id);
 
 
 --
@@ -1828,6 +1870,48 @@ CREATE INDEX index_step_entries_on_idea_id ON public.step_entries USING btree (i
 
 
 --
+-- Name: index_step_tests_on_challenge_step_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_step_tests_on_challenge_step_id ON public.step_tests USING btree (challenge_step_id);
+
+
+--
+-- Name: index_step_tests_on_company_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_step_tests_on_company_id ON public.step_tests USING btree (company_id);
+
+
+--
+-- Name: index_step_tests_on_idea_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_step_tests_on_idea_id ON public.step_tests USING btree (idea_id);
+
+
+--
+-- Name: index_step_tests_on_idea_version_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_step_tests_on_idea_version_id ON public.step_tests USING btree (idea_version_id);
+
+
+--
+-- Name: index_step_tests_on_tested_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_step_tests_on_tested_by_id ON public.step_tests USING btree (tested_by_id);
+
+
+--
+-- Name: index_step_tests_vigente; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_step_tests_vigente ON public.step_tests USING btree (challenge_step_id, idea_id) WHERE (superseded_at IS NULL);
+
+
+--
 -- Name: index_users_on_lower_email; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2107,6 +2191,14 @@ ALTER TABLE ONLY public.feedback_items
 
 
 --
+-- Name: step_tests fk_rails_5d66c8963e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.step_tests
+    ADD CONSTRAINT fk_rails_5d66c8963e FOREIGN KEY (company_id) REFERENCES public.companies(id);
+
+
+--
 -- Name: step_assignments fk_rails_5dcba4f767; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2144,6 +2236,14 @@ ALTER TABLE ONLY public.sessions
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT fk_rails_765e28851b FOREIGN KEY (company_id) REFERENCES public.companies(id);
+
+
+--
+-- Name: step_tests fk_rails_79ffe54a91; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.step_tests
+    ADD CONSTRAINT fk_rails_79ffe54a91 FOREIGN KEY (tested_by_id) REFERENCES public.users(id);
 
 
 --
@@ -2563,14 +2663,47 @@ ALTER TABLE ONLY public.step_entries
 
 
 --
+-- Name: step_tests step_tests_ai_run_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.step_tests
+    ADD CONSTRAINT step_tests_ai_run_id_same_company FOREIGN KEY (ai_run_id, company_id) REFERENCES public.ai_runs(id, company_id) ON DELETE SET NULL;
+
+
+--
+-- Name: step_tests step_tests_challenge_step_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.step_tests
+    ADD CONSTRAINT step_tests_challenge_step_id_same_company FOREIGN KEY (challenge_step_id, company_id) REFERENCES public.challenge_steps(id, company_id) ON DELETE CASCADE;
+
+
+--
+-- Name: step_tests step_tests_idea_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.step_tests
+    ADD CONSTRAINT step_tests_idea_id_same_company FOREIGN KEY (idea_id, company_id) REFERENCES public.ideas(id, company_id) ON DELETE CASCADE;
+
+
+--
+-- Name: step_tests step_tests_idea_version_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.step_tests
+    ADD CONSTRAINT step_tests_idea_version_id_same_company FOREIGN KEY (idea_version_id, company_id) REFERENCES public.idea_versions(id, company_id) ON DELETE CASCADE;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 87rnXxgHXPkX15ranmkVEZbkIxgTfsrFXRum01Rse6UnPAVcxvW3SflycdRSFcs
+\unrestrict aIkeMqMIku5Fz1f2fFPdAJXMxJba1wpCSCOqyyWgyoVAROemF1ufBqyVq6WYmxN
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260921120000'),
 ('20260907140000'),
 ('20260904160000'),
 ('20260904140000'),
