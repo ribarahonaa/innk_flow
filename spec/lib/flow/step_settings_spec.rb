@@ -6,7 +6,7 @@ require "rails_helper"
 # declaraba sus propios campos y quedó exponiendo 4 de las 13 opciones que los
 # handlers leían: Evolución y Reportería no tenían nada que configurar.
 RSpec.describe Flow::StepSettings do
-  it "cubre los cinco tipos de módulo" do
+  it "cubre los seis tipos de módulo" do
     expect(described_class::SCHEMA.keys).to match_array(ChallengeStep::KINDS)
   end
 
@@ -44,6 +44,21 @@ RSpec.describe Flow::StepSettings do
 
     it "devuelve vacío para un kind que no existe" do
       expect(described_class.fields("inventado")).to eq([])
+    end
+
+    it "declara los tres campos de un módulo de testing" do
+      claves = described_class.fields("testing").map { |c| c[:key] }
+      expect(claves).to eq(%w[dimensions min_situations severity])
+    end
+  end
+
+  # En `config` un hueco no es «sin valor»: es el default del esquema. Un
+  # testing sembrado sin config tiene que correr con las cinco dimensiones.
+  describe ".efectivo" do
+    it "un testing sin config corre con los defaults" do
+      efectivo = described_class.efectivo("testing", {})
+      expect(efectivo["min_situations"]).to eq(3)
+      expect(efectivo["severity"]).to eq("exigente")
     end
   end
 

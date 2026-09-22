@@ -148,6 +148,15 @@ RSpec.describe Flow::Setup do
       expect(paso_de(reporte)).to be_done
       expect(paso_de(ronda).hint).to eq("nada obligatorio que configurar")
     end
+
+    # Las tres claves del esquema de testing tienen default, así que no hay
+    # nada obligatorio que decidir: nace configurado y no traba el arranque.
+    it "un módulo de testing nace configurado y no traba el arranque" do
+      prueba = challenge.steps.create!(kind: "testing", position: 2, name: "Prueba")
+
+      expect(paso_de(prueba)).to be_done
+      expect(paso_de(prueba)).not_to be_blocked
+    end
   end
 
   describe "moverse por el camino" do

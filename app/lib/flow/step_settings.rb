@@ -96,6 +96,37 @@ module Flow
         ]
       },
 
+      "testing" => {
+        essential: [
+          { key: "dimensions", type: "multi_select",
+            default: Flow::Handlers::Testing::DIMENSIONS,
+            label: "Dimensiones que hay que cubrir",
+            options: [
+              { value: "tecnica", label: "Técnica" },
+              { value: "operativa", label: "Operativa" },
+              { value: "economica", label: "Económica" },
+              { value: "legal", label: "Legal" },
+              { value: "adopcion", label: "De adopción" }
+            ],
+            hint: "Cada situación que se prueba pertenece a una de éstas. " \
+                  "Vacío = las cinco." },
+          { key: "min_situations", type: "number", default: 3, min: 1,
+            label: "Mínimo de situaciones por idea",
+            hint: "Cuántos escenarios de ejecución hay que plantear antes de " \
+                  "dictaminar. Menos de tres rara vez encuentra dónde se rompe." }
+        ],
+        advanced: [
+          { key: "severity", type: "select", default: "exigente",
+            label: "Qué tan dura es la vara",
+            options: [
+              { value: "exigente", label: "Exigente: busca activamente dónde se rompe" },
+              { value: "estandar", label: "Estándar: prueba lo previsible" }
+            ],
+            hint: "Mueve el rigor de las SITUACIONES, no del veredicto: el " \
+                  "veredicto lo dicta lo que se encontró." }
+        ]
+      },
+
       "reporting" => {
         essential: [
           { key: "mode", type: "select", default: "by_version",
