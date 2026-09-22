@@ -177,3 +177,9 @@ es:
       factible: "Factible"
       con_reservas: "Factible con reservas"
       no_factible: "No factible"
+    dimensions:
+      tecnica: "Técnica"
+      operativa: "Operativa"
+      economica: "Económica"
+      legal: "Legal"
+      adopcion: "De adopción"
