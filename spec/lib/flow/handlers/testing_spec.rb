@@ -106,4 +106,24 @@ RSpec.describe Flow::Handlers::Testing do
     expect(entries.map { _1.result["verdict"] }).to match_array(%w[factible no_factible])
     expect(challenge.ideas.alive.count).to eq(2)
   end
+
+  # `on_complete` no puede confiar en que alguien preguntó `can_complete?`
+  # antes. Hoy el único que llama a `complete!` es `Pipeline#advance!`, que sí
+  # pregunta, pero alcanza con un segundo camino de cierre —una consola, un
+  # «forzar cierre», el reintento de un job— para que una idea sin testeo
+  # vigente quede `done` con el veredicto en `nil`: un módulo que cerró limpio
+  # según la tabla y que nunca probó esa idea.
+  #
+  # Es la forma autocorrectiva de `Evaluation#recompute_entry!`, que deja
+  # `in_progress` cuando no llega al mínimo justamente para no poder mentir.
+  it "al cerrar sin testeo vigente deja la entry in_progress, no done" do
+    handler = armar
+    testear(handler, ideas[0], "factible")
+    handler.complete!
+
+    entries = handler.step.step_entries.reload.index_by(&:idea_id)
+    expect(entries[ideas[0].id].status).to eq("done")
+    expect(entries[ideas[1].id].status).to eq("in_progress")
+    expect(entries[ideas[1].id].result["verdict"]).to be_nil
+  end
 end
