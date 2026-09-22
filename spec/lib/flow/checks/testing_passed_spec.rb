@@ -42,7 +42,7 @@ RSpec.describe Flow::Checks::TestingPassed do
       resultado = check.call(idea)
 
       expect(resultado).to be_passed
-      expect(resultado.detail).to eq("Factible con 2 reservas")
+      expect(resultado.detail).to eq("Factible con reservas · 2 condiciones a resolver")
     end
 
     it "con solo_factible, «con reservas» no pasa" do
@@ -106,7 +106,8 @@ RSpec.describe Flow::Checks::TestingPassed do
   # El detail no es texto de debug: se lee en la celda del filtro del
   # ranking (Task 6), así que tiene que decir cuál caso fue y no tartamudear
   # cuando el veredicto ya trae la palabra «reservas» adentro. Las seis
-  # combinaciones: tres veredictos, con y sin reservas cargadas.
+  # combinaciones: tres veredictos, con y sin reservas cargadas — y las seis
+  # dan un texto distinto, ninguno sin la palabra por la que se decidió.
   describe "detail" do
     it "factible, sin reservas" do
       testear!(modulo_de_testing(2), "factible")
@@ -115,7 +116,7 @@ RSpec.describe Flow::Checks::TestingPassed do
 
     it "factible, con reservas cargadas" do
       testear!(modulo_de_testing(2), "factible", reservas: %w[una otra])
-      expect(check.call(idea).detail).to eq("Factible con 2 reservas")
+      expect(check.call(idea).detail).to eq("Factible · 2 condiciones a resolver")
     end
 
     it "con reservas, sin reservas cargadas" do
@@ -123,12 +124,14 @@ RSpec.describe Flow::Checks::TestingPassed do
       expect(check.call(idea).detail).to eq("Factible con reservas")
     end
 
-    # El bug: el label de `con_reservas` YA dice «con reservas», así que
-    # sumarle el conteo encima con la redacción vieja duplicaba la frase
-    # («Factible con reservas con 2 reservas»).
+    # El bug: pisar el label de `con_reservas` con el conteo («Factible con 2
+    # reservas») borraba la palabra «reservas» por la que un `accepts:
+    # solo_factible` lo rechaza, y encima coincidía con el texto de «factible,
+    # con reservas cargadas» — dos veredictos, un solo string. Ahora el label
+    # queda intacto y el conteo va aparte.
     it "con reservas, con reservas cargadas" do
       testear!(modulo_de_testing(2), "con_reservas", reservas: %w[una otra])
-      expect(check.call(idea).detail).to eq("Factible con 2 reservas")
+      expect(check.call(idea).detail).to eq("Factible con reservas · 2 condiciones a resolver")
     end
 
     it "no factible, sin reservas" do
@@ -140,7 +143,7 @@ RSpec.describe Flow::Checks::TestingPassed do
     # cargadas: el texto tiene que servir igual.
     it "no factible, con reservas cargadas" do
       testear!(modulo_de_testing(2), "no_factible", reservas: %w[una otra])
-      expect(check.call(idea).detail).to eq("No factible con 2 reservas")
+      expect(check.call(idea).detail).to eq("No factible · 2 condiciones a resolver")
     end
   end
 end

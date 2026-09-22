@@ -51,20 +51,26 @@ module Flow
       def aceptados = ACEPTA.fetch(config["accepts"].to_s, ACEPTA.fetch("factible_o_con_reservas"))
 
       # El detalle se lee en la celda del filtro del ranking, así que dice cuál
-      # de los tres veredictos fue y no sólo si pasó.
+      # de los tres veredictos fue y no sólo si pasó — y con `accepts:
+      # solo_factible` es la ÚNICA explicación que tiene quien mira por qué su
+      # idea no pasó.
       #
-      # El label de `con_reservas` ya dice «Factible con reservas»: sumarle el
-      # conteo encima duplicaba la frase («Factible con reservas con 2
-      # reservas»). Con reservas cargadas la base pasa a ser la de `factible`
-      # a secas, y el conteo lo dice todo. Nada en el modelo impide que un
-      # `no_factible` traiga reservas, así que esto tiene que servir para los
-      # tres veredictos y no sólo para `con_reservas`.
+      # El label de `con_reservas` ya dice «Factible con reservas»: pisarlo
+      # con el conteo («Factible con 2 reservas») borraba justo la palabra
+      # «reservas» que explica el rechazo, y encima dejaba ese mismo texto
+      # para «factible con reservas cargadas» — dos veredictos, un solo
+      # string. Por eso el label queda intacto y el conteo va aparte, con su
+      # propio separador y llamando a las reservas por lo que son (una
+      # condición a resolver, no una reserva): las seis combinaciones de
+      # veredicto × reservas dan seis textos distintos y ninguno pierde su
+      # palabra. Nada en el modelo impide que un `no_factible` traiga
+      # reservas, así que esto sirve para los tres veredictos.
       def detalle_de(test)
+        label = I18n.t("flow.verdicts.#{test.verdict}")
         reservas = Array(test.reservations).size
-        return I18n.t("flow.verdicts.#{test.verdict}") if reservas.zero?
+        return label if reservas.zero?
 
-        clave = test.verdict == "con_reservas" ? "factible" : test.verdict
-        "#{I18n.t("flow.verdicts.#{clave}")} con #{Flow::Texto.contar(reservas, 'reserva')}"
+        "#{label} · #{Flow::Texto.contar(reservas, 'condición')} a resolver"
       end
 
       def sin_testeo
