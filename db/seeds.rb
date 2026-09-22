@@ -388,10 +388,16 @@ Flow::Tenant.bypass! do
     # bastaba con que alguien le aplicara una propuesta de IA para que la
     # corrida fallara por datos y no por código. Pasó dos veces.
     #
-    # Tiene los CINCO `kind` pendientes —no solo idear y evaluación— porque
+    # Tiene los SEIS `kind` pendientes —no solo idear y evaluación— porque
     # las capturas de «las dos caras» recorren la cara de configuración de
     # cada tipo de módulo, y esa cara de evaluación/evolución pendiente no
-    # tenía ningún desafío sembrado que la ofreciera.
+    # tenía ningún desafío sembrado que la ofreciera. El de testing se sumó
+    # después de los otros cinco (fix round 1 de la Task 7): su cara de
+    # configuración —la isla `step-settings` con el schema nuevo de
+    # `Flow::StepSettings`— no tenía NINGUNA cobertura de navegador, porque
+    # `testeo-abierto` (el único desafío sembrado que usaba `testing` hasta
+    # acá) arranca el módulo casi enseguida y nunca lo deja pendiente en un
+    # momento capturable.
     Challenge.where(slug: "sin-formulario").destroy_all
     sin_formulario = Challenge.create!(
       slug: "sin-formulario",
@@ -402,6 +408,7 @@ Flow::Tenant.bypass! do
     )
     [
       ["ideation", "Postulación"],
+      ["testing", "Prueba de factibilidad"],
       ["evolution", "Ronda de feedback"],
       ["evaluation", "Primera revisión"],
       ["selection", "Selección para pilotear"],

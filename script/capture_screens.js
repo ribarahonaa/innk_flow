@@ -699,12 +699,13 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // la izquierda —la tarjeta de arriba se fue: mostraba lo mismo, y con siete
   // módulos se partía en dos filas y se comía la pantalla—.
   //
-  // Son OCHO entradas y no un número cualquiera: el desafío, el flujo, un paso
-  // por cada uno de los cinco módulos que `sin-formulario` siembra, y el
-  // cierre. El número va fijo a propósito —calcularlo desde la propia página
-  // haría que la guarda se cumpla sola—, así que si el seed cambia cuántos
-  // módulos tiene ese desafío, este número cambia con él.
-  const PASOS_DE_SIN_FORMULARIO = 2 + 5 + 1;
+  // Son NUEVE entradas y no un número cualquiera: el desafío, el flujo, un
+  // paso por cada uno de los seis módulos que `sin-formulario` siembra
+  // (el de testing se sumó en el fix round 1 de la Task 7), y el cierre. El
+  // número va fijo a propósito —calcularlo desde la propia página haría que
+  // la guarda se cumpla sola—, así que si el seed cambia cuántos módulos
+  // tiene ese desafío, este número cambia con él.
+  const PASOS_DE_SIN_FORMULARIO = 2 + 6 + 1;
   for (const url of ['/challenges/sin-formulario',
                      '/challenges/sin-formulario/builder',
                      '/challenges/sin-formulario/form',
@@ -891,7 +892,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // datos sembrados cambiaran.
   //
   // «sin-formulario» y no un desafío hecho a mano: existe SOLO para las
-  // capturas (ver `db/seeds.rb`) y tiene los cinco `kind` pendientes. Un
+  // capturas (ver `db/seeds.rb`) y tiene los seis `kind` pendientes. Un
   // desafío que además se usa para probar la app rompió esto mismo dos veces
   // (`3e437d6`) — cualquier `goto` a un slug que no siembra `db/seeds.rb`
   // revienta en un entorno recién sembrado, no solo acá.
@@ -900,8 +901,19 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // mutable por diseño (`decimal(20,10)`, insertar entre A y B es `(a+b)/2`)
   // y un índice numérico pasaría a significar un módulo distinto en cuanto
   // alguien reordene el flujo.
+  //
+  // «Testing» se sumó en el fix round 1 de la Task 7: su cara de
+  // configuración —la isla `step-settings` con el schema nuevo de
+  // `Flow::StepSettings`— no tenía NINGUNA cobertura de navegador. El único
+  // desafío sembrado que usaba ese `kind` (`testeo-abierto`) arranca el
+  // módulo casi enseguida (`pipeline.start!` + `advance!`), así que nunca
+  // queda pendiente en un momento capturable — y un spec de request
+  // (`testing_config_spec.rb`) no ejecuta JS, así que una isla que no monta
+  // se ve perfecta en el HTML servido. Este bloque es EXACTAMENTE el lugar
+  // que ya prueba eso para los otros cinco `kind`: sumar la entrada alcanza.
   const CARAS_DE_CONFIGURACION = [
     ['Idear', 'idear'],
+    ['Testing', 'testing'],
     ['Evolución', 'evolucion'],
     ['Evaluación', 'evaluacion'],
     ['Selección', 'seleccion'],
