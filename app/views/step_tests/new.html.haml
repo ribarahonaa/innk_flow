@@ -52,7 +52,13 @@
         = submit_tag "Guardar el testeo", class: "btn btn-primary"
         = link_to "Volver", challenge_step_path(@challenge, @step), class: "btn btn-ghost"
 
-- if @step.effective_ai_mode != "human"
+-# Esta pantalla se sirve autorizando `advance?` (`StepTestsController#new`),
+-# pero pedirle a la IA que testee lo autoriza `ChallengePolicy#update_pipeline?`
+-# —vía `AiSuggestionPolicy#request?`, porque `TestIdea.actua_sobre == :challenge`—.
+-# Son dos permisos distintos: con el desafío cerrado y el módulo todavía
+-# activo, `advance?` seguía dando `true` y el botón quedaba ofrecido para
+-# apretar un 403.
+- if @step.effective_ai_mode != "human" && policy(@challenge).update_pipeline?
   .card
     .card-body
       %h2.section-title ¿Querés que la IA la ponga a prueba?
