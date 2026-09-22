@@ -696,11 +696,16 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
     # participa de la idea recién ve el veredicto cuando el módulo cierra —y
     # nunca ve quién testeó.
     describe "el veredicto, con el módulo todavía activo" do
+      # Con una situación rota de verdad: «Se rompió en» es MÁS detallada que
+      # el veredicto —de esa celda se deduce el dictamen sin el badge—, así
+      # que tiene que estar detrás de la misma guarda, no de la del desglose.
       before do
         as_company(company) do
           paso("testing").handler.testear!(
-            idea: idea_paula, verdict: "no_factible", situations: [], reservations: [],
-            summary: "No pasa el filtro legal", tested_by: admin
+            idea: idea_paula, verdict: "no_factible",
+            situations: [{ "dimension" => "operativa", "escenario" => "Viernes 18h, 400 pedidos",
+                           "resultado" => "se_rompe", "detalle" => "El sistema no aguanta la carga" }],
+            reservations: [], summary: "No pasa el filtro legal", tested_by: admin
           )
         end
       end
@@ -715,12 +720,26 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
         expect(fila.text).not_to include(admin.name)
       end
 
-      it "quien administra ve el veredicto y quién testeó" do
+      # «Se rompió en» es sustancia del resultado (qué encontró el testeo),
+      # no autoría (quién lo encontró): va con la guarda del veredicto, y
+      # ocultarla evita que se pueda deducir el dictamen leyendo la celda de
+      # al lado.
+      it "quien participa tampoco ve «Se rompió en»: es evidencia del veredicto, no autoría" do
+        sign_in(paula, company: company)
+        get challenge_step_path(challenge, paso("testing"))
+
+        fila = documento.css(".app-main table.table tbody tr").find { |f| f.text.include?("Sensores") }
+        celda_se_rompio = fila.css("td")[2].text
+        expect(celda_se_rompio).not_to include("Viernes 18h, 400 pedidos")
+        expect(celda_se_rompio).to include("oculto")
+      end
+
+      it "quien administra ve el veredicto, quién testeó y dónde se rompió" do
         sign_in(admin, company: company)
         get challenge_step_path(challenge, paso("testing"))
 
         fila = documento.css(".app-main table.table tbody tr").find { |f| f.text.include?("Sensores") }
-        expect(fila.text).to include("No factible", admin.name)
+        expect(fila.text).to include("No factible", admin.name, "Viernes 18h, 400 pedidos")
       end
     end
 
@@ -729,8 +748,10 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
         as_company(company) do
           testing = paso("testing")
           testing.handler.testear!(
-            idea: idea_paula, verdict: "no_factible", situations: [], reservations: [],
-            summary: "No pasa el filtro legal", tested_by: admin
+            idea: idea_paula, verdict: "no_factible",
+            situations: [{ "dimension" => "operativa", "escenario" => "Viernes 18h, 400 pedidos",
+                           "resultado" => "se_rompe", "detalle" => "El sistema no aguanta la carga" }],
+            reservations: [], summary: "No pasa el filtro legal", tested_by: admin
           )
           # Directo por el handler, como en `selection_screen_spec.rb`: no hace
           # falta que Pedro también tenga testeo vigente para probar la
@@ -748,12 +769,22 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
         expect(fila.text).not_to include(admin.name)
       end
 
-      it "quien administra sigue viendo las dos cosas" do
+      # Con el módulo cerrado «Se rompió en» pasa a verse junto con el
+      # veredicto: son la misma guarda.
+      it "quien participa ya ve «Se rompió en», junto con el veredicto" do
+        sign_in(paula, company: company)
+        get challenge_step_path(challenge, paso("testing"))
+
+        fila = documento.css(".app-main table.table tbody tr").find { |f| f.text.include?("Sensores") }
+        expect(fila.css("td")[2].text).to include("Viernes 18h, 400 pedidos")
+      end
+
+      it "quien administra sigue viendo las tres cosas" do
         sign_in(admin, company: company)
         get challenge_step_path(challenge, paso("testing"))
 
         fila = documento.css(".app-main table.table tbody tr").find { |f| f.text.include?("Sensores") }
-        expect(fila.text).to include("No factible", admin.name)
+        expect(fila.text).to include("No factible", admin.name, "Viernes 18h, 400 pedidos")
       end
     end
   end

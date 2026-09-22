@@ -31,9 +31,13 @@
         %tbody
           - filas.each do |entry|
             - test = handler.vigente_para(entry.idea_id)
-            -# El veredicto lo ve quien administra siempre, y quien participa de
-            -# la idea sólo cuando el módulo ya cerró. Quién testeó es el
-            -# desglose y no es para quien participa.
+            -# El veredicto y «Se rompió en» son la misma cosa: sustancia del
+            -# resultado —qué encontró el testeo, no quién lo encontró—, y
+            -# «Se rompió en» es MÁS detallado que el veredicto (de esa celda
+            -# se deduce el dictamen sin el badge). Van con la misma guarda:
+            -# quien administra los ve siempre, y quien participa de la idea
+            -# sólo cuando el módulo ya no está activo. Quién testeó SÍ es el
+            -# desglose (quién lo encontró) y no es para quien participa.
             - veredicto_visible = test && handler.verdict_visible_for?(entry.idea, user: current_user, manager: manda)
             - desglose_visible = handler.tester_visible_for?(manager: manda)
             %tr
@@ -50,8 +54,10 @@
                 - else
                   %span.muted sin testear
               %td.muted
-                - if test
+                - if veredicto_visible
                   = test.situaciones_rotas.any? ? test.situaciones_rotas.map { _1["escenario"] }.join(" · ") : "—"
+                - elsif test
+                  %span{ title: "Se muestra cuando cierre el módulo" } oculto
                 - else
                   = "—"
               %td.text-right
