@@ -86,6 +86,28 @@ module Flow
 
       protected
 
+      def on_activate
+        request_ai_tests! if effective_ai_mode == "ai_auto"
+      end
+
+      # En modo automático la IA testea todas las ideas al arrancar. Una
+      # corrida por idea y encolada: nunca un fan-out síncrono en el request.
+      #
+      # En `ai_assisted` NO se dispara sola. Un veredicto de testeo es la
+      # respuesta del módulo para esa idea y habilita un filtro después, así
+      # que se propone y alguien la acepta — y un lote de propuestas
+      # pendientes que nadie pidió no es una ayuda. Es lo que hace
+      # `Selection#request_ai_verdicts!`, y no lo que hace evaluación, cuya
+      # tarea es aditiva.
+      def request_ai_tests!
+        step.step_entries.each do |entry|
+          Flow::AI::RunJob.perform_later(
+            step.company_id, "test_idea",
+            { "step_id" => step.id, "idea_id" => entry.idea_id }
+          )
+        end
+      end
+
       # El resultado queda donde el resto de la app lo busca, igual que
       # `recompute_entry!` en evaluación. Todas `done`: nadie se elimina.
       def on_complete

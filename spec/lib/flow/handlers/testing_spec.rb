@@ -27,6 +27,14 @@ RSpec.describe Flow::Handlers::Testing do
     described_class.new(step.reload)
   end
 
+  def armar_con_modo(modo)
+    step = challenge.steps.create!(kind: "testing", position: 2,
+                                   name: "Prueba de factibilidad", ai_mode: modo)
+    challenge.update!(status: "running")
+    Flow::Handlers::Base.for(step).activate!
+    described_class.new(step.reload)
+  end
+
   def testear(handler, idea, veredicto, **resto)
     handler.testear!(idea: idea, verdict: veredicto, tested_by: tester,
                      situations: [{ "dimension" => "operativa", "escenario" => "Viernes 18h",
@@ -125,5 +133,25 @@ RSpec.describe Flow::Handlers::Testing do
     expect(entries[ideas[0].id].status).to eq("done")
     expect(entries[ideas[1].id].status).to eq("in_progress")
     expect(entries[ideas[1].id].result["verdict"]).to be_nil
+  end
+
+  describe "los modos de IA al arrancar" do
+    # Nunca un fan-out síncrono en el request: una corrida por idea, encolada.
+    it "en automático encola un testeo por idea" do
+      expect do
+        armar_con_modo("ai_auto")
+      end.to have_enqueued_job(Flow::AI::RunJob).exactly(2).times
+    end
+
+    # En asistido no se dispara solo: el veredicto se propone y alguien lo
+    # acepta, así que arrancar el módulo no puede dejar dos propuestas
+    # esperando sin que nadie las haya pedido.
+    it "en asistido no encola nada" do
+      expect { armar_con_modo("ai_assisted") }.not_to have_enqueued_job(Flow::AI::RunJob)
+    end
+
+    it "en «solo personas» tampoco" do
+      expect { armar_con_modo("human") }.not_to have_enqueued_job(Flow::AI::RunJob)
+    end
   end
 end
