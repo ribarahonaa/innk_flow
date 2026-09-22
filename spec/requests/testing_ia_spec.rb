@@ -92,6 +92,19 @@ RSpec.describe "pedirle a la IA que testee", type: :request do
     expect(response).to have_http_status(:forbidden)
   end
 
+  # La guarda de permiso que le agregamos a esta tarjeta
+  # (`policy(@challenge).update_pipeline?`) podría cerrar de más tan fácil
+  # como de menos: un predicado invertido, una variable mal tipeada, o un
+  # `@challenge` que ahí no exista la esconderían para TODO el mundo, y sin
+  # este ejemplo la suite seguiría en verde. El texto es de la tarjeta
+  # específicamente, no de la pantalla en general.
+  it "con el desafío corriendo, a quien administra se le ofrece la tarjeta de pedirle a la IA" do
+    sign_in(admin, company: company)
+    get new_challenge_step_step_test_path(challenge, paso, idea_id: idea.id)
+
+    expect(response.body).to include("Pedir el testeo de la IA")
+  end
+
   # `button_to` es un <form>, y uno dentro de otro es HTML inválido: el
   # navegador descarta el interno y sus botones pasan a pertenecer al
   # externo. No se ve en el DOM ni en un request spec que postea directo: se
