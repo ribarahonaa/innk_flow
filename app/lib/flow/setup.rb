@@ -125,6 +125,7 @@ module Flow
       when "ideation" then estado_de_ideacion(modulo)
       when "evaluation" then estado_de_evaluacion(modulo)
       when "selection" then estado_de_seleccion(modulo)
+      when "testing" then [true, "#{Flow::Texto.contar(dimensiones_de(modulo).size, "dimensión")} a cubrir"]
       else [true, "nada obligatorio que configurar"]
       end
     end
@@ -152,6 +153,12 @@ module Flow
       return [false, "sin regla de corte"] if modo.nil?
 
       [true, "corte: #{I18n.t("flow.cut_modes.#{modo}", default: modo)}"]
+    end
+
+    # Un testing nace configurado: las tres claves del esquema tienen default,
+    # así que no hay nada obligatorio que decidir y no traba el arranque.
+    def dimensiones_de(modulo)
+      Array(Flow::StepSettings.efectivo("testing", modulo.settings)["dimensions"])
     end
 
     # Revisar y arrancar eran dos pasos que se completaban con el mismo hecho

@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Lee primero el `README.md`: tiene los cinco módulos, la regla de mutación del
+Lee primero el `README.md`: tiene los seis módulos, la regla de mutación del
 pipeline y las decisiones de infraestructura. Los `docs/*.md` (`tenancy`, `ai`,
 `criteria`, `pipeline`) tienen el detalle. Esto es lo que no está ahí.
 
@@ -99,7 +99,7 @@ Al escribir capturas nuevas en `script/capture_screens.js`:
   veces en cuanto alguien le tocaba algo (`3e437d6`). `sin-formulario` existe
   **solo** para el recorrido —y esta rama reintrodujo el antipatrón de todas
   formas, dos veces (`04f2d00`, y de nuevo en la Task 11 antes de que la
-  revisión lo cortara)—. Hoy siembra los cinco `kind` pendientes y un set de
+  revisión lo cortara)—. Hoy siembra los seis `kind` pendientes y un set de
   criterios inline en su módulo de selección (`db/seeds.rb:360` en
   adelante), del que dependen varias capturas de las dos caras.
   `con-salteado` existe sólo para la captura del módulo salteado
@@ -136,7 +136,7 @@ dura del producto (con el flujo en curso solo se inserta después del último
 módulo tocado; `skipped` cuenta como tocado). La regla vive acá **y** replicada
 como validación de modelo, y el builder solo la dibuja.
 
-`Flow::Handlers::Base.for(step)` despacha por `kind` a los cinco handlers.
+`Flow::Handlers::Base.for(step)` despacha por `kind` a los seis handlers.
 `activate!` y `complete!` son idempotentes; toda mutación va con
 `challenge.with_lock` + `lock_version` optimista.
 
@@ -176,7 +176,7 @@ evolución y de reportería **entera vacía**: encabezado, aviso del candado y u
 para sacar. Se lee con `StepSettings.efectivo(kind, settings)` y se filtra con
 `StepSettings.visible?`, que espeja el `depends_on` de `config_field.vue` (con
 la regla de corte en «manual», «Valor del corte» no describe nada). Ojo con la
-suite: el fixture que probaba esa tarjeta ponía `config:` a mano en los cinco
+suite: el fixture que probaba esa tarjeta ponía `config:` a mano en los seis
 kinds, que es justo el caso que no ocurre en la práctica.
 
 **Todo `config` que llega de afuera pasa por `StepSettings.filtrar`**, venga
@@ -724,9 +724,9 @@ lo que corre, con el chip de estado de ejecución.
 **Dónde estoy lo decide `ShellHelper#paso_actual_del_setup`, y sólo él.** Lo
 consultan el drawer —para resaltar— y `setup_nav` —que por eso ya no necesita
 que le pasen `current:`—. Antes cada pantalla escribía su clave a mano, y con
-cuatro claves fijas para cinco pantallas de módulo era imposible de acertar:
-evolución y reportería decían ser «El flujo», y los dos módulos que puntúan,
-«Los criterios».
+cuatro claves fijas para las cinco pantallas de módulo de entonces era
+imposible de acertar: evolución y reportería decían ser «El flujo», y los dos
+módulos que puntúan, «Los criterios».
 
 **Borrar o mudar una pantalla de configuración le puede sacar el sonido a
 `Flow::Setup`.** El paso a paso apunta cada paso a una URL

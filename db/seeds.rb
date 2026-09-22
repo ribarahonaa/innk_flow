@@ -388,10 +388,16 @@ Flow::Tenant.bypass! do
     # bastaba con que alguien le aplicara una propuesta de IA para que la
     # corrida fallara por datos y no por código. Pasó dos veces.
     #
-    # Tiene los CINCO `kind` pendientes —no solo idear y evaluación— porque
+    # Tiene los SEIS `kind` pendientes —no solo idear y evaluación— porque
     # las capturas de «las dos caras» recorren la cara de configuración de
     # cada tipo de módulo, y esa cara de evaluación/evolución pendiente no
-    # tenía ningún desafío sembrado que la ofreciera.
+    # tenía ningún desafío sembrado que la ofreciera. El de testing se sumó
+    # después de los otros cinco (fix round 1 de la Task 7): su cara de
+    # configuración —la isla `step-settings` con el schema nuevo de
+    # `Flow::StepSettings`— no tenía NINGUNA cobertura de navegador, porque
+    # `testeo-abierto` (el único desafío sembrado que usaba `testing` hasta
+    # acá) arranca el módulo casi enseguida y nunca lo deja pendiente en un
+    # momento capturable.
     Challenge.where(slug: "sin-formulario").destroy_all
     sin_formulario = Challenge.create!(
       slug: "sin-formulario",
@@ -402,6 +408,7 @@ Flow::Tenant.bypass! do
     )
     [
       ["ideation", "Postulación"],
+      ["testing", "Prueba de factibilidad"],
       ["evolution", "Ronda de feedback"],
       ["evaluation", "Primera revisión"],
       ["selection", "Selección para pilotear"],
@@ -539,6 +546,58 @@ Flow::Tenant.bypass! do
     ).call
     idea_abierta.update!(submitted_at: Time.current)
     abierto.pipeline.advance!  # → Evaluación de comité (activo, con la idea adentro)
+
+    # Un desafío con el módulo de TESTING activo, una idea ya testeada y otra
+    # sin testear: es la única forma de que la captura muestre las dos filas
+    # de la tabla y los dos textos del botón («Testear» y «Re-testear»).
+    # Ningún otro desafío sembrado deja un testing en ese estado. Propio y no
+    # compartido, como manda CLAUDE.md — existe sólo para estas capturas.
+    Challenge.where(slug: "testeo-abierto").destroy_all
+    testeo = Challenge.create!(
+      slug: "testeo-abierto",
+      name: "Reparto en bici para el último kilómetro",
+      brief: "Queremos saber si las entregas de menos de 3 km se pueden hacer en bici " \
+             "sin perder la ventana de entrega.",
+      ai_default_mode: "human"
+    )
+    testeo.pipeline.insert(kind: "ideation", after: :end, name: "Postulación")
+    testeo.pipeline.insert(kind: "testing", after: :end, name: "Prueba de factibilidad")
+    testeo_ideacion = testeo.pipeline.ideation_step
+    testeo_ideacion.form_fields.create!(key: "titulo", label: "Título", field_type: "text",
+                                        required: true, position: 0,
+                                        config: { "is_title" => true })
+    testeo.pipeline.start!
+
+    ideas_a_probar = ["Bicis eléctricas con caja térmica",
+                      "Tercerizar el último kilómetro a un courier local"].map do |titulo|
+      idea = Idea.create!(challenge: testeo, author: User.find_by!(email: "part2@demo.test"),
+                          status: "draft", origin: "human")
+      Flow::Ideas::PublishVersion.new(
+        idea, payload: { "titulo" => titulo }, author: idea.author, actor_type: "human",
+        source_step: testeo_ideacion, change_note: "Creación de la idea"
+      ).call
+      idea.update!(submitted_at: Time.current)
+      idea
+    end
+
+    testeo.pipeline.advance!  # → Prueba de factibilidad (activo, con las dos ideas)
+
+    # La primera queda testeada; la segunda sin testear.
+    testeo.pipeline.active_step.handler.testear!(
+      idea: ideas_a_probar.first,
+      verdict: "con_reservas",
+      situations: [
+        { "dimension" => "operativa", "escenario" => "Viernes de lluvia, 40 entregas",
+          "resultado" => "se_rompe", "detalle" => "Con lluvia la ventana se estira 25 minutos" },
+        { "dimension" => "economica", "escenario" => "Con el costo actual por entrega",
+          "resultado" => "aguanta", "detalle" => "Se paga en 14 meses" },
+        { "dimension" => "tecnica", "escenario" => "Carga de baterías entre turnos",
+          "resultado" => "aguanta", "detalle" => "Dos horas alcanzan" }
+      ],
+      reservations: ["Definir el protocolo para los días de lluvia"],
+      summary: "Funciona salvo con lluvia; hace falta un plan para esos días.",
+      tested_by: User.find_by!(email: "admin@demo.test")
+    )
 
     # Un desafío SIN módulos, para la captura del selector de plantillas.
     # Antes el script de capturas creaba uno en cada corrida y no lo borraba:

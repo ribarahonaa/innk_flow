@@ -441,6 +441,10 @@ const MUESTRARIO = [
   'badge badge-soft badge-primary badge-sm font-semibold whitespace-nowrap',
   'badge badge-soft badge-success badge-sm font-semibold whitespace-nowrap',
   'badge badge-soft badge-warning badge-sm font-semibold whitespace-nowrap',
+  // El veredicto de un testing (`CHIP_DE_VEREDICTO`). «Factible» y «con
+  // reservas» comparten cadena con `CHIP_DE_ESTADO` (arriba); «no factible»
+  // es la primera variante `badge-error` en tamaño `badge-sm`.
+  'badge badge-soft badge-error badge-sm font-semibold whitespace-nowrap',
   'badge badge-soft badge-primary badge-xs font-semibold whitespace-nowrap ml-1.5',
   'badge badge-soft badge-success badge-xs font-semibold whitespace-nowrap ml-1.5',
   'badge badge-soft badge-secondary badge-xs font-semibold whitespace-nowrap ml-1.5',
@@ -602,7 +606,7 @@ async function shotConEstado(page, name, url, status) {
 // las selecciones. Por nombre del seed de `merma-bodega`, igual que el resto
 // del recorrido — y por eso el loop exige que cada módulo caiga en exactamente
 // una de las dos listas: si no, renombrarlo en el seed lo deja sin chequear.
-const MODULOS_EN_ZONAS = [/Evaluaci/i, /Ronda de feedback/i, /Postulaci/i, /Reporte/i];
+const MODULOS_EN_ZONAS = [/Evaluaci/i, /Ronda de feedback/i, /Postulaci/i, /Reporte/i, /factibilidad/i];
 // Las selecciones van sin referencia —con la columna puesta el ranking no
 // entraba en el centro—, pero los ajustes plegados sí los tienen.
 const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
@@ -695,12 +699,13 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // la izquierda —la tarjeta de arriba se fue: mostraba lo mismo, y con siete
   // módulos se partía en dos filas y se comía la pantalla—.
   //
-  // Son OCHO entradas y no un número cualquiera: el desafío, el flujo, un paso
-  // por cada uno de los cinco módulos que `sin-formulario` siembra, y el
-  // cierre. El número va fijo a propósito —calcularlo desde la propia página
-  // haría que la guarda se cumpla sola—, así que si el seed cambia cuántos
-  // módulos tiene ese desafío, este número cambia con él.
-  const PASOS_DE_SIN_FORMULARIO = 2 + 5 + 1;
+  // Son NUEVE entradas y no un número cualquiera: el desafío, el flujo, un
+  // paso por cada uno de los seis módulos que `sin-formulario` siembra
+  // (el de testing se sumó en el fix round 1 de la Task 7), y el cierre. El
+  // número va fijo a propósito —calcularlo desde la propia página haría que
+  // la guarda se cumpla sola—, así que si el seed cambia cuántos módulos
+  // tiene ese desafío, este número cambia con él.
+  const PASOS_DE_SIN_FORMULARIO = 2 + 6 + 1;
   for (const url of ['/challenges/sin-formulario',
                      '/challenges/sin-formulario/builder',
                      '/challenges/sin-formulario/form',
@@ -887,7 +892,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // datos sembrados cambiaran.
   //
   // «sin-formulario» y no un desafío hecho a mano: existe SOLO para las
-  // capturas (ver `db/seeds.rb`) y tiene los cinco `kind` pendientes. Un
+  // capturas (ver `db/seeds.rb`) y tiene los seis `kind` pendientes. Un
   // desafío que además se usa para probar la app rompió esto mismo dos veces
   // (`3e437d6`) — cualquier `goto` a un slug que no siembra `db/seeds.rb`
   // revienta en un entorno recién sembrado, no solo acá.
@@ -896,8 +901,19 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // mutable por diseño (`decimal(20,10)`, insertar entre A y B es `(a+b)/2`)
   // y un índice numérico pasaría a significar un módulo distinto en cuanto
   // alguien reordene el flujo.
+  //
+  // «Testing» se sumó en el fix round 1 de la Task 7: su cara de
+  // configuración —la isla `step-settings` con el schema nuevo de
+  // `Flow::StepSettings`— no tenía NINGUNA cobertura de navegador. El único
+  // desafío sembrado que usaba ese `kind` (`testeo-abierto`) arranca el
+  // módulo casi enseguida (`pipeline.start!` + `advance!`), así que nunca
+  // queda pendiente en un momento capturable — y un spec de request
+  // (`testing_config_spec.rb`) no ejecuta JS, así que una isla que no monta
+  // se ve perfecta en el HTML servido. Este bloque es EXACTAMENTE el lugar
+  // que ya prueba eso para los otros cinco `kind`: sumar la entrada alcanza.
   const CARAS_DE_CONFIGURACION = [
     ['Idear', 'idear'],
+    ['Testing', 'testing'],
     ['Evolución', 'evolucion'],
     ['Evaluación', 'evaluacion'],
     ['Selección', 'seleccion'],
@@ -1600,6 +1616,174 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       await aEvaluar.click();
       await page.waitForURL(/\/assessments\/new/);
       await capturar(page, '21-evaluar-idea');
+    }
+  }
+
+  // El módulo de TESTING: la cara de ejecución y el envío REAL de un testeo.
+  //
+  // `testeo-abierto` siembra una idea ya testeada y otra sin testear: es la
+  // única forma de que la tabla muestre las dos filas y los dos textos del
+  // botón («Testear» y «Re-testear»). Ningún otro desafío sembrado deja un
+  // testing en ese estado. Propio y no compartido, como manda CLAUDE.md —
+  // existe sólo para estas capturas.
+  await page.goto(`${BASE}/challenges/testeo-abierto`, { waitUntil: 'networkidle' });
+  const testingLink = page
+    .locator('.table tr', { hasText: 'Prueba de factibilidad' })
+    .locator('.table-link');
+  if (!(await testingLink.count())) {
+    failures++;
+    console.error('[LINK] «testeo-abierto» no tiene el módulo de testing');
+  } else {
+    await Promise.all([
+      page.waitForURL(/\/steps\/[^/]+$/, { timeout: 15000 }),
+      testingLink.first().click()
+    ]);
+    await page.waitForSelector('table.table', { timeout: 15000 });
+
+    const idaTesteada = 'Bicis eléctricas con caja térmica';
+    const ideaSinTestear = 'Tercerizar el último kilómetro a un courier local';
+    const reTestearOk = await page.locator('tr', { hasText: idaTesteada })
+      .locator('a', { hasText: /^Re-testear$/ }).count();
+    const testearOk = await page.locator('tr', { hasText: ideaSinTestear })
+      .locator('a', { hasText: /^Testear$/ }).count();
+    if (!reTestearOk || !testearOk) {
+      failures++;
+      console.error('[TESTING] el módulo no muestra las dos filas (una testeada, otra sin testear) con sus dos botones');
+    }
+    await capturar(page, '22-testing');
+
+    // Las tres zonas de la cara de ejecución: la misma guarda que corre sobre
+    // los módulos de `merma-bodega` (más abajo, con `stepLinks`), repetida
+    // acá porque «Prueba de factibilidad» vive en OTRO desafío y ese loop no
+    // lo recorre. Sin esto el módulo nuevo caería en la lista sin que nada lo
+    // chequeara de verdad, aunque el nombre esté en `MODULOS_EN_ZONAS`.
+    const enZonasTesting = MODULOS_EN_ZONAS.some((re) => re.test('Prueba de factibilidad'));
+    const soloAjustesTesting = MODULOS_SOLO_AJUSTES.some((re) => re.test('Prueba de factibilidad'));
+    if (enZonasTesting === soloAjustesTesting) {
+      failures++;
+      console.error(enZonasTesting
+        ? '[ZONAS] «Prueba de factibilidad» cae en las dos listas de MODULOS_*, que se contradicen: con referencia y sin referencia'
+        : '[ZONAS] «Prueba de factibilidad» no cae en ninguna de las dos listas de MODULOS_*: nadie chequea sus zonas');
+    }
+    if (enZonasTesting) {
+      if (!(await page.locator('.app-aside').count())) {
+        failures++;
+        console.error('[ZONAS] «Prueba de factibilidad» no tiene columna de referencia');
+      }
+      if (!(await page.locator('details.ajustes__plegable').count())) {
+        failures++;
+        console.error('[ZONAS] «Prueba de factibilidad» no tiene los ajustes plegados');
+      }
+      await revisarReferencia(page, '22-testing');
+    }
+    if (soloAjustesTesting && !(await page.locator('details.ajustes__plegable').count())) {
+      failures++;
+      console.error('[ZONAS] «Prueba de factibilidad» no tiene los ajustes plegados');
+    }
+
+    // El envío REAL del formulario de testeo, completo: las situaciones, el
+    // veredicto, las reservas y el resumen. `params[:situations]` llega como
+    // hash indexado (`situations[0][dimension]`, …) desde ESTE formulario, y
+    // no como arreglo —la forma que arma un request spec—: es el único camino
+    // que ejercita esa rama de `StepTestsController#situaciones`, que hasta
+    // ahora ningún test automatizado tocaba (hallazgo de la revisión de la
+    // Task 6).
+    //
+    // RE-testea la idea que YA tenía un testeo (`idaTesteada`) y no la que
+    // está sin testear: así la corrida queda idempotente. Testear la idea sin
+    // testear dejaría a las DOS testeadas, y una segunda `make screens` sin
+    // volver a sembrar encontraría la tabla sin ninguna fila «sin testear» ni
+    // botón «Testear» — justo lo que este seed existe para mostrar. Re-testear
+    // sólo reemplaza el veredicto vigente de la misma idea: la mezcla
+    // testeada/sin-testear no cambia sin importar cuántas veces corra esto.
+    const filaTesteada = page.locator('tr', { hasText: idaTesteada });
+    const aReTestear = filaTesteada.locator('a', { hasText: /^Re-testear$/ });
+    if (!(await aReTestear.count())) {
+      failures++;
+      console.error('[LINK] el módulo de testing no ofrece re-testear la idea ya testeada');
+    } else {
+      // El seed deja esta idea en «Factible con reservas», con «Viernes de
+      // lluvia…» como escenario roto. Elegir siempre el mismo veredicto sólo
+      // probaba algo en la corrida 1: para la 2 el badge YA decía «Factible» y
+      // «Se rompió en» ya estaba en «—» antes de tocar nada, así que la
+      // aserción de abajo pasaba igual con un POST que no hiciera nada. Leer
+      // el estado ANTES de enviar y alternar contra él prueba lo mismo en
+      // cualquier corrida, resembrada o no.
+      const veredictoAntes = (await filaTesteada.locator('.badge').first().innerText()).trim();
+      const rompioAntes = (await filaTesteada.locator('td').nth(2).innerText()).trim();
+      const introduceFalla = rompioAntes === '—';
+      const veredictoNuevo = introduceFalla ? 'con_reservas' : 'factible';
+      const ETIQUETA_VEREDICTO = { factible: 'Factible', con_reservas: 'Factible con reservas', no_factible: 'No factible' };
+
+      await Promise.all([
+        page.waitForURL(/\/step_tests\/new/, { timeout: 15000 }),
+        aReTestear.click()
+      ]);
+      await page.waitForSelector('select[name="situations[0][dimension]"]', { timeout: 15000 });
+
+      // El aviso de que ya tiene un testeo vigente sólo aparece al RE-testear.
+      if (!(await page.locator('.alert').count())) {
+        failures++;
+        console.error('[TESTING] re-testear no avisa que ya había un testeo vigente');
+      }
+
+      await page.selectOption('select[name="situations[0][dimension]"]', 'tecnica');
+      await page.fill('input[name="situations[0][escenario]"]', 'Reparto con lluvia sostenida toda la tarde');
+      await page.selectOption('select[name="situations[0][resultado]"]', introduceFalla ? 'se_rompe' : 'aguanta');
+      await page.fill('input[name="situations[0][detalle]"]', introduceFalla
+        ? 'La caja térmica no alcanza a mantener la temperatura pasada la hora de reparto'
+        : 'La caja térmica no se moja ni pierde temperatura');
+
+      await page.selectOption('select[name="situations[1][dimension]"]', 'operativa');
+      await page.fill('input[name="situations[1][escenario]"]', 'Pico de pedidos al mediodía');
+      await page.selectOption('select[name="situations[1][resultado]"]', 'aguanta');
+      await page.fill('input[name="situations[1][detalle]"]', 'La flota alcanza con dos personas más');
+
+      await page.selectOption('select[name="situations[2][dimension]"]', 'economica');
+      await page.fill('input[name="situations[2][escenario]"]', 'Comparado con moto propia por entrega');
+      await page.selectOption('select[name="situations[2][resultado]"]', 'aguanta');
+      await page.fill('input[name="situations[2][detalle]"]', 'El costo por entrega ya no sube con la lluvia resuelta');
+
+      await page.selectOption('select[name="verdict"]', veredictoNuevo);
+      await page.fill('textarea[name="reservations"]', 'Confirmar el protocolo con el equipo de logística antes de escalar');
+      await page.fill('input[name="summary"]', 'El protocolo de lluvia resolvió la única reserva pendiente.');
+
+      await capturar(page, '22b-testeo-nuevo');
+
+      // Sólo `input[type="submit"]`: el header global tiene un
+      // `button_to "Salir"` que también es `button[type="submit"]`, y un
+      // selector que lo incluyera podía apretar «Salir» en vez de «Guardar el
+      // testeo» y mandar el recorrido a `/login` en vez de al módulo.
+      await Promise.all([
+        page.waitForURL(/\/steps\/[^/]+$/, { timeout: 15000 }),
+        page.click('input[type="submit"]')
+      ]);
+      await page.waitForSelector('table.table', { timeout: 15000 });
+
+      // Lo que ninguna guarda automática ve: que el re-testeo mandado con la
+      // forma REAL del formulario (el hash indexado, no el arreglo de un
+      // spec) quedó guardado de verdad, y no sólo que el POST respondió 200.
+      // Comparado contra el estado ANTES del envío (no contra un valor fijo):
+      // si el POST no hiciera nada, esto fallaría en cualquier corrida.
+      const filaActualizada = page.locator('tr', { hasText: idaTesteada });
+      const veredictoActualizado = (await filaActualizada.locator('.badge').first().innerText()).trim();
+      if (veredictoActualizado === veredictoAntes || veredictoActualizado !== ETIQUETA_VEREDICTO[veredictoNuevo]) {
+        failures++;
+        console.error(`[TESTING] el veredicto del re-testeo enviado por el formulario no quedó guardado (era «${veredictoAntes}», se ve «${veredictoActualizado}», se esperaba «${ETIQUETA_VEREDICTO[veredictoNuevo]}»)`);
+      }
+      const rompioDespues = (await filaActualizada.locator('td').nth(2).innerText()).trim();
+      const rompioEsperado = introduceFalla ? 'Reparto con lluvia sostenida toda la tarde' : '—';
+      if (rompioDespues === rompioAntes || rompioDespues !== rompioEsperado) {
+        failures++;
+        console.error(`[TESTING] «Se rompió en» del re-testeo no quedó guardado (era «${rompioAntes}», se ve «${rompioDespues}», se esperaba «${rompioEsperado}»)`);
+      }
+      // Y que re-testear una idea no le toque el estado a la otra: la mezcla
+      // testeada/sin-testear tiene que sobrevivir para la próxima corrida.
+      if (!(await page.locator('tr', { hasText: ideaSinTestear })
+        .locator('a', { hasText: /^Testear$/ }).count())) {
+        failures++;
+        console.error('[TESTING] re-testear una idea le movió el estado a la otra, que tenía que seguir sin testear');
+      }
     }
   }
 

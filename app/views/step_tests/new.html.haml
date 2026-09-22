@@ -1,0 +1,53 @@
+- content_for :title, "Testear · #{@idea.title}"
+
+.card
+  .card-body
+    %h1.page-title= "Testear «#{@idea.title}»"
+    %p.muted
+      = "Planteá al menos #{Flow::Texto.contar(@handler.min_situations, "situación")} en la que esta idea esté funcionando, y probá dónde se rompe."
+
+    - if @vigente
+      .alert.alert-soft
+        %div
+          = "Ya tiene un testeo del #{l(@vigente.tested_at, format: :short)} por #{@vigente.tested_by_name}. Guardar uno nuevo lo reemplaza y deja el anterior en el historial."
+
+    = form_with url: challenge_step_step_tests_path(@challenge, @step), method: :post do |f|
+      = hidden_field_tag :idea_id, @idea.id
+
+      - @handler.min_situations.times do |i|
+        %fieldset.field
+          %legend.section-title= "Situación #{i + 1}"
+          .field
+            = label_tag "situations[#{i}][dimension]", "Dimensión"
+            = select_tag "situations[#{i}][dimension]",
+                         options_for_select(@handler.dimensions.map { |d| [t("flow.dimensions.#{d}"), d] }),
+                         class: "select"
+          .field
+            = label_tag "situations[#{i}][escenario]", "Qué situación se prueba"
+            = text_field_tag "situations[#{i}][escenario]", nil,
+                             placeholder: "Viernes 18h, 400 pedidos simultáneos", class: "input"
+          .field
+            = label_tag "situations[#{i}][resultado]", "Qué pasó"
+            = select_tag "situations[#{i}][resultado]",
+                         options_for_select([["Aguanta", "aguanta"], ["Se rompe", "se_rompe"]]),
+                         class: "select"
+          .field
+            = label_tag "situations[#{i}][detalle]", "Detalle"
+            = text_field_tag "situations[#{i}][detalle]", nil, class: "input"
+
+      .field
+        = label_tag :verdict, "Veredicto"
+        = select_tag :verdict,
+                     options_for_select(StepTest::VERDICTS.map { |v| [t("flow.verdicts.#{v}"), v] }),
+                     class: "select"
+      .field
+        = label_tag :reservations, "Reservas (una por línea)"
+        = text_area_tag :reservations, nil, rows: 3, class: "textarea",
+                        placeholder: "Conseguir un segundo proveedor"
+      .field
+        = label_tag :summary, "Resumen"
+        = text_field_tag :summary, nil, class: "input"
+
+      .form-actions
+        = submit_tag "Guardar el testeo", class: "btn btn-primary"
+        = link_to "Volver", challenge_step_path(@challenge, @step), class: "btn btn-ghost"

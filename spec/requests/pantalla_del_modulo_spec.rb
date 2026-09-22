@@ -45,7 +45,7 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
   ORDEN_DE_LA_REFERENCIA = [
     "Progreso",
     # Lo propio del módulo.
-    "Criterios", "Formulario de postulación", "Descargas",
+    "Criterios", "Formulario de postulación", "Descargas", "Veredictos",
     # Quién participa.
     "Quién evalúa", "Quiénes acompañan",
     "Cómo quedó configurado"
@@ -625,6 +625,170 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
     end
   end
 
+  describe "la pantalla de un testing en curso" do
+    let!(:pedro) { member("pedro@test.dev", :participant) }
+
+    let!(:challenge) do
+      as_company(company) do
+        c = create(:challenge, name: "Merma", ai_default_mode: "human")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
+        c.steps.create!(kind: "testing", position: 2, name: "Prueba de factibilidad")
+        c
+      end
+    end
+
+    # Dos ideas de autores distintos, postuladas ANTES de arrancar el módulo:
+    # los `step_entries` los arma `Cohort.sync!` al activar, así que una idea
+    # que llegara después de `advance!` no tendría fila para nadie y el filtro
+    # de abajo no probaría nada. Capturadas para testearlas más abajo.
+    let!(:idea_paula) { postular!(challenge, author: paula, titulo: "Sensores") }
+    let!(:idea_pedro) { postular!(challenge, author: pedro, titulo: "Cámaras") }
+
+    before do
+      as_company(company) do
+        challenge.pipeline.start!
+        challenge.pipeline.advance!
+        expect(paso("testing")).to be_active
+      end
+    end
+
+    # La referencia va en ORDEN FIJO. Sin bloque de «quién participa»: un
+    # testing no tiene testers asignados.
+    it "la referencia trae sus tres bloques, en orden" do
+      sign_in(admin, company: company)
+      get challenge_step_path(challenge, paso("testing"))
+
+      expect(titulos_de_mas_en_la_referencia).to be_empty
+      expect(titulos_de_la_referencia).to eq(["Progreso", "Veredictos", "Cómo quedó configurado"])
+    end
+
+    it "los ajustes van plegados al final, con el nombre y el modo de IA" do
+      sign_in(admin, company: company)
+      get challenge_step_path(challenge, paso("testing"))
+
+      expect(response.body).to include("<details")
+      expect(response.body).to include("modo de IA")
+    end
+
+    # `@ideas_visibles` (`IdeaPolicy::Scope`) filtra la tabla del centro igual
+    # que en las demás pantallas de módulo: quien participa compite por el
+    # mismo corte que las demás, y no ve las ideas ajenas.
+    it "quien participa ve sólo su idea en la tabla, no la ajena" do
+      sign_in(paula, company: company)
+      get challenge_step_path(challenge, paso("testing"))
+
+      tabla = documento.at_css(".app-main table.table")
+      expect(tabla.text).to include("Sensores")
+      expect(tabla.text).not_to include("Cámaras")
+    end
+
+    it "quien administra ve las dos" do
+      sign_in(admin, company: company)
+      get challenge_step_path(challenge, paso("testing"))
+
+      tabla = documento.at_css(".app-main table.table")
+      expect(tabla.text).to include("Sensores", "Cámaras")
+    end
+
+    # El veredicto y quién testeó son dos cosas distintas, como el puntaje y
+    # el desglose en evaluación (`Flow::Handlers::Evaluation#score_visible_for?`
+    # / `#breakdown_visible_for?`): quien administra los ve siempre, y quien
+    # participa de la idea recién ve el veredicto cuando el módulo cierra —y
+    # nunca ve quién testeó.
+    describe "el veredicto, con el módulo todavía activo" do
+      # Con una situación rota de verdad: «Se rompió en» es MÁS detallada que
+      # el veredicto —de esa celda se deduce el dictamen sin el badge—, así
+      # que tiene que estar detrás de la misma guarda, no de la del desglose.
+      before do
+        as_company(company) do
+          paso("testing").handler.testear!(
+            idea: idea_paula, verdict: "no_factible",
+            situations: [{ "dimension" => "operativa", "escenario" => "Viernes 18h, 400 pedidos",
+                           "resultado" => "se_rompe", "detalle" => "El sistema no aguanta la carga" }],
+            reservations: [], summary: "No pasa el filtro legal", tested_by: admin
+          )
+        end
+      end
+
+      it "quien participa no ve el veredicto ni quién testeó, sólo que está oculto" do
+        sign_in(paula, company: company)
+        get challenge_step_path(challenge, paso("testing"))
+
+        fila = documento.css(".app-main table.table tbody tr").find { |f| f.text.include?("Sensores") }
+        expect(fila.text).to include("oculto")
+        expect(fila.text).not_to include("No factible")
+        expect(fila.text).not_to include(admin.name)
+      end
+
+      # «Se rompió en» es sustancia del resultado (qué encontró el testeo),
+      # no autoría (quién lo encontró): va con la guarda del veredicto, y
+      # ocultarla evita que se pueda deducir el dictamen leyendo la celda de
+      # al lado.
+      it "quien participa tampoco ve «Se rompió en»: es evidencia del veredicto, no autoría" do
+        sign_in(paula, company: company)
+        get challenge_step_path(challenge, paso("testing"))
+
+        fila = documento.css(".app-main table.table tbody tr").find { |f| f.text.include?("Sensores") }
+        celda_se_rompio = fila.css("td")[2].text
+        expect(celda_se_rompio).not_to include("Viernes 18h, 400 pedidos")
+        expect(celda_se_rompio).to include("oculto")
+      end
+
+      it "quien administra ve el veredicto, quién testeó y dónde se rompió" do
+        sign_in(admin, company: company)
+        get challenge_step_path(challenge, paso("testing"))
+
+        fila = documento.css(".app-main table.table tbody tr").find { |f| f.text.include?("Sensores") }
+        expect(fila.text).to include("No factible", admin.name, "Viernes 18h, 400 pedidos")
+      end
+    end
+
+    describe "el veredicto, con el módulo ya cerrado" do
+      before do
+        as_company(company) do
+          testing = paso("testing")
+          testing.handler.testear!(
+            idea: idea_paula, verdict: "no_factible",
+            situations: [{ "dimension" => "operativa", "escenario" => "Viernes 18h, 400 pedidos",
+                           "resultado" => "se_rompe", "detalle" => "El sistema no aguanta la carga" }],
+            reservations: [], summary: "No pasa el filtro legal", tested_by: admin
+          )
+          # Directo por el handler, como en `selection_screen_spec.rb`: no hace
+          # falta que Pedro también tenga testeo vigente para probar la
+          # visibilidad del veredicto de Paula con el módulo cerrado.
+          testing.handler.complete!
+        end
+      end
+
+      it "quien participa ya ve el veredicto de su idea, pero no quién testeó" do
+        sign_in(paula, company: company)
+        get challenge_step_path(challenge, paso("testing"))
+
+        fila = documento.css(".app-main table.table tbody tr").find { |f| f.text.include?("Sensores") }
+        expect(fila.text).to include("No factible")
+        expect(fila.text).not_to include(admin.name)
+      end
+
+      # Con el módulo cerrado «Se rompió en» pasa a verse junto con el
+      # veredicto: son la misma guarda.
+      it "quien participa ya ve «Se rompió en», junto con el veredicto" do
+        sign_in(paula, company: company)
+        get challenge_step_path(challenge, paso("testing"))
+
+        fila = documento.css(".app-main table.table tbody tr").find { |f| f.text.include?("Sensores") }
+        expect(fila.css("td")[2].text).to include("Viernes 18h, 400 pedidos")
+      end
+
+      it "quien administra sigue viendo las tres cosas" do
+        sign_in(admin, company: company)
+        get challenge_step_path(challenge, paso("testing"))
+
+        fila = documento.css(".app-main table.table tbody tr").find { |f| f.text.include?("Sensores") }
+        expect(fila.text).to include("No factible", admin.name, "Viernes 18h, 400 pedidos")
+      end
+    end
+  end
+
   describe "la cara de configuración" do
     let!(:challenge) do
       as_company(company) do
@@ -634,14 +798,15 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
         c.steps.create!(kind: "evaluation", position: 3, name: "Técnica")
         c.steps.create!(kind: "selection", position: 4, name: "Corte")
         c.steps.create!(kind: "reporting", position: 5, name: "Informe")
+        c.steps.create!(kind: "testing", position: 6, name: "Prueba")
         c
       end
     end
 
-    it "no sirve ningún panel viejo en los cinco kinds" do
+    it "no sirve ningún panel viejo en los seis kinds" do
       sign_in(admin, company: company)
 
-      %w[ideation evolution evaluation selection reporting].each do |kind|
+      ChallengeStep::KINDS.each do |kind|
         get challenge_step_path(challenge, paso(kind))
         expect(documento.css(".panel").map { |n| n["class"] }).to eq([]), "quedó un .panel en #{kind}"
       end

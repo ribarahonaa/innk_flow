@@ -99,5 +99,26 @@
           - else
             Cada puntaje dice qué versión se evaluó: nunca promedia entre versiones distintas.
 
+      - when "testing"
+        %p.muted
+          Quien administra pone la idea a prueba contra situaciones concretas de ejecución y
+          dictamina si es factible, con reservas o no factible, con la evidencia de cada escenario.
+        %p.muted
+          = "Hace falta plantear al menos #{Flow::Texto.contar(handler.min_situations, "situación")} antes de dictaminar."
+          - if handler.severity == "exigente"
+            %strong La vara es exigente: busca activamente dónde se rompe.
+          - else
+            La vara es estándar: prueba lo previsible.
+        %p.muted Quien postuló la idea ve el veredicto recién cuando el módulo cierra.
+
+      - else
+        -# Sin esto, un séptimo kind sin su rama acá repetiría el mismo bug en
+        -# silencio: una tarjeta con encabezado y cuerpo vacío, que ninguna
+        -# guarda de `make screens` caza (`[CLASES]` no marca una `card` con
+        -# fondo y borde). Mejor que reviente acá — un 500 sí lo frena
+        -# `make screens` — a que la ficha «Lo que van a ver las personas»
+        -# quede muda sin que nadie lo note.
+        - raise "Falta la previsualización del módulo «#{step.kind}»."
+
 - if @challenge.draft? && policy(@challenge).builder?
   = render "shared/setup_nav", challenge: @challenge

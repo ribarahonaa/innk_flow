@@ -36,12 +36,14 @@ es:
       evaluation: "Evaluación"
       selection: "Selección"
       reporting: "Reportería"
+      testing: "Testing"
     kind_descriptions:
       ideation: "Generación de la idea. Se genera una sola vez por desafío."
       evolution: "Se da feedback a la idea y el autor la actualiza. Cada cambio queda como una versión nueva."
       evaluation: "Se puntúa la idea con criterios, notas o una fórmula propia."
       selection: "Reduce el pool: solo avanzan las mejores según el criterio elegido."
       reporting: "Genera reportes del estado del desafío en este punto del flujo."
+      testing: "Pone la idea a prueba contra situaciones concretas de ejecución y dictamina si es factible."
     ai_modes:
       human: "Solo personas"
       ai_assisted: "IA asistida"
@@ -52,6 +54,7 @@ es:
       evaluation: "que te guíe en cada evaluación"
       selection: "que responda los filtros de sí/no de cada idea"
       reporting: "que escriba el resumen de cierre"
+      testing: "que plantee las situaciones de prueba y dictamine"
     ai_mode_descriptions:
       human: "Sin IA. Todo el trabajo lo hacen las personas."
       ai_assisted: "La IA propone y una persona acepta, edita o rechaza cada sugerencia."
@@ -170,3 +173,13 @@ es:
       running: "En curso"
       closed: "Cerrado"
       archived: "Archivado"
+    verdicts:
+      factible: "Factible"
+      con_reservas: "Factible con reservas"
+      no_factible: "No factible"
+    dimensions:
+      tecnica: "Técnica"
+      operativa: "Operativa"
+      economica: "Económica"
+      legal: "Legal"
+      adopcion: "De adopción"

@@ -148,6 +148,28 @@ RSpec.describe Flow::Setup do
       expect(paso_de(reporte)).to be_done
       expect(paso_de(ronda).hint).to eq("nada obligatorio que configurar")
     end
+
+    # Las tres claves del esquema de testing tienen default, así que no hay
+    # nada obligatorio que decidir: nace configurado y no traba el arranque.
+    # El hint tiene que salir de `dimensiones_de` (vía `StepSettings.efectivo`)
+    # y no del `else` genérico: sin config corre con las cinco del default, y
+    # con menos elegidas el número baja — así el ejemplo no puede pasar por
+    # casualidad con la rama de `estado_de` sacada.
+    it "un módulo de testing nace configurado y no traba el arranque" do
+      prueba = challenge.steps.create!(kind: "testing", position: 2, name: "Prueba")
+
+      expect(paso_de(prueba)).to be_done
+      expect(paso_de(prueba)).not_to be_blocked
+      expect(paso_de(prueba).hint).to eq("5 dimensiones a cubrir")
+    end
+
+    it "con menos dimensiones elegidas el hint cuenta las que quedaron" do
+      prueba = challenge.steps.create!(kind: "testing", position: 2, name: "Prueba",
+                                       config: { "dimensions" => %w[tecnica legal] })
+
+      expect(paso_de(prueba)).to be_done
+      expect(paso_de(prueba).hint).to eq("2 dimensiones a cubrir")
+    end
   end
 
   describe "moverse por el camino" do

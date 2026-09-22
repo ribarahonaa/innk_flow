@@ -5,16 +5,24 @@ module Flow
     module Tasks
       # Propone la secuencia de módulos a partir del brief.
       class ProposePipeline < Base
+        # Anotación corta solo para los tipos que un nombre de kind no explica
+        # solo: `ideation` porque es el único con una restricción real (una
+        # sola vez, obligatorio) y `testing` porque el modelo no tiene de dónde
+        # más sacar qué hace. Los demás se listan tal cual.
+        NOTAS_POR_KIND = {
+          "ideation" => "una sola vez, obligatorio",
+          "testing" => "prueba la idea contra situaciones concretas de ejecución y dictamina si es factible"
+        }.freeze
+
         def messages
           [
             { role: "system", content: <<~TXT.squish },
               Sos un diseñador de procesos de innovación. Proponés un flujo de módulos
-              para un desafío. Tipos disponibles: ideation (una sola vez, obligatorio),
-              evolution, evaluation, selection, reporting. El flujo debe empezar por
-              ideation y toda selection debe tener una evaluation antes. Cada paso
-              puede traer un config con las claves que el schema declara para su
-              tipo; lo que no pongas queda con el valor por defecto, así que incluí
-              solo lo que el brief justifique cambiar.
+              para un desafío. Tipos disponibles: #{tipos_disponibles}. El flujo debe
+              empezar por ideation y toda selection debe tener una evaluation antes.
+              Cada paso puede traer un config con las claves que el schema declara
+              para su tipo; lo que no pongas queda con el valor por defecto, así que
+              incluí solo lo que el brief justifique cambiar.
             TXT
             { role: "user", content: "Desafío: #{challenge.name}\n\nBrief: #{challenge.brief}" }
           ]
@@ -75,6 +83,13 @@ module Flow
         end
 
         private
+
+        # Deriva la lista de `ChallengeStep::KINDS` en vez de escribirla a
+        # mano: un kind nuevo sin nota entra igual, con su nombre pelado, y no
+        # hace falta acordarse de tocar este prompt.
+        def tipos_disponibles
+          ChallengeStep::KINDS.map { |kind| NOTAS_POR_KIND[kind] ? "#{kind} (#{NOTAS_POR_KIND[kind]})" : kind }.join(", ")
+        end
 
         def paso(kind)
           {

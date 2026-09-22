@@ -7,7 +7,7 @@
 class ChallengeStep < ApplicationRecord
   include TenantScoped
 
-  KINDS = %w[ideation evolution evaluation selection reporting].freeze
+  KINDS = %w[ideation evolution evaluation selection reporting testing].freeze
   SINGLETON_KINDS = %w[ideation].freeze
   STATUSES = %w[pending activating active completed skipped].freeze
   TOUCHED_STATUSES = %w[activating active completed skipped].freeze

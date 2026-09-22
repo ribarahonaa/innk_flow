@@ -1,0 +1,87 @@
+- content_for :title, @step.name
+
+- handler = @handler
+-# Quien participa ve solo las filas de sus ideas: la regla vive una vez, en
+-# `IdeaPolicy::Scope`, y el controller la publica en `@ideas_visibles`.
+- filas = @step.step_entries.includes(idea: %i[current_version author]).select { |e| @ideas_visibles.include?(e.idea_id) }
+- puede_testear = policy(@step).advance?
+-# El veredicto y quién testeó son dos cosas distintas (como el puntaje y el
+-# desglose en evaluación): `manda` es lo que decide las dos.
+- manda = policy(@challenge).update_pipeline?
+
+= render "steps/header", step: @step, handler: handler
+= render "shared/ai_suggestions", suggestions: @pending_suggestions
+
+.card
+  .card-body
+    %h2.section-title
+      Ideas a prueba
+      %span.muted= " · #{handler.progress.done} de #{handler.progress.total} testeadas"
+
+    - if filas.empty?
+      %p.muted Todavía no hay ideas tuyas en este módulo.
+    - else
+      %table.table
+        %thead
+          %tr
+            %th Idea
+            %th Veredicto
+            %th Se rompió en
+            %th.text-right Acción
+        %tbody
+          - filas.each do |entry|
+            - test = handler.vigente_para(entry.idea_id)
+            -# El veredicto y «Se rompió en» son la misma cosa: sustancia del
+            -# resultado —qué encontró el testeo, no quién lo encontró—, y
+            -# «Se rompió en» es MÁS detallado que el veredicto (de esa celda
+            -# se deduce el dictamen sin el badge). Van con la misma guarda:
+            -# quien administra los ve siempre, y quien participa de la idea
+            -# sólo cuando el módulo ya no está activo. Quién testeó SÍ es el
+            -# desglose (quién lo encontró) y no es para quien participa.
+            - veredicto_visible = test && handler.verdict_visible_for?(entry.idea, user: current_user, manager: manda)
+            - desglose_visible = handler.tester_visible_for?(manager: manda)
+            %tr
+              %td
+                = link_to entry.idea.title, challenge_idea_path(@challenge, entry.idea), class: "table-link"
+                %span.muted= " · #{entry.idea.author.name}"
+              %td
+                - if veredicto_visible
+                  %span{ class: chip_de_veredicto(test.verdict) }= t("flow.verdicts.#{test.verdict}")
+                  - if desglose_visible
+                    %span.muted= " · #{test.tested_by_name}"
+                - elsif test
+                  %span.muted{ title: "Se muestra cuando cierre el módulo" } oculto
+                - else
+                  %span.muted sin testear
+              %td.muted
+                - if veredicto_visible
+                  = test.situaciones_rotas.any? ? test.situaciones_rotas.map { _1["escenario"] }.join(" · ") : "—"
+                - elsif test
+                  %span{ title: "Se muestra cuando cierre el módulo" } oculto
+                - else
+                  = "—"
+              %td.text-right
+                -# El link pregunta LA MISMA policy que autoriza al controller, no
+                -# `step.active?` a secas: con eso se le mostraba a quien se comía
+                -# un 403 al apretarlo (la lección del link «Evaluar»).
+                - if puede_testear && @step.active?
+                  = link_to(test ? "Re-testear" : "Testear",
+                            new_challenge_step_step_test_path(@challenge, @step, idea_id: entry.idea_id),
+                            class: "btn btn-ghost btn-sm")
+
+- content_for :referencia do
+  = render "steps/progreso", progress: handler.progress
+
+  = render layout: "steps/bloque" do
+    %h3.section-title Veredictos
+    %ul.field-list
+      - handler.veredictos_contados.each do |veredicto, cuantos|
+        %li.field-list__item
+          %span= t("flow.verdicts.#{veredicto}")
+          %span.field-list__type= cuantos
+
+  = render "steps/config_congelada", step: @step
+
+- if puede_testear
+  = render layout: "steps/ajustes", locals: { resumen: ["nombre", "modo de IA"].to_sentence } do
+    = render "steps/ai_mode", step: @step

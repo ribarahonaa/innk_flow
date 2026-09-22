@@ -39,6 +39,11 @@ module Flow
     def add_tenant_fk(from_table, to_table, column:, on_delete: :cascade)
       constraint = "#{from_table}_#{column}_same_company"
       action = ON_DELETE.fetch(on_delete.to_sym)
+      # `SET NULL` sobre una FK compuesta nulea TODAS las columnas del lado
+      # local, incluida company_id — que es NOT NULL. Acotar a la columna
+      # (PG 15+) es lo único que evita el PG::NotNullViolation al borrar el
+      # padre.
+      action = "#{action} (#{column})" if on_delete.to_sym == :nullify
 
       execute <<~SQL.squish
         ALTER TABLE #{quote_table_name(from_table)}
