@@ -137,12 +137,28 @@ un worktree correría contra otro compose. Rama en el lugar.
      `gestor_administra_spec.rb` conserva el nombre aunque prueba
      `administers?`, y la spec y el plan en `docs/superpowers/` siguen
      diciendo `administra?` porque son documentos históricos.
-   - **Dos preexistentes que merecen rama propia**, los dos confirmados:
-     `CriteriaSetPolicy::Scope` achica sólo para el gestor, así que un
-     participante abre **por id** un set `inline` de un desafío que no ve; y
-     el breadcrumb de `criteria_sets/edit.html.haml` siempre enlaza a
-     `criteria_sets_path`, que para un set `inline` es una lista que nunca lo
-     muestra.
+   - **La «fuga» de `CriteriaSetPolicy::Scope` NO existe: descartada con
+     evidencia, no la vuelvas a abrir.** El handoff anterior decía que un
+     participante abre por id un set `inline` «de un desafío que no ve». Esa
+     premisa es falsa: `ChallengePolicy::Scope` devuelve TODOS los desafíos a
+     quien no es gestor (`application_policy.rb:40`, `reaches_challenge?`
+     sale por `true unless gestor?`), que es el producto —cualquiera de la
+     empresa ve los desafíos— y además ya veía esos mismos criterios en
+     `steps/_referencia_evaluacion.html.haml:14-32`. Medido por rol sobre un
+     set `inline`: participante 200, evaluador 200, admin 200, **gestor no
+     asignado 404** en la URL del set y 404 en la pantalla del módulo. O sea
+     que el único rol donde la premisa se sostenía ya está cerrado, y el ítem
+     venía de antes de ese arreglo.
+
+     Lo único que queda de ahí es una nota defensiva, no un bug: el `Scope`
+     sale por `return scope.all unless gestor?`, así que **un rol nuevo
+     nacería abierto**. Derivarlo de `ChallengePolicy::Scope` para todos lo
+     haría correcto por construcción y hoy es un no-op. No se hizo: es
+     cambiar código que funciona por una hipótesis.
+   - **Un preexistente que sigue en pie:** el breadcrumb de
+     `criteria_sets/edit.html.haml` siempre enlaza a `criteria_sets_path`,
+     que sólo lista biblioteca, así que para un set `inline` la vuelta va a
+     una lista que nunca lo muestra. No verificado en esta sesión.
 
 2. **Las 45 capturas que todavía no se miraron.** De las 21 miradas, lo visual
    pendiente sigue igual y está listado entero en el handoff anterior
