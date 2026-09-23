@@ -157,7 +157,7 @@ RSpec.describe "ideas", type: :request do
       expect(response).to have_http_status(:forbidden)
     end
 
-    it "un gestor sí puede" do
+    it "quien administra sí puede" do
       as_company(company) { idea.update!(submitted_at: Time.current, status: "active") }
       sign_in(owner, company: company)
 
