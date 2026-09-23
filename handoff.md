@@ -2,8 +2,9 @@
 
 ## Objetivo
 
-Dos cosas: dejar la base con sólo los desafíos del seed, y abrir el rol
-`gestor` para que administre los desafíos que le asignaron.
+Tres cosas: dejar la base con sólo los desafíos del seed, abrir el rol
+`gestor` para que administre los desafíos que le asignaron, y corregir la regla
+de idioma del repo, que decía lo contrario de lo que Raúl esperaba.
 
 Lo segundo se ejecutó con `superpowers:subagent-driven-development`: spec de
 diseño, plan de seis tareas, un subagente fresco por tarea, revisión por tarea
@@ -11,9 +12,10 @@ con dos veredictos, y una revisión de rama entera en Opus al final.
 
 ## Estado actual
 
-- **`master` está en `a6aa59e` y pusheado.** Verificado contra el remoto con
+- **`master` está en `e7b0b4c` y pusheado.** Verificado contra el remoto con
   `gh api`, no con `git rev-parse origin/master` —que lee una foto local—. Sin
-  ramas vivas.
+  ramas vivas. El merge del rol gestor es `a6aa59e`; encima van el handoff y
+  los tres commits de la regla de idioma.
 - **`make spec` → 1092 ejemplos, 0 fallas** (venía de 1017), corrido sobre el
   resultado del merge y no sólo sobre la rama. **`make screens` → 66 capturas,
   0 errores.**
@@ -78,6 +80,35 @@ salvo la del botón de promover» y eso fue un punto ciego de la spec:
 - **`create?` abierto sin entrada en la UI**: los dos únicos
   `new_challenge_path` colgaban de `manages_challenges?`.
 
+### La regla de idioma (commits `274fd20`, `9dd1302`, `e7b0b4c`)
+
+**`CLAUDE.md:9` decía «El código, los comentarios y los mensajes de commit van
+en español»**, desde el primer commit de la guía (2026-09-02). Todo el repo se
+escribió bajo esa regla. Raúl esperaba lo contrario: **código en inglés,
+comentarios en español**.
+
+Medido antes de tocar nada, para que la decisión de alcance fuera informada:
+~40 métodos con nombre en español en `app/` y `lib/` repartidos en 17 archivos,
+~25 partials y archivos, los specs enteros, y —lo caro— `challenge_gestores`
+como tabla y `"gestor"` como valor de `memberships.role`, que no se renombran
+sin migración con cambio de datos.
+
+Lo que se hizo:
+
+- **La regla se corrigió**, con una advertencia explícita de **no renombrar al
+  pasar**: un repo migrado a medias es peor que el mix, porque nadie sabe qué
+  convención está mirando.
+- **`administra?` → `administers?`** y **`acompana?` → `assigned_gestor?`**, los
+  dos identificadores en español más nuevos del repo (se habían escrito ese
+  mismo día). 34 reemplazos en 12 archivos, comentarios incluidos.
+  `administers?` y no `manages_challenge?` porque **`Membership#manages_challenges?`
+  ya existe y significa `admin?`**: dos métodos casi homónimos con significados
+  distintos son peores que el español.
+- **El resto se queda como está**, por decisión de Raúl. La regla rige sólo
+  para lo que se escribe de ahora en más.
+- **Lo que ya está en la base se queda; toda tabla y columna NUEVA va en
+  inglés**, sin excepción.
+
 ## Intentos fallidos
 
 **El patrón de la ejecución: los dos únicos hallazgos serios fueron agujeros de
@@ -115,6 +146,11 @@ es la única sostenida sólo por lectura de código.
 - **La spec excluyó las vistas**, que es de donde salieron los tres hallazgos
   de la revisión final.
 - **Conté mal las puertas** («~15» cuando son 18) en un borrador de la spec.
+- **El renombre masivo pisó la propia lista de ejemplos de `CLAUDE.md`**, que
+  quedó citando `administers?` y `assigned_gestor?` como identificadores en
+  español —los dos que acababan de dejar de serlo—. Lo encontré al releer el
+  archivo, no por una prueba: **un `sed` sobre la documentación toca también
+  los ejemplos que la documentación da sobre sí misma.**
 
 ## Próximos pasos
 
@@ -132,7 +168,16 @@ es la única sostenida sólo por lectura de código.
      ni `evaluator`. Seguro por la forma del predicado; tres líneas si se
      quiere la red.
 
-2. **Dos preexistentes que merecen rama propia**, los dos confirmados esta
+2. **Dos rastros del renombre, dejados a propósito.** No son deuda; están así
+   porque la regla nueva dice no renombrar al pasar:
+   - **`spec/policies/gestor_administra_spec.rb` conserva el nombre**, aunque
+     prueba `administers?`. Renombrar archivos es el principio de la migración
+     grande que se decidió NO hacer. Es un `git mv` si alguna vez se quiere.
+   - **La spec y el plan en `docs/superpowers/` siguen diciendo `administra?`.**
+     Son documentos históricos —el repo ya trata así a los anteriores—: cuentan
+     lo que se decidió ese día, no cómo se llama hoy.
+
+3. **Dos preexistentes que merecen rama propia**, los dos confirmados esta
    sesión:
    - **`CriteriaSetPolicy::Scope` achica sólo para el gestor**, así que un
      participante abre **por id** un set `inline` de un desafío que no ve
@@ -142,7 +187,7 @@ es la única sostenida sólo por lectura de código.
      `criteria_sets_path`, que sólo lista biblioteca: para un set `inline` la
      vuelta va a una lista que nunca lo muestra.
 
-3. **Lo que sigue abierto de handoffs anteriores:**
+4. **Lo que sigue abierto de handoffs anteriores:**
    - **Las 57 capturas que nunca se miraron**, y los seis defectos anotados de
      las 9 que sí (drawer que no llega al fondo, botones apilados en «Acción»,
      `select` sin flecha, los 15 avisos indistinguibles, la tarjeta de testing
@@ -174,3 +219,9 @@ es la única sostenida sólo por lectura de código.
   otro eje.
 - **Ejecutar el plan por subagentes**, no inline.
 - **Mergear a master y pushear.**
+- **El código va en inglés y los comentarios en español**, contra lo que decía
+  `CLAUDE.md` desde el primer commit de la guía.
+- **Migrar sólo `administra?` y `acompana?`**, no el resto: «es mucho lo
+  anterior». La regla rige para lo nuevo y nada más que para eso.
+- **Lo que ya está en la base se queda** —`challenge_gestores`, el valor
+  `"gestor"`— **pero toda tabla nueva va en inglés.**
