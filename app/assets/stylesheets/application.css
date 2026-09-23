@@ -1446,6 +1446,14 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
   border-radius: 8px;
   font-size: 11.5px;
   line-height: 1.5;
+  /* Un prompt es prosa en castellano adentro de un JSON: con `white-space:
+     pre` las líneas medían más que la tarjeta y había que scrollear de
+     costado para leer lo que se le mandó al modelo, en la pantalla que existe
+     justamente para auditarlo. `pre-wrap` conserva la sangría del JSON y
+     envuelve lo largo; `anywhere` parte lo que no tiene dónde cortarse. El
+     `overflow-x` queda de red por si aparece algo que ni así entra. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   overflow-x: auto;
   max-height: 380px;
 }
