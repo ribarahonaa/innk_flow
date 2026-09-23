@@ -411,5 +411,38 @@ RSpec.describe "el rol gestor", type: :request do
       end.to change { as_company(demo) { AiRun.count } }.by(1)
     end
   end
+
+  describe "los criterios de su módulo" do
+    before { sign_in(gina, company: demo) }
+
+    def criterion_params(**overrides)
+      { id: nil, name: "Impacto", description: nil, weight: 100,
+        source: "manual", scale_type: "numeric",
+        source_config: {}, scale_config: { min: 1, max: 10, step: 1, direction: "higher_better" },
+        active: true }.merge(overrides)
+    end
+
+    it "los guarda por la API, que es el único camino de escritura del editor" do
+      set = as_company(demo) do
+        modulo = acompanado.steps.reload.first
+        CriteriaSet.create!(name: "Los del módulo", scope: "inline", owner_step: modulo)
+      end
+
+      put api_v1_criteria_set_path(set), params: {
+        name: "Los del módulo", criteria: [criterion_params]
+      }, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(as_company(demo) { set.reload.criteria.count }).to eq(1)
+    end
+
+    it "pero no crea uno de biblioteca, que se comparte con desafíos que no ve" do
+      expect do
+        post api_v1_criteria_sets_path, params: {
+          name: "Compartidos", criteria: [criterion_params]
+        }, as: :json
+      end.not_to change { as_company(demo) { CriteriaSet.where(scope: "library").count } }
+    end
+  end
 end
 

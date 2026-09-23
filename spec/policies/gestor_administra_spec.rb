@@ -194,4 +194,55 @@ RSpec.describe "qué administra el gestor" do
       expect(puede?(asignada) { |m| ChallengeStepPolicy.new(m, nil).advance? }).to be(false)
     end
   end
+
+  describe "los criterios" do
+    let!(:propio) do
+      as_company(company) do
+        modulo = borrador.steps.first
+        CriteriaSet.create!(name: "Los del módulo", scope: "inline", owner_step: modulo)
+      end
+    end
+
+    let!(:de_biblioteca) do
+      as_company(company) { CriteriaSet.create!(name: "Compartidos", scope: "library") }
+    end
+
+    def guarda?(persona, set)
+      as_company(company) do
+        membresia = Membership.find_by!(user_id: persona.id)
+        CriteriaSetPolicy.new(membresia, set.reload).update?
+      end
+    end
+
+    it "el set propio del módulo: lo guarda quien administra" do
+      expect(guarda?(admin, propio)).to be(true)
+    end
+
+    it "el set propio del módulo: lo guarda el gestor asignado" do
+      expect(guarda?(asignada, propio)).to be(true)
+    end
+
+    it "el set propio del módulo: no el gestor no asignado" do
+      expect(guarda?(ajena, propio)).to be(false)
+    end
+
+    # La biblioteca es de la empresa: se comparte con desafíos que el gestor
+    # no ve, así que no la escribe ni el asignado.
+    it "la biblioteca: la guarda quien administra" do
+      expect(guarda?(admin, de_biblioteca)).to be(true)
+    end
+
+    it "la biblioteca: no la guarda el gestor asignado" do
+      expect(guarda?(asignada, de_biblioteca)).to be(false)
+    end
+
+    it "ni la crea" do
+      nuevo = as_company(company) { CriteriaSet.new(scope: "library") }
+      creado = as_company(company) do
+        membresia = Membership.find_by!(user_id: asignada.id)
+        CriteriaSetPolicy.new(membresia, nuevo).create?
+      end
+      expect(creado).to be(false)
+    end
+  end
 end
