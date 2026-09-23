@@ -48,6 +48,7 @@ class MembershipsController < ApplicationController
 
   def destroy
     authorize @membership, :destroy?
+    return redirect_to(members_path, alert: se_saca_a_si_mismo) if propia?
     return redirect_to(members_path, alert: ultimo_admin) if quita_al_ultimo_admin?
 
     @membership.destroy!
@@ -60,6 +61,21 @@ class MembershipsController < ApplicationController
   def set_membership = @membership = policy_scope(Membership).find(params[:id])
 
   def rol(membership) = t("flow.roles.#{membership.role}")
+
+  # Sacarse a uno mismo deja afuera en el acto y sin vuelta: después del
+  # redirect ya no hay empresa donde volver y sólo otra persona que administre
+  # puede reponer la membresía. La guarda del último admin no alcanza —con
+  # otro admin en la empresa deja pasar—, y es hermana de la que
+  # `ChallengeGestoresController#destroy` tiene un nivel más abajo.
+  #
+  # Sacar a OTRO sigue siendo parte de administrar la empresa. Y cambiarse el
+  # propio ROL no entra acá: es recuperable, y lo que no debe pasar —quedarse
+  # sin nadie que administre— ya lo ataja `quita_al_ultimo_admin?`.
+  def propia? = @membership.user_id == current_user.id
+
+  def se_saca_a_si_mismo
+    "No podés sacarte de #{current_company.name} vos mismo: pedíselo a otra persona que la administre."
+  end
 
   # Una empresa sin nadie que la administre no se puede volver a administrar:
   # no queda quién invite ni quién cambie roles.
