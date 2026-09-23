@@ -6,7 +6,18 @@ Lee primero el `README.md`: tiene los seis módulos, la regla de mutación del
 pipeline y las decisiones de infraestructura. Los `docs/*.md` (`tenancy`, `ai`,
 `criteria`, `pipeline`) tienen el detalle. Esto es lo que no está ahí.
 
-El código, los comentarios y los mensajes de commit van **en español**.
+**El código va en inglés; los comentarios y los mensajes de commit, en
+español.** Nombres de método, de variable, de clase y de archivo en inglés; lo
+que explica el porqué, en español.
+
+Ojo: hasta el 2026-09-23 esta línea decía que **el código** también iba en
+español, y buena parte del repo se escribió así. Quedaron identificadores en
+español repartidos —`administra?`, `acompana?`, `chip_de_estado`,
+`paso_actual_del_setup`, una veintena de partials, los specs enteros— y hasta
+una tabla (`challenge_gestores`) y un valor de rol (`"gestor"`), que no se
+renombran sin migración. **No los renombres al pasar**: migrar es una decisión
+de alcance que todavía no se tomó, y hacerlo de a pedazos deja un mix peor que
+el actual. La regla nueva rige para lo que se escribe de ahora en más.
 
 ## Comandos
 
