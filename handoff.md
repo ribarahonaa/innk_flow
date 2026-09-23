@@ -9,9 +9,12 @@ mismo de la empresa.
 
 ## Estado actual
 
-- **`master` está en `1e654fd` y NO está pusheado: quedó 3 commits adelante
-  del remoto.** El merge fue local, por decisión de Raúl. Para pushear, lo que
-  funciona en este entorno (el remoto es SSH y acá no autentica):
+- **`master` está en `ebffd85` y pusheado.** Verificado contra el remoto con
+  `gh api`, no con `git rev-parse origin/master` —que lee una foto local—. El
+  merge fue local por decisión de Raúl y el push lo hizo él. Sin ramas vivas.
+
+  Si hiciera falta pushear desde acá, el remoto es SSH y en este entorno no
+  autentica; lo que funciona sin tocar la config global ni exponer el token:
 
   ```bash
   git -c credential.helper='!gh auth git-credential' \
@@ -29,7 +32,8 @@ mismo de la empresa.
 - **Arrancar por el punto 1**, las dos guardas juntas y en rama propia.
 - **`summarize_challenge` entra** en la lista de tareas que exigen módulo
   abierto (era la única que quedaba en duda al aprobar el diseño).
-- **Mergear a master localmente**, sin push y sin PR.
+- **Mergear a master localmente**, sin PR. El push lo hizo Raúl después, a
+  mano.
 
 ## Archivos y cambios
 
@@ -121,9 +125,7 @@ un worktree correría contra otro compose. Rama en el lugar.
 
 ## Próximos pasos
 
-1. **Pushear `master`**, si se quiere. Son 3 commits (ver el comando arriba).
-
-2. **Lo que queda del handoff anterior, sin tocar.** Ninguno es bloqueante:
+1. **Lo que queda del handoff anterior, sin tocar.** Ninguno es bloqueante:
    - **Los menores diferidos del rol gestor**: la variable local muerta
      (`- desafio = step.challenge`) en `_referencia_evaluacion.html.haml:8`;
      `AssessmentPolicy#update?` sin cobertura y sin llamador vivo;
@@ -142,7 +144,7 @@ un worktree correría contra otro compose. Rama en el lugar.
      `criteria_sets_path`, que para un set `inline` es una lista que nunca lo
      muestra.
 
-3. **Las 45 capturas que todavía no se miraron.** De las 21 miradas, lo visual
+2. **Las 45 capturas que todavía no se miraron.** De las 21 miradas, lo visual
    pendiente sigue igual y está listado entero en el handoff anterior
    (`git show 794205a:handoff.md`): la previsualización repetida en 5 de 7
    tarjetas, el popup de la IA que dice lo mismo tres veces, el desglose que
@@ -153,7 +155,7 @@ un worktree correría contra otro compose. Rama en el lugar.
    «Distribución de puntajes» con dos filas de números y «Quién evalúa»
    duplicado sin el peso.
 
-4. **Y el resto del backlog largo**, también intacto: `Pipeline#validate` vs
+3. **Y el resto del backlog largo**, también intacto: `Pipeline#validate` vs
    `Selection#can_activate?`; las once FKs con `ON DELETE SET NULL` sin
    acotador; `[FORMS]` que no cubre las pantallas a las que se llega por clic;
    los cuatro menores del módulo de testing; el plan 2c (el resto de las islas
