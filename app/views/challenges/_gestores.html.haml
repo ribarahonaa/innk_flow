@@ -10,7 +10,7 @@
   .section-head
     %div
       %h2.section-title Quiénes acompañan
-      %p.muted Ven este desafío y sus ideas, y dan feedback durante la evolución. No evalúan ni configuran.
+      %p.muted Administran este desafío: lo configuran, lo hacen avanzar y trabajan sus ideas. No postulan ideas propias.
       -# Se configura acá porque es donde un gestor tiene algo que hacer, pero
       -# el acceso es al DESAFÍO: sin decirlo, alguien asigna esperando que solo
       -# vea este módulo.
@@ -24,9 +24,13 @@
         %li.people-list__item
           %span.people-list__name= asignacion.user.name
           %span.people-list__role gestor
-          = button_to "×", challenge_gestor_path(challenge, asignacion), method: :delete,
-                      class: "people-list__remove",
-                      form: { data: { turbo_confirm: "¿Sacar a #{asignacion.user.name} de este desafío?" } }
+          -# El gestor no se saca a sí mismo (`ChallengeGestoresController`), así
+          -# que dibujarle el botón en su propia fila sólo ofrece un clic que
+          -# termina en el `alert` de rechazo.
+          - unless asignacion.user_id == current_user.id
+            = button_to "×", challenge_gestor_path(challenge, asignacion), method: :delete,
+                        class: "people-list__remove",
+                        form: { data: { turbo_confirm: "¿Sacar a #{asignacion.user.name} de este desafío?" } }
   - else
     %p.field-hint Nadie asignado todavía: las ideas de este desafío no las acompaña ningún gestor.
 

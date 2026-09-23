@@ -40,6 +40,18 @@ RSpec.describe "desafíos", type: :request do
       expect(response).to redirect_to(builder_challenge_path(challenge))
     end
 
+    # `create` guarda adentro de una transacción —la auto-asignación del
+    # gestor va en la misma— y desde esa Tarea nada ejercitaba la rama del
+    # guardado fallido: sólo la sostenía la lectura del código.
+    it "si el guardado falla, vuelve al form con 422 y no crea nada" do
+      expect do
+        post challenges_path, params: { challenge: { name: "", brief: "Un brief" } }
+      end.not_to change { as_company(company) { Challenge.count } }
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include("Nuevo desafío", "Crear y armar el flujo")
+    end
+
     it "renderiza la vista del desafío con su flujo" do
       challenge = as_company(company) do
         c = create(:challenge, name: "Merma")

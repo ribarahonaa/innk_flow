@@ -38,15 +38,14 @@ class IdeaPolicy < ApplicationPolicy
   # módulo de EVOLUCIÓN abierto: responder al feedback actualizando la idea es
   # exactamente para lo que existe ese módulo. Fuera de esos dos momentos, una
   # idea postulada no se edita en caliente.
+  #
+  # Quien administra ese desafío no tiene esa ventana: es la misma llave que
+  # abre todo lo demás del desafío. La rama propia que tenía el gestor —sólo
+  # con la ronda abierta— desapareció acá, pero `acompana?` se queda: lo usa
+  # `submit?`, que es la exclusión que NO cambió.
   def update?
     return false if record.nil?
-    return true if manager?
-    # Quien acompaña trabaja la idea MIENTRAS la ronda esté abierta: ayudar a
-    # que evolucione es para lo que existe el rol, y responder el feedback
-    # editando es la forma de hacerlo. Fuera de esa ventana no, y sobre un
-    # borrador tampoco: una idea que su autor todavía no postuló no está en
-    # ninguna ronda.
-    return evolution_open? && !record.draft? if acompana?
+    return true if administra?(record.challenge)
 
     # Participar es haberla creado o colaborar en ella, y son las dos formas
     # de trabajarla: quien colabora la ve —esa es la regla de visibilidad— y
@@ -65,7 +64,7 @@ class IdeaPolicy < ApplicationPolicy
   # decorativo — hay criterios que cuentan personas —, así que agregarlo con la
   # evaluación en curso movería el puntaje después del hecho.
   def manage_contributors? = update?
-  def destroy? = manager? || (record.author_id == membership.user_id && record.draft?)
+  def destroy? = administra?(record.challenge) || (record.author_id == membership.user_id && record.draft?)
 
   private
 

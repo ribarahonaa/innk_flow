@@ -255,9 +255,9 @@ la reconciliación borraría todo y lo crearía de nuevo.
 
 ### Los cuatro roles
 
-`admin` administra · `gestor` acompaña la evolución · `evaluator` evalúa lo que
-se le asigna · `participant` postula y comenta. `owner` **no existe**: daba los
-mismos permisos que `admin`.
+`admin` administra · `gestor` administra los desafíos que le asignaron ·
+`evaluator` evalúa lo que se le asigna · `participant` postula y comenta.
+`owner` **no existe**: daba los mismos permisos que `admin`.
 
 Dos reglas que no viven en el rol:
 
@@ -322,6 +322,26 @@ Dos reglas que no viven en el rol:
   evolución donde administrarlos. Por eso **los controllers buscan el desafío con
   `policy_scope(Challenge).find_by!`** y no con `Challenge.find_by!` — así lo
   no asignado da 404 y no 403, que sería un oráculo de existencia.
+- **El gestor administra los desafíos que le asignaron.** Dentro de uno, puede
+  lo mismo que quien administra la empresa: armarlo, arrancarlo, configurarlo,
+  testear, avanzar, reportar, asignar, y trabajar sus ideas sin esperar una
+  ronda de evolución. La regla es `ApplicationPolicy#administra?(challenge)`,
+  que es `manager? || (gestor? && le asignaron ESE desafío)`.
+  **`manager?` quedó significando «administra la empresa»** y es lo que protege
+  lo que no cuelga de ningún desafío: las membresías, la auditoría de IA y la
+  biblioteca de criterios. De rebote, una puerta nueva escrita con `manager?`
+  nace cerrada para el gestor, que es el lado seguro; abrirla es una decisión
+  que se toma, no un default.
+  Dos cosas no se abrieron, y son de otro eje: **no postula ideas propias** ni
+  **postula por el autor** (`IdeaPolicy#create?` y `#submit?`). Son conflicto
+  de interés, no permisos. `submit?` es `update? && !acompana?`, así que sigue
+  cerrado aunque `update?` se haya abierto — por eso `acompana?` se quedó
+  aunque su otra rama murió.
+  Y **crear** es la única puerta que no pregunta por la asignación: el desafío
+  todavía no existe. Lo que la acota es que `ChallengesController#create`
+  auto-asigna al gestor que lo crea, en la misma transacción que el `save`.
+  El reparto entero se lee en `spec/policies/gestor_administra_spec.rb`, que
+  existe porque **abrir un permiso de más no rompe ningún test**.
 
 ### El feedback pertenece a su ronda
 

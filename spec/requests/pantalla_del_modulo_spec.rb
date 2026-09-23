@@ -514,14 +514,18 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       # gestor llega sólo a los que le asignaron. Asignado, ve el resumen como
       # quien administra o evalúa; sin asignar, la pantalla entera le da 404 y
       # no hay nada que filtrar.
-      it "quien acompaña el desafío: el pool entero, sin descargas" do
+      #
+      # Y las descargas también: administrar ESTE desafío
+      # (`ChallengeStepPolicy#report?`) es justo lo que un gestor asignado
+      # hace, así que las ve igual que quien administra la empresa.
+      it "quien acompaña el desafío: el pool entero, y también las descargas" do
         as_company(company) { ChallengeGestor.create!(challenge: challenge, user: gina) }
         sign_in(gina, company: company)
         get challenge_step_path(challenge, paso("reporting"))
 
         expect(tarjeta("Ranking").text).to include("Sensores de peso", "Cámaras en la merma")
         expect(response.body).to include("quedó última por esfuerzo")
-        expect(zonas[:referencia]).not_to include("Descargas")
+        expect(zonas[:referencia]).to include("Descargas", "Excel", "PDF")
       end
 
       # El «sin pedido a la IA» de arriba no afirma nada: el desafío corre en

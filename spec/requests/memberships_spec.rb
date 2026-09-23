@@ -29,7 +29,7 @@ RSpec.describe "miembros de la empresa", type: :request do
     get members_path
 
     expect(response.body).to include(ana.name, paula.name)
-    expect(response.body).to include("Acompaña la evolución de las ideas")
+    expect(response.body).to include("Administra los desafíos que se le asignan")
   end
 
   describe "sumar gente" do

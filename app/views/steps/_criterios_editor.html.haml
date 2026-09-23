@@ -99,8 +99,13 @@
         .alert.alert-soft.alert-success
           %div
             Estos criterios son de este módulo: no afectan a otros desafíos.
-            = link_to "Guardarlos también en la biblioteca", promote_criteria_set_path(set),
-                      data: { turbo_method: :post }, class: "field-hint__link"
+            -# La biblioteca es de la empresa: promover escribe ahí, así que el
+            -# link pregunta por quién puede escribirla y no por `configure?`,
+            -# que es lo que abre esta tarjeta. Sin esto el gestor ve un botón
+            -# que le rebota con 403.
+            - if policy(CriteriaSet).create?
+              = link_to "Guardarlos también en la biblioteca", promote_criteria_set_path(set),
+                        data: { turbo_method: :post }, class: "field-hint__link"
         = render "shared/ai_actions", challenge: step.challenge, mode: step.effective_ai_mode, always: true,
                  actions: [{ label: "Rehacer los criterios con IA", purpose: "suggest_criteria", step_id: step.id }]
     - else

@@ -169,9 +169,33 @@ RSpec.describe "el rol gestor", type: :request do
       expect(response).to have_http_status(:forbidden).or have_http_status(:found)
     end
 
-    it "ni configura el flujo" do
+    # Era al revés: el gestor no configuraba nada. Desde que administra los
+    # desafíos que le asignaron, el builder es suyo.
+    it "y configura el flujo del desafío que le asignaron" do
       get builder_challenge_path(acompanado)
-      expect(response).to have_http_status(:forbidden).or have_http_status(:found)
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "pero no el del desafío que no le asignaron" do
+      get builder_challenge_path(otro_de_demo)
+      expect(response).to have_http_status(:not_found)
+    end
+
+    # Pedir y aceptar son el MISMO método (`AiSuggestionPolicy#request?` es
+    # `accept?`) y los dos caen en `update_pipeline?`. Se prueban los dos
+    # igual: divergieron dos veces mientras la tabla estuvo copiada en los dos
+    # lados, y un ejemplo solo no lo habría visto.
+    it "y acepta lo que la IA propuso para el flujo" do
+      sugerencia = as_company(demo) do
+        Flow::AI::Runner.call(
+          Flow::AI::Tasks::ProposePipeline.new(challenge: acompanado),
+          mode: "ai_assisted", challenge: acompanado
+        ).suggestion
+      end
+
+      post accept_ai_suggestion_path(sugerencia)
+
+      expect(as_company(demo) { sugerencia.reload }).to be_accepted
     end
   end
 
@@ -222,6 +246,34 @@ RSpec.describe "el rol gestor", type: :request do
       delete challenge_gestor_path(acompanado, asignacion)
 
       expect(as_company(demo) { ChallengeGestor.where(challenge_id: acompanado.id) }.to_a).to be_empty
+    end
+
+    # Con `update_pipeline?` abierto, el gestor administra quién acompaña su
+    # desafío. Sacarse a sí mismo lo deja afuera en el acto, sin forma de
+    # volver salvo que un admin lo reasigne.
+    it "el gestor no se saca a sí mismo" do
+      sign_in(gina, company: demo)
+      asignacion = as_company(demo) { acompanado.challenge_gestores.find_by!(user_id: gina.id) }
+
+      delete challenge_gestor_path(acompanado, asignacion)
+
+      expect(as_company(demo) { ChallengeGestor.exists?(asignacion.id) }).to be(true)
+    end
+
+    it "pero sí saca a otro, que es parte de administrar el desafío" do
+      otra_gestora = without_tenant do
+        u = create(:user, email: "otra@test.dev")
+        create(:membership, :gestor, company: demo, user: u)
+        u
+      end
+      asignacion = as_company(demo) do
+        ChallengeGestor.create!(challenge: acompanado, user: otra_gestora)
+      end
+
+      sign_in(gina, company: demo)
+      delete challenge_gestor_path(acompanado, asignacion)
+
+      expect(as_company(demo) { ChallengeGestor.exists?(asignacion.id) }).to be(false)
     end
   end
 
@@ -351,14 +403,16 @@ RSpec.describe "el rol gestor", type: :request do
       expect(response.body).to include("Reescribir la idea con el feedback")
     end
 
-    # Fuera de la ronda, no: acompañar tiene su ventana.
-    it "pero no con la ronda cerrada" do
+    # Era la ventana que acotaba al gestor: sólo con la ronda abierta. Desde
+    # que administra el desafío, trabajar la idea no depende de que haya una
+    # ronda en curso.
+    it "y también con la ronda cerrada" do
       as_company(demo) { evolucion.reload.update!(status: "completed", completed_at: Time.current) }
 
       expect do
         post challenge_ai_requests_path(acompanado, purpose: "evolve_idea",
                                         step_id: evolucion.id, idea_id: idea.id)
-      end.not_to change { as_company(demo) { AiRun.count } }
+      end.to change { as_company(demo) { AiRun.count } }.by(1)
     end
 
     # Presentar la idea es de su autor: quien acompaña la trabaja, no la
@@ -376,11 +430,193 @@ RSpec.describe "el rol gestor", type: :request do
       expect(as_company(demo) { borrador.reload.submitted_at }).to be_nil
     end
 
-    # Lo que configura el desafío sigue siendo de quien administra.
-    it "pero no puede pedirle que arme el flujo" do
+    # También era al revés. `AiSuggestionPolicy#accept?` cae en
+    # `update_pipeline?` para las tareas de alcance `:challenge`, así que esto
+    # se abrió solo al abrir la policy: por eso tiene ejemplo propio.
+    it "y puede pedirle que arme el flujo" do
       expect do
         post challenge_ai_requests_path(acompanado, purpose: "propose_pipeline")
-      end.not_to change { as_company(demo) { AiRun.count } }
+      end.to change { as_company(demo) { AiRun.count } }.by(1)
+    end
+  end
+
+  describe "los criterios de su módulo" do
+    before { sign_in(gina, company: demo) }
+
+    def criterion_params(**overrides)
+      { id: nil, name: "Impacto", description: nil, weight: 100,
+        source: "manual", scale_type: "numeric",
+        source_config: {}, scale_config: { min: 1, max: 10, step: 1, direction: "higher_better" },
+        active: true }.merge(overrides)
+    end
+
+    it "los guarda por la API, que es el único camino de escritura del editor" do
+      set = as_company(demo) do
+        modulo = acompanado.steps.reload.first
+        CriteriaSet.create!(name: "Los del módulo", scope: "inline", owner_step: modulo)
+      end
+
+      put api_v1_criteria_set_path(set), params: {
+        name: "Los del módulo", criteria: [criterion_params]
+      }, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(as_company(demo) { set.reload.criteria.count }).to eq(1)
+    end
+
+    it "pero no crea uno de biblioteca, que se comparte con desafíos que no ve" do
+      expect do
+        post api_v1_criteria_sets_path, params: {
+          name: "Compartidos", criteria: [criterion_params]
+        }, as: :json
+      end.not_to change { as_company(demo) { CriteriaSet.where(scope: "library").count } }
+    end
+
+    # El link de "Guardarlos también en la biblioteca" cambió de guarda
+    # (`configure?` → `CriteriaSetPolicy#create?`), pero nada en la suite
+    # renderizaba la rama del set `inline` para un gestor: una condición
+    # invertida en la vista pasaría en silencio. Se fija la polaridad en las
+    # dos direcciones, y las dos afirman primero el marcador de la rama
+    # (`"no afectan a otros desafíos"`) para que el ejemplo no pase por no
+    # haber montado el bloque.
+    describe "el botón de promover, en la pantalla del módulo" do
+      let!(:modulo_con_set) do
+        as_company(demo) do
+          paso = acompanado.steps.create!(kind: "evaluation", position: 3, name: "Técnica")
+          set = CriteriaSet.create!(name: "Los del módulo", scope: "inline", owner_step_id: paso.id)
+          set.criteria.create!(key: "impacto", name: "Impacto", weight: 1, source: "manual",
+                               scale_type: "numeric", position: 0)
+          paso.update!(criteria_set: set)
+          paso
+        end
+      end
+
+      it "la gestora asignada no lo ve" do
+        get challenge_step_path(acompanado, modulo_con_set)
+
+        expect(response.body).to include("no afectan a otros desafíos")
+        expect(response.body).not_to include("Guardarlos también en la biblioteca")
+      end
+
+      it "quien administra sí lo ve" do
+        sign_in(admin, company: demo)
+        get challenge_step_path(acompanado, modulo_con_set)
+
+        expect(response.body).to include("no afectan a otros desafíos")
+        expect(response.body).to include("Guardarlos también en la biblioteca")
+      end
+    end
+  end
+
+  # Crear es la única puerta que no puede preguntar por la asignación: el
+  # desafío todavía no existe. Por eso se auto-asigna al crearlo — si no, lo
+  # crea y desaparece de su lista en el mismo movimiento, porque el Scope
+  # filtra por `challenge_gestores`.
+  describe "creando un desafío" do
+    before { sign_in(gina, company: demo) }
+
+    it "puede, y queda acompañándolo" do
+      expect do
+        post challenges_path, params: { challenge: { name: "Nuevo", brief: "Probar." } }
+      end.to change { as_company(demo) { Challenge.count } }.by(1)
+
+      creado = as_company(demo) { Challenge.order(:created_at).last }
+      asignados = as_company(demo) { creado.challenge_gestores.pluck(:user_id) }
+
+      expect(asignados).to include(gina.id)
+    end
+
+    it "y lo sigue viendo en el índice" do
+      post challenges_path, params: { challenge: { name: "Nuevo", brief: "Probar." } }
+
+      get challenges_path
+
+      expect(response.body).to include("Nuevo")
+    end
+  end
+
+  # Hallazgo Important de la revisión final: `new_challenge_path` en el
+  # índice colgaba de `current_membership&.manages_challenges?` (= admin?),
+  # así que el gestor sólo podía crear un desafío escribiendo la URL a mano
+  # —el link nunca se lo ofrecía—, aunque `ChallengePolicy#create?` ya lo
+  # permitía. Es una regla de rol escrita en la vista, que es lo que no se
+  # puede auditar.
+  describe "el link para crear un desafío, en el índice" do
+    it "la gestora lo ve" do
+      sign_in(gina, company: demo)
+      get challenges_path
+
+      expect(response.body).to include("Nuevo desafío")
+    end
+
+    it "quien participa no" do
+      participante = without_tenant do
+        u = create(:user, email: "participa@test.dev", name: "Pía Participante")
+        create(:membership, :participant, company: demo, user: u)
+        u
+      end
+      sign_in(participante, company: demo)
+
+      get challenges_path
+
+      expect(response.body).not_to include("Nuevo desafío")
+    end
+  end
+
+  # Hallazgo Important de la revisión final, hermano del anterior: la guarda
+  # de este link preguntaba `update_pipeline?` del DESAFÍO —abierto para el
+  # gestor asignado por esta misma rama—, pero el destino
+  # (`CriteriaSetsController#edit` → `edit?` → `update?`) autoriza sobre el
+  # SET, y un set de `library` sólo lo edita quien administra la EMPRESA. La
+  # guarda tiene que preguntar lo mismo que autoriza su destino.
+  describe "el link a un set de biblioteca, desde el módulo de selección" do
+    let!(:filtros) do
+      as_company(demo) do
+        set = CriteriaSet.create!(name: "Filtros", scope: "library")
+        set.criteria.create!(name: "¿Está claro?", key: "claro", weight: 1, source: "manual",
+                             scale_type: "boolean")
+        set.refresh_status!
+        set
+      end
+    end
+
+    let!(:con_corte) do
+      as_company(demo) do
+        c = create(:challenge, name: "Con corte")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
+        c.steps.create!(kind: "selection", position: 2, name: "Corte", criteria_set: filtros,
+                        config: { "score_source" => { "type" => "manual" },
+                                  "cut" => { "mode" => "top_n", "value" => 1 } })
+        c
+      end
+    end
+
+    def paso_de_corte = as_company(demo) { con_corte.steps.reload.find(&:selection?) }
+
+    before do
+      # Idear pide al menos una idea postulada para poder avanzar; sin eso
+      # `advance!` no mueve el flujo y el módulo de selección se queda
+      # pendiente (cara de configuración, no de ejecución).
+      idea_en(con_corte, demo)
+      as_company(demo) do
+        con_corte.pipeline.start!
+        con_corte.pipeline.advance!
+        ChallengeGestor.create!(challenge: con_corte, user: gina)
+      end
+    end
+
+    it "la gestora asignada no lo ve: editar un set de biblioteca es de quien administra la empresa" do
+      sign_in(gina, company: demo)
+      get challenge_step_path(con_corte, paso_de_corte)
+
+      expect(response.body).not_to include("Editar el set")
+    end
+
+    it "quien administra sí lo ve" do
+      sign_in(admin, company: demo)
+      get challenge_step_path(con_corte, paso_de_corte)
+
+      expect(response.body).to include("Editar el set")
     end
   end
 end

@@ -15,14 +15,13 @@ class FeedbackItemPolicy < ApplicationPolicy
     record.idea.participates?(membership.user)
   end
 
-  # Cerrar un comentario: quien administra el desafío o el autor de la idea.
+  # Cerrar un comentario: quien administra ese desafío o el autor de la idea.
   # Quien lo escribió no decide solo si quedó atendido.
-  # Cierra quien administra, quien escribió la idea, y el gestor del desafío:
-  # marcar que un comentario quedó atendido es parte de acompañar la evolución.
+  #
+  # La rama propia del gestor se fue: `administra?` la cubre entera.
   def resolve?
     return false if membership.nil?
-    return true if manager?
-    return reaches_challenge?(record.idea.challenge) if membership.gestor?
+    return true if administra?(record.idea.challenge)
 
     record.idea.participates?(membership.user)
   end

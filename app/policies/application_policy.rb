@@ -43,6 +43,21 @@ class ApplicationPolicy
     ChallengeGestor.exists?(challenge_id: challenge.id, user_id: membership.user_id)
   end
 
+  # Administrar ESTE desafío: quien administra la empresa, y el gestor al que
+  # se lo asignaron.
+  #
+  # `manager?` se queda significando «administra la empresa», y es lo que
+  # protege lo que no cuelga de ningún desafío: la gente, la biblioteca de
+  # criterios y la auditoría de IA. De rebote, una puerta nueva escrita con
+  # `manager?` nace cerrada para el gestor, que es el lado seguro.
+  #
+  # El desafío llega por cadenas opcionales (`record.challenge_step&.challenge`),
+  # así que tiene que aceptar `nil` sin reventar: para un gestor eso es `false`
+  # y un admin ya salió antes por `manager?`.
+  def administra?(challenge)
+    manager? || (membership.present? && membership.gestor? && reaches_challenge?(challenge))
+  end
+
   class Scope
     attr_reader :membership, :scope
 
