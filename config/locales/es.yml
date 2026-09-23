@@ -83,9 +83,9 @@ es:
       issue: "Problema"
     cut_modes:
       manual: "Manual"
-      top_n: "Top N"
-      top_percent: "Top N %"
-      threshold: "Puntaje mínimo"
+      top_n: "Top %{valor}"
+      top_percent: "Top %{valor}%"
+      threshold: "Puntaje mínimo %{valor}"
     notifications:
       assigned_to_evaluate:
         title: "Te toca evaluar en «%{step}»"
@@ -166,6 +166,18 @@ es:
       decide_verdicts: "Responder los filtros"
       evolve_idea: "Reescribir la idea con el feedback"
       summarize_challenge: "Resumen narrativo"
+    # Sin estas dos listas el chip cae en el fallback `humanize` y muestra el
+    # estado en inglés: eran los únicos de la app, y justo en la auditoría.
+    ai_run_statuses:
+      queued: "En cola"
+      running: "Corriendo"
+      succeeded: "Terminada"
+      failed: "Falló"
+    ai_suggestion_statuses:
+      pending: "Pendiente"
+      accepted: "Aceptada"
+      edited: "Editada"
+      rejected: "Descartada"
     idea_statuses:
       draft: "Borrador"
       active: "En carrera"

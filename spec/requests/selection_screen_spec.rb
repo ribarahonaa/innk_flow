@@ -45,6 +45,17 @@ RSpec.describe "la pantalla de una selección", type: :request do
 
   def paso = as_company(company) { challenge.steps.reload.find(&:selection?) }
 
+  # «Top N» es el NOMBRE de la regla, con la N como marcador. Impreso tal cual
+  # en la línea de corte se lee como el literal «TOP N» en vez del número que
+  # decide. La previsualización ya lo decía bien —«avanzan las 3 mejores»—, así
+  # que la app sabía; la pantalla de ejecución no.
+  it "la regla de corte se nombra con su número, no con la N" do
+    get challenge_step_path(challenge, paso)
+
+    expect(response.body).to include("línea de corte · Top 1")
+    expect(response.body).not_to include("Top N")
+  end
+
   let!(:ideas) do
     as_company(company) do
       %w[Sensores Cámaras].map do |titulo|

@@ -70,7 +70,7 @@
             - if ve_todo && index == corte_en && corte_en < ranking.size
               %tr.cut-line
                 %td{ colspan: 4 + gates.size + @handler.source_steps.size }
-                  %span.cut-line__label= "línea de corte · #{t("flow.cut_modes.#{@handler.cut_mode}")}"
+                  %span.cut-line__label= "línea de corte · #{@handler.cut_rule_label}"
             %tr{ class: ("is-below" unless row.above_cut?) }
               %td.ranking-table__check
                 -# Con el módulo cerrado la casilla se podía tildar y no hacía

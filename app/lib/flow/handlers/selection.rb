@@ -233,6 +233,23 @@ module Flow
       def cut_value = settings.dig("cut", "value").to_f
       def manual_cut? = cut_mode == "manual"
 
+      # El nombre de la regla CON su número.
+      #
+      # `flow.cut_modes.top_n` sola dice «Top N», con la N de marcador:
+      # impresa tal cual, la línea de corte del ranking decía el literal
+      # «LÍNEA DE CORTE · TOP N» en vez del número que decide quién queda
+      # afuera. La previsualización ya lo resolvía por su cuenta («avanzan las
+      # 3 mejores»), así que había dos formas de nombrar lo mismo y sólo una
+      # estaba bien.
+      #
+      # Es método de clase porque `Flow::Setup` arma la pista del drawer desde
+      # `config` y ahí todavía no hay handler.
+      def self.cut_rule_label(mode, value)
+        I18n.t("flow.cut_modes.#{mode}", valor: value.to_f.to_i, default: mode.to_s)
+      end
+
+      def cut_rule_label = self.class.cut_rule_label(cut_mode, cut_value)
+
       # Cuántas ideas pasan como mínimo, pase lo que pase con la regla. 0 es
       # sin piso, que es como se comportaba esto antes de que existiera.
       def cut_min = settings.dig("cut", "min").to_i
