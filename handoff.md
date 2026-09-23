@@ -2,9 +2,10 @@
 
 ## Objetivo
 
-Tres cosas: dejar la base con sólo los desafíos del seed, abrir el rol
-`gestor` para que administre los desafíos que le asignaron, y corregir la regla
-de idioma del repo, que decía lo contrario de lo que Raúl esperaba.
+Cuatro cosas: dejar la base con sólo los desafíos del seed, abrir el rol
+`gestor` para que administre los desafíos que le asignaron, corregir la regla
+de idioma del repo —que decía lo contrario de lo que Raúl esperaba— y empezar
+a mirar las capturas, que nadie había revisado en cinco sesiones.
 
 Lo segundo se ejecutó con `superpowers:subagent-driven-development`: spec de
 diseño, plan de seis tareas, un subagente fresco por tarea, revisión por tarea
@@ -109,6 +110,41 @@ Lo que se hizo:
 - **Lo que ya está en la base se queda; toda tabla y columna NUEVA va en
   inglés**, sin excepción.
 
+### El repaso de las capturas (21 de 66 miradas)
+
+Se miraron 21 a mano. Dos hallazgos NO son visuales y se verificaron en la
+fuente, no sólo en la imagen:
+
+**Los botones de IA se ofrecen en módulos ya cerrados, y en idear el pedido
+además pasa.** `shared/_ai_actions` sólo mira el MODO de IA (`human`) y
+`always`: **no hay ninguna guarda de estado del módulo, ni en el partial ni en
+ningún llamador**. En `steps/ideation.html.haml` se ve al lado: «Postular una
+idea» está gateado por `@step.active?` y el bloque de IA de abajo no. Visto en
+«Postulación de ideas · Completado» (con «Generar ideas candidatas») y en
+«Ronda de feedback · Completado» (con «Sugerir feedback con IA»).
+
+No queda en lo visual: `GenerateIdeas#apply!` crea ideas sin mirar el estado
+del paso, `AiRequestsController` tampoco, y la policy da permiso porque el
+DESAFÍO sigue en curso. Las ideas nacen `draft`, así que el daño está acotado
+—pero `Flow::Cohort.sync!` arma las `step_entries` al ACTIVAR el módulo, así
+que una idea que entre después no tiene fila en ningún lado.
+
+**Quien administra puede sacarse a sí mismo de la empresa.**
+`MembershipsController#destroy` guarda contra sacar al ÚLTIMO admin, no contra
+sacarse uno mismo: con otro admin en la empresa, «Sacar» sobre la propia fila
+funciona y deja afuera en el acto. Es el mismo defecto que se cerró para el
+gestor, un nivel más arriba. Preexistente.
+
+**Y una corrección al handoff anterior:** lo de «los `select` no se distinguen
+de un campo de texto, sin flecha» **no se ve en ninguna captura**. Todos los
+`select` mirados —editor de criterios, modo de IA, roles, colaboradores—
+tienen su chevron. O se arregló o se observó mal.
+
+**Un hueco del propio recorrido:** `21-evaluar-idea` usa una idea que **sólo
+tiene título** (verificado en la base), así que esa captura no puede detectar
+ningún problema de maquetado en la ficha de evaluación con una idea completa.
+Es honesta; lo que no sirve es como red.
+
 ## Intentos fallidos
 
 **El patrón de la ejecución: los dos únicos hallazgos serios fueron agujeros de
@@ -154,7 +190,23 @@ es la única sostenida sólo por lectura de código.
 
 ## Próximos pasos
 
-1. **Los menores diferidos del rol gestor**, ninguno bloqueante:
+1. **Dos guardas que faltan, salidas del repaso de capturas.** Son lo único
+   de esta lista con consecuencia sobre datos:
+   - **Ningún bloque de IA mira el estado del módulo.** La guarda va en
+     `shared/_ai_actions` —un lugar, seis pantallas— y no en cada llamador:
+     hoy el partial sólo sabe del modo de IA. Ojo al decidir el predicado: las
+     acciones de AUTORÍA (`always: true`) se ofrecen a propósito fuera del
+     trabajo del módulo, así que la guarda de estado no puede taparlas.
+     Conviene además cerrar el camino en el servidor y no sólo en la vista:
+     `GenerateIdeas#apply!` no mira el estado del paso, y la policy dice que sí
+     porque mira el DESAFÍO.
+   - **Nadie debería poder sacarse a sí mismo de la empresa.**
+     `MembershipsController#destroy` ya tiene la forma del arreglo en
+     `quita_al_ultimo_admin?`: es una guarda hermana. Y la vista debería
+     esconder el botón sobre la propia fila, como se hizo en
+     `challenges/_gestores.html.haml`.
+
+2. **Los menores diferidos del rol gestor**, ninguno bloqueante:
    - Una variable local muerta (`- desafio = step.challenge`) en
      `_referencia_evaluacion.html.haml:8`, que quedó sin uso al arreglar el
      link. Trivial.
@@ -168,7 +220,7 @@ es la única sostenida sólo por lectura de código.
      ni `evaluator`. Seguro por la forma del predicado; tres líneas si se
      quiere la red.
 
-2. **Dos rastros del renombre, dejados a propósito.** No son deuda; están así
+3. **Dos rastros del renombre, dejados a propósito.** No son deuda; están así
    porque la regla nueva dice no renombrar al pasar:
    - **`spec/policies/gestor_administra_spec.rb` conserva el nombre**, aunque
      prueba `administers?`. Renombrar archivos es el principio de la migración
@@ -177,7 +229,7 @@ es la única sostenida sólo por lectura de código.
      Son documentos históricos —el repo ya trata así a los anteriores—: cuentan
      lo que se decidió ese día, no cómo se llama hoy.
 
-3. **Dos preexistentes que merecen rama propia**, los dos confirmados esta
+4. **Dos preexistentes que merecen rama propia**, los dos confirmados esta
    sesión:
    - **`CriteriaSetPolicy::Scope` achica sólo para el gestor**, así que un
      participante abre **por id** un set `inline` de un desafío que no ve
@@ -187,11 +239,39 @@ es la única sostenida sólo por lectura de código.
      `criteria_sets_path`, que sólo lista biblioteca: para un set `inline` la
      vuelta va a una lista que nunca lo muestra.
 
-4. **Lo que sigue abierto de handoffs anteriores:**
-   - **Las 57 capturas que nunca se miraron**, y los seis defectos anotados de
-     las 9 que sí (drawer que no llega al fondo, botones apilados en «Acción»,
-     `select` sin flecha, los 15 avisos indistinguibles, la tarjeta de testing
-     que se repite, el popup de IA redundante).
+5. **Lo que sigue abierto de handoffs anteriores:**
+   - **Las 45 capturas que todavía no se miraron.** De las 21 que sí, lo
+     visual pendiente, ordenado por si conviene arreglarlo una vez o doce:
+     · **La previsualización se repite a sí misma en 5 de 7 tarjetas**, no
+     sólo en testing: cada una imprime la descripción genérica del `kind` y
+     después la concreta, y dicen lo mismo. Son DOS fuentes de descripción que
+     nadie coordinó.
+     · **El popup de la IA muestra el mismo contenido tres veces**: el título
+     dice «La IA respondió», la primera línea del cuerpo lo repite, y el bloque
+     que muestra ya está renderizado detrás en el panel de propuestas.
+     · **El desglose muestra las CLAVES y no los nombres** de los criterios
+     (`esfuerzo`, `factibilidad`) en monospace, mientras la columna derecha
+     muestra «Esfuerzo», «Factibilidad».
+     · **El drawer se corta donde termina su contenido**, no al fondo de la
+     página. Se ve muchísimo más en modo oscuro.
+     · **La tarjeta «Brief» tiene un hueco muerto** y el texto flota a media
+     altura. Las de «Todavía nadie dio feedback» igual.
+     · **«En curso» es el único estado sin badge** en la tabla del flujo.
+     · **Las filas etiqueta/valor de «Cómo quedó configurado» se encabalgan**
+     cuando cualquiera de los dos lados es largo, y el valor va en monospace,
+     que lo hace parecer texto de debug. Testing y reportería, claro y oscuro.
+     · **Separadores colgando al final de renglón** (el `›` del flujo, el `·`
+     antes del autor) cuando el contenido envuelve.
+     · **La columna «Acción» apila los botones**: «Re-testear» parte en dos
+     renglones y el botón «IA» cae debajo con otro ancho.
+     · **«3 / 2»** se lee como «3 de 2»: el segundo número es el mínimo.
+     · **«Armar el flujo con IA»** es un título que promete una acción y cuyo
+     cuerpo explica que no se puede; no tiene ningún control.
+     · **El embudo dibuja barras en gris plano**, no con la rampa `--dato`.
+     · **«Distribución de puntajes» tiene dos filas de números** bajo el eje y
+     se lee como dos ejes.
+     · **«Quién evalúa» duplicado**: la copia de los ajustes omite el peso,
+     que es lo único que distingue a esa persona.
    - **`Pipeline#validate` vs `Selection#can_activate?`**: una selección de
      sólo filtros no arranca el flujo salvo que se le declare el puntaje
      manual. Hay tres lugares documentando el mismo rodeo. Merece issue propio.
