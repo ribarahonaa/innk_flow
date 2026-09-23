@@ -12,12 +12,15 @@ que explica el porqué, en español.
 
 Ojo: hasta el 2026-09-23 esta línea decía que **el código** también iba en
 español, y buena parte del repo se escribió así. Quedaron identificadores en
-español repartidos —`administers?`, `assigned_gestor?`, `chip_de_estado`,
-`paso_actual_del_setup`, una veintena de partials, los specs enteros— y hasta
-una tabla (`challenge_gestores`) y un valor de rol (`"gestor"`). **No los
-renombres al pasar**: migrar es una decisión de alcance que todavía no se tomó,
-y hacerlo de a pedazos deja un mix peor que el actual. La regla nueva rige para
-lo que se escribe de ahora en más.
+español repartidos —`chip_de_estado`, `paso_actual_del_setup`,
+`marco_para_pedido_de_ia`, `estado_de`, una veintena de partials, los specs
+enteros— y hasta una tabla (`challenge_gestores`) y un valor de rol
+(`"gestor"`).
+
+**Se quedan como están y no se renombran al pasar.** Está decidido: migrarlos
+es mucho trabajo para lo que rinde, y hacerlo de a pedazos deja un mix peor que
+el actual. La regla nueva rige para lo que se escribe de ahora en más, y nada
+más que para eso.
 
 **Lo que ya está en la base se queda, y lo nuevo va en inglés.**
 `challenge_gestores` y el valor `"gestor"` de `memberships.role` no se tocan:
