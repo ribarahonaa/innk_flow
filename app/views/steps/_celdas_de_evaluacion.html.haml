@@ -12,7 +12,10 @@
       - evaluaciones.each do |assessment|
         %span{ class: chip(assessment.by_ai? ? "evaluador_ia" : "evaluador"),
                title: "#{assessment.evaluator_name}: #{assessment.overall_comment}" }
-          = assessment.by_ai? ? "IA" : assessment.evaluator_name.split.map(&:first).join
+          -# Las iniciales se estiran lo justo para no repetirse entre quienes
+          -# evaluaron en ESTE módulo: «Elena Evaluadora» y «Emilio Evaluador»
+          -# daban las dos «EE».
+          = assessment.by_ai? ? "IA" : Flow::Texto.initials(assessment.evaluator_name, among: evaluadores)
 %span
   - if !visible
     %span.muted{ title: "Se muestra cuando envíes la tuya" } oculto

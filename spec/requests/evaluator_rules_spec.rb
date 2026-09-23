@@ -108,6 +108,30 @@ RSpec.describe "reglas de quien evalúa", type: :request do
     end
   end
 
+  # El chip de la tabla daba «EE» para «Elena Evaluadora» y para «Emilio
+  # Evaluador»: dos personas, el mismo chip, en la misma fila. Desempatan
+  # dentro del MÓDULO y no dentro de la fila, así que la misma persona no sale
+  # «EE» en una idea y «ElE» en otra.
+  it "las iniciales de quien evaluó desempatan entre sí" do
+    without_tenant do
+      elena.update!(name: "Elena Evaluadora")
+      emilio.update!(name: "Emilio Evaluador")
+    end
+    as_company(company) do
+      [[elena, 0.5], [emilio, 0.6]].each do |quien, nota|
+        step.assessments.create!(idea: ajena, idea_version_id: ajena.current_version_id,
+                                 evaluator: quien, actor_type: "human",
+                                 status: "submitted", submitted_at: Time.current,
+                                 normalized_score: nota)
+      end
+    end
+
+    sign_in(admin, company: company)
+    get challenge_step_path(challenge, step)
+
+    expect(response.body).to include("ElE", "EmE")
+  end
+
   describe "evaluación a ciegas" do
     before do
       as_company(company) do

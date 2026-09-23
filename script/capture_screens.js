@@ -160,6 +160,23 @@ async function revisarRitmo(page, name) {
 // izquierdo con el texto centrado adentro de ella, o sea el párrafo corrido
 // media tarjeta mientras el título y el botón sí estaban centrados. Se ve
 // midiendo.
+// Un prompt es prosa adentro de un JSON, y la pantalla de auditoría existe
+// para LEERLO. Con `white-space: pre` las líneas medían más que la tarjeta y
+// la única salida era scrollear de costado, que para leer prosa no es una
+// salida. Se mide que no sobre nada a lo ancho.
+async function revisarBloqueDeCodigo(page, name) {
+  const desbordados = await page.evaluate(() =>
+    [...document.querySelectorAll('.code-block')]
+      .map((n, i) => ({ i, sobra: n.scrollWidth - n.clientWidth }))
+      .filter((n) => n.sobra > 1));
+
+  if (desbordados.length) {
+    failures++;
+    const detalle = desbordados.map((d) => `#${d.i} sobra ${d.sobra}px`).join(' · ');
+    console.error(`[CODIGO] ${name}: el bloque se sale de la tarjeta a lo ancho — ${detalle}`);
+  }
+}
+
 async function revisarEstadoVacio(page, name) {
   const desviados = await page.evaluate(() => {
     const caja = document.querySelector('.empty-state');
@@ -1571,6 +1588,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     // importa: `ai_runs/show` pone hasta tres `.card` hermanas directas de
     // `.app-main` (prompt, respuesta, sugerencias derivadas).
     await revisarRitmo(page, '14-ai-run');
+    await revisarBloqueDeCodigo(page, '14-ai-run');
     await capturar(page, '14-ai-run');
   }
 
