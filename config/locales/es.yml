@@ -113,7 +113,7 @@ es:
       participant: "participa"
     role_descriptions:
       admin: "Arma los desafíos, los configura y los cierra."
-      gestor: "Acompaña la evolución de las ideas de los desafíos que se le asignan."
+      gestor: "Administra los desafíos que se le asignan, igual que quien administra la empresa. No postula ideas propias."
       evaluator: "Evalúa las ideas de los módulos donde se lo asigna."
       participant: "Postula ideas y responde el feedback de las suyas."
     contributor_roles:
