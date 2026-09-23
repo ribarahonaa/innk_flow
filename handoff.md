@@ -13,9 +13,9 @@ las que sólo se habían mirado 21 en cinco sesiones— y arreglar lo que salier
   `git rev-parse origin/master`, que lee una foto local). Encima quedó
   **`b006b1d` sin pushear**: la corrección al handoff sobre la fuga de
   criterios.
-- **La rama `repaso-de-capturas-arreglos` tiene 5 commits sin mergear**, uno
-  por arreglo. No se mergeó ni se pusheó: queda a decisión de Raúl.
-- **`make spec` → 1109 ejemplos, 0 fallas** (venía de 1092 al empezar la
+- **La rama `iniciales-y-prompt` tiene 2 commits sin mergear.** Los cinco
+  arreglos anteriores (`repaso-de-capturas-arreglos`) ya están en `master`.
+- **`make spec` → 1115 ejemplos, 0 fallas** (venía de 1092 al empezar la
   sesión) y **`make screens` → 66 capturas, 0 errores**.
 - El stack quedó levantado. La base no se tocó.
 
@@ -64,6 +64,13 @@ sacarse uno mismo. Guarda hermana de la de `ChallengeGestoresController`.
 | `3edec28` | «1 de 1 comentario atendidos». |
 | `f74580f` | La fila propia de Miembros perdía la alineación al esconder «Sacar». |
 
+### Sin mergear: `iniciales-y-prompt`
+
+| Commit | Qué |
+|---|---|
+| `ff1ae45` | «Elena Evaluadora» y «Emilio Evaluador» daban las dos «EE». `Flow::Texto.initials` estira el nombre de pila sólo cuando choca: «ElE», «EmE», con «GG» quieto al lado. Desempata contra el grupo del MÓDULO, no el de la fila. |
+| `850bc70` | El prompt de la auditoría medía casi cuatro veces el ancho de la tarjeta. `pre-wrap` en vez de la barra horizontal, con guarda `[CODIGO]`. |
+
 ## Intentos fallidos
 
 **Tres afirmaciones del handoff anterior no resistieron mirar la fuente, y una
@@ -110,6 +117,12 @@ que el botón siguiera ofrecido justo donde el handoff lo había visto mal. Pas�
 a `recorrido-ia`. **Sacar un bug puede poner en rojo un test que lo afirmaba**,
 y hay que mirar cada falla antes de decidir eso.
 
+**Y un hallazgo propio mal diagnosticado:** dije que el prompt de la auditoría
+«se corta sin scroll ni wrap». `.code-block` ya tenía `overflow-x: auto`, o sea
+que scrolleaba. El problema era real pero la causa no: no faltaba la salida,
+la salida era mala. Lo verifiqué leyendo la hoja antes de escribir el arreglo,
+que es lo único que evitó arreglar lo que no estaba roto.
+
 **Y una pista no visual que tampoco era un bug:** en la auditoría, cada pedido
 de `detect_duplicates` aparece dos veces. No es doble ejecución:
 `capture_screens.js` lo pide dos veces por corrida (el clic de la línea 1389 y
@@ -125,12 +138,6 @@ con la polaridad del `unless` de Miembros y con la guarda `[VACIO]`.
    pushear `b006b1d`.
 
 2. **Hallazgos del repaso que quedaron SIN arreglar.** Ninguno es de datos:
-   - **Dos personas, el mismo chip:** en el desglose de evaluación, Elena
-     Evaluadora y Emilio Evaluador son las dos «EE». No hay forma de saber
-     quién puso qué.
-   - **El prompt de la auditoría se corta** a la derecha sin scroll ni wrap
-     (`14-ai-run`): la pantalla que existe para auditar no muestra lo que se
-     mandó.
    - **`Choose File / No file chosen` sin estilo** en el formulario real de
      postulación (`16-idea-new`), no sólo en la previsualización.
    - **`18-select-company`:** el rol va fuera del botón de cada empresa, así
