@@ -534,5 +534,90 @@ RSpec.describe "el rol gestor", type: :request do
       expect(response.body).to include("Nuevo")
     end
   end
+
+  # Hallazgo Important de la revisión final: `new_challenge_path` en el
+  # índice colgaba de `current_membership&.manages_challenges?` (= admin?),
+  # así que el gestor sólo podía crear un desafío escribiendo la URL a mano
+  # —el link nunca se lo ofrecía—, aunque `ChallengePolicy#create?` ya lo
+  # permitía. Es una regla de rol escrita en la vista, que es lo que no se
+  # puede auditar.
+  describe "el link para crear un desafío, en el índice" do
+    it "la gestora lo ve" do
+      sign_in(gina, company: demo)
+      get challenges_path
+
+      expect(response.body).to include("Nuevo desafío")
+    end
+
+    it "quien participa no" do
+      participante = without_tenant do
+        u = create(:user, email: "participa@test.dev", name: "Pía Participante")
+        create(:membership, :participant, company: demo, user: u)
+        u
+      end
+      sign_in(participante, company: demo)
+
+      get challenges_path
+
+      expect(response.body).not_to include("Nuevo desafío")
+    end
+  end
+
+  # Hallazgo Important de la revisión final, hermano del anterior: la guarda
+  # de este link preguntaba `update_pipeline?` del DESAFÍO —abierto para el
+  # gestor asignado por esta misma rama—, pero el destino
+  # (`CriteriaSetsController#edit` → `edit?` → `update?`) autoriza sobre el
+  # SET, y un set de `library` sólo lo edita quien administra la EMPRESA. La
+  # guarda tiene que preguntar lo mismo que autoriza su destino.
+  describe "el link a un set de biblioteca, desde el módulo de selección" do
+    let!(:filtros) do
+      as_company(demo) do
+        set = CriteriaSet.create!(name: "Filtros", scope: "library")
+        set.criteria.create!(name: "¿Está claro?", key: "claro", weight: 1, source: "manual",
+                             scale_type: "boolean")
+        set.refresh_status!
+        set
+      end
+    end
+
+    let!(:con_corte) do
+      as_company(demo) do
+        c = create(:challenge, name: "Con corte")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
+        c.steps.create!(kind: "selection", position: 2, name: "Corte", criteria_set: filtros,
+                        config: { "score_source" => { "type" => "manual" },
+                                  "cut" => { "mode" => "top_n", "value" => 1 } })
+        c
+      end
+    end
+
+    def paso_de_corte = as_company(demo) { con_corte.steps.reload.find(&:selection?) }
+
+    before do
+      # Idear pide al menos una idea postulada para poder avanzar; sin eso
+      # `advance!` no mueve el flujo y el módulo de selección se queda
+      # pendiente (cara de configuración, no de ejecución).
+      idea_en(con_corte, demo)
+      as_company(demo) do
+        con_corte.pipeline.start!
+        con_corte.pipeline.advance!
+        ChallengeGestor.create!(challenge: con_corte, user: gina)
+      end
+    end
+
+    it "la gestora asignada no lo ve: editar un set de biblioteca es de quien administra la empresa" do
+      sign_in(gina, company: demo)
+      get challenge_step_path(con_corte, paso_de_corte)
+
+      expect(response.body).not_to include("Editar el set")
+    end
+
+    it "quien administra sí lo ve" do
+      sign_in(admin, company: demo)
+      get challenge_step_path(con_corte, paso_de_corte)
+
+      expect(response.body).to include("Editar el set")
+    end
+  end
 end
 
