@@ -36,7 +36,15 @@
           -# Uno no se saca a sí mismo (`MembershipsController#destroy`), así que
           -# dibujarle el botón en su propia fila sólo ofrece un clic que
           -# termina en el `alert` de rechazo.
-          - unless membership.user_id == current_user.id
+          -#
+          -# Pero el hueco se reserva: sin él, el `select` de rol de la propia
+          -# fila se corre hasta el borde de la tarjeta y esa fila deja de
+          -# alinear con las demás. El hueco es el MISMO botón, invisible, así
+          -# que mide exactamente lo que mediría y no hay número mágico que se
+          -# desactualice cuando cambie la etiqueta.
+          - if membership.user_id == current_user.id
+            %span.btn.btn-ghost.btn-sm.invisible.member__hueco{ "aria-hidden" => "true" } Sacar
+          - else
             = button_to "Sacar", member_path(membership), method: :delete, class: "btn btn-ghost btn-sm",
                         form: { data: { turbo_confirm: "¿Sacar a #{membership.user.name} de #{current_company.name}?" } }
 

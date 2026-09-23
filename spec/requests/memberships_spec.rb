@@ -135,6 +135,15 @@ RSpec.describe "miembros de la empresa", type: :request do
       expect(response.body).to include("¿Sacar a #{paula.name}")
       expect(response.body).not_to include("¿Sacar a #{ana.name}")
     end
+
+    # Esconderlo a secas corría el `select` de rol de la propia fila hasta el
+    # borde de la tarjeta, así que esa fila dejaba de alinear con las demás.
+    # El hueco se reserva con el mismo botón invisible: sin número mágico.
+    it "pero deja su hueco, para que la fila siga alineada" do
+      get members_path
+
+      expect(response.body).to include("member__hueco")
+    end
   end
 
   describe "quién puede" do
