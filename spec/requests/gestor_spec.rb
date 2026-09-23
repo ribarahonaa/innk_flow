@@ -247,6 +247,34 @@ RSpec.describe "el rol gestor", type: :request do
 
       expect(as_company(demo) { ChallengeGestor.where(challenge_id: acompanado.id) }.to_a).to be_empty
     end
+
+    # Con `update_pipeline?` abierto, el gestor administra quién acompaña su
+    # desafío. Sacarse a sí mismo lo deja afuera en el acto, sin forma de
+    # volver salvo que un admin lo reasigne.
+    it "el gestor no se saca a sí mismo" do
+      sign_in(gina, company: demo)
+      asignacion = as_company(demo) { acompanado.challenge_gestores.find_by!(user_id: gina.id) }
+
+      delete challenge_gestor_path(acompanado, asignacion)
+
+      expect(as_company(demo) { ChallengeGestor.exists?(asignacion.id) }).to be(true)
+    end
+
+    it "pero sí saca a otro, que es parte de administrar el desafío" do
+      otra_gestora = without_tenant do
+        u = create(:user, email: "otra@test.dev")
+        create(:membership, :gestor, company: demo, user: u)
+        u
+      end
+      asignacion = as_company(demo) do
+        ChallengeGestor.create!(challenge: acompanado, user: otra_gestora)
+      end
+
+      sign_in(gina, company: demo)
+      delete challenge_gestor_path(acompanado, asignacion)
+
+      expect(as_company(demo) { ChallengeGestor.exists?(asignacion.id) }).to be(false)
+    end
   end
 
   # Un gestor acompaña la EVOLUCIÓN de las ideas, así que se lo asigna donde

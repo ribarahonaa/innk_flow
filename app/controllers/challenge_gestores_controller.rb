@@ -26,7 +26,18 @@ class ChallengeGestoresController < ApplicationController
   def destroy
     authorize @challenge, :update_pipeline?
 
-    @challenge.challenge_gestores.find(params[:id]).destroy!
+    asignacion = @challenge.challenge_gestores.find(params[:id])
+
+    # Sacarse a uno mismo deja afuera en el acto y sin vuelta: el Scope filtra
+    # por esta tabla, así que después del redirect el desafío ya da 404 y sólo
+    # un admin puede reasignar. Sacar a OTRO sigue permitido — es parte de
+    # administrar el desafío. Quien administra la empresa no puede caer acá:
+    # `user_must_be_gestor` impide que esté en la tabla.
+    if asignacion.user_id == current_user.id
+      return volver alert: "No podés dejar de acompañar un desafío vos mismo."
+    end
+
+    asignacion.destroy!
     volver notice: "Ya no acompaña este desafío."
   end
 
