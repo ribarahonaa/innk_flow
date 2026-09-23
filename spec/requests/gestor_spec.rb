@@ -169,9 +169,33 @@ RSpec.describe "el rol gestor", type: :request do
       expect(response).to have_http_status(:forbidden).or have_http_status(:found)
     end
 
-    it "ni configura el flujo" do
+    # Era al revés: el gestor no configuraba nada. Desde que administra los
+    # desafíos que le asignaron, el builder es suyo.
+    it "y configura el flujo del desafío que le asignaron" do
       get builder_challenge_path(acompanado)
-      expect(response).to have_http_status(:forbidden).or have_http_status(:found)
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "pero no el del desafío que no le asignaron" do
+      get builder_challenge_path(otro_de_demo)
+      expect(response).to have_http_status(:not_found)
+    end
+
+    # Pedir y aceptar son el MISMO método (`AiSuggestionPolicy#request?` es
+    # `accept?`) y los dos caen en `update_pipeline?`. Se prueban los dos
+    # igual: divergieron dos veces mientras la tabla estuvo copiada en los dos
+    # lados, y un ejemplo solo no lo habría visto.
+    it "y acepta lo que la IA propuso para el flujo" do
+      sugerencia = as_company(demo) do
+        Flow::AI::Runner.call(
+          Flow::AI::Tasks::ProposePipeline.new(challenge: acompanado),
+          mode: "ai_assisted", challenge: acompanado
+        ).suggestion
+      end
+
+      post accept_ai_suggestion_path(sugerencia)
+
+      expect(as_company(demo) { sugerencia.reload }).to be_accepted
     end
   end
 
@@ -376,11 +400,13 @@ RSpec.describe "el rol gestor", type: :request do
       expect(as_company(demo) { borrador.reload.submitted_at }).to be_nil
     end
 
-    # Lo que configura el desafío sigue siendo de quien administra.
-    it "pero no puede pedirle que arme el flujo" do
+    # También era al revés. `AiSuggestionPolicy#accept?` cae en
+    # `update_pipeline?` para las tareas de alcance `:challenge`, así que esto
+    # se abrió solo al abrir la policy: por eso tiene ejemplo propio.
+    it "y puede pedirle que arme el flujo" do
       expect do
         post challenge_ai_requests_path(acompanado, purpose: "propose_pipeline")
-      end.not_to change { as_company(demo) { AiRun.count } }
+      end.to change { as_company(demo) { AiRun.count } }.by(1)
     end
   end
 end
