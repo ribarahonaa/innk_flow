@@ -127,6 +127,10 @@ RSpec.describe "qué administra el gestor" do
         .to be(false)
     end
 
+    it "borrar la idea: la abre quien administra" do
+      expect(puede?(admin) { |m| IdeaPolicy.new(m, idea).destroy? }).to be(true)
+    end
+
     it "borrar la idea: la abre el gestor asignado" do
       expect(puede?(asignada) { |m| IdeaPolicy.new(m, idea).destroy? }).to be(true)
     end
