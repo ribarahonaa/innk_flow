@@ -64,6 +64,9 @@ module Flow
         # sigue o queda afuera. No se aplica por pedirlo; alguien lo acepta.
         def applies_on_request? = false
 
+        # Un veredicto decide quién queda afuera del corte.
+        def requires_active_step? = true
+
         def context_snapshot = { "criterion_keys" => pending_gates.map { _1["key"] } }
 
         def apply!(payload, suggestion:)

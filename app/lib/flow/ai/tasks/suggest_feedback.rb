@@ -47,6 +47,11 @@ module Flow
 
         def target_attributes = { idea: idea }
 
+        # El comentario se archiva con su `challenge_step_id`: escribirlo en
+        # una ronda cerrada mezcla dos conversaciones y lo viejo se lee como
+        # lo que hay que atender ahora.
+        def requires_active_step? = true
+
         def apply!(payload, suggestion:)
           payload["items"].each do |item|
             FeedbackItem.create!(

@@ -86,6 +86,14 @@ class StepsController < ApplicationController
   # de la que participa» no aplica acá (ver AiSuggestionPolicy#evaluacion).
   def evaluate_all
     authorize Assessment.new(challenge_step: @step), :create?
+
+    # El lote no pasa por `shared/_ai_actions`, así que consulta la misma
+    # regla por su cuenta: es la tercera puerta.
+    unless Flow::AI::Tasks::Base.step_ready?("evaluate_idea", @step)
+      return redirect_to challenge_step_path(@challenge, @step),
+                         alert: "El módulo ya cerró: no se le piden evaluaciones nuevas."
+    end
+
     handler = @step.handler
     pendientes = @step.step_entries.reject { |entry| handler.complete?(entry) }
 

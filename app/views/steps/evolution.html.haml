@@ -13,7 +13,7 @@
 -# podría comentar esa idea. Para quien acompaña la evolución, es su trabajo.
 - primera = @step.step_entries.first
 - if primera && policy(FeedbackItem.new(idea: primera.idea, challenge_step: @step)).create?
-  = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode,
+  = render "shared/ai_actions", challenge: @challenge, step: @step, mode: @step.effective_ai_mode,
            actions: [{ label: "Sugerir feedback con IA", purpose: "suggest_feedback", step_id: @step.id, idea_id: primera.idea_id }]
 
 .feedback-board

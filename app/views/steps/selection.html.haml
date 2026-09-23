@@ -44,7 +44,7 @@
           La IA lee la idea y responde cada filtro con su justificación. A diferencia de una
           evaluación, un veredicto decide quién queda afuera: lo que proponga pasa por tu revisión
           antes de aplicarse.
-        = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode,
+        = render "shared/ai_actions", challenge: @challenge, step: @step, mode: @step.effective_ai_mode,
                  actions: sin_veredicto.first(1).map { |r| { label: "Responder los filtros de «#{r.idea.title.truncate(28)}»", purpose: "decide_verdicts", step_id: @step.id, idea_id: r.idea.id } }
         - if sin_veredicto.size > 1
           %p.field-hint= "Quedan #{sin_veredicto.size} ideas con filtros sin responder."

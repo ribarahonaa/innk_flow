@@ -46,6 +46,19 @@ module Flow
           # refresca la pantalla entera o sólo el marco.
           def aplica_al_pedirse?(purpose) = por_proposito(purpose, :applies_on_request?)
 
+          # ¿El módulo está en condiciones de recibir esta tarea?
+          #
+          # Lo consultan las TRES puertas: `shared/_ai_actions` para dibujar el
+          # botón, `AiSuggestionPolicy#accept?` para autorizar el pedido —y el
+          # aceptar tardío— y `StepsController#evaluate_all`, que no pasa por
+          # el partial. La regla estuvo escrita a mano en cada llamador de la
+          # vista: cuatro de ocho la tenían y dos se la olvidaron.
+          def step_ready?(purpose, step)
+            return true unless por_proposito(purpose, :requires_active_step?)
+
+            step.present? && step.active?
+          end
+
           def for(purpose, **context)
             klass = "Flow::AI::Tasks::#{purpose.to_s.camelize}".safe_constantize
             raise ArgumentError, "propósito desconocido: #{purpose}" if klass.nil?
@@ -110,6 +123,20 @@ module Flow
         # único lugar donde se lee. El runner la corre siempre asistida, y el
         # botón responde al marco de las propuestas (`marco_para_pedido_de_ia`).
         def informativa? = false
+
+        # ¿Es trabajo DENTRO de un módulo, y por lo tanto no se hace sobre uno
+        # que ya cerró?
+        #
+        # Por defecto NO, que es el lado seguro para lo que no es trabajo del
+        # módulo: las tareas de AUTORÍA —armar el flujo, proponer criterios o
+        # campos— se ofrecen a propósito fuera de él, y las que sólo LEEN
+        # —detectar duplicados— tampoco editan nada.
+        #
+        # `evolve_idea` queda afuera a propósito: la ventana de la ronda ya la
+        # decide `IdeaPolicy#update?` (`draft? || evolution_open?`), con quien
+        # administra exento porque trabajar la idea es parte de administrar el
+        # desafío. Una guarda de estado acá pisaría esa regla.
+        def requires_active_step? = false
 
         # ¿Se puede editar lo que propuso antes de aplicarlo?
         #

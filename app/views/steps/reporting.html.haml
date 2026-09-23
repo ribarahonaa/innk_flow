@@ -38,7 +38,7 @@
         Resumen narrativo
         %span{ class: chip_de_ia } IA
       - if pide_resumen
-        = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode, actions: [resumen_con_ia]
+        = render "shared/ai_actions", challenge: @challenge, step: @step, mode: @step.effective_ai_mode, actions: [resumen_con_ia]
       %p.narrative-card__summary= narrative.data["summary"]
       - if narrative.data["themes"].present?
         .theme-grid
@@ -52,7 +52,7 @@
           %strong Lo que quedó afuera:
           = narrative.data["left_behind"]
 - elsif pide_resumen
-  = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode, actions: [resumen_con_ia]
+  = render "shared/ai_actions", challenge: @challenge, step: @step, mode: @step.effective_ai_mode, actions: [resumen_con_ia]
 
 .card
   .card-body

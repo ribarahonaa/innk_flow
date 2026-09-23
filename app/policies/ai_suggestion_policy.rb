@@ -18,6 +18,10 @@ class AiSuggestionPolicy < ApplicationPolicy
   # propuesta que ya no podía pedir.
   def accept?
     return false if membership.nil?
+    # Un módulo cerrado no sigue aceptando el trabajo de su IA. Va acá y no
+    # sólo en el controller porque pedir y aceptar son el mismo método: una
+    # propuesta que nació con el módulo abierto tampoco se aplica después.
+    return false unless Flow::AI::Tasks::Base.step_ready?(record.purpose, paso)
 
     alcance = Flow::AI::Tasks::Base.scope_of(record.purpose)
 
