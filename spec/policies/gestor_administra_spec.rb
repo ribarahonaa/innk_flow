@@ -120,7 +120,7 @@ RSpec.describe "qué administra el gestor" do
     end
 
     # La exclusión que NO se toca: postular es del autor. `submit?` es
-    # `update? && !acompana?`, así que sigue cerrado aunque `update?` se abra.
+    # `update? && !assigned_gestor?`, así que sigue cerrado aunque `update?` se abra.
     it "postular por el autor: sigue cerrado para el gestor asignado" do
       expect(puede?(asignada) { |m| IdeaPolicy.new(m, idea).submit? }).to be(false)
     end
@@ -166,7 +166,7 @@ RSpec.describe "qué administra el gestor" do
       end
 
       # El orden de `create?` no se toca: primero llegar al desafío, después el
-      # conflicto de interés, y recién ahí el rol. Si `administra?` se pone
+      # conflicto de interés, y recién ahí el rol. Si `administers?` se pone
       # antes, quien administra vuelve a poder puntuarse a sí mismo.
       it "y nadie puntúa una idea de la que participa, ni quien administra" do
         propia = as_company(company) { create(:idea, challenge: borrador, author: admin) }
@@ -188,7 +188,7 @@ RSpec.describe "qué administra el gestor" do
       expect(puede?(ajena) { |m| FeedbackItemPolicy.new(m, comentario).resolve? }).to be(false)
     end
 
-    # `administra?` recibe el desafío por cadenas opcionales
+    # `administers?` recibe el desafío por cadenas opcionales
     # (`record.challenge_step&.challenge`), así que un `nil` tiene que dar
     # `false` y no reventar. Hoy nada lo fija: sacarle el `challenge.nil?` a
     # `reaches_challenge?` deja la tabla verde y revienta estas policies con

@@ -26,13 +26,13 @@ class ChallengePolicy < ApplicationPolicy
 
   # Cualquiera de la empresa ve los desafíos; los arma quien los administra
   # —quien administra la empresa, y el gestor al que se lo asignaron—.
-  def builder? = administra?(record)
-  def start?   = administra?(record) && record.draft?
-  def close?   = administra?(record) && record.running?
+  def builder? = administers?(record)
+  def start?   = administers?(record) && record.draft?
+  def close?   = administers?(record) && record.running?
 
   # El pipeline solo se edita libremente en borrador; una vez arrancado, la
   # regla del insertion floor limita qué se puede tocar (Flow::Pipeline).
-  def update_pipeline? = administra?(record) && !record.closed? && !record.archived?
+  def update_pipeline? = administers?(record) && !record.closed? && !record.archived?
 
   # Mirar el pool entero de ideas para decidir qué se fusiona o se descarta
   # —hoy, detectar duplicados—.
@@ -41,7 +41,7 @@ class ChallengePolicy < ApplicationPolicy
   # ajenas, y quien participa ve sólo las suyas. Quien evalúa tampoco: puntúa
   # lo que se le asigna, no decide qué se fusiona. Y no mira si hay una ronda
   # de evolución abierta, porque comparar no edita ninguna idea.
-  def curate_pool? = administra?(record)
+  def curate_pool? = administers?(record)
 
   # LEER el pool ajeno: hoy, el resumen narrativo de reportería, que nombra
   # ideas por título. Quien participa ve sólo las ideas en las que participa

@@ -41,11 +41,11 @@ class IdeaPolicy < ApplicationPolicy
   #
   # Quien administra ese desafío no tiene esa ventana: es la misma llave que
   # abre todo lo demás del desafío. La rama propia que tenía el gestor —sólo
-  # con la ronda abierta— desapareció acá, pero `acompana?` se queda: lo usa
+  # con la ronda abierta— desapareció acá, pero `assigned_gestor?` se queda: lo usa
   # `submit?`, que es la exclusión que NO cambió.
   def update?
     return false if record.nil?
-    return true if administra?(record.challenge)
+    return true if administers?(record.challenge)
 
     # Participar es haberla creado o colaborar en ella, y son las dos formas
     # de trabajarla: quien colabora la ve —esa es la regla de visibilidad— y
@@ -57,18 +57,18 @@ class IdeaPolicy < ApplicationPolicy
 
   # Postular la idea es del autor: quien acompaña la trabaja, no la presenta
   # por él.
-  def submit? = update? && !acompana?
+  def submit? = update? && !assigned_gestor?
 
   # Sumar o sacar a alguien sigue la misma ventana que editar el contenido: en
   # borrador, o con una ronda de evolución abierta. Un colaborador no es
   # decorativo — hay criterios que cuentan personas —, así que agregarlo con la
   # evaluación en curso movería el puntaje después del hecho.
   def manage_contributors? = update?
-  def destroy? = administra?(record.challenge) || (record.author_id == membership.user_id && record.draft?)
+  def destroy? = administers?(record.challenge) || (record.author_id == membership.user_id && record.draft?)
 
   private
 
-  def acompana?
+  def assigned_gestor?
     membership.present? && membership.gestor? && reaches_challenge?(record.challenge)
   end
 

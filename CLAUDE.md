@@ -12,12 +12,19 @@ que explica el porqué, en español.
 
 Ojo: hasta el 2026-09-23 esta línea decía que **el código** también iba en
 español, y buena parte del repo se escribió así. Quedaron identificadores en
-español repartidos —`administra?`, `acompana?`, `chip_de_estado`,
+español repartidos —`administers?`, `assigned_gestor?`, `chip_de_estado`,
 `paso_actual_del_setup`, una veintena de partials, los specs enteros— y hasta
-una tabla (`challenge_gestores`) y un valor de rol (`"gestor"`), que no se
-renombran sin migración. **No los renombres al pasar**: migrar es una decisión
-de alcance que todavía no se tomó, y hacerlo de a pedazos deja un mix peor que
-el actual. La regla nueva rige para lo que se escribe de ahora en más.
+una tabla (`challenge_gestores`) y un valor de rol (`"gestor"`). **No los
+renombres al pasar**: migrar es una decisión de alcance que todavía no se tomó,
+y hacerlo de a pedazos deja un mix peor que el actual. La regla nueva rige para
+lo que se escribe de ahora en más.
+
+**Lo que ya está en la base se queda, y lo nuevo va en inglés.**
+`challenge_gestores` y el valor `"gestor"` de `memberships.role` no se tocan:
+renombrarlos es una migración con cambio de datos que toca modelo, rutas,
+policies, seeds, el CHECK de Postgres y las capturas, y no vale la pena por
+prolijidad. Pero **toda tabla y toda columna nueva va en inglés**, sin
+excepción — es donde el costo de arrepentirse es más alto.
 
 ## Comandos
 
@@ -336,7 +343,7 @@ Dos reglas que no viven en el rol:
 - **El gestor administra los desafíos que le asignaron.** Dentro de uno, puede
   lo mismo que quien administra la empresa: armarlo, arrancarlo, configurarlo,
   testear, avanzar, reportar, asignar, y trabajar sus ideas sin esperar una
-  ronda de evolución. La regla es `ApplicationPolicy#administra?(challenge)`,
+  ronda de evolución. La regla es `ApplicationPolicy#administers?(challenge)`,
   que es `manager? || (gestor? && le asignaron ESE desafío)`.
   **`manager?` quedó significando «administra la empresa»** y es lo que protege
   lo que no cuelga de ningún desafío: las membresías, la auditoría de IA y la
@@ -345,8 +352,8 @@ Dos reglas que no viven en el rol:
   que se toma, no un default.
   Dos cosas no se abrieron, y son de otro eje: **no postula ideas propias** ni
   **postula por el autor** (`IdeaPolicy#create?` y `#submit?`). Son conflicto
-  de interés, no permisos. `submit?` es `update? && !acompana?`, así que sigue
-  cerrado aunque `update?` se haya abierto — por eso `acompana?` se quedó
+  de interés, no permisos. `submit?` es `update? && !assigned_gestor?`, así que sigue
+  cerrado aunque `update?` se haya abierto — por eso `assigned_gestor?` se quedó
   aunque su otra rama murió.
   Y **crear** es la única puerta que no pregunta por la asignación: el desafío
   todavía no existe. Lo que la acota es que `ChallengesController#create`

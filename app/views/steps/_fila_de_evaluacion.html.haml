@@ -67,7 +67,7 @@
         -# módulo o de administrar el desafío, no del rol a secas. Ofrecido con sólo
         -# mirar `step.active?`, a quien evalúa sin asignación en este módulo le
         -# aparecía en todas las filas igual y le rebotaba con 403. Quien acompaña el
-        -# desafío sí pasa esta puerta —`administra?` lo cubre—, así que al gestor
+        -# desafío sí pasa esta puerta —`administers?` lo cubre—, así que al gestor
         -# asignado el link no le rebota.
         - if policy(Assessment.new(challenge_step: step, idea: entry.idea)).create?
           = link_to "Evaluar", new_challenge_step_assessment_path(challenge, step, idea_id: entry.idea_id), class: "btn btn-ghost btn-sm"

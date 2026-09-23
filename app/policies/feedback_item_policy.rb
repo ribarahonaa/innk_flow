@@ -18,10 +18,10 @@ class FeedbackItemPolicy < ApplicationPolicy
   # Cerrar un comentario: quien administra ese desafío o el autor de la idea.
   # Quien lo escribió no decide solo si quedó atendido.
   #
-  # La rama propia del gestor se fue: `administra?` la cubre entera.
+  # La rama propia del gestor se fue: `administers?` la cubre entera.
   def resolve?
     return false if membership.nil?
-    return true if administra?(record.idea.challenge)
+    return true if administers?(record.idea.challenge)
 
     record.idea.participates?(membership.user)
   end

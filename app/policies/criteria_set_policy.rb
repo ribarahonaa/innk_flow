@@ -31,7 +31,7 @@ class CriteriaSetPolicy < ApplicationPolicy
   def update?
     return manager? if record.library?
 
-    administra?(record.owner_step&.challenge)
+    administers?(record.owner_step&.challenge)
   end
 
   # Un set nace de biblioteca: lo crea el editor (`scope: "library"`) o el

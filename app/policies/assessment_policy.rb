@@ -16,14 +16,14 @@ class AssessmentPolicy < ApplicationPolicy
     # alcanzaba para escribir una evaluación sobre un desafío que le da 404.
     return false unless reaches_challenge?(record.challenge_step&.challenge)
     return false if record.idea&.participates?(membership.user)
-    return true if administra?(record.challenge_step&.challenge)
+    return true if administers?(record.challenge_step&.challenge)
 
     record.challenge_step.step_assignments.exists?(user_id: membership.user_id)
   end
 
   def update?
     return false if record.nil?
-    return true if administra?(record.challenge_step&.challenge)
+    return true if administers?(record.challenge_step&.challenge)
 
     record.evaluator_id == membership.user_id && !record.submitted?
   end

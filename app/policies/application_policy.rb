@@ -54,7 +54,7 @@ class ApplicationPolicy
   # El desafío llega por cadenas opcionales (`record.challenge_step&.challenge`),
   # así que tiene que aceptar `nil` sin reventar: para un gestor eso es `false`
   # y un admin ya salió antes por `manager?`.
-  def administra?(challenge)
+  def administers?(challenge)
     manager? || (membership.present? && membership.gestor? && reaches_challenge?(challenge))
   end
 
