@@ -14,7 +14,7 @@ class ChallengeStepPolicy < ApplicationPolicy
   # curso: `update_pipeline?` suma `&& !closed? && !archived?`. Con el desafío
   # cerrado, cambiar el modo de IA sigue siendo legítimo —es política
   # operativa— y reescribir el corte no.
-  def configure? = ChallengePolicy.new(membership, record.challenge).update_pipeline?
+  def configure? = ChallengePolicy.new(membership, record&.challenge).update_pipeline?
 
   # Editar el formulario de postulación.
   def manage_form? = administra?(record&.challenge)
