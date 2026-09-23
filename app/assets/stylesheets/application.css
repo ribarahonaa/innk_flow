@@ -1020,6 +1020,13 @@ input:focus, textarea:focus, select:focus {
    márgenes del título y el párrafo dejan de colapsar. Bloque, como era con
    `.panel`. */
 .card-body.empty-state { display: block; }
+/* `.app-main > .card .muted` le pone la medida de prosa (72ch) a este párrafo.
+   Adentro de un `.empty-state` —que es `text-align: center`— eso dejaba la
+   CAJA pegada al borde izquierdo y centraba el texto adentro de ella: el
+   título y el botón salían centrados en la tarjeta y el párrafo no, corrido
+   media pantalla a la izquierda. Se conserva la medida —un párrafo a 1.350px
+   no se lee— y lo que se centra es la caja. */
+.empty-state .muted { margin-inline: auto; }
 
 /* ── Índice de desafíos ─────────────────────────────────────────────────── */
 .challenge-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
