@@ -58,8 +58,11 @@ RSpec.describe "qué administra el gestor" do
   # `describe` se define sobre Object y se filtra a toda la suite.
   puertas = {
     ChallengePolicy => %i[builder? start? close? update_pipeline? curate_pool?],
+    # `configure?` delega en `ChallengePolicy#update_pipeline?`: sin fila
+    # propia, sólo quedaba cubierta de rebote por la de arriba. Importa porque
+    # es la que abre el form ENTERO de configuración de un módulo.
     ChallengeStepPolicy => %i[advance? skip? manage_form? manage_criteria?
-                              manage_assignments? report?]
+                              manage_assignments? report? configure?]
   }
 
   puertas.each do |clase, lista|
