@@ -130,6 +130,8 @@ RSpec.describe Flow::Setup do
 
       corte.update!(config: { "cut" => { "mode" => "top_n", "value" => 3 } })
       expect(paso_de(corte.reload)).to be_done
+      # Con la N sin reemplazar, la pista del drawer decía «corte: Top N».
+      expect(paso_de(corte.reload).hint).to eq("corte: Top 3")
     end
 
     # «Manual: el dueño decide» ES una decisión, y una válida.

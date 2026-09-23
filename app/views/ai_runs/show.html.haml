@@ -4,7 +4,7 @@
     %p.breadcrumb= link_to "Auditoría de IA", ai_runs_path
     %h1.page-title= t("flow.ai_purposes.#{@run.purpose}", default: @run.purpose.humanize)
     %p.muted
-      %span{ class: chip_de_corrida_de_ia(@run) }= @run.status
+      %span{ class: chip_de_corrida_de_ia(@run) }= t("flow.ai_run_statuses.#{@run.status}")
       %span= " · #{t("flow.ai_modes.#{@run.mode}")} · #{@run.provider}/#{@run.model} · #{@run.latency_ms} ms · #{@run.tokens_total} tokens"
 
 - if @run.error.present?
@@ -35,7 +35,7 @@
           - @run.ai_suggestions.each do |suggestion|
             %tr
               %td
-                %span{ class: chip_de_estado(suggestion.pending? ? "pending" : "completed") }= suggestion.status
+                %span{ class: chip_de_estado(suggestion.pending? ? "pending" : "completed") }= t("flow.ai_suggestion_statuses.#{suggestion.status}")
               %td.muted= suggestion.reviewed_by&.name || (suggestion.auto_accepted_at ? "automático" : "—")
               %td.muted= suggestion.reviewed_at ? l(suggestion.reviewed_at, format: :short) : "—"
               %td.muted= suggestion.review_note

@@ -152,7 +152,7 @@ module Flow
       modo = modulo.config.dig("cut", "mode").presence
       return [false, "sin regla de corte"] if modo.nil?
 
-      [true, "corte: #{I18n.t("flow.cut_modes.#{modo}", default: modo)}"]
+      [true, "corte: #{Flow::Handlers::Selection.cut_rule_label(modo, modulo.config.dig("cut", "value"))}"]
     end
 
     # Un testing nace configurado: las tres claves del esquema tienen default,

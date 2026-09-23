@@ -40,11 +40,10 @@
         %strong Después, el corte:
       - else
         %strong El corte:
-      = t("flow.cut_modes.#{handler.cut_mode}")
-      - unless handler.manual_cut?
-        = "· #{handler.cut_value.to_i}"
-        - if handler.cut_min.positive?
-          = "· mínimo #{Flow::Texto.contar(handler.cut_min, "idea")}"
+      -# El número va DENTRO del nombre de la regla: «Top 3», no «Top N · 3».
+      = handler.cut_rule_label
+      - if !handler.manual_cut? && handler.cut_min.positive?
+        = "· mínimo #{Flow::Texto.contar(handler.cut_min, "idea")}"
       - fuentes = handler.expected_source_steps
       - if fuentes.any?
         %span.muted

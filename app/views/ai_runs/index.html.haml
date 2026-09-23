@@ -42,7 +42,7 @@
               %td.muted= t("flow.ai_modes.#{run.mode}")
               %td
                 %span{ class: chip_de_corrida_de_ia(run) }
-                  = run.status
+                  = t("flow.ai_run_statuses.#{run.status}")
               %td.muted= run.tokens_total
               %td.muted= "#{run.latency_ms} ms"
               %td.muted= l(run.created_at, format: :short)

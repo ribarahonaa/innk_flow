@@ -152,6 +152,38 @@ async function revisarRitmo(page, name) {
   }
 }
 
+// Un estado vacío son tres cosas centradas: el título, la explicación y la
+// salida. La explicación NO lo estaba, y no se ve leyendo el CSS porque las
+// tres reglas son correctas por separado: `.empty-state` es
+// `text-align: center`, y `.app-main > .card .muted` le pone la medida de
+// prosa (72ch) al párrafo. Juntas dejaban la CAJA de 72ch contra el borde
+// izquierdo con el texto centrado adentro de ella, o sea el párrafo corrido
+// media tarjeta mientras el título y el botón sí estaban centrados. Se ve
+// midiendo.
+async function revisarEstadoVacio(page, name) {
+  const desviados = await page.evaluate(() => {
+    const caja = document.querySelector('.empty-state');
+    if (!caja) return null;
+    const suyo = caja.getBoundingClientRect();
+    const centro = suyo.left + suyo.width / 2;
+    return [...caja.children]
+      .map((n) => {
+        const r = n.getBoundingClientRect();
+        return { texto: n.textContent.trim().slice(0, 30), desvio: Math.round(r.left + r.width / 2 - centro) };
+      })
+      .filter((n) => Math.abs(n.desvio) > 4);
+  });
+
+  if (desviados === null) {
+    failures++;
+    console.error(`[VACIO] ${name}: no hay ningún .empty-state que medir`);
+  } else if (desviados.length) {
+    failures++;
+    const detalle = desviados.map((d) => `«${d.texto}» ${d.desvio}px`).join(' · ');
+    console.error(`[VACIO] ${name}: fuera del centro de la tarjeta — ${detalle}`);
+  }
+}
+
 // La referencia es lo que se consulta, y tiene que poder consultarse sin
 // buscarla. Dos formas de romperlo, medidas en evaluación cuando se completó:
 // a 1440×1000 la columna —pegada y con `max-height: 100vh`— medía 1.395px, y
@@ -1935,6 +1967,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   await page.click('.company-list button:has-text("Otra Empresa")');
   await page.waitForSelector('h1.page-title:has-text("Desafíos")');
   await capturar(page, '18b-desafios-vacio');
+  await revisarEstadoVacio(page, '18b-desafios-vacio');
 
   // Por link —el nav de arriba—, no `goto`: es el mismo camino que recorrería
   // cualquiera, y `manages_challenges?` lo ofrece porque acá `multi@demo.test`
@@ -1942,6 +1975,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   await page.click('.app-nav__link:has-text("Criterios")');
   await page.waitForURL(/\/criteria_sets$/);
   await capturar(page, '18c-criterios-vacio');
+  await revisarEstadoVacio(page, '18c-criterios-vacio');
 
   // El 403. Quien participa SÍ ve el desafío —`ChallengeStepPolicy#show?` es
   // cualquiera de la empresa— pero no lo arma: `ChallengePolicy#builder?` es
