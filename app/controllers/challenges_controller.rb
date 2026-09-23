@@ -18,7 +18,18 @@ class ChallengesController < ApplicationController
     @challenge = Challenge.new(challenge_params)
     authorize @challenge
 
-    return render(:new, status: :unprocessable_content) unless @challenge.save
+    guardado = ActiveRecord::Base.transaction do
+      next false unless @challenge.save
+
+      # Quien administra la empresa ve todos los desafíos; el gestor sólo los
+      # que tiene asignados, así que el que acaba de crear tiene que quedar
+      # entre ellos o lo pierde apenas lo crea. Va en la misma transacción: un
+      # desafío que el gestor no ve es peor que no haberlo creado.
+      @challenge.challenge_gestores.create!(user: current_user) if current_membership.gestor?
+      true
+    end
+
+    return render(:new, status: :unprocessable_content) unless guardado
     return proponer_flujo_con_ia if params[:template] == "ai"
 
     redirect_to builder_challenge_path(@challenge), notice: start_from(params[:template])

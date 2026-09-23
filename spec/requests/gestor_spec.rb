@@ -479,5 +479,32 @@ RSpec.describe "el rol gestor", type: :request do
       end
     end
   end
+
+  # Crear es la única puerta que no puede preguntar por la asignación: el
+  # desafío todavía no existe. Por eso se auto-asigna al crearlo — si no, lo
+  # crea y desaparece de su lista en el mismo movimiento, porque el Scope
+  # filtra por `challenge_gestores`.
+  describe "creando un desafío" do
+    before { sign_in(gina, company: demo) }
+
+    it "puede, y queda acompañándolo" do
+      expect do
+        post challenges_path, params: { challenge: { name: "Nuevo", brief: "Probar." } }
+      end.to change { as_company(demo) { Challenge.count } }.by(1)
+
+      creado = as_company(demo) { Challenge.order(:created_at).last }
+      asignados = as_company(demo) { creado.challenge_gestores.pluck(:user_id) }
+
+      expect(asignados).to include(gina.id)
+    end
+
+    it "y lo sigue viendo en el índice" do
+      post challenges_path, params: { challenge: { name: "Nuevo", brief: "Probar." } }
+
+      get challenges_path
+
+      expect(response.body).to include("Nuevo")
+    end
+  end
 end
 

@@ -56,4 +56,10 @@ class ChallengePolicy < ApplicationPolicy
   # Vivía escrita en la vista (`!current_membership.participant?`), que es el
   # único lugar donde una regla de rol no se puede auditar.
   def read_pool? = reaches_challenge?(record) && !membership.participant?
+
+  # Crear no puede preguntar por la asignación —el desafío todavía no existe—,
+  # así que alcanza con ser gestor de la empresa. Lo que lo acota es que
+  # `ChallengesController#create` lo asigna al desafío que acaba de crear: sin
+  # eso lo crearía y desaparecería de su lista en el mismo movimiento.
+  def create? = manager? || (membership.present? && membership.gestor?)
 end

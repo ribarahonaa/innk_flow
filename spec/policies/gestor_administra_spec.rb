@@ -245,4 +245,29 @@ RSpec.describe "qué administra el gestor" do
       expect(creado).to be(false)
     end
   end
+
+  describe "create? del desafío" do
+    def crea?(persona)
+      as_company(company) do
+        membresia = Membership.find_by!(user_id: persona.id)
+        ChallengePolicy.new(membresia, Challenge.new).create?
+      end
+    end
+
+    it "la abre quien administra" do
+      expect(crea?(admin)).to be(true)
+    end
+
+    # Ojo: acá el gestor NO asignado también puede, y está bien. Es la única
+    # puerta que no pregunta por la asignación, porque el desafío todavía no
+    # existe; lo que la acota es la auto-asignación del controller.
+    it "la abre cualquier gestor de la empresa" do
+      expect(crea?(ajena)).to be(true)
+    end
+
+    it "y no quien participa" do
+      participa = usuario(:participant, "participa@test.dev")
+      expect(crea?(participa)).to be(false)
+    end
+  end
 end
