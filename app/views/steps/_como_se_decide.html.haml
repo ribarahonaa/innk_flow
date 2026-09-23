@@ -1,13 +1,17 @@
 -# Los filtros y el corte, para leer: se congelaron al arrancar el módulo. Va
 -# arriba del ranking y no en la referencia: con esa columna puesta el ranking
 -# no entraba en el centro (el porqué medido, en `steps/selection`).
-- challenge = step.challenge
 - gates = handler.gate_criteria
 .card
   .card-body
     .section-head
       %h2.section-title Cómo se decide
-      - if step.criteria_set && policy(challenge).update_pipeline?
+      -# La guarda pregunta lo mismo que autoriza el destino
+      -# (`CriteriaSetsController#edit` → `edit?` → `update?`), no
+      -# `update_pipeline?` del desafío: sobre un set de biblioteca sólo
+      -# responde quien administra la empresa, y sobre uno `inline` quien
+      -# administra este desafío —que ya cubre al gestor asignado—.
+      - if step.criteria_set && policy(step.criteria_set).edit?
         = link_to "Editar el set", edit_criteria_set_path(step.criteria_set), class: "btn btn-ghost btn-sm"
       -# El corte vive en `config` y se congela al arrancar. Esta vista es la
       -# cara de ejecución —sólo se renderiza con el módulo tocado—, así que ya

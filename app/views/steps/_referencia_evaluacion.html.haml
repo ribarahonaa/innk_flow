@@ -35,7 +35,13 @@
 
     -# Uno de la biblioteca sigue editable en el mantenedor —afecta a otros
     -# desafíos, por eso vive ahí y no acá—; un set inline no va a ningún lado.
-    - if policy(desafio).update_pipeline? && step.criteria_set&.library?
+    -#
+    -# La guarda pregunta lo mismo que autoriza el destino
+    -# (`CriteriaSetsController#edit` → `edit?` → `update?`), no
+    -# `update_pipeline?` del desafío: un set de biblioteca solo lo edita quien
+    -# administra la EMPRESA, y un gestor que administra este desafío no
+    -# necesariamente administra la empresa.
+    - if step.criteria_set&.library? && policy(step.criteria_set).edit?
       = link_to "Ver el set", edit_criteria_set_path(step.criteria_set), class: "btn btn-ghost btn-sm"
 
 = render "steps/quien_evalua", step: step
