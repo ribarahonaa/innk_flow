@@ -443,6 +443,41 @@ RSpec.describe "el rol gestor", type: :request do
         }, as: :json
       end.not_to change { as_company(demo) { CriteriaSet.where(scope: "library").count } }
     end
+
+    # El link de "Guardarlos también en la biblioteca" cambió de guarda
+    # (`configure?` → `CriteriaSetPolicy#create?`), pero nada en la suite
+    # renderizaba la rama del set `inline` para un gestor: una condición
+    # invertida en la vista pasaría en silencio. Se fija la polaridad en las
+    # dos direcciones, y las dos afirman primero el marcador de la rama
+    # (`"no afectan a otros desafíos"`) para que el ejemplo no pase por no
+    # haber montado el bloque.
+    describe "el botón de promover, en la pantalla del módulo" do
+      let!(:modulo_con_set) do
+        as_company(demo) do
+          paso = acompanado.steps.create!(kind: "evaluation", position: 3, name: "Técnica")
+          set = CriteriaSet.create!(name: "Los del módulo", scope: "inline", owner_step_id: paso.id)
+          set.criteria.create!(key: "impacto", name: "Impacto", weight: 1, source: "manual",
+                               scale_type: "numeric", position: 0)
+          paso.update!(criteria_set: set)
+          paso
+        end
+      end
+
+      it "la gestora asignada no lo ve" do
+        get challenge_step_path(acompanado, modulo_con_set)
+
+        expect(response.body).to include("no afectan a otros desafíos")
+        expect(response.body).not_to include("Guardarlos también en la biblioteca")
+      end
+
+      it "quien administra sí lo ve" do
+        sign_in(admin, company: demo)
+        get challenge_step_path(acompanado, modulo_con_set)
+
+        expect(response.body).to include("no afectan a otros desafíos")
+        expect(response.body).to include("Guardarlos también en la biblioteca")
+      end
+    end
   end
 end
 
