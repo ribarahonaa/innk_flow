@@ -214,6 +214,21 @@ RSpec.describe "capa de IA", type: :request do
       expect(response.body).to include("Prompt", "Respuesta")
     end
 
+    # El propósito ya se traducía (`flow.ai_purposes`); el ESTADO no, así que
+    # `succeeded` y `accepted` eran los únicos chips en inglés de la app, y
+    # estaban justo en la pantalla que existe para auditar.
+    it "y los estados van en español, como el resto de los chips" do
+      run = as_company(company) { AiRun.first }
+
+      get ai_runs_path
+      expect(response.body).to include("Terminada")
+      expect(response.body).not_to include("succeeded")
+
+      get ai_run_path(run)
+      expect(response.body).to include("Terminada", "Pendiente")
+      expect(response.body).not_to include("succeeded", "pending")
+    end
+
     it "un participante no accede a la auditoría" do
       sign_in(participant, company: company)
       get ai_runs_path
