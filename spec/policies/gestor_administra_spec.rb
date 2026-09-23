@@ -81,4 +81,113 @@ RSpec.describe "qué administra el gestor" do
       end
     end
   end
+
+  describe "sobre una idea, una evaluación y un comentario" do
+    let!(:autora) { usuario(:participant, "autora@test.dev") }
+
+    let!(:idea) do
+      as_company(company) do
+        i = create(:idea, challenge: borrador, author: autora)
+        Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "Sensores" },
+                                        author: autora).call
+        i.update!(submitted_at: Time.current)
+        i.reload
+      end
+    end
+
+    def puede?(persona)
+      as_company(company) do
+        membresia = Membership.find_by!(user_id: persona.id)
+        yield(membresia)
+      end
+    end
+
+    # Editar una idea postulada SIN ronda de evolución abierta: era la ventana
+    # que acotaba al gestor y ahora no lo acota.
+    it "editar la idea: la abre quien administra" do
+      expect(puede?(admin) { |m| IdeaPolicy.new(m, idea).update? }).to be(true)
+    end
+
+    it "editar la idea: la abre el gestor asignado, sin ronda abierta" do
+      expect(puede?(asignada) { |m| IdeaPolicy.new(m, idea).update? }).to be(true)
+    end
+
+    it "editar la idea: se la niega al gestor no asignado" do
+      expect(puede?(ajena) { |m| IdeaPolicy.new(m, idea).update? }).to be(false)
+    end
+
+    # La exclusión que NO se toca: postular es del autor. `submit?` es
+    # `update? && !acompana?`, así que sigue cerrado aunque `update?` se abra.
+    it "postular por el autor: sigue cerrado para el gestor asignado" do
+      expect(puede?(asignada) { |m| IdeaPolicy.new(m, idea).submit? }).to be(false)
+    end
+
+    it "postular ideas propias: sigue cerrado para el gestor asignado" do
+      expect(puede?(asignada) { |m| IdeaPolicy.new(m, Idea.new(challenge: borrador)).create? })
+        .to be(false)
+    end
+
+    it "borrar la idea: la abre el gestor asignado" do
+      expect(puede?(asignada) { |m| IdeaPolicy.new(m, idea).destroy? }).to be(true)
+    end
+
+    it "borrar la idea: se la niega al gestor no asignado" do
+      expect(puede?(ajena) { |m| IdeaPolicy.new(m, idea).destroy? }).to be(false)
+    end
+
+    describe "evaluar sin asignación" do
+      let!(:evaluacion) do
+        as_company(company) { borrador.steps.create!(kind: "evaluation", position: 2) }
+      end
+
+      def evalua?(persona, sobre: nil)
+        puede?(persona) do |m|
+          AssessmentPolicy.new(m, Assessment.new(challenge_step: evaluacion, idea: sobre)).create?
+        end
+      end
+
+      it "la abre quien administra" do
+        expect(evalua?(admin)).to be(true)
+      end
+
+      it "la abre el gestor asignado, sin estar asignado al módulo" do
+        expect(evalua?(asignada)).to be(true)
+      end
+
+      it "se la niega al gestor no asignado" do
+        expect(evalua?(ajena)).to be(false)
+      end
+
+      # El orden de `create?` no se toca: primero llegar al desafío, después el
+      # conflicto de interés, y recién ahí el rol. Si `administra?` se pone
+      # antes, quien administra vuelve a poder puntuarse a sí mismo.
+      it "y nadie puntúa una idea de la que participa, ni quien administra" do
+        propia = as_company(company) { create(:idea, challenge: borrador, author: admin) }
+        expect(evalua?(admin, sobre: propia)).to be(false)
+      end
+    end
+
+    it "cerrar un comentario: la abre el gestor asignado" do
+      comentario = as_company(company) do
+        FeedbackItem.new(idea: idea, challenge_step: borrador.steps.first)
+      end
+      expect(puede?(asignada) { |m| FeedbackItemPolicy.new(m, comentario).resolve? }).to be(true)
+    end
+
+    it "cerrar un comentario: se la niega al gestor no asignado" do
+      comentario = as_company(company) do
+        FeedbackItem.new(idea: idea, challenge_step: borrador.steps.first)
+      end
+      expect(puede?(ajena) { |m| FeedbackItemPolicy.new(m, comentario).resolve? }).to be(false)
+    end
+
+    # `administra?` recibe el desafío por cadenas opcionales
+    # (`record.challenge_step&.challenge`), así que un `nil` tiene que dar
+    # `false` y no reventar. Hoy nada lo fija: sacarle el `challenge.nil?` a
+    # `reaches_challenge?` deja la tabla verde y revienta estas policies con
+    # NoMethodError.
+    it "un módulo sin desafío no abre nada, y no revienta" do
+      expect(puede?(asignada) { |m| ChallengeStepPolicy.new(m, nil).advance? }).to be(false)
+    end
+  end
 end

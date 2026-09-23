@@ -375,14 +375,16 @@ RSpec.describe "el rol gestor", type: :request do
       expect(response.body).to include("Reescribir la idea con el feedback")
     end
 
-    # Fuera de la ronda, no: acompañar tiene su ventana.
-    it "pero no con la ronda cerrada" do
+    # Era la ventana que acotaba al gestor: sólo con la ronda abierta. Desde
+    # que administra el desafío, trabajar la idea no depende de que haya una
+    # ronda en curso.
+    it "y también con la ronda cerrada" do
       as_company(demo) { evolucion.reload.update!(status: "completed", completed_at: Time.current) }
 
       expect do
         post challenge_ai_requests_path(acompanado, purpose: "evolve_idea",
                                         step_id: evolucion.id, idea_id: idea.id)
-      end.not_to change { as_company(demo) { AiRun.count } }
+      end.to change { as_company(demo) { AiRun.count } }.by(1)
     end
 
     # Presentar la idea es de su autor: quien acompaña la trabaja, no la
