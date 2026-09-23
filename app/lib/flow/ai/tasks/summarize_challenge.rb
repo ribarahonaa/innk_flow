@@ -49,6 +49,11 @@ module Flow
 
         def target_attributes = { challenge_step: step }
 
+        # Escribe el resumen del módulo de reportería. Casi siempre queda
+        # tapado por el desafío cerrado —completar el último módulo lo cierra—
+        # pero reportería no siempre es el último.
+        def requires_active_step? = true
+
         def apply!(payload, suggestion:)
           Report.create!(
             challenge_step: step, kind: "narrative", format: "dashboard",

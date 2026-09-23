@@ -67,6 +67,9 @@ module Flow
         # ver lo que acabás de pedir no protege de nada.
         def applies_on_request? = true
 
+        # Su nota entra al promedio del módulo como una más.
+        def requires_active_step? = true
+
         # La nota es de la IA, y por eso puede pedirla hasta quien participa de
         # la idea (`AiSuggestionPolicy#evaluacion`). Editada antes de aplicarla,
         # quien la acepta se pone puntaje a sí mismo con el nombre de la IA.

@@ -7,9 +7,17 @@
 -# campos del formulario—. Ahí el modo no manda: define cómo se trabaja DENTRO
 -# del desafío, no si su dueño puede pedir una mano para diseñarlo. Lo que
 -# proponga siempre pasa por revisión humana.
+-#
+-# Y un módulo que ya cerró no sigue aceptando su trabajo. La guarda vive acá
+-# —y no en cada llamador— porque escrita a mano se olvida: de los ocho
+-# llamadores, cuatro la tenían y dos no. Qué tarea la necesita lo declara la
+-# tarea (`requires_active_step?`), así que sumar una no pasa por esta vista.
 - mode = local_assigns.fetch(:mode)
 - always = local_assigns.fetch(:always, false)
+- step = local_assigns[:step]
 - return if mode == "human" && !always
+- actions = actions.select { |a| Flow::AI::Tasks::Base.step_ready?(a[:purpose], step) }
+- return if actions.none?
 
 .ai-actions
   %span{ class: chip_de_ia } IA

@@ -1009,9 +1009,21 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
 
   // Generar ideas deja elegir cuántas, con un tope. Sin el tope, un clic
   // distraído pide veinte ideas y eso es una factura sorpresa.
-  await page.goto(`${BASE}/challenges/${CHALLENGE}`, { waitUntil: 'networkidle' });
-  const ideacion = stepLinks.find((l) => l.text.match(/Postulaci/i));
-  if (ideacion) {
+  //
+  // Va sobre `recorrido-ia` y NO sobre el desafío del recorrido: en
+  // `merma-bodega` el flujo corrió entero, así que su módulo de idear está
+  // cerrado, y la IA ya no trabaja sobre un módulo cerrado. Mirándolo ahí,
+  // este chequeo estaba fijando justamente el bug: pedía que el selector
+  // siguiera ofrecido en un módulo donde apretar el botón creaba ideas sin
+  // fila en ninguna `step_entries`.
+  await page.goto(`${BASE}/challenges/recorrido-ia`, { waitUntil: 'networkidle' });
+  const ideacion = (await page.locator('.table-link').evaluateAll(
+    (nodes) => nodes.map((n) => ({ href: n.getAttribute('href'), text: n.textContent.trim() }))
+  )).find((l) => l.text.match(/Postulaci/i));
+  if (!ideacion) {
+    failures++;
+    console.error('[IA] recorrido-ia no tiene módulo de idear donde mirar el selector de cantidad');
+  } else {
     await page.goto(BASE + ideacion.href, { waitUntil: 'networkidle' });
     const opciones = await page.locator('select[name="count"] option').allTextContents();
     if (opciones.join(',') !== '1,2,3,4,5') {

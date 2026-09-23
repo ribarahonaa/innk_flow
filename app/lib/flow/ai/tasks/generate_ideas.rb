@@ -104,6 +104,11 @@ module Flow
 
         def target_attributes = { challenge_step: step }
 
+        # Crea ideas y las postula. `Flow::Cohort.sync!` arma las
+        # `step_entries` al ACTIVAR el módulo, así que una idea que entre
+        # después de que cerró no tiene fila en ningún lado.
+        def requires_active_step? = true
+
         def apply!(payload, suggestion:)
           keys = answerable_fields.map(&:key)
           obligatorios = answerable_fields.select(&:required).map(&:key)

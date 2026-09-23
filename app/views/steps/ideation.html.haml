@@ -25,7 +25,7 @@
         %span.muted= " (#{postuladas.count})"
       - if @step.active? && policy(Idea.new(challenge: @step.challenge)).create?
         = link_to "Postular una idea", new_challenge_idea_path(@step.challenge), class: "btn btn-primary btn-sm"
-    = render "shared/ai_actions", challenge: @step.challenge, mode: @step.effective_ai_mode,
+    = render "shared/ai_actions", challenge: @step.challenge, step: @step, mode: @step.effective_ai_mode,
              actions: [{ label: "Generar ideas candidatas", purpose: "generate_ideas", step_id: @step.id,
                          count: 3, count_options: (1..Flow::AI::Tasks::GenerateIdeas::MAX_COUNT).to_a }]
     = render "ideas/list", ideas: postuladas.includes(:current_version, :author).recent, challenge: @step.challenge

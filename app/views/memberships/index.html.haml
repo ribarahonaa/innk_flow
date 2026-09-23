@@ -33,8 +33,12 @@
               = select_tag :role, options_for_select(Membership::ROLES.map { |r| [t("flow.roles.#{r}"), r] }, membership.role),
                            onchange: "this.form.requestSubmit()"
               %noscript= submit_tag "Cambiar", class: "btn btn-ghost btn-sm"
-          = button_to "Sacar", member_path(membership), method: :delete, class: "btn btn-ghost btn-sm",
-                      form: { data: { turbo_confirm: "¿Sacar a #{membership.user.name} de #{current_company.name}?" } }
+          -# Uno no se saca a sí mismo (`MembershipsController#destroy`), así que
+          -# dibujarle el botón en su propia fila sólo ofrece un clic que
+          -# termina en el `alert` de rechazo.
+          - unless membership.user_id == current_user.id
+            = button_to "Sacar", member_path(membership), method: :delete, class: "btn btn-ghost btn-sm",
+                        form: { data: { turbo_confirm: "¿Sacar a #{membership.user.name} de #{current_company.name}?" } }
 
 .card
   .card-body

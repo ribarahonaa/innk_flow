@@ -85,6 +85,10 @@ module Flow
         # criterio de `decide_verdicts`, no el de `evaluate_idea`.
         def applies_on_request? = false
 
+        # Vale el último testeo: sobre un módulo cerrado reescribiría un
+        # resultado que el filtro de la selección ya consumió.
+        def requires_active_step? = true
+
         # Editado, un veredicto de la IA deja de serlo y sigue diciendo que lo
         # es. Es la lección de `EvaluateIdea`.
         def editable? = false

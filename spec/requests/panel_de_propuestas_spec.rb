@@ -66,10 +66,6 @@ RSpec.describe "el panel de propuestas de la IA", type: :request do
               step: ideacion, idea: propia)
   end
 
-  # Con la ronda de evolución abierta quien participa puede editar su idea,
-  # y por lo tanto revisar lo que la IA le propuso.
-  before { as_company(company) { challenge.pipeline.advance! } }
-
   def aplicar(sugerencia) = accept_ai_suggestion_path(sugerencia)
 
   describe "en la ficha del desafío" do
@@ -116,6 +112,14 @@ RSpec.describe "el panel de propuestas de la IA", type: :request do
   end
 
   describe "en la ficha de la idea" do
+    # Con la ronda de evolución abierta quien participa puede editar su idea,
+    # y por lo tanto revisar lo que la IA le propuso.
+    #
+    # Va acá y no arriba porque `advance!` CIERRA la ideación de paso, y el
+    # panel del módulo ya no ofrece aplicar lo que la IA propuso para uno
+    # cerrado: aplicarlo crearía ideas sin fila en ninguna `step_entries`.
+    before { as_company(company) { challenge.pipeline.advance! } }
+
     it "su autor recibe lo que la IA le propone" do
       sign_in(participante, company: company)
       get challenge_idea_path(challenge, propia)

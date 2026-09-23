@@ -109,6 +109,32 @@ RSpec.describe "miembros de la empresa", type: :request do
 
       expect(memberships.map(&:user_id)).to include(ana.id)
     end
+
+    # Sacarse a uno mismo deja afuera en el acto: después del redirect ya no
+    # hay empresa donde volver, y sólo otro admin puede reponer la membresía.
+    # Es el mismo defecto que ya estaba cerrado un nivel más abajo, para el
+    # gestor que se quitaba de un desafío.
+    #
+    # Con OTRO admin en la empresa a propósito: si no, lo que rebota es la
+    # guarda del último admin y esto no probaría nada.
+    it "y tampoco a uno mismo, aunque quede otra persona administrando" do
+      member(demo, "otro@test.dev", :admin)
+      mia = memberships.find { |m| m.user_id == ana.id }
+
+      delete member_path(mia)
+
+      expect(memberships.map(&:user_id)).to include(ana.id)
+      expect(flash[:alert]).to include("vos mismo")
+    end
+
+    it "y la pantalla no le ofrece el botón en su propia fila" do
+      member(demo, "otro@test.dev", :admin)
+
+      get members_path
+
+      expect(response.body).to include("¿Sacar a #{paula.name}")
+      expect(response.body).not_to include("¿Sacar a #{ana.name}")
+    end
   end
 
   describe "quién puede" do

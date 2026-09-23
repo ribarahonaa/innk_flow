@@ -45,7 +45,7 @@
                         evaluate_all_challenge_step_path(@challenge, @step),
                         class: "btn btn-primary btn-sm"
             %span.muted Todas las que faltan, de una.
-        = render "shared/ai_actions", challenge: @challenge, mode: @step.effective_ai_mode,
+        = render "shared/ai_actions", challenge: @challenge, step: @step, mode: @step.effective_ai_mode,
                  actions: pendientes.first(1).map { |e| { label: "Evaluar solo «#{e.idea.title.truncate(28)}»", purpose: "evaluate_idea", step_id: @step.id, idea_id: e.idea_id } }
 
     - unless manda
