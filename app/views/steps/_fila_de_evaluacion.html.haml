@@ -13,7 +13,7 @@
 - visible = handler.score_visible_for?(entry.idea, user: current_user, manager: manda)
 - desglose = handler.breakdown_visible_for?(entry.idea_id, user: current_user, manager: manda)
 - evaluaciones = desglose ? hechas.fetch(entry.idea_id, []) : []
-- celdas = { entry: entry, handler: handler, challenge: challenge, result: result, visible: visible, evaluaciones: evaluaciones }
+- celdas = { entry: entry, handler: handler, challenge: challenge, result: result, visible: visible, evaluaciones: evaluaciones, evaluadores: evaluadores }
 
 .fila-de-idea
   - if evaluaciones.any?

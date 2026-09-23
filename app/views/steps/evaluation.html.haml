@@ -61,6 +61,11 @@
       -# sección aparte —quince bloques abiertos debajo de la tabla— y la idea
       -# aparecía dos veces en la pantalla.
       - hechas = @step.assessments.current.submitted_ones.includes(:evaluator, :assessment_scores, :idea_version).group_by(&:idea_id)
+      -# Las iniciales del chip desempatan dentro del MÓDULO, no dentro de la
+      -# fila: si el largo dependiera de quién evaluó cada idea, la misma
+      -# persona saldría «EE» en una fila y «ElE» en la de al lado. Se arma una
+      -# vez para toda la tabla.
+      - evaluadores = hechas.values.flatten.reject(&:by_ai?).map(&:evaluator_name).uniq
       .filas-de-ideas
         .filas-de-ideas__encabezado
           .filas-de-ideas__columnas
@@ -72,7 +77,8 @@
           %span
         - entries.select { |e| @ideas_visibles.include?(e.idea_id) }.each do |entry|
           = render "steps/fila_de_evaluacion", entry: entry, handler: @handler, challenge: @challenge,
-                   step: @step, manda: manda, hechas: hechas, puede_pedir: puede_pedir
+                   step: @step, manda: manda, hechas: hechas, puede_pedir: puede_pedir,
+                   evaluadores: evaluadores
 
 -# El resumen del plegado se arma con las MISMAS guardas que los bloques de
 -# adentro, y el plegable entero se dibuja si quedó alguno. Con el texto fijo,

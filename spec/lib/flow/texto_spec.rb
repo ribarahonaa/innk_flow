@@ -27,6 +27,39 @@ RSpec.describe Flow::Texto do
     end
   end
 
+  # «Elena Evaluadora» y «Emilio Evaluador» daban las dos «EE»: en la tabla de
+  # evaluación el chip no distinguía a dos personas distintas, y el nombre
+  # completo estaba sólo en el `title`, que es de hover.
+  describe ".initials" do
+    it "usa una letra por palabra cuando con eso alcanza" do
+      expect(described_class.initials("Gabriel Gómez")).to eq("GG")
+      expect(described_class.initials("Ana Admin")).to eq("AA")
+    end
+
+    it "estira el nombre de pila —y sólo él— hasta desempatar" do
+      entre = ["Elena Evaluadora", "Emilio Evaluador", "Gabriel Gómez"]
+
+      expect(described_class.initials("Elena Evaluadora", among: entre)).to eq("ElE")
+      expect(described_class.initials("Emilio Evaluador", among: entre)).to eq("EmE")
+    end
+
+    # Quien no choca con nadie se queda corto: el chip sólo crece donde el
+    # problema existe, así que la tabla no cambia de ancho por las dudas.
+    it "y deja corto al que no choca con nadie" do
+      entre = ["Elena Evaluadora", "Emilio Evaluador", "Gabriel Gómez"]
+
+      expect(described_class.initials("Gabriel Gómez", among: entre)).to eq("GG")
+    end
+
+    it "no se estira contra sí mismo" do
+      expect(described_class.initials("Ana Admin", among: ["Ana Admin"])).to eq("AA")
+    end
+
+    it "aguanta un nombre de una sola palabra" do
+      expect(described_class.initials("Madonna")).to eq("M")
+    end
+  end
+
   describe ".contar" do
     it "acuerda el sustantivo con el número" do
       expect(described_class.contar(1, "idea")).to eq("1 idea")
