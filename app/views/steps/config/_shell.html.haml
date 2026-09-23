@@ -6,9 +6,10 @@
       = link_to "Desafíos", challenges_path
       = " › "
       = link_to step.challenge.name, challenge_path(step.challenge)
-      -# El builder es `ChallengePolicy#builder?` (= `manager?`): sin esta
-      -# guarda, quien participa o evalúa recibía un link que le rebota en
-      -# 403 al clickearlo — el mismo control-que-no-responde del CRITICAL.
+      -# El builder es `ChallengePolicy#builder?` (= `administra?`, que cubre
+      -# a quien administra la empresa y al gestor asignado): sin esta guarda,
+      -# quien participa o evalúa recibía un link que le rebota en 403 al
+      -# clickearlo — el mismo control-que-no-responde del CRITICAL.
       - if policy(step.challenge).builder?
         = " › "
         = link_to "Flujo", builder_challenge_path(step.challenge)
