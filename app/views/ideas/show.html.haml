@@ -84,7 +84,7 @@
         .card-body
           %h2.section-title
             Feedback recibido
-            %span.muted= " (#{@feedback.count { |i| !i.open? }}/#{@feedback.size} atendidos)"
+            %span.muted= " (#{@feedback.count { |i| !i.open? }}/#{@feedback.size} #{Flow::Texto.plural('atendido', @feedback.size)})"
           -# Del otro lado del módulo: la IA sabía proponer feedback y no sabía
           -# ayudar a responderlo. La propuesta pasa por su autor —es su idea—,
           -# así que cae en el panel de revisión como cualquier otra.
@@ -109,7 +109,9 @@
 
           - @rondas.each do |paso, comentarios|
             - abiertos = comentarios.count(&:open?)
-            - resumen = "#{comentarios.size - abiertos} de #{Flow::Texto.contar(comentarios.size, 'comentario')} atendidos"
+            -# El sustantivo lo acuerda `contar`; el adjetivo estaba en plural a mano,
+            -# así que con un solo comentario decía «1 comentario atendidos».
+            - resumen = "#{comentarios.size - abiertos} de #{Flow::Texto.contar(comentarios.size, 'comentario')} #{Flow::Texto.plural('atendido', comentarios.size)}"
             -# La ronda en curso, abierta y arriba. Las cerradas se pueden abrir
             -# —la historia no se esconde— pero plegadas no se confunden con lo
             -# que hay que atender ahora.

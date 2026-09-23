@@ -216,6 +216,16 @@ RSpec.describe "resolver feedback", type: :request do
       expect(response.body).to include("No aplica")
     end
 
+    # El sustantivo ya concordaba por `Flow::Texto.contar`; el adjetivo estaba
+    # escrito en plural a mano, así que con un solo comentario la pantalla
+    # decía «1 comentario atendidos».
+    it "y el adjetivo concuerda con la cantidad de comentarios" do
+      get challenge_idea_path(challenge, idea)
+
+      expect(response.body).to include("de 1 comentario atendido")
+      expect(response.body).not_to include("comentario atendidos")
+    end
+
     it "y ofrece que la IA la reescriba con ese feedback" do
       # El módulo nace en «Solo personas», donde la IA no interviene: es la
       # regla del modo, no un olvido.
