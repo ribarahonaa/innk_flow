@@ -138,4 +138,53 @@ RSpec.describe "desafíos", type: :request do
       expect(response.body).not_to include("Ajeno")
     end
   end
+
+  # El encabezado de la tarjeta «Flujo» contesta «dónde está el proceso», que
+  # es lo que dice su propio comentario. El conteo de módulos que quedaron
+  # atrás no lo contestaba: con seis hechos de siete el que corre es el
+  # SÉPTIMO, así que «6 de 7 · ahora: X» invitaba a leer el 6 como la posición
+  # de X y apuntaba al módulo anterior. Nada afirmaba ninguna de las tres
+  # ramas, que es cómo pudieron quedar así.
+  describe "el encabezado de la tarjeta «Flujo»" do
+    before { sign_in(owner, company: company) }
+
+    it "ubica el módulo en curso por su POSICIÓN y no por cuántos quedaron atrás" do
+      challenge = as_company(company) do
+        c = create(:challenge, :running, name: "Merma")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1, name: "Postulación", status: "completed"))
+        c.steps.create!(kind: "evolution", position: 2, name: "Feedback", status: "skipped")
+        # Fraccionaria a propósito: `position` es decimal(20,10) e insertar
+        # entre dos módulos da `(a+b)/2`, así que sólo el ÍNDICE da el número
+        # que muestra la columna «#» de la tabla de abajo. Con 1, 2 y 3 las dos
+        # formas coinciden y el caso no distinguiría una de otra.
+        c.steps.create!(kind: "reporting", position: 2.5, name: "Reporte de cierre", status: "active")
+        c
+      end
+
+      get challenge_path(challenge)
+
+      expect(response.body).to include("ahora: Reporte de cierre · módulo 3 de 3")
+      # El número viejo contaba completados y salteados: dos, o sea el módulo
+      # de antes del que corre.
+      expect(response.body).not_to include("2 de 3 ·")
+    end
+
+    it "y con el flujo terminado no repite el largo del flujo" do
+      challenge = as_company(company) do
+        c = create(:challenge, name: "Merma", status: "closed")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1, name: "Postulación", status: "completed"))
+        c.steps.create!(kind: "reporting", position: 2, name: "Reporte", status: "completed")
+        c
+      end
+
+      get challenge_path(challenge)
+
+      expect(response.body).to include("flujo terminado")
+      # Sin esta línea el caso no discrimina: la línea vieja decía «2 de 2 ·
+      # flujo terminado», que ya cumple la afirmación de arriba y dejaría el
+      # ejemplo en verde contra el código que vino a cambiar.
+      expect(response.body).not_to include("2 de 2")
+    end
+  end
+
 end

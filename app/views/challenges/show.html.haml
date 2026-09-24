@@ -28,20 +28,31 @@
       %h2.section-title Brief
       %p= simple_format(@challenge.brief)
 
-- hechos = @challenge.steps.count { |s| %w[completed skipped].include?(s.status) }
 - actual = @challenge.steps.find(&:active?)
 .card
   .card-body
     .section-head
       %h2.section-title Flujo
       -# Dónde está el proceso, sin tener que leer la tabla fila por fila.
+      -#
+      -# Es una POSICIÓN y no un conteo. Contar los módulos que quedaron atrás
+      -# daba el número del módulo ANTERIOR al que corre —«6 de 7 · ahora: X»
+      -# con X en el séptimo—, y ahí el 6 se lee como la posición de X. Una
+      -# posición además no necesita sustantivo, que es bueno porque no hay uno
+      -# honesto: lo que se contaba mezclaba completados y salteados, y
+      -# «cerrado» ya es el rótulo del desafío `closed`, que se lee más arriba
+      -# en esta misma pantalla.
       %span.muted
         - if @challenge.draft?
           = "#{Flow::Texto.contar(@challenge.steps.size, 'módulo')} · sin arrancar"
         - elsif actual
-          = "#{hechos} de #{@challenge.steps.size} · ahora: #{actual.name}"
+          = "ahora: #{actual.name} · módulo #{@challenge.steps.index(actual) + 1} de #{@challenge.steps.size}"
         - else
-          = "#{hechos} de #{@challenge.steps.size} · flujo terminado"
+          -# Sin conteo: llegar acá es haber completado el último módulo
+          -# —`advance!` activa el siguiente pendiente o cierra, en la misma
+          -# transacción—, así que no quedan módulos sin correr y un «7 de 7»
+          -# sólo repetiría el largo del flujo.
+          = "flujo terminado"
     = render "challenges/flow_strip", challenge: @challenge
 
     - if @report.errors.any?
