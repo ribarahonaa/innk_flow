@@ -50,6 +50,26 @@ RSpec.describe "el shell", type: :request do
     expect(response.body).not_to include("flow-drawer")
   end
 
+  # El contador de la cabecera cuenta los pasos LISTOS, y el pie de esa misma
+  # pantalla dice «Paso 3 de 9», que es una POSICIÓN. Sin la palabra convivían
+  # dos «de 9» distintos en una pantalla y el de arriba se leía como el de
+  # abajo.
+  it "dice qué cuenta el contador de la cabecera" do
+    get challenge_path(challenge)
+
+    expect(response.body).to include("3 de 5 listos")
+  end
+
+  # Cero módulos es la ficha recién creada, antes de pasar por el builder: ahí
+  # el único paso hecho es el brief.
+  it "y lo concuerda en singular" do
+    recien_creado = as_company(company) { create(:challenge, name: "Recién creado") }
+
+    get challenge_path(recien_creado)
+
+    expect(response.body).to include("1 de 3 listo")
+  end
+
   # Sin desafío no hay flujo que mostrar, y una barra lateral vacía es peor que
   # ninguna: ocupa un cuarto de la pantalla para no decir nada.
   it "NO lo dibuja fuera de un desafío" do

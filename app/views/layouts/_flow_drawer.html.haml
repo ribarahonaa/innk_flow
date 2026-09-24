@@ -35,7 +35,11 @@
       %span.flow-drawer__meta
         = t("flow.challenge_statuses.#{desafio.status}")
         - if setup
-          = "· #{setup.done_count} de #{setup.total}"
+          -# «listos» y no un «de N» pelado: el pie de esta misma pantalla dice
+          -# «Paso 3 de 9», que es una POSICIÓN, y dos «de 9» distintos en una
+          -# pantalla se leen como el mismo número. Es la forma que ya tiene
+          -# todo el resto de la app: «3 de 5 testeadas», «4 de 10 avanzan».
+          = "· #{setup.done_count} de #{setup.total} #{Flow::Texto.plural('listo', setup.done_count)}"
     %ul.menu.flow-drawer__steps
       - if setup
         - setup.steps.each_with_index do |paso, i|

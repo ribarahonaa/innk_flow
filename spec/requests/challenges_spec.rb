@@ -138,4 +138,67 @@ RSpec.describe "desafíos", type: :request do
       expect(response.body).not_to include("Ajeno")
     end
   end
+
+  # El encabezado de la tarjeta «Flujo» contesta «dónde está el proceso», que
+  # es lo que dice su propio comentario. El conteo de módulos que quedaron
+  # atrás no lo contestaba: con seis hechos de siete el que corre es el
+  # SÉPTIMO, así que «6 de 7 · ahora: X» invitaba a leer el 6 como la posición
+  # de X y apuntaba al módulo anterior. Nada afirmaba ninguna de las tres
+  # ramas, que es cómo pudieron quedar así.
+  describe "el encabezado de la tarjeta «Flujo»" do
+    before { sign_in(owner, company: company) }
+
+    it "ubica el módulo en curso por su POSICIÓN y no por cuántos quedaron atrás" do
+      challenge = as_company(company) do
+        c = create(:challenge, :running, name: "Merma")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1, name: "Postulación", status: "completed"))
+        c.steps.create!(kind: "evolution", position: 2, name: "Feedback", status: "skipped")
+        c.steps.create!(kind: "reporting", position: 3, name: "Reporte de cierre", status: "active")
+        c
+      end
+
+      get challenge_path(challenge)
+
+      expect(response.body).to include("ahora: Reporte de cierre · módulo 3 de 3")
+      # El número viejo contaba completados y salteados: dos, o sea el módulo
+      # de antes del que corre.
+      expect(response.body).not_to include("2 de 3 ·")
+    end
+
+    # `Pipeline#close!` cierra el desafío sin tocar los módulos pendientes, así
+    # que quedar con módulos que nunca corrieron es un estado real y no una
+    # hipótesis. El conteo viejo lo decía de refilón («5 de 7»); esto lo nombra.
+    it "nombra los módulos que nunca corrieron si el desafío se cerró antes" do
+      challenge = as_company(company) do
+        c = create(:challenge, name: "Merma", status: "closed")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1, name: "Postulación", status: "completed"))
+        c.steps.create!(kind: "evaluation", position: 2, name: "Comité")
+        c.steps.create!(kind: "reporting", position: 3, name: "Reporte")
+        c
+      end
+
+      get challenge_path(challenge)
+
+      expect(response.body).to include("flujo terminado · 2 módulos sin empezar")
+    end
+
+    it "y no los menciona cuando corrieron todos" do
+      challenge = as_company(company) do
+        c = create(:challenge, name: "Merma", status: "closed")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1, name: "Postulación", status: "completed"))
+        c.steps.create!(kind: "reporting", position: 2, name: "Reporte", status: "completed")
+        c
+      end
+
+      get challenge_path(challenge)
+
+      expect(response.body).to include("flujo terminado")
+      expect(response.body).not_to include("sin empezar")
+      # Sin esta línea el caso no discrimina: hoy dice «2 de 2 · flujo
+      # terminado», que ya cumple las dos afirmaciones de arriba y dejaría el
+      # ejemplo en verde contra el código que vino a cambiar.
+      expect(response.body).not_to include("2 de 2")
+    end
+  end
+
 end
