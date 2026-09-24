@@ -745,12 +745,91 @@ async function abrirPlegables(page) {
   await page.evaluate(() => document.querySelectorAll('details').forEach((d) => { d.open = true; }));
 }
 
+// Monoespaciada es para CÓDIGO y para identificadores, y ninguno de los dos
+// lleva espacios. Una fórmula de dentaku sí los lleva, así que las superficies
+// de código se exceptúan por selector; todo lo demás con un espacio adentro de
+// una fuente monoespaciada es prosa —o un número con su unidad— que llegó ahí
+// por herencia. Es lo que hacía parecer volcado de debug a «Cómo quedó
+// configurado»: el valor de cada ajuste salía mono, y al ser más ancho partía
+// la etiqueta de al lado en tres líneas adentro de la columna de referencia.
+// Antes del arreglo esto marcaba 13 de las 66 pantallas, y las 13 eran la
+// misma clase.
+//
+// Mira el texto PROPIO de cada elemento —sus nodos de texto directos— y no el
+// heredado: así un contenedor mono con texto suelto se reporta por su cuenta y
+// el mismo texto no sale dos veces por estar adentro de un padre mono.
+//
+// LO QUE NO VE: un identificador de UNA palabra puesto donde va un nombre. El
+// desglose mostraba `criterion_key` y esto lo dejaba pasar, porque «impacto»
+// no tiene espacios; eso lo cuida un spec de Ruby
+// (`pantalla_del_modulo_spec.rb`, «muestra el nombre y no la clave»).
+const SUPERFICIES_DE_CODIGO = 'code, kbd, samp, pre, .code-input';
+
+async function medirMonoEnProsa(page) {
+  return page.evaluate((selCodigo) => {
+    const esMono = (f) => /\bmonospace\b|ui-monospace|menlo|consolas|courier/i.test(f);
+    const encontrados = [];
+    for (const el of document.querySelectorAll('body *')) {
+      if (el.closest(selCodigo)) continue;
+      const propio = [...el.childNodes]
+        .filter((n) => n.nodeType === 3)
+        .map((n) => n.textContent)
+        .join('')
+        .trim();
+      if (!propio.includes(' ')) continue;
+      if (!esMono(getComputedStyle(el).fontFamily)) continue;
+      if (!el.getClientRects().length) continue;
+      const clase = typeof el.className === 'string' && el.className
+        ? el.className
+        : el.tagName.toLowerCase();
+      encontrados.push({ clase, texto: propio.slice(0, 60) });
+    }
+    return encontrados;
+  }, SUPERFICIES_DE_CODIGO);
+}
+
+// El detector, contra casos conocidos. Sin esto la guarda pasa en verde en las
+// 66 pantallas tanto si funciona como si un cambio la dejó midiendo cero, que
+// es indistinguible desde afuera.
+async function probarDetectorDeMono(page) {
+  await page.setContent(`
+    <body style="margin:0;font-family:Inter,sans-serif">
+      <span class="prosa-mono" data-mono="1" style="font-family:ui-monospace,monospace">veredicto por idea</span>
+      <span class="clave-mono" data-mono="0" style="font-family:ui-monospace,monospace">reduccion_merma</span>
+      <span class="prosa-normal" data-mono="0">veredicto por idea</span>
+      <pre><span class="formula-en-pre" data-mono="0" style="font-family:ui-monospace,monospace">(impacto + esfuerzo) / 2</span></pre>
+      <span class="oculta-mono" data-mono="0" style="font-family:ui-monospace,monospace;display:none">no se ve</span>
+      <div class="padre-mono" data-mono="1" style="font-family:ui-monospace,monospace">texto del padre
+        <span class="hija-heredada" data-mono="1">texto de la hija</span>
+      </div>
+    </body>`);
+  const marcados = await page.$$eval('[data-mono="1"]', (els) => els.map((e) => e.className));
+  const encontrados = (await medirMonoEnProsa(page)).map((c) => c.clase);
+
+  const faltan = marcados.filter((c) => !encontrados.includes(c));
+  const sobran = encontrados.filter((c) => !marcados.includes(c));
+  if (faltan.length || sobran.length) {
+    failures++;
+    console.error(`[MONO] el detector está mal: no vio ${JSON.stringify(faltan)} y marcó de más ${JSON.stringify(sobran)}`);
+  }
+}
+
+async function revisarMonoEnProsa(page, name) {
+  const casos = await medirMonoEnProsa(page);
+  const unicos = [...new Map(casos.map((c) => [c.clase, c])).values()].slice(0, 6);
+  if (unicos.length) {
+    failures++;
+    console.error(`[MONO] ${name}: prosa en monoespaciada · ${unicos.map((c) => `«${c.texto}» (${c.clase})`).join(' · ')}`);
+  }
+}
+
 async function capturar(page, name) {
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
   await revisarClasesDescartadas(page, name);
   await revisarCardSinBody(page, name);
   await revisarContraste(page, name);
   await revisarPastilla(page, name);
+  await revisarMonoEnProsa(page, name);
   shots.push(name);
 }
 
@@ -822,6 +901,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
 
   await probarMedidorDeContraste(page);
   await probarMedidorDePastilla(page);
+  await probarDetectorDeMono(page);
 
   page.on('pageerror', (e) => { failures++; console.error(`[JS ERROR] ${e.message}`); });
   page.on('response', (r) => {

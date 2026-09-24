@@ -47,7 +47,12 @@
             %ul.assessment-detail__scores
               - assessment.assessment_scores.sort_by(&:criterion_key).each do |score|
                 %li
-                  %span.assessment-detail__criterion= score.criterion_key
+                  -# El NOMBRE del criterio, con la clave congelada de respaldo
+                  -# para cuando el criterio ya no está. `criterion_key` se
+                  -# guarda justamente para que editar el set no reescriba un
+                  -# puntaje histórico, pero es un identificador: mostrarlo
+                  -# donde va un nombre hacía leer la fila como un volcado.
+                  %span.assessment-detail__criterion= score.criterion&.name.presence || score.criterion_key
                   %strong= score.display_value
                   - if score.comment.present?
                     %span.muted= score.comment
