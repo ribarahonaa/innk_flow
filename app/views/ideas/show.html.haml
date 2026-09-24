@@ -70,9 +70,9 @@
           %ul.result-list
             - @results.each do |resultado|
               - entry = resultado[:entry]
-              %li{ class: clase_de_resultado(entry.status) }
+              %li.result
                 %span.result__step= resultado[:step].name
-                %span.result__outcome= t("flow.entry_statuses.#{entry.status}", default: entry.status.humanize)
+                %span{ class: chip_de_resultado(entry.status) }= t("flow.entry_statuses.#{entry.status}", default: entry.status.humanize)
                 - if resultado[:score]
                   %span.result__score= "#{(resultado[:score].to_f * 100).round}%"
 

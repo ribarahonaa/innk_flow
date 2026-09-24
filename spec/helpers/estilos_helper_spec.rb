@@ -7,7 +7,8 @@ RSpec.describe EstilosHelper, type: :helper do
   # en dos specs, y un chip nuevo sumado a una y no a la otra quedaba sin medir.
   def todos_los_chips
     [EstilosHelper::CHIP_DE_ESTADO, EstilosHelper::CHIP_DE_ORIGEN, EstilosHelper::CLASE_DE_FEEDBACK,
-     EstilosHelper::CLASE_DE_NODO_DE_FLUJO, EstilosHelper::CHIPS, EstilosHelper::CHIP_DE_VEREDICTO]
+     EstilosHelper::CLASE_DE_NODO_DE_FLUJO, EstilosHelper::CHIPS, EstilosHelper::CHIP_DE_VEREDICTO,
+     EstilosHelper::CHIP_DE_RESULTADO]
       .flat_map(&:values) << EstilosHelper::CHIP_DE_IA
   end
 
@@ -80,7 +81,7 @@ RSpec.describe EstilosHelper, type: :helper do
   end
 
   it "cubre todos los estados de una entrada de módulo" do
-    expect(sin_mapear(StepEntry::STATUSES, EstilosHelper::CLASE_DE_RESULTADO)).to be_empty
+    expect(sin_mapear(StepEntry::STATUSES, EstilosHelper::CHIP_DE_RESULTADO)).to be_empty
   end
 
   it "cubre todos los estados de un módulo en el mapa del flujo" do
@@ -141,13 +142,33 @@ RSpec.describe EstilosHelper, type: :helper do
     expect(helper.clase_de_nodo_de_flujo("skipped")).to eq("badge badge-soft badge-sm border-dashed")
   end
 
-  # Los mapas que siguen teniendo un modificador por estado —`result--*`,
-  # `diff-kind--*`— se prueban además por el valor: con las claves solas, un
-  # `"advanced" => "result result--eliminated"` pegado de la línea de abajo
+  # `CLASE_DE_DIFF` sigue teniendo un modificador por clave, así que se prueba
+  # además por el valor: con las claves solas, un
+  # `"added" => "diff-kind diff-kind--removed"` pegado de la línea de abajo
   # pasaba.
-  it "cada resultado y cada tipo de diff pintan su propio modificador" do
-    { EstilosHelper::CLASE_DE_RESULTADO => "result--", EstilosHelper::CLASE_DE_DIFF => "diff-kind--" }.each do |mapa, prefijo|
-      mapa.each { |clave, clase| expect(clase).to end_with("#{prefijo}#{clave}"), "«#{clave}» pinta «#{clase}»" }
+  it "cada tipo de diff pinta su propio modificador" do
+    EstilosHelper::CLASE_DE_DIFF.each do |clave, clase|
+      expect(clase).to end_with("diff-kind--#{clave}"), "«#{clave}» pinta «#{clase}»"
     end
+  end
+
+  # `CHIP_DE_RESULTADO` ya no tiene modificador por estado: como chips,
+  # `pending` y `done` comparten el neutro y la clase no dice qué clave la
+  # pidió. El error que la prueba de arriba atajaba —dos celdas pegadas y
+  # cambiadas— se ataja acá, sobre las tres que dicen algo distinto entre sí.
+  it "avanzó, no avanzó y en curso no se confunden" do
+    expect(helper.chip_de_resultado("advanced")).to include("badge-success")
+    expect(helper.chip_de_resultado("eliminated")).to include("badge-warning")
+    expect(helper.chip_de_resultado("in_progress")).to include("badge-primary")
+  end
+
+  # Que `done` vaya al neutro es una decisión, no un olvido: es lo que decía el
+  # borde de 3px que esto reemplaza —sólo `advanced` y `eliminated` llevaban
+  # color— y deja el verde significando «avanzó», que es la única buena noticia
+  # de la lista.
+  it "listo y pendiente van los dos al neutro" do
+    neutro = EstilosHelper::CHIP_DE_ESTADO.fetch("pending")
+    expect(helper.chip_de_resultado("done")).to eq(neutro)
+    expect(helper.chip_de_resultado("pending")).to eq(neutro)
   end
 end

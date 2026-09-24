@@ -143,17 +143,32 @@ module EstilosHelper
     "skipped" => "flow-drawer__punto flow-drawer__punto--warn"
   }.freeze
 
-  # Las claves son StepEntry::STATUSES. El brief original traía "skipped"
-  # —que no es un status de StepEntry— y no mapeaba "advanced" ni
-  # "eliminated", que son justo los dos con color propio en la hoja
-  # (`.result--advanced` verde, `.result--eliminated` rojo): sin ellos «cómo
-  # le fue» perdía el borde de color que dice si la idea avanzó o no.
-  CLASE_DE_RESULTADO = {
-    "pending" => "result result--pending",
-    "in_progress" => "result result--in_progress",
-    "done" => "result result--done",
-    "advanced" => "result result--advanced",
-    "eliminated" => "result result--eliminated"
+  # Las claves son StepEntry::STATUSES: la participación de UNA idea en un
+  # módulo, que es otro enum que el estado del módulo. Por eso tiene mapa
+  # propio, aunque comparta las cadenas con `CHIP_DE_ESTADO` — es el mismo
+  # vocabulario visual, no el mismo dominio.
+  #
+  # Antes esto era `.result--*`: una palabra gris a la derecha y un borde
+  # izquierdo de 3px que sólo coloreaba dos de los cinco estados. «Pendiente» y
+  # «Listo» se veían idénticos.
+  #
+  # `done` va al NEUTRO y no al verde: es lo que decía ese borde —sólo
+  # `advanced` y `eliminated` llevaban color— y así el verde queda
+  # significando «avanzó», que es la única buena noticia de la lista. Que
+  # `pending` y `done` compartan clase los distingue la palabra, igual que los
+  # cuatro estados que comparten el neutro en `CHIP_DE_ESTADO`.
+  #
+  # `eliminated` va ÁMBAR y no rojo. Se pintaba de los dos colores según dónde
+  # se mirara: ámbar en la ficha de la idea y en la lista
+  # (`chip_de_estado("skipped")`), rojo en `.result--eliminated`. Que una idea
+  # no avance es el resultado normal de un filtro, no un error: el rojo queda
+  # para lo que falló, y `CHIP_DE_ESTADO` sigue sin variante de error.
+  CHIP_DE_RESULTADO = {
+    "pending" => "badge badge-soft badge-sm font-semibold whitespace-nowrap",
+    "in_progress" => "badge badge-soft badge-primary badge-sm font-semibold whitespace-nowrap",
+    "done" => "badge badge-soft badge-sm font-semibold whitespace-nowrap",
+    "advanced" => "badge badge-soft badge-success badge-sm font-semibold whitespace-nowrap",
+    "eliminated" => "badge badge-soft badge-warning badge-sm font-semibold whitespace-nowrap"
   }.freeze
 
   # Un estado desconocido no puede dejar el elemento sin ninguna clase: se cae
@@ -164,7 +179,7 @@ module EstilosHelper
   def clase_de_feedback(kind) = CLASE_DE_FEEDBACK.fetch(kind.to_s, CLASE_DE_FEEDBACK.fetch("suggestion"))
   def chip_de_ia = CHIP_DE_IA
   def clase_de_diff(kind) = CLASE_DE_DIFF.fetch(kind.to_s, CLASE_DE_DIFF.fetch("changed"))
-  def clase_de_resultado(status) = CLASE_DE_RESULTADO.fetch(status.to_s, CLASE_DE_RESULTADO.fetch("pending"))
+  def chip_de_resultado(status) = CHIP_DE_RESULTADO.fetch(status.to_s, CHIP_DE_RESULTADO.fetch("pending"))
   def clase_de_nodo_de_flujo(estado) = CLASE_DE_NODO_DE_FLUJO.fetch(estado.to_s, CLASE_DE_NODO_DE_FLUJO.fetch("pending"))
   def punto_de_estado(estado) = PUNTO_DE_ESTADO.fetch(estado.to_s, PUNTO_DE_ESTADO.fetch("pending"))
   def chip(nombre) = CHIPS.fetch(nombre.to_s)

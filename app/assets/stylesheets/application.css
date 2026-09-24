@@ -2512,22 +2512,20 @@ textarea:disabled {
 /* ── Cómo le fue a una idea, módulo por módulo ─────────────────────────────── */
 .result-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 
+/* Sin `border-left-width: 3px` ni `.result--*`: el estado lo dice el chip,
+   como en el resto de la app. El borde coloreaba dos de los cinco estados y
+   dejaba «Pendiente» y «Listo» idénticos. */
 .result {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 9px 12px;
   border: 1px solid var(--borde);
-  border-left-width: 3px;
   border-radius: 8px;
   font-size: 13px;
 }
 
-.result--advanced { border-left-color: var(--ok); }
-.result--eliminated { border-left-color: var(--danger); }
-
 .result__step { flex: 1; font-weight: 600; }
-.result__outcome { color: var(--muted); font-size: 12px; }
 .result__score { font-weight: 650; font-variant-numeric: tabular-nums; }
 
 /* ── Miembros de la empresa ────────────────────────────────────────────────── */
