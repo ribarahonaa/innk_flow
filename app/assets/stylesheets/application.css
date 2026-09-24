@@ -629,8 +629,16 @@ body {
    claro, 9,43 y 7,93 en oscuro.
 
    La pastilla sale sola: `badge-soft` deriva relleno y borde de
-   `currentColor`, así que arreglar el color la arregla también —1,95 y 1,66
-   medidas, sobre un piso de 1,25—. */
+   `currentColor`, así que arreglar el color la arregla también —1,95 y 1,66 en
+   claro, 1,89 y 1,75 en oscuro, sobre un piso de 1,25—.
+
+   Ojo con lo que parece una contradicción con la regla de `.badge-soft` más
+   abajo, que existe para ser UNA y no una por variante: acá no se puede. Ese
+   truco se apoya en `currentColor`, y `currentColor` dentro de `color` resuelve
+   al valor HEREDADO, no al que la regla está por poner. Así que esto es una
+   regla por variante y una variante nueva SÍ se puede olvidar: lo tapa un spec
+   que ata el arreglo de la guarda a `Challenge::STATUSES`
+   (`spec/helpers/estilos_helper_spec.rb`). */
 .flow-drawer__estado { color: var(--color-neutral-content); }
 .flow-drawer__estado.badge-primary {
   color: color-mix(in oklab, var(--color-primary) 40%, var(--color-neutral-content));

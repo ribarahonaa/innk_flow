@@ -72,7 +72,14 @@ caza; eso se revisa en todas las pantallas del recorrido, no en algunas: vive
 en `capturar()`—. También falla si un `.badge` o un `.alert` mide menos de
 4,5:1 de contraste en claro o en oscuro (`[CONTRASTE]`, en cada pantalla y en
 el muestrario), si un punto de estado del drawer mide menos de 3:1 —el piso de
-WCAG 1.4.11 para lo que no es texto— (`[PUNTOS]`, en los dos temas), o si
+WCAG 1.4.11 para lo que no es texto— (`[PUNTOS]`, en los dos temas), si el chip
+de estado del desafío no llega a 4,5:1 sobre el panel del drawer
+(`[ESTADO-DRAWER]`): ahí el estado también es un chip, y su color lo tiene que
+corregir la hoja a mano porque `badge-soft` neutro pinta con `base-content`,
+que en tema claro es casi el mismo casi-negro que el panel —sin corregir mide
+1:1—. La guarda le pone cada variante al chip que ya está en el panel, porque
+toda la validez de esa medición está en la superficie y el muestrario inyecta
+en una tarjeta; qué variantes existen lo ata al enum un spec de Ruby. O si
 aparece un `card` sin `card-body` (`[PANEL]`): las tarjetas de la app son
 `card` + `card-body` en todas partes, y un `card` sin su `card-body` es un
 error de maquetado. Falla también si aparece monoespaciada donde no hay código
