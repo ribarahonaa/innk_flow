@@ -24,7 +24,9 @@
         Una idea avanza solo si las cumple todas.
       %ul.field-list
         - gates.each do |gate|
-          - criterion = Criterion.find_by(id: gate["id"])
+          -# Del memo del handler y no `Criterion.find_by` acá: era otra consulta
+          -# por filtro, encima de las de `gates_for`.
+          - criterion = handler.gate_criterion(gate["id"])
           %li.field-list__item
             %span
               = gate["name"]

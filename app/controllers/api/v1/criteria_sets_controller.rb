@@ -44,6 +44,17 @@ module Api
       # Un criterio con notas puestas ya significó algo: cambiarle el peso, la
       # escala o lo que verifica reescribiría el sentido de lo puntuado. Lo
       # cosmético (nombre, descripción) sigue abierto.
+      #
+      # `position` y `active` también quedan abiertos, y es a propósito: los dos
+      # entran en el snapshot que el módulo congela en `activate!`, y el cálculo
+      # lee ESE snapshot y no la fila viva. Un módulo que ya tiene notas está
+      # activado, así que reordenar o desactivar un criterio no puede moverle
+      # nada a lo ya puntuado; sobre uno que todavía no arrancó, que refleje el
+      # set de hoy es lo correcto.
+      #
+      # Se dice acá porque el reparto no se ve leyendo `assign`: parece que el
+      # candado se olvidó de cuatro claves, y lo que pasa es que protege el
+      # SENTIDO de una nota y no la ficha del criterio.
       def locked?
         return @locked if defined?(@locked)
 

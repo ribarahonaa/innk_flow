@@ -223,17 +223,23 @@ module Flow
 
       challenge.with_lock do
         handler.complete!
-        challenge.steps.reset
-        following = challenge.steps.ordered.find(&:pending?)
-
-        if following
-          Flow::Handlers::Base.for(following).activate!
-          success(following)
-        else
-          challenge.update!(status: "closed", closed_at: Time.current)
-          success(nil)
-        end
+        open_next_or_close!
       end
+    end
+
+    # Abrir el siguiente módulo pendiente, o cerrar el desafío si no queda
+    # ninguno. Es la cola de `advance!` sin su parte de cerrar el módulo en
+    # curso, y es lo que necesita un SALTEO: `skip!` deja el módulo `skipped`,
+    # o sea sin activo, y `advance!` entero no sirve ahí porque su primera
+    # línea corta con `failure` exactamente en ese estado.
+    #
+    # `StepsController#skip` llamaba a `advance!` justo ahí, así que saltear el
+    # módulo en curso dejaba el flujo trabado y sin avisar: el `if` de la
+    # condición era verdadero y la llamada no podía hacer nada.
+    def continue!
+      return failure(["hay un módulo en curso"]) if active_step
+
+      challenge.with_lock { open_next_or_close! }
     end
 
     def close!
@@ -242,6 +248,20 @@ module Flow
     end
 
     private
+
+    # Se llama SIEMPRE con el lock del desafío tomado: reordenar o cerrar
+    # mientras otro proceso avanza el flujo es justo lo que el lock evita.
+    def open_next_or_close!
+      challenge.steps.reset
+      following = challenge.steps.ordered.find(&:pending?)
+      if following
+        Flow::Handlers::Base.for(following).activate!
+        return success(following)
+      end
+
+      challenge.update!(status: "closed", closed_at: Time.current)
+      success(nil)
+    end
 
     def resolvable_score_source?(step, list)
       source = step.settings.dig("score_source", "type")

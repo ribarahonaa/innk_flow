@@ -111,7 +111,16 @@ class StepsController < ApplicationController
   def skip
     authorize @step, :skip?
     @step.handler.skip!(reason: params[:reason])
-    @step.challenge.pipeline.advance! if @step.challenge.pipeline.active_step.nil?
+    # Saltear deja el módulo `skipped`, o sea sin ninguno en curso, y `continue!`
+    # abre el siguiente pendiente o cierra el desafío. Acá decía `advance!`, que
+    # corta con `failure` exactamente en ese estado —y encima detrás de un
+    # `if active_step.nil?`, que era la condición que lo garantizaba—, así que
+    # saltear el módulo en curso dejaba el flujo trabado sin avisar.
+    #
+    # Sin el `if`: la guarda vive en `continue!`, que no hace nada si quedó
+    # alguno en curso —salteando uno PENDIENTE más adelante no hay nada que
+    # abrir—.
+    @step.challenge.pipeline.continue!
     redirect_to challenge_path(@step.challenge), notice: "Módulo salteado."
   end
 

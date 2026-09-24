@@ -296,6 +296,39 @@ RSpec.describe Flow::Pipeline do
     end
   end
 
+  # Saltear el módulo en curso lo deja `skipped`, o sea sin módulo activo. Lo
+  # que sigue —abrir el siguiente pendiente, o cerrar el desafío si no
+  # queda— es la COLA de `advance!`, y `advance!` entero no se puede usar: su
+  # primera línea corta con `failure` justo cuando no hay activo, que es el
+  # estado que deja el salteo. `StepsController#skip` llamaba a `advance!` ahí,
+  # así que saltear dejaba el flujo trabado sin que nada avisara.
+  describe "#continue!" do
+    it "abre el siguiente pendiente después de saltear el que estaba en curso" do
+      challenge = build_pipeline(%w[ideation:skipped evaluation:pending reporting:pending])
+      result = described_class.new(challenge).continue!
+
+      expect(result).to be_ok
+      expect(challenge.steps.ordered.second.reload).to be_active
+      expect(challenge.reload).to be_running
+    end
+
+    it "cierra el desafío si no queda ninguno pendiente" do
+      challenge = build_pipeline(%w[ideation:completed reporting:skipped])
+      result = described_class.new(challenge).continue!
+
+      expect(result).to be_ok
+      expect(challenge.reload).to be_closed
+    end
+
+    it "no toca nada si ya hay un módulo en curso" do
+      challenge = build_pipeline(%w[ideation:active evaluation:pending])
+      result = described_class.new(challenge).continue!
+
+      expect(result).not_to be_ok
+      expect(challenge.steps.ordered.second.reload).to be_pending
+    end
+  end
+
   describe "config vs resolved_config" do
     it "un step pendiente lee de config; uno activo, de resolved_config congelado" do
       challenge = build_pipeline(%w[ideation evaluation], challenge_status: "draft")

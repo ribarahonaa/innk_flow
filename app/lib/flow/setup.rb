@@ -164,6 +164,15 @@ module Flow
     # Revisar y arrancar eran dos pasos que se completaban con el mismo hecho
     # —que el desafío deje de estar en borrador—, así que nunca se los veía en
     # estados distintos.
+    #
+    # La rama de no-borrador de `hint` NO se ve en pantalla, y no es un olvido:
+    # los dos lugares que instancian esta clase —`shared/_setup_nav` y
+    # `layouts/_flow_drawer`— guardan por `draft?`, así que con el desafío
+    # arrancado no hay paso a paso que dibujar. No se borra porque la clase sí
+    # sirve ese caso y hay spec de eso: «con el desafío arrancado» afirma que
+    # este paso queda `done` y que `done_count == total`. Sacarle la pista
+    # dejaría `status` atendiendo el caso y `hint` no, que es la misma condición
+    # contestada a medias.
     def finish_step
       Step.new(key: :finish, label: "Revisar y arrancar",
                hint: challenge.draft? ? "lo que van a ver las personas" : I18n.t("flow.challenge_statuses.#{challenge.status}"),

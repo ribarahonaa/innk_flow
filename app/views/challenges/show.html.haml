@@ -45,6 +45,13 @@
       %span.muted
         - if @challenge.draft?
           = "#{Flow::Texto.contar(@challenge.steps.size, 'módulo')} · sin arrancar"
+        - elsif @challenge.closed? || @challenge.archived?
+          -# Va ANTES que `actual`: `Pipeline#close!` cierra el desafío sin
+          -# tocar los pasos, así que uno cerrado se queda con su módulo en
+          -# curso y esto decía «ahora: X» dos centímetros abajo del chip que
+          -# dice «Cerrado». La pregunta es si el flujo TERMINÓ, y eso lo
+          -# contesta el desafío, no la ausencia de un módulo activo.
+          = "flujo terminado"
         - elsif actual
           = "ahora: #{actual.name} · módulo #{@challenge.steps.index(actual) + 1} de #{@challenge.steps.size}"
         - else

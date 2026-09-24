@@ -169,6 +169,24 @@ RSpec.describe "desafíos", type: :request do
       expect(response.body).not_to include("2 de 3 ·")
     end
 
+    # `Pipeline#close!` cierra el desafío SIN tocar los pasos, así que uno
+    # cerrado se queda con su módulo en curso. La rama se decidía por «no hay
+    # activo» cuando lo que quiere decir es «el flujo terminó», así que el chip
+    # de arriba decía «Cerrado» y la línea de abajo «ahora: Reporte de cierre».
+    it "con el desafío cerrado el flujo terminó, aunque quedara un módulo en curso" do
+      challenge = as_company(company) do
+        c = create(:challenge, name: "Merma", status: "closed")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1, name: "Postulación", status: "completed"))
+        c.steps.create!(kind: "reporting", position: 2, name: "Reporte de cierre", status: "active")
+        c
+      end
+
+      get challenge_path(challenge)
+
+      expect(response.body).to include("flujo terminado")
+      expect(response.body).not_to include("ahora: Reporte de cierre")
+    end
+
     it "y con el flujo terminado no repite el largo del flujo" do
       challenge = as_company(company) do
         c = create(:challenge, name: "Merma", status: "closed")
