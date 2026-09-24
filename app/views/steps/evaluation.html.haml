@@ -61,6 +61,17 @@
       -# sección aparte —quince bloques abiertos debajo de la tabla— y la idea
       -# aparecía dos veces en la pantalla.
       - hechas = @step.assessments.current.submitted_ones.includes(:evaluator, :assessment_scores, :idea_version).group_by(&:idea_id)
+      -# El rótulo y el orden de cada criterio salen del SNAPSHOT del módulo, que
+      -# es de donde los toma la tarjeta «Criterios» de la derecha: una sola
+      -# fuente para el mismo rótulo en la misma pantalla. Leerlos de la fila
+      -# viva de `Criterion` daba dos respuestas distintas —el nombre es
+      -# editable con el módulo en curso, y un criterio borrado nulea
+      -# `criterion_id`— y además obligaba a preloadear una asociación que así
+      -# no hace falta: el snapshot ya viaja en `settings`.
+      -#
+      -# El orden importa tanto como el rótulo: ordenar por clave dejaba los
+      -# mismos tres criterios al revés que en la tarjeta de al lado.
+      - criterios = @handler.criteria_snapshot.each_with_index.to_h { |c, i| [c["key"], { orden: i, nombre: c["name"] }] }
       -# Las iniciales del chip desempatan dentro del MÓDULO, no dentro de la
       -# fila: si el largo dependiera de quién evaluó cada idea, la misma
       -# persona saldría «EE» en una fila y «ElE» en la de al lado. Se arma una
@@ -78,7 +89,7 @@
         - entries.select { |e| @ideas_visibles.include?(e.idea_id) }.each do |entry|
           = render "steps/fila_de_evaluacion", entry: entry, handler: @handler, challenge: @challenge,
                    step: @step, manda: manda, hechas: hechas, puede_pedir: puede_pedir,
-                   evaluadores: evaluadores
+                   evaluadores: evaluadores, criterios: criterios
 
 -# El resumen del plegado se arma con las MISMAS guardas que los bloques de
 -# adentro, y el plegable entero se dibuja si quedó alguno. Con el texto fijo,

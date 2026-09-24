@@ -1340,7 +1340,17 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
   font-size: 13px;
 }
 .field-list__req { color: var(--danger); }
-.field-list__type { color: var(--muted); font-size: 11.5px; font-family: ui-monospace, monospace; }
+/* Sin monoespaciada. La clase se llama `__type` por su primer uso —el tipo de
+   un campo del formulario— pero es la columna de VALOR de una lista de
+   etiqueta/valor, y nueve vistas le mandan prosa, rótulos traducidos y
+   números: «veredicto por idea», «Texto largo», «40%». La mono los hacía leer
+   como un volcado de debug, y al ser más ancha que la proporcional partía la
+   etiqueta de al lado en tres líneas adentro de la columna de referencia.
+   Mono se queda donde hay código o un identificador, y son cuatro:
+   `.code-input` (las fórmulas de dentaku), `.diff-pane__tag` y el chip de
+   versión —los dos con `IdeaVersion#label`, «v3»— y `code`/`kbd`/`samp`/`pre`.
+   Lo cuida `[MONO]` en las 66 pantallas. */
+.field-list__type { color: var(--muted); font-size: 11.5px; }
 
 /* ── Lista de ideas ─────────────────────────────────────────────────────── */
 .idea-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
@@ -1792,9 +1802,15 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
 .assessment-detail__comment { margin: 7px 0 0; font-size: 13px; line-height: 1.55; }
 .assessment-detail__scores { list-style: none; margin: 9px 0 0; padding: 0; display: grid; gap: 5px; font-size: 12px; }
 .assessment-detail__scores li { display: flex; align-items: baseline; gap: 7px; }
+/* Sin monoespaciada: acá va el NOMBRE del criterio desde que la fila dejó de
+   mostrar su clave. El `min-width` se queda, pero alinea la columna de
+   puntajes sólo MIENTRAS cada nombre entre en 110px: es `min-width` y no
+   `width`, así que un nombre más largo estira el span y corre el puntaje a la
+   derecha. Con claves no pasaba —eran más cortas— así que el riesgo es nuevo.
+   Si alguna vez molesta, la forma es `flex: 0 0 110px` acá o una grilla de dos
+   columnas en el `li`, no subir el `min-width`. */
 .assessment-detail__criterion {
   min-width: 110px;
-  font-family: ui-monospace, monospace;
   font-size: 11px;
   color: var(--muted);
 }

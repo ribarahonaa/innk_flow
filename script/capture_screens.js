@@ -745,12 +745,121 @@ async function abrirPlegables(page) {
   await page.evaluate(() => document.querySelectorAll('details').forEach((d) => { d.open = true; }));
 }
 
+// Monoespaciada es para CÓDIGO y para IDENTIFICADORES, y nada más.
+//
+// La regla: el texto propio de un elemento mono tiene que ser un identificador
+// pelado —letras, dígitos, `_`, `.`, `-`—. «reduccion_merma» y «v3» lo son;
+// «veredicto por idea» y «40%» no. La primera versión de esta guarda pedía un
+// espacio, y así no veía los números, que es la mitad del requerimiento: `40%`
+// no tiene ninguno.
+//
+// Las superficies de CÓDIGO se exceptúan por selector, porque una fórmula de
+// dentaku o un JSON sí llevan espacios y signos. Las que existen de verdad son
+// `%pre.code-block` (`ai_runs/show`) y `%code= …to_json`
+// (`shared/_ai_suggestion`, servido en diez pantallas); `.code-input` va de
+// seguro —hoy es un `<input>`, así que no tiene nodos de texto y no puede
+// cambiar el resultado, pero empezaría a importar si pasara a `<textarea>`—.
+//
+// Mira el texto PROPIO de cada elemento —sus nodos de texto directos— y no el
+// heredado: así un contenedor mono con texto suelto se reporta por su cuenta y
+// el mismo texto no sale dos veces por estar adentro de un padre mono.
+//
+// POR QUÉ EXISTE: `.field-list__type` se llama por su primer uso pero es la
+// columna de VALOR de una lista de etiqueta/valor, y nueve vistas le mandaban
+// prosa, rótulos traducidos y números. Antes del arreglo esto marcaba 13 de las
+// 66 pantallas y las 13 eran esa misma clase.
+//
+// LO QUE NO VE, y son dos:
+//
+//   - Un identificador de UNA palabra puesto donde va un nombre: por
+//     construcción pasa el filtro. El desglose mostraba `criterion_key` y esto
+//     lo dejaba pasar; lo cuida un spec de Ruby («muestra el nombre del
+//     snapshot, y en el orden del snapshot»).
+//   - Prosa partida por un hijo inline: `<span>Impacto<b>·</b>Numérico</span>`
+//     junta «ImpactoNumérico», que pasa por identificador.
+//     `_como_se_decide.html.haml` tiene esa forma, hoy sin mono.
+const SUPERFICIES_DE_CODIGO = 'code, kbd, samp, pre, .code-input';
+const IDENTIFICADOR = /^[A-Za-z0-9_.-]+$/;
+
+async function medirMonoEnProsa(page) {
+  return page.evaluate(({ selCodigo, reIdent }) => {
+    const esIdentificador = new RegExp(reIdent);
+    const esMono = (f) => /\bmonospace\b|ui-monospace|menlo|consolas|courier/i.test(f);
+    const encontrados = [];
+    for (const el of document.querySelectorAll('body *')) {
+      if (el.closest(selCodigo)) continue;
+      const propio = [...el.childNodes]
+        .filter((n) => n.nodeType === 3)
+        .map((n) => n.textContent)
+        .join('')
+        .trim();
+      if (!propio || esIdentificador.test(propio)) continue;
+      if (!esMono(getComputedStyle(el).fontFamily)) continue;
+      if (!el.getClientRects().length) continue;
+      const clase = typeof el.className === 'string' && el.className
+        ? el.className
+        : el.tagName.toLowerCase();
+      encontrados.push({ clase, texto: propio.slice(0, 60) });
+    }
+    return encontrados;
+  }, { selCodigo: SUPERFICIES_DE_CODIGO, reIdent: IDENTIFICADOR.source });
+}
+
+// El detector, contra casos conocidos. Sin esto la guarda pasa en verde en las
+// 66 pantallas tanto si funciona como si un cambio la dejó midiendo cero, que
+// es indistinguible desde afuera.
+//
+// Cada caso existe por UNA línea del detector: sacarla hace que este autotest
+// falle. `prosa-normal` por `esMono`, `clave-mono` y `numero-mono` por el
+// filtro de identificador, `formula-en-pre` y `json-en-code` por el `closest`
+// —los dos, porque el selector tiene varias entradas y exceptuar sólo `pre`
+// dejaría fuera la que más pesa en pantalla—, `oculta-mono` por
+// `getClientRects`, y `envoltorio-mono` por mirar el texto PROPIO: con
+// `textContent` el envoltorio se reportaría además de su hija, o sea el mismo
+// texto dos veces.
+async function probarDetectorDeMono(page) {
+  await page.setContent(`
+    <body style="margin:0;font-family:Inter,sans-serif">
+      <span class="prosa-mono" data-mono="1" style="font-family:ui-monospace,monospace">veredicto por idea</span>
+      <span class="numero-mono" data-mono="1" style="font-family:ui-monospace,monospace">40%</span>
+      <span class="clave-mono" data-mono="0" style="font-family:ui-monospace,monospace">reduccion_merma</span>
+      <span class="version-mono" data-mono="0" style="font-family:ui-monospace,monospace">v3</span>
+      <span class="prosa-normal" data-mono="0">veredicto por idea</span>
+      <pre><span class="formula-en-pre" data-mono="0" style="font-family:ui-monospace,monospace">(impacto + esfuerzo) / 2</span></pre>
+      <code><span class="json-en-code" data-mono="0" style="font-family:ui-monospace,monospace">{ "a": 1 }</span></code>
+      <span class="oculta-mono" data-mono="0" style="font-family:ui-monospace,monospace;display:none">no se ve</span>
+      <div class="envoltorio-mono" data-mono="0" style="font-family:ui-monospace,monospace"><span class="hija-heredada" data-mono="1">texto de la hija</span></div>
+      <div class="padre-con-texto" data-mono="1" style="font-family:ui-monospace,monospace">texto del padre
+        <span class="otra-hija" data-mono="1">texto de la otra hija</span>
+      </div>
+    </body>`);
+  const marcados = await page.$$eval('[data-mono="1"]', (els) => els.map((e) => e.className));
+  const encontrados = (await medirMonoEnProsa(page)).map((c) => c.clase);
+
+  const faltan = marcados.filter((c) => !encontrados.includes(c));
+  const sobran = encontrados.filter((c) => !marcados.includes(c));
+  if (faltan.length || sobran.length) {
+    failures++;
+    console.error(`[MONO] el detector está mal: no vio ${JSON.stringify(faltan)} y marcó de más ${JSON.stringify(sobran)}`);
+  }
+}
+
+async function revisarMonoEnProsa(page, name) {
+  const casos = await medirMonoEnProsa(page);
+  const unicos = [...new Map(casos.map((c) => [c.clase, c])).values()].slice(0, 6);
+  if (unicos.length) {
+    failures++;
+    console.error(`[MONO] ${name}: monoespaciada donde no hay código ni identificador · ${unicos.map((c) => `«${c.texto}» (${c.clase})`).join(' · ')}`);
+  }
+}
+
 async function capturar(page, name) {
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
   await revisarClasesDescartadas(page, name);
   await revisarCardSinBody(page, name);
   await revisarContraste(page, name);
   await revisarPastilla(page, name);
+  await revisarMonoEnProsa(page, name);
   shots.push(name);
 }
 
@@ -822,6 +931,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
 
   await probarMedidorDeContraste(page);
   await probarMedidorDePastilla(page);
+  await probarDetectorDeMono(page);
 
   page.on('pageerror', (e) => { failures++; console.error(`[JS ERROR] ${e.message}`); });
   page.on('response', (r) => {

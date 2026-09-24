@@ -75,7 +75,13 @@ el muestrario), si un punto de estado del drawer mide menos de 3:1 —el piso de
 WCAG 1.4.11 para lo que no es texto— (`[PUNTOS]`, en los dos temas), o si
 aparece un `card` sin `card-body` (`[PANEL]`): las tarjetas de la app son
 `card` + `card-body` en todas partes, y un `card` sin su `card-body` es un
-error de maquetado. Y falla si una pantalla de módulo pierde su forma: sin
+error de maquetado. Falla también si aparece monoespaciada donde no hay código
+ni un identificador (`[MONO]`): el texto propio de un elemento mono tiene que
+ser un identificador pelado —«v3», «reduccion_merma»—, y «veredicto por idea» o
+«40%» no lo son; las superficies de código se exceptúan por selector, y el
+detector tiene autotest porque después del arreglo no reporta nada en ninguna
+pantalla, que es indistinguible de una guarda que quedó midiendo cero. Y falla
+si una pantalla de módulo pierde su forma: sin
 columna de referencia o sin los ajustes plegados (`[ZONAS]`), con el plegable
 cerrándose solo al morfear (`[PLEGABLE]`), sin la fila desplegable del desglose
 de evaluación (`[DESGLOSE]`) o sin el módulo salteado en el drawer y el mapa

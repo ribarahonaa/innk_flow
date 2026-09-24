@@ -191,6 +191,40 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
         expect(documento.at_css(".fila-de-idea__plegable")).to be_nil
         expect(response.body).not_to include(elena.name)
       end
+
+      # La nota de cada criterio se mostraba con su CLAVE —«reduccion_merma»— y
+      # en monoespaciada encima, así que la fila se leía como un volcado de
+      # debug. La clave sigue congelada en `criterion_key`, porque editar el set
+      # no puede reescribir un puntaje histórico; lo que cambia es que la
+      # pantalla muestra el NOMBRE del criterio que se puntuó.
+      describe "el nombre de cada criterio" do
+        # Los puntajes se guardan con la clave que trae el snapshot del módulo,
+        # que es lo que hacen las tres rutas de escritura reales. Sin set propio
+        # el snapshot son los genéricos, cuyo orden de posición
+        # —Impacto, Factibilidad, Esfuerzo— es justo el INVERSO del alfabético
+        # por clave —esfuerzo, factibilidad, impacto—, así que un solo ejemplo
+        # distingue las dos cosas que tenía mal: el rótulo y el orden.
+        before do
+          as_company(company) do
+            evaluacion = challenge.steps.reload.find(&:evaluation?)
+            hecha = evaluacion.assessments.first
+            %w[impacto factibilidad esfuerzo].each_with_index do |clave, i|
+              hecha.assessment_scores.create!(criterion_key: clave, weight_used: 1,
+                                              raw_value: (i + 5).to_s, numeric_value: i + 5,
+                                              normalized_value: 0.5)
+            end
+          end
+        end
+
+        it "muestra el nombre del snapshot, y en el orden del snapshot" do
+          sign_in(admin, company: company)
+          get challenge_step_path(challenge, paso("evaluation"))
+
+          rotulos = documento.css("details.fila-de-idea__plegable .assessment-detail__criterion")
+                             .map { |n| n.text.strip }
+          expect(rotulos).to eq(%w[Impacto Factibilidad Esfuerzo])
+        end
+      end
     end
   end
 
