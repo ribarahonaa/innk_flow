@@ -198,27 +198,31 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       # no puede reescribir un puntaje histórico; lo que cambia es que la
       # pantalla muestra el NOMBRE del criterio que se puntuó.
       describe "el nombre de cada criterio" do
+        # Los puntajes se guardan con la clave que trae el snapshot del módulo,
+        # que es lo que hacen las tres rutas de escritura reales. Sin set propio
+        # el snapshot son los genéricos, cuyo orden de posición
+        # —Impacto, Factibilidad, Esfuerzo— es justo el INVERSO del alfabético
+        # por clave —esfuerzo, factibilidad, impacto—, así que un solo ejemplo
+        # distingue las dos cosas que tenía mal: el rótulo y el orden.
         before do
           as_company(company) do
             evaluacion = challenge.steps.reload.find(&:evaluation?)
-            set = CriteriaSet.create!(name: "Del módulo", scope: "inline", owner_step: evaluacion)
-            criterio = set.criteria.create!(name: "Impacto en la merma", key: "reduccion_merma",
-                                            weight: 1, source: "manual", scale_type: "numeric",
-                                            scale_config: { "min" => 1, "max" => 10 })
-            evaluacion.assessments.first.assessment_scores.create!(
-              criterion: criterio, criterion_key: criterio.key, weight_used: 1,
-              raw_value: "8", numeric_value: 8, normalized_value: 0.78
-            )
+            hecha = evaluacion.assessments.first
+            %w[impacto factibilidad esfuerzo].each_with_index do |clave, i|
+              hecha.assessment_scores.create!(criterion_key: clave, weight_used: 1,
+                                              raw_value: (i + 5).to_s, numeric_value: i + 5,
+                                              normalized_value: 0.5)
+            end
           end
         end
 
-        it "muestra el nombre y no la clave" do
+        it "muestra el nombre del snapshot, y en el orden del snapshot" do
           sign_in(admin, company: company)
           get challenge_step_path(challenge, paso("evaluation"))
 
-          desglose = documento.at_css("details.fila-de-idea__plegable .fila-de-idea__desglose")
-          expect(desglose&.text.to_s).to include("Impacto en la merma")
-          expect(response.body).not_to include("reduccion_merma")
+          rotulos = documento.css("details.fila-de-idea__plegable .assessment-detail__criterion")
+                             .map { |n| n.text.strip }
+          expect(rotulos).to eq(%w[Impacto Factibilidad Esfuerzo])
         end
       end
     end
@@ -244,27 +248,10 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
         challenge.pipeline.start!
         challenge.pipeline.advance!
         evaluacion = challenge.steps.reload.find(&:evaluation?)
-        set = CriteriaSet.create!(name: "Del módulo", scope: "inline", owner_step: evaluacion)
-        # UN criterio por idea, y no el mismo cuatro veces: con el mismo id la
-        # caché de consultas de Rails devuelve las tres lecturas siguientes ya
-        # resueltas, `consultas_a` saltea lo `cached` y el N+1 no se ve. El
-        # ejemplo pasaba en verde sin el preload.
-        criterios = ideas.each_with_index.map do |_, i|
-          set.criteria.create!(name: "Impacto #{i}", key: "impacto_#{i}", weight: 1,
-                               source: "manual", scale_type: "numeric",
-                               scale_config: { "min" => 1, "max" => 10 })
-        end
-        ideas.each_with_index do |idea, i|
-          criterio = criterios[i]
-          evaluacion_hecha = evaluacion.assessments.create!(
-            idea: idea, idea_version_id: idea.current_version_id, evaluator: elena,
-            actor_type: "human", status: "submitted", submitted_at: Time.current,
-            normalized_score: 0.4
-          )
-          evaluacion_hecha.assessment_scores.create!(
-            criterion: criterio, criterion_key: criterio.key, weight_used: 1,
-            raw_value: "4", numeric_value: 4, normalized_value: 0.4
-          )
+        ideas.each do |idea|
+          evaluacion.assessments.create!(idea: idea, idea_version_id: idea.current_version_id,
+                                         evaluator: elena, actor_type: "human", status: "submitted",
+                                         submitted_at: Time.current, normalized_score: 0.4)
           evaluacion.handler.recompute_entry!(StepEntry.find_by(challenge_step_id: evaluacion.id, idea_id: idea.id))
         end
       end
@@ -284,17 +271,6 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       expect(documento.css(".fila-de-idea").size).to eq(4)
       expect(documento.css(".assessment-detail").size).to eq(4)
       expect(consultas.size).to eq(2), consultas.join("\n")
-    end
-
-    # Mostrar el nombre del criterio hace que el desglose toque `criterion`, que
-    # no viajaba en el `includes` de `hechas`: una consulta por PUNTAJE, o sea
-    # el N+1 que este grupo existe para cazar, reintroducido por una vista.
-    it "no carga el criterio una vez por puntaje" do
-      sign_in(admin, company: company)
-      consultas = consultas_a("criteria") { get challenge_step_path(challenge, paso("evaluation")) }
-
-      expect(documento.css(".assessment-detail__criterion").size).to eq(4)
-      expect(consultas.size).to be <= 2, consultas.join("\n")
     end
   end
 

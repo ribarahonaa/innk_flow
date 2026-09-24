@@ -45,14 +45,19 @@
             - if assessment.overall_comment.present?
               %p.assessment-detail__comment= assessment.overall_comment
             %ul.assessment-detail__scores
-              - assessment.assessment_scores.sort_by(&:criterion_key).each do |score|
+              -# En el orden del snapshot, no por clave: por clave los mismos tres
+              -# criterios salían al revés que en la tarjeta «Criterios» de la
+              -# derecha. Un puntaje con una clave que el snapshot no conoce va
+              -# al final, desempatado por su clave.
+              - puntajes = assessment.assessment_scores.sort_by { |s| [criterios.dig(s.criterion_key, :orden) || criterios.size, s.criterion_key] }
+              - puntajes.each do |score|
                 %li
-                  -# El NOMBRE del criterio, con la clave congelada de respaldo
-                  -# para cuando el criterio ya no está. `criterion_key` se
-                  -# guarda justamente para que editar el set no reescriba un
-                  -# puntaje histórico, pero es un identificador: mostrarlo
-                  -# donde va un nombre hacía leer la fila como un volcado.
-                  %span.assessment-detail__criterion= score.criterion&.name.presence || score.criterion_key
+                  -# El NOMBRE que el snapshot congeló, con la clave de respaldo
+                  -# si no lo conoce. `criterion_key` se guarda para que editar
+                  -# el set no reescriba un puntaje histórico, pero es un
+                  -# identificador: mostrarlo donde va un nombre hacía leer la
+                  -# fila como un volcado.
+                  %span.assessment-detail__criterion= criterios.dig(score.criterion_key, :nombre).presence || score.criterion_key
                   %strong= score.display_value
                   - if score.comment.present?
                     %span.muted= score.comment
