@@ -117,51 +117,82 @@ seis de ellas alojan chips (`.step-card--locked`, `.feedback-item.is-addressed`,
 tres veces: la guarda de IA escrita a mano en ocho llamadores, los renders de
 `setup_nav`, la regla de estado repetida en cada vista.
 
-### Dónde va
+### Quién define la pastilla: el borde
 
-En `app/assets/stylesheets/application.css`, junto a las reglas que ya
-corrigen el **color del texto** de las variantes suaves (hoy en `:1252-1265`),
-con el mismo patrón: **reglas de dos clases, sin capa**. Sin capa le ganan a
-DaisyUI —que vive en un `@layer`— y las dos clases le ganan a la regla neutra
-de al lado sin pelear especificidad con nada más.
+Medido, subir el relleno hasta que se vea **le cuesta contraste al texto**, que
+se apoya sobre él: para llegar a 1,25:1 de pastilla hacían falta 16-18% de
+tinte, y ahí el texto caía a 3,92-4,36:1 en tema claro sobre base-200, por
+debajo del piso de 4,5. Retocar `--ok` / `--warn` / `--danger` lo habría
+arreglado, pero hay una salida que no cuesta nada: **el texto no se apoya en el
+borde**. Un borde de 1px con suficiente tinte define la pastilla sin tocar el
+contraste del texto, y el relleno queda sólo tiñendo.
 
-Hacen falta seis: la neutra (`.badge-soft` a secas, que cubre `badge`,
-`badge-sm` y `badge-xs` sin variante de color) y una por cada
-`badge-primary`, `badge-secondary`, `badge-success`, `badge-warning`,
-`badge-error`.
+**Relleno 4%, borde 30%.** Medido sobre 54 chips reales en siete pantallas y en
+los dos temas:
 
-El `border-color` de `badge-soft` también se mezcla contra base-100, así que va
-por el mismo camino. Si no, sobre base-200 el borde queda **más claro** que la
-superficie y dibuja un halo.
+| | peor pastilla / fondo | peor texto / pastilla |
+|---|---|---|
+| claro | 1,527 | 4,85 |
+| oscuro | 1,588 | 4,63 |
+
+Los dos pisos se cumplen con margen y **no hay que retocar ningún token de
+texto**.
+
+### Dónde va, y por qué es UNA regla
+
+En `app/assets/stylesheets/application.css`, junto a las reglas que ya corrigen
+el **color del texto** de las variantes suaves (hoy en `:1252-1265`), sin capa
+—sin capa le gana a DaisyUI, que vive en un `@layer`—:
+
+```css
+.badge-soft {
+  background-color: color-mix(in oklab, currentColor 4%, transparent);
+  border-color:     color-mix(in oklab, currentColor 30%, transparent);
+}
+```
+
+**Una sola, con `currentColor`, y no seis por variante.** `currentColor`
+resuelve al color con el que el chip **termina** pintando, así que cada
+variante tiñe su pastilla con su propio color sin que la regla los nombre — y
+eso incluye `--ok`, `--warn` y `--danger`, los tokens oscurecidos que la hoja
+ya le pone al texto de las tres variantes de aviso. El efecto de rebote es el
+que importa: **una variante nueva no se puede olvidar**, que es exactamente el
+modo de falla que este plan existe para cerrar.
+
+El `border-color` de `badge-soft` también se mezclaba contra base-100. Si no se
+tocara, sobre base-200 el borde quedaría **más claro** que la superficie y
+dibujaría un halo.
 
 ### El piso
 
-**1,2:1 de la pastilla contra su fondo compuesto, en los dos temas.**
+**1,25:1 de la pastilla contra su fondo compuesto, en los dos temas.**
 
 Sale de lo que hoy funciona: el chip neutro mide 1,201:1 y se lee perfecto como
-pastilla (mirá «Pendiente» en `09-9-builder-sin-formulario.png`). No es WCAG
-1.4.11: el texto del chip ya pasa 4,5:1 y la pastilla no carga información, así
-que exigir 3:1 sería inventar un requisito y forzaría un tinte que no se parece
-a lo que la app quiere.
+pastilla (mirá «Pendiente» en `09-9-builder-sin-formulario.png`); 1,25 lo deja
+apenas arriba, con margen para que un redondeo no ponga la corrida en rojo sin
+que nadie haya tocado nada. No es WCAG 1.4.11: el texto del chip ya pasa 4,5:1
+y la pastilla no carga información, así que exigir 3:1 sería inventar un
+requisito y forzaría un tinte que no se parece a lo que la app quiere.
 
-**Los porcentajes salen de medir, uno por variante.** Es lo mismo que ya se
-hizo con `--ok`, `--warn` y `--danger`, cuyos 70/60/85% salieron de medir y no
-de elegir. Los valores concretos los fija la implementación; lo que el spec
-fija es el piso y que el **mínimo medido quede en ~1,25** — con el piso al ras,
-un redondeo pone la corrida en rojo sin que nadie haya tocado nada.
+**«Pastilla» es lo más fuerte de los dos: el relleno o el borde.** Cualquiera
+de los dos que alcance el piso deja la pastilla definida, y medir sólo el
+relleno marcaría en rojo un diseño correcto. Sacarle el borde a un chip lo deja
+en ~1,05 de relleno y la guarda lo caza igual.
 
-### El riesgo, dicho
+### El riesgo, medido y acotado
 
-Oscurecer la pastilla **baja el contraste del texto que va encima**. Hoy las
-variantes andan en 5,2:1 con piso de 4,5. Si alguna se acerca, hay que
-reajustar `--ok` / `--warn` / `--danger`, que es justamente para lo que
-existen. No hay que construir nada para verlo: `[CONTRASTE]` ya corre en cada
-pantalla y en el muestrario, en los dos temas.
+Teñir la pastilla **baja el contraste del texto que va encima**, y por eso el
+relleno quedó en 4% y el trabajo lo hace el borde. Con ese par el peor texto
+medido es 4,63:1 (oscuro) y 4,85:1 (claro), arriba del piso de 4,5 — pero el
+margen es de una décima, así que **no es un número que se pueda subir sin
+volver a medir**. `[CONTRASTE]` ya corre en cada pantalla y en el muestrario,
+en los dos temas, así que si alguien lo sube la corrida lo dice.
 
-El tema oscuro se mide igual y no se da por hecho. Sobre una superficie oscura
-el alfa **aclara** en vez de oscurecer, así que la dirección se da vuelta sola
-—igual que `--ok`/`--warn`/`--danger`, que mezclan hacia `base-content`— pero
-el porcentaje que alcanza el piso puede no ser el mismo.
+Las siete pantallas de la medición no son las 66. El número que manda es el de
+`make screens` completo; si alguna pantalla no medida queda por debajo, la
+salida es bajar el relleno (a 3% el peor texto sube a 4,68/4,91 y la pastilla
+no se mueve, porque la sostiene el borde) antes que retocar un token de
+texto.
 
 ---
 
@@ -237,11 +268,13 @@ lugar desde donde corren `[CLASES]`, `[PANEL]` y `[CONTRASTE]`, y es lo que
 hace que cubra también las pantallas a las que se llega por clic y nunca pasan
 por `shot()`.
 
-Mide, para cada `.badge` con caja: su fondo compuesto contra el fondo compuesto
-de **su padre**. Reusa `fondoDe` y el manejo de `opacity` que ya tiene
-`medirContraste` —un chip dentro de un contenedor atenuado se ve con menos
-contraste del que da medirlo a opacidad plena, y eso ya está resuelto ahí—.
-Falla por debajo del piso, listando clase y texto como hace `[CONTRASTE]`.
+Mide, para cada `.badge` con caja, **lo más fuerte de dos cosas** contra el
+fondo compuesto de su padre: su propio fondo compuesto, y su `border-color`
+compuesto sobre ese fondo. Reusa `fondoDe` y el manejo de `opacity` que ya
+tiene `medirContraste` —un chip dentro de un contenedor atenuado se ve con
+menos contraste del que da medirlo a opacidad plena, y eso ya está resuelto
+ahí—. Falla por debajo del piso, listando clase y texto como hace
+`[CONTRASTE]`.
 
 **Con autotest, como `probarMedidorDeContraste`.** Pares conocidos inyectados
 en una página propia, incluida **una pastilla deliberadamente invisible que el
@@ -284,7 +317,7 @@ fuera del corte y la de sin responder no se confunden».
 
 | Archivo | Qué |
 |---|---|
-| `app/assets/stylesheets/application.css` | Relleno y borde de `badge-soft` con alfa · se van `.result--*` y el borde de 3px |
+| `app/assets/stylesheets/application.css` | Una regla: relleno 4% y borde 30% de `currentColor` con alfa · se van `.result--*` y el borde de 3px |
 | `app/helpers/estilos_helper.rb` | `CLASE_DE_RESULTADO` → `CHIP_DE_RESULTADO` y `clase_de_resultado` → `chip_de_resultado` |
 | `app/views/ideas/show.html.haml` | La fila de «Cómo le fue» (`:70-77`) · la ronda cerrada (`:131`) |
 | `script/capture_screens.js` | `[PASTILLA]` y su autotest · `MUESTRARIO` suma `CHIP_DE_RESULTADO` |
@@ -297,7 +330,9 @@ fuera del corte y la de sin responder no se confunden».
 - `make spec` en verde. Hoy: 1115 ejemplos, 0 fallas.
 - `make screens` en verde, con `[PASTILLA]` corriendo en las 66 pantallas y en
   los dos temas. Hoy: 66 capturas, 0 errores.
-- **`[PASTILLA]` vista fallar**, bajándole el porcentaje a una variante a mano.
+- **`[PASTILLA]` vista fallar**, sacándole el borde a un chip a mano: tiene que
+  marcarlo por el relleno solo (~1,05), que es el caso que la guarda existe
+  para cazar.
 - **Las cuatro pantallas miradas a ojo**, antes y después:
   `05-builder` (la pastilla que hoy no está), `04-challenge` (el chip sobre
   blanco y el de la fila activa), `07-idea` («Cómo le fue» y la ronda cerrada)
