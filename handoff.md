@@ -10,9 +10,9 @@ temas.
 
 ## Estado actual
 
-- **`master` está en `5edac9b` y quedan 6 commits SIN pushear.** El remoto
-  sigue en `30f5f8a`, verificado con `gh api` y no con `git rev-parse
-  origin/master`, que lee una foto local. Sin ramas vivas, árbol limpio.
+- **`master` está en `89501c6` y está pusheado.** Remoto y local coinciden,
+  verificado con `gh api` y no con `git rev-parse origin/master`, que lee una
+  foto local. Sin ramas vivas, árbol limpio.
 - **`make spec` → 1118 ejemplos, 0 fallas** (venía de 1115) y **`make screens`
   → 66 capturas, 0 errores**. Las dos corridas sobre el resultado del merge, no
   sólo sobre la rama.
@@ -20,8 +20,8 @@ temas.
 
 ### El push, que en este entorno no es obvio
 
-El remoto es SSH y acá no autentica. Sin tocar la config global ni exponer el
-token en la línea de comandos:
+Queda anotado para la próxima vez. El remoto es SSH y acá no autentica; sin
+tocar la config global ni exponer el token en la línea de comandos:
 
 ```bash
 git -c credential.helper='!gh auth git-credential' \
@@ -141,9 +141,7 @@ reintroduciría el bug en silencio.
 
 ## Próximos pasos
 
-1. **Pushear `master`**: 6 commits (ver el comando arriba).
-
-2. **Las otras dos inconsistencias sistémicas**, que siguen abiertas:
+1. **Las otras dos inconsistencias sistémicas**, que siguen abiertas:
    - **Monospace para prosa y para números:** «veredicto por idea», «pasó su
      prueba de factibilidad, con reservas o sin ellas», los pesos (40%, 25%),
      las claves de criterio. Es lo que hace parecer volcado de debug a «Cómo
@@ -155,7 +153,7 @@ reintroduciría el bug en silencio.
      misma línea —una cuarta forma de dibujar estado— y se dejó a propósito
      para esta tanda.
 
-3. **Los minors diferidos de la revisión de rama**, ninguno urgente:
+2. **Los minors diferidos de la revisión de rama**, ninguno urgente:
    - `[PASTILLA]` no asegura «midió al menos N» por pantalla: si los chips
      dejaran de llamarse `badge`, mediría cero y pasaría. Lo tapan el spec de
      Ruby «todos los chips son badge» y el conteo del muestrario.
@@ -175,7 +173,7 @@ reintroduciría el bug en silencio.
      caja grande con borde propio, pero es la misma línea. Extender `[PASTILLA]`
      a `.alert` es cambiar un selector.
 
-4. **Lo visual que sigue en pie del repaso de capturas:** `Choose File / No file
+3. **Lo visual que sigue en pie del repaso de capturas:** `Choose File / No file
    chosen` sin estilo en `16-idea-new`; `18-select-company` con el rol fuera del
    botón y el separador colgando; el popup de espera sin backdrop
    (`09-13-ia-espera`); la previsualización que se repite a sí misma en 5 de 7
@@ -185,7 +183,7 @@ reintroduciría el bug en silencio.
    IA» sin controles con el flujo arrancado; «Distribución de puntajes» con dos
    filas de números; «Quién evalúa» duplicado sin el peso.
 
-5. **Los menores diferidos del rol gestor** (variable muerta en
+4. **Los menores diferidos del rol gestor** (variable muerta en
    `_referencia_evaluacion.html.haml:8`, `AssessmentPolicy#update?` sin
    cobertura ni llamador vivo, `CriteriaSetPolicy#update?` con
    `owner_step: nil`, «Ver el set» sin test de polaridad, la tabla de
@@ -193,7 +191,7 @@ reintroduciría el bug en silencio.
    **dos rastros del renombre dejados a propósito** (el nombre de
    `gestor_administra_spec.rb` y los documentos de `docs/superpowers/`).
 
-6. **El backlog largo, intacto:** el breadcrumb de `criteria_sets/edit` que para
+5. **El backlog largo, intacto:** el breadcrumb de `criteria_sets/edit` que para
    un set `inline` vuelve a una lista que nunca lo muestra;
    `Pipeline#validate` vs `Selection#can_activate?`; las once FKs con
    `ON DELETE SET NULL` sin acotador; `[FORMS]` que no cubre las pantallas a
@@ -203,6 +201,6 @@ reintroduciría el bug en silencio.
    los tres temas de seguridad preexistentes, y que nada vigila el relleno por
    default de `card` desde que se retiró `[CARD]`.
 
-7. **Sobre el recorrido como red:** dos pares de capturas son la MISMA pantalla
+6. **Sobre el recorrido como red:** dos pares de capturas son la MISMA pantalla
    (`03c-paso-a-paso` = `09-10-form-vacio`, `05e-config-seleccion` =
    `09-12-criterios-del-modulo`), así que las 66 capturas no son 66 pantallas.
