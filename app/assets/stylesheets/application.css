@@ -613,6 +613,28 @@ body {
   letter-spacing: -0.02em;
 }
 .flow-drawer__meta { font-size: 12px; opacity: 0.75; }
+.flow-drawer__estado-linea { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* El chip de estado sobre el panel oscuro.
+
+   `badge-soft` pinta el texto con el color del tema, y el neutro usa
+   `--color-base-content`: en tema CLARO eso es casi el mismo casi-negro que el
+   panel, así que el chip medía 1:1 —invisible—. Se aclara hacia el texto del
+   panel, que es el mismo mecanismo que usan los puntos.
+
+   NO comparte el porcentaje con los puntos, y el motivo vale escribirlo: con
+   su mezcla —40% el neutro, 55% el acento— el TEXTO mide 3,59 y 4,77:1, así
+   que el neutro no llega al 4,5 que pide un texto. El piso de los puntos es
+   3:1 porque no son texto (WCAG 1.4.11). Con estos valores mide 8,30 y 5,61 en
+   claro, 9,43 y 7,93 en oscuro.
+
+   La pastilla sale sola: `badge-soft` deriva relleno y borde de
+   `currentColor`, así que arreglar el color la arregla también —1,95 y 1,66
+   medidas, sobre un piso de 1,25—. */
+.flow-drawer__estado { color: var(--color-neutral-content); }
+.flow-drawer__estado.badge-primary {
+  color: color-mix(in oklab, var(--color-primary) 40%, var(--color-neutral-content));
+}
 
 /* El `menu` de DaisyUI nace `width: fit-content` y pinta el item activo con
    `--color-neutral`: adentro de un panel `bg-neutral` el activo queda del
@@ -777,7 +799,7 @@ body {
   }
   .flow-drawer__head { flex-direction: row; align-items: baseline; gap: 8px; padding: 0; min-width: 0; }
   .flow-drawer__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .flow-drawer__meta { flex: none; }
+  .flow-drawer__estado-linea { flex: none; }
   .flow-drawer__steps { flex-flow: row nowrap; overflow-x: auto; min-width: 0; }
   .flow-drawer__name { white-space: nowrap; }
   /* En la tira horizontal la pista no entra: son 40px de alto para todo el

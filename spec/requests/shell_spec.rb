@@ -50,6 +50,25 @@ RSpec.describe "el shell", type: :request do
     expect(response.body).not_to include("flow-drawer")
   end
 
+  # El estado se dibuja de UNA forma en toda la app —el chip— y en la cabecera
+  # del drawer era la cuarta: texto plano. `challenges/index` y
+  # `challenges/show` ya lo pintan con `chip_de_estado`.
+  #
+  # La segunda afirmación es la que sostiene el contraste, no una prolijidad:
+  # `.flow-drawer__meta` tiene `opacity: .75` y atenúa lo que tenga adentro.
+  # Medido sobre el panel oscuro en tema CLARO, el chip de «En curso» pasa de
+  # 2,80 a 2,09:1 por estar ahí dentro. Sin esta línea, alguien lo vuelve a
+  # meter y ninguna guarda avisa: `[CONTRASTE]` mide lo que hay, no dónde está.
+  it "dibuja el estado del desafío como chip, y fuera del bloque atenuado" do
+    get challenge_path(challenge)
+
+    documento = Nokogiri::HTML(response.body)
+    chip = documento.at_css(".flow-drawer .badge")
+
+    expect(chip&.text.to_s.strip).to eq("Borrador")
+    expect(documento.at_css(".flow-drawer__meta .badge")).to be_nil
+  end
+
   # El contador de la cabecera cuenta los pasos LISTOS, y el pie de esa misma
   # pantalla dice «Paso 3 de 9», que es una POSICIÓN. Sin la palabra convivían
   # dos «de 9» distintos en una pantalla y el de arriba se leía como el de

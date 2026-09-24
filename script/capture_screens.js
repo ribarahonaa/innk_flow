@@ -549,6 +549,61 @@ async function revisarPastilla(page, name) {
 // sufrió, y se ataja igual que ahí: fallando cuando mide menos de lo declarado.
 // El número va fijo, como `PASOS_DE_SIN_FORMULARIO`: sacarlo de la propia
 // página es volver a la guarda que se cumple sola.
+// Las DOS variantes del chip de estado del drawer, sobre el panel oscuro.
+//
+// POR QUÉ EXISTE: `[CONTRASTE]` y `[PASTILLA]` ya miden el chip donde aparece,
+// pero el recorrido no muestra las dos variantes en los dos temas. Medido:
+// TODAS las pantallas oscuras que tienen drawer son de desafíos EN CURSO
+// —`91-oscuro-desafio` y las de módulo son de `merma-bodega`,
+// `98-oscuro-salteado` es `con-salteado`, y las otras tres no tienen drawer—,
+// así que el chip NEUTRO no se medía nunca en oscuro. Es la mitad de la regla.
+//
+// No sirve el muestrario, que es el mecanismo para esto en el resto del
+// script: inyecta en una `.card-body`, y acá toda la validez de la medición
+// está en la SUPERFICIE. Así que se le pone cada variante al chip que ya está
+// en el panel, se mide ahí, y se lo deja como estaba.
+//
+// El piso es 4,5:1, que es el de un texto: a diferencia de los puntos, acá el
+// color no carga la información —la palabra está escrita— pero hay que poder
+// leerla. En tema claro el neutro sin tratar mide 1:1, porque `base-content`
+// es casi el mismo casi-negro que el panel.
+const VARIANTES_DEL_CHIP_DE_ESTADO = ['badge-soft', 'badge-soft badge-primary'];
+
+async function revisarChipDelDrawer(page, tema) {
+  const chip = page.locator('.flow-drawer__estado');
+  if (!(await chip.count())) {
+    failures++;
+    console.error(`[ESTADO-DRAWER] (${tema}): no hay chip de estado en el drawer`);
+    return;
+  }
+
+  const original = await chip.first().getAttribute('class');
+  const medidos = [];
+  for (const variante of VARIANTES_DEL_CHIP_DE_ESTADO) {
+    await page.evaluate(([clase, base]) => {
+      document.querySelector('.flow-drawer__estado').className = `${base} ${clase}`;
+    }, [variante, 'badge badge-sm font-semibold whitespace-nowrap flow-drawer__estado']);
+    const [m] = await medirContraste(page, '.flow-drawer__estado');
+    medidos.push({ variante, ...m });
+  }
+  await page.evaluate((clase) => { document.querySelector('.flow-drawer__estado').className = clase; }, original);
+
+  if (medidos.length !== VARIANTES_DEL_CHIP_DE_ESTADO.length) {
+    failures++;
+    console.error(`[ESTADO-DRAWER] (${tema}): midió ${medidos.length} de ${VARIANTES_DEL_CHIP_DE_ESTADO.length} variantes`);
+  }
+  const bajos = medidos.filter((m) => m.ratio < 4.5);
+  if (bajos.length) {
+    failures++;
+    console.error(`[ESTADO-DRAWER] (${tema}): ${bajos.map((m) => `«${m.variante}» ${m.ratio.toFixed(2)}:1`).join(' · ')}`);
+  }
+  const sinPastilla = medidos.filter((m) => m.pastilla < PISO_DE_PASTILLA);
+  if (sinPastilla.length) {
+    failures++;
+    console.error(`[ESTADO-DRAWER] (${tema}): sin pastilla · ${sinPastilla.map((m) => `«${m.variante}» ${m.pastilla.toFixed(3)}`).join(' · ')}`);
+  }
+}
+
 async function revisarPuntos(page, name, tema, esperados) {
   const medidos = await page.evaluate(() => {
     const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
@@ -1023,6 +1078,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   await shot(page, '04-challenge', `/challenges/${CHALLENGE}`);
   // El cuarto punto: acá hay módulos completados, que `con-salteado` no tiene.
   await revisarPuntos(page, '04-challenge', 'claro', PUNTOS_DE_MERMA);
+  await revisarChipDelDrawer(page, 'claro');
 
   // El índice de criterios (`/criteria`) se borró: duplicaba lo que ya hace
   // el flujo, que lista los módulos y ahora lleva a cada uno. El paso «Los
@@ -2304,6 +2360,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     // oscuro.
     if (nombre === '98-oscuro-salteado') await revisarPuntos(page, nombre, 'oscuro', PUNTOS_DE_SALTEADO);
     if (nombre === '91-oscuro-desafio') await revisarPuntos(page, nombre, 'oscuro', PUNTOS_DE_MERMA);
+    if (nombre === '91-oscuro-desafio') await revisarChipDelDrawer(page, 'oscuro');
     // Después de `revisarPuntos` —que cuenta los puntos del drawer y no
     // depende de lo plegado— y antes de la captura, que es lo que esto mejora.
     await abrirPlegables(page);
