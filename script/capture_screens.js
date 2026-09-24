@@ -587,6 +587,81 @@ async function revisarPuntos(page, name, tema, esperados) {
   }
 }
 
+// Las DOS variantes del chip de estado del drawer, sobre el panel oscuro.
+//
+// POR QUÉ EXISTE: `[CONTRASTE]` y `[PASTILLA]` ya miden el chip donde aparece,
+// pero el recorrido no muestra las dos variantes en los dos temas. Medido:
+// TODAS las pantallas oscuras que tienen drawer son de desafíos EN CURSO
+// —`91-oscuro-desafio` y las de módulo son de `merma-bodega`,
+// `98-oscuro-salteado` es `con-salteado`, y las otras tres no tienen drawer—,
+// así que el chip NEUTRO no se medía nunca en oscuro. Es la mitad de la regla.
+//
+// No sirve el muestrario, que es el mecanismo para esto en el resto del
+// script: inyecta en una `.card-body`, y acá toda la validez de la medición
+// está en la SUPERFICIE. Así que se le pone cada variante al chip que ya está
+// en el panel, se mide ahí, y se lo deja como estaba.
+//
+// El piso es 4,5:1, que es el de un texto: a diferencia de los puntos, acá el
+// color no carga la información —la palabra está escrita— pero hay que poder
+// leerla. En tema claro el neutro sin tratar mide 1:1, porque `base-content`
+// es casi el mismo casi-negro que el panel.
+const VARIANTES_DEL_CHIP_DE_ESTADO = ['badge-soft', 'badge-soft badge-primary'];
+
+async function revisarChipDelDrawer(page, name, tema) {
+  const chip = page.locator('.flow-drawer__estado');
+  if (!(await chip.count())) {
+    failures++;
+    console.error(`[ESTADO-DRAWER] ${name} (${tema}): no hay chip de estado en el drawer`);
+    return;
+  }
+
+  // La base sale de lo que la app ACABA de renderizar, sin las variantes de
+  // color: escribirla a mano ataba la guarda a una copia del helper. Si
+  // `CHIP_DE_ESTADO` dejara de ser `badge-soft`, una base escrita a mano
+  // seguiría midiendo un chip suave mientras la pantalla pinta uno sólido, y
+  // reportaría verde sobre algo que nadie ve.
+  const original = await chip.first().getAttribute('class');
+  const base = original.replace(/\bbadge-(soft|primary|secondary|success|warning|error)\b/g, '').replace(/\s+/g, ' ').trim();
+
+  const medidos = [];
+  for (const variante of VARIANTES_DEL_CHIP_DE_ESTADO) {
+    await page.evaluate(([clase]) => {
+      document.querySelector('.flow-drawer__estado').className = clase;
+    }, [`${base} ${variante}`]);
+    const [m] = await medirContraste(page, '.flow-drawer__estado');
+    // `medirContraste` saltea lo que no se ve y lo que no tiene texto, así que
+    // devuelve una lista VACÍA sin fallar. Sin esta rama, `{ variante,
+    // ...undefined }` no trae `ratio`, `undefined < 4.5` es false y los dos
+    // filtros de abajo pasan: un chip oculto dejaba la guarda en verde.
+    if (!m) {
+      failures++;
+      console.error(`[ESTADO-DRAWER] ${name} (${tema}): «${variante}» no se pudo medir`);
+      continue;
+    }
+    medidos.push({ variante, ...m });
+  }
+  await page.evaluate((clase) => { document.querySelector('.flow-drawer__estado').className = clase; }, original);
+
+  // Contra un literal y no contra `VARIANTES.length`, que es el mismo número
+  // del que sale el bucle: así el chequeo se cumplía solo, y con el arreglo
+  // vacío la guarda entera pasaba sin haber medido nada. Es el mismo error
+  // que `esperados` evita en `revisarPuntos`, treinta líneas más arriba.
+  if (medidos.length !== 2) {
+    failures++;
+    console.error(`[ESTADO-DRAWER] ${name} (${tema}): midió ${medidos.length} variantes y son 2`);
+  }
+  const bajos = medidos.filter((m) => m.ratio < 4.5);
+  if (bajos.length) {
+    failures++;
+    console.error(`[ESTADO-DRAWER] ${name} (${tema}): ${bajos.map((m) => `«${m.variante}» ${m.ratio.toFixed(2)}:1`).join(' · ')}`);
+  }
+  const sinPastilla = medidos.filter((m) => m.pastilla < PISO_DE_PASTILLA);
+  if (sinPastilla.length) {
+    failures++;
+    console.error(`[ESTADO-DRAWER] ${name} (${tema}): sin pastilla · ${sinPastilla.map((m) => `«${m.variante}» ${m.pastilla.toFixed(3)}`).join(' · ')}`);
+  }
+}
+
 // Las variantes que la app usa, medidas en el tema activo aunque ninguna
 // pantalla del recorrido las muestre en ese tema. Se inyectan en una tarjeta
 // (`.card-body`) de una pantalla real —con la hoja y el tema de verdad—, se
@@ -1023,6 +1098,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   await shot(page, '04-challenge', `/challenges/${CHALLENGE}`);
   // El cuarto punto: acá hay módulos completados, que `con-salteado` no tiene.
   await revisarPuntos(page, '04-challenge', 'claro', PUNTOS_DE_MERMA);
+  await revisarChipDelDrawer(page, '04-challenge', 'claro');
 
   // El índice de criterios (`/criteria`) se borró: duplicaba lo que ya hace
   // el flujo, que lista los módulos y ahora lleva a cada uno. El paso «Los
@@ -2308,6 +2384,12 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     // depende de lo plegado— y antes de la captura, que es lo que esto mejora.
     await abrirPlegables(page);
     await capturar(page, nombre);
+    // DESPUÉS de capturar, igual que la pasada clara: esta guarda le cambia la
+    // clase al chip para medir las dos variantes y después la repone, y
+    // mientras está cambiada el chip no es el que la app renderiza. Antes de
+    // la captura, la reposición pasaba a sostener la foto y las cuatro guardas
+    // que viven en `capturar()`.
+    if (nombre === '91-oscuro-desafio') await revisarChipDelDrawer(page, nombre, 'oscuro');
   }
   await page.emulateMedia({ colorScheme: 'light' });
 

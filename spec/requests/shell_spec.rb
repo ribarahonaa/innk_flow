@@ -50,6 +50,33 @@ RSpec.describe "el shell", type: :request do
     expect(response.body).not_to include("flow-drawer")
   end
 
+  # El estado se dibuja de UNA forma en toda la app —el chip— y en la cabecera
+  # del drawer era la cuarta: texto plano. `challenges/index` y
+  # `challenges/show` ya lo pintan con `chip_de_estado`.
+  #
+  # La segunda afirmación no es prolijidad: `.flow-drawer__meta` tiene
+  # `opacity: .75` y atenúa lo que tenga adentro. Medido sobre el panel oscuro
+  # en tema CLARO, el chip ya tratado de «En curso» pasa de 5,61 a 3,75:1 por
+  # estar ahí dentro, o sea que deja de cumplir el piso de 4,5.
+  #
+  # Esto es el detector RÁPIDO, no el único: `medirContraste` compone la
+  # opacidad de los ancestros a propósito —lo dice su propio comentario y
+  # `[PASTILLA]` tiene un caso de autotest para eso—, así que volver a meter el
+  # chip adentro también hace fallar `[CONTRASTE]` y `[ESTADO-DRAWER]`. Lo que
+  # esta línea compra es enterarse en milisegundos y sin Chromium.
+  it "dibuja el estado del desafío como chip, y fuera del bloque atenuado" do
+    get challenge_path(challenge)
+
+    documento = Nokogiri::HTML(response.body)
+    # Por su clase y no «el primer badge del drawer»: el día que aparezca otro
+    # badge antes, esa aserción pasaría mirando el elemento equivocado.
+    chip = documento.at_css(".flow-drawer .flow-drawer__estado")
+
+    expect(chip&.text.to_s.strip).to eq("Borrador")
+    expect(chip&.[]("class").to_s).to include("badge")
+    expect(documento.at_css(".flow-drawer__meta .badge")).to be_nil
+  end
+
   # El contador de la cabecera cuenta los pasos LISTOS, y el pie de esa misma
   # pantalla dice «Paso 3 de 9», que es una POSICIÓN. Sin la palabra convivían
   # dos «de 9» distintos en una pantalla y el de arriba se leía como el de

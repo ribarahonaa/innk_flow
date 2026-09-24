@@ -124,6 +124,38 @@ RSpec.describe EstilosHelper, type: :helper do
     expect(faltan).to be_empty, "El muestrario no mide: #{faltan.join(" · ")}"
   end
 
+  # `[ESTADO-DRAWER]` mide el chip de estado del desafío sobre el panel oscuro
+  # del drawer, y mide SÓLO las variantes que declara. La hoja también corrige
+  # SÓLO esas: `.flow-drawer__estado` y `.flow-drawer__estado.badge-primary`.
+  #
+  # Que hoy alcance con dos es una coincidencia del enum: `Challenge::STATUSES`
+  # son cuatro estados y `CHIP_DE_ESTADO` los manda a neutro (tres) y acento
+  # (uno). Un estado nuevo que cayera en `badge-success`, `badge-warning` o
+  # `badge-error` se pintaría con `--ok`/`--warn`/`--danger`, que sobre ese
+  # panel miden entre 2,97 y 3,11:1 en tema claro, y no lo vería NADIE: la
+  # guarda no mide esa variante y `[CONTRASTE]` sólo la cazaría si algún
+  # desafío sembrado quedara en ese estado durante la pasada clara.
+  #
+  # Es el mismo cuidado que el del muestrario de arriba, por el mismo motivo.
+  it "la guarda del chip del drawer declara cada variante que el estado del desafío puede tomar" do
+    script = File.read(Rails.root.join("script/capture_screens.js"))
+    arreglo = script[/^const VARIANTES_DEL_CHIP_DE_ESTADO = \[(.*?)\];/m, 1]
+    expect(arreglo).not_to be_nil,
+                          "No se encontró `const VARIANTES_DEL_CHIP_DE_ESTADO = [...]` en script/capture_screens.js"
+
+    declaradas = arreglo.scan(/'([^']+)'/).flatten.map { |v| v.split.sort }
+    # De cada estado, sólo las clases que deciden el COLOR: el resto (tamaño,
+    # peso, `whitespace-nowrap`) no mueve el contraste y la guarda lo reconstruye
+    # de lo que la app renderiza.
+    del_enum = Challenge::STATUSES.map do |estado|
+      helper.chip_de_estado(estado).split.grep(/\Abadge-(soft|primary|secondary|success|warning|error)\z/).sort
+    end.uniq
+
+    faltan = del_enum - declaradas
+    expect(faltan).to be_empty,
+                      "La guarda no mide: #{faltan.map { |v| v.join(" ") }.join(" · ")}"
+  end
+
   # Las marcas sueltas se piden por nombre, no por estado: un nombre mal
   # escrito es un error de código y tiene que reventar, no pintar un neutro.
   it "una marca que no existe revienta en vez de caer a un default" do

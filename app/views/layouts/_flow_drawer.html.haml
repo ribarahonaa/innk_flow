@@ -32,14 +32,23 @@
   .flow-drawer__panel
     .flow-drawer__head
       = link_to desafio.name, challenge_path(desafio), class: "flow-drawer__title"
-      %span.flow-drawer__meta
-        = t("flow.challenge_statuses.#{desafio.status}")
+      -# El estado va en CHIP, como en `challenges/index` y en `challenges/show`:
+      -# acá era la cuarta forma de dibujar lo mismo.
+      -#
+      -# Y va afuera del `__meta`, que no es prolijidad: ese span está atenuado
+      -# (`opacity: .75`) y sobre el panel oscuro eso le come contraste al chip
+      -# —medido en tema claro, el acento pasa de 2,80 a 2,09:1—. El contador sí
+      -# puede ir atenuado: es texto gris de apoyo, no una marca de estado.
+      .flow-drawer__estado-linea
+        %span{ class: [chip_de_estado(desafio.status), "flow-drawer__estado"] }
+          = t("flow.challenge_statuses.#{desafio.status}")
         - if setup
           -# «listos» y no un «de N» pelado: el pie de esta misma pantalla dice
           -# «Paso 3 de 9», que es una POSICIÓN, y dos «de 9» distintos en una
           -# pantalla se leen como el mismo número. Es la forma que ya tiene
           -# todo el resto de la app: «3 de 5 testeadas», «4 de 10 avanzan».
-          = "· #{setup.done_count} de #{setup.total} #{Flow::Texto.plural('listo', setup.done_count)}"
+          %span.flow-drawer__meta
+            = "#{setup.done_count} de #{setup.total} #{Flow::Texto.plural('listo', setup.done_count)}"
     %ul.menu.flow-drawer__steps
       - if setup
         - setup.steps.each_with_index do |paso, i|
