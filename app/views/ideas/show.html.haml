@@ -128,7 +128,11 @@
               %details.feedback-round.feedback-round--cerrada
                 %summary.feedback-round__head
                   %strong= paso.name
-                  %span{ class: chip_de_estado("skipped") }= t("flow.statuses.#{paso.status}").downcase
+                  -# El chip lleva SU estado: escrito a mano con el color de
+                  -# `skipped`, una ronda completada salía ámbar diciendo
+                  -# «completado». La minúscula se queda: acá el chip se lee
+                  -# como parte de la frase, igual que el «en curso» de arriba.
+                  %span{ class: chip_de_estado(paso.status) }= t("flow.statuses.#{paso.status}").downcase
                   %span.muted= " · #{resumen}"
                 %ul.feedback-list
                   - comentarios.each do |item|

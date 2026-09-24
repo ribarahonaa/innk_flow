@@ -338,6 +338,19 @@ RSpec.describe "resolver feedback", type: :request do
       expect(response.body).to include("en curso")
     end
 
+    # El chip de la ronda cerrada decía «completado» pintado de ÁMBAR: el color
+    # de `skipped`, escrito a mano. El color decía una cosa y la palabra otra.
+    # La ronda abierta es un `<p>`, así que el único `<summary>` de la pantalla
+    # es el de la cerrada.
+    it "la ronda cerrada se pinta con su propio estado" do
+      get challenge_idea_path(challenge, idea)
+
+      resumen = response.body[%r{<summary[^>]*>.*?</summary>}m]
+      expect(resumen).to include("Ronda de feedback")
+      expect(resumen).to include(EstilosHelper::CHIP_DE_ESTADO.fetch("completed"))
+      expect(resumen).not_to include("badge-warning")
+    end
+
     # Solo la ronda abierta ofrece cerrar comentarios.
     it "solo se pueden atender los de la ronda en curso" do
       get challenge_idea_path(challenge, idea)
