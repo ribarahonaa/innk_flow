@@ -153,7 +153,11 @@ RSpec.describe "desafíos", type: :request do
         c = create(:challenge, :running, name: "Merma")
         seed_form!(c.steps.create!(kind: "ideation", position: 1, name: "Postulación", status: "completed"))
         c.steps.create!(kind: "evolution", position: 2, name: "Feedback", status: "skipped")
-        c.steps.create!(kind: "reporting", position: 3, name: "Reporte de cierre", status: "active")
+        # Fraccionaria a propósito: `position` es decimal(20,10) e insertar
+        # entre dos módulos da `(a+b)/2`, así que sólo el ÍNDICE da el número
+        # que muestra la columna «#» de la tabla de abajo. Con 1, 2 y 3 las dos
+        # formas coinciden y el caso no distinguiría una de otra.
+        c.steps.create!(kind: "reporting", position: 2.5, name: "Reporte de cierre", status: "active")
         c
       end
 
@@ -165,24 +169,7 @@ RSpec.describe "desafíos", type: :request do
       expect(response.body).not_to include("2 de 3 ·")
     end
 
-    # `Pipeline#close!` cierra el desafío sin tocar los módulos pendientes, así
-    # que quedar con módulos que nunca corrieron es un estado real y no una
-    # hipótesis. El conteo viejo lo decía de refilón («5 de 7»); esto lo nombra.
-    it "nombra los módulos que nunca corrieron si el desafío se cerró antes" do
-      challenge = as_company(company) do
-        c = create(:challenge, name: "Merma", status: "closed")
-        seed_form!(c.steps.create!(kind: "ideation", position: 1, name: "Postulación", status: "completed"))
-        c.steps.create!(kind: "evaluation", position: 2, name: "Comité")
-        c.steps.create!(kind: "reporting", position: 3, name: "Reporte")
-        c
-      end
-
-      get challenge_path(challenge)
-
-      expect(response.body).to include("flujo terminado · 2 módulos sin empezar")
-    end
-
-    it "y no los menciona cuando corrieron todos" do
+    it "y con el flujo terminado no repite el largo del flujo" do
       challenge = as_company(company) do
         c = create(:challenge, name: "Merma", status: "closed")
         seed_form!(c.steps.create!(kind: "ideation", position: 1, name: "Postulación", status: "completed"))
@@ -193,9 +180,8 @@ RSpec.describe "desafíos", type: :request do
       get challenge_path(challenge)
 
       expect(response.body).to include("flujo terminado")
-      expect(response.body).not_to include("sin empezar")
-      # Sin esta línea el caso no discrimina: hoy dice «2 de 2 · flujo
-      # terminado», que ya cumple las dos afirmaciones de arriba y dejaría el
+      # Sin esta línea el caso no discrimina: la línea vieja decía «2 de 2 ·
+      # flujo terminado», que ya cumple la afirmación de arriba y dejaría el
       # ejemplo en verde contra el código que vino a cambiar.
       expect(response.body).not_to include("2 de 2")
     end

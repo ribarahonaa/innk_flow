@@ -68,6 +68,11 @@ RSpec.describe "el shell", type: :request do
     get challenge_path(recien_creado)
 
     expect(response.body).to include("1 de 3 listo")
+    # «1 de 3 listo» es subcadena de «1 de 3 listos», así que sin esta línea el
+    # caso sobrevive a concordar con el TOTAL en vez de con la cuenta —que es
+    # la otra convención viva en la app, en `ideas/show`— y no afirma nada
+    # sobre la concordancia, que es lo único que vino a probar.
+    expect(response.body).not_to include("1 de 3 listos")
   end
 
   # Sin desafío no hay flujo que mostrar, y una barra lateral vacía es peor que

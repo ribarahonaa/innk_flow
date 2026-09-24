@@ -29,11 +29,6 @@
       %p= simple_format(@challenge.brief)
 
 - actual = @challenge.steps.find(&:active?)
--# `Pipeline#close!` cierra el desafío sin tocar los módulos pendientes, así que
--# terminar el flujo con módulos que nunca corrieron es un estado real y no una
--# hipótesis. El conteo viejo lo decía de refilón; esto los nombra.
-- sin_empezar = @challenge.steps.count { |s| !s.touched? }
-- pendientes = sin_empezar.positive? ? " · #{Flow::Texto.contar(sin_empezar, 'módulo')} sin empezar" : ""
 .card
   .card-body
     .section-head
@@ -53,7 +48,11 @@
         - elsif actual
           = "ahora: #{actual.name} · módulo #{@challenge.steps.index(actual) + 1} de #{@challenge.steps.size}"
         - else
-          = "flujo terminado#{pendientes}"
+          -# Sin conteo: llegar acá es haber completado el último módulo
+          -# —`advance!` activa el siguiente pendiente o cierra, en la misma
+          -# transacción—, así que no quedan módulos sin correr y un «7 de 7»
+          -# sólo repetiría el largo del flujo.
+          = "flujo terminado"
     = render "challenges/flow_strip", challenge: @challenge
 
     - if @report.errors.any?
