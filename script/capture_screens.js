@@ -349,15 +349,41 @@ async function medirContraste(page, selector) {
     return [...document.querySelectorAll(sel)]
       .filter((el) => el.getClientRects().length > 0 && el.textContent.trim())
       .map((el) => {
+        const cs = getComputedStyle(el);
         let fondo = fondoDe(el);
-        let texto = sobre(rgba(getComputedStyle(el).color), fondo);
+        let texto = sobre(rgba(cs.color), fondo);
+        // La superficie de atrás y el borde del chip, para `[PASTILLA]`.
+        //
+        // El borde sólo cuenta si TIENE ancho: con `border-width: 0` el color
+        // computado sigue siendo un color —`currentColor` por default— y
+        // contarlo daría por definida una pastilla que no se dibuja. Se lee
+        // `borderTopColor` y no `borderColor`, que con los cuatro lados
+        // distintos devuelve un shorthand que el canvas no sabe pintar.
+        let superficie = fondoDe(el.parentElement);
+        let borde = parseFloat(cs.borderTopWidth) > 0
+          ? sobre(rgba(cs.borderTopColor), superficie)
+          : superficie;
         const { o, detras } = atenuacion(el);
         if (o < 1 && detras) {
+          // La superficie y el borde se atenúan con el chip: están adentro del
+          // mismo grupo. Atenuar sólo el chip infla la diferencia.
           fondo = sobre([...fondo.slice(0, 3), o], detras);
           texto = sobre([...texto.slice(0, 3), o], detras);
+          superficie = sobre([...superficie.slice(0, 3), o], detras);
+          borde = sobre([...borde.slice(0, 3), o], detras);
         }
-        const [claro, oscuro] = [luminancia(texto), luminancia(fondo)].sort((a, b) => b - a);
-        return { clase: el.className, texto: el.textContent.trim().slice(0, 40), ratio: (claro + 0.05) / (oscuro + 0.05) };
+        const contraste = (a, b) => {
+          const [claro, oscuro] = [luminancia(a), luminancia(b)].sort((x, y) => y - x);
+          return (claro + 0.05) / (oscuro + 0.05);
+        };
+        return {
+          clase: el.className,
+          texto: el.textContent.trim().slice(0, 40),
+          ratio: contraste(texto, fondo),
+          // Lo más FUERTE de los dos: cualquiera que llegue al piso deja la
+          // pastilla definida.
+          pastilla: Math.max(contraste(fondo, superficie), contraste(borde, superficie))
+        };
       });
   }, selector);
 }
@@ -405,6 +431,50 @@ async function probarMedidorDeContraste(page) {
   });
 }
 
+// El medidor de pastilla se prueba contra valores conocidos ANTES de creerle.
+// Los seis casos están elegidos para que cada uno falle si el medidor está mal
+// de una forma distinta:
+//
+//   - «relleno visible»      el relleno se mide, y el borde de ancho 0 no suma
+//   - «sin relleno ni borde» el caso que la guarda existe para cazar: 1,00
+//   - «solo borde»           el borde define la pastilla sin relleno
+//   - «borde sin ancho»      un `border-color` con `border-width: 0` NO cuenta.
+//                            Sin este caso, el medidor lo daría por bueno y la
+//                            guarda pasaría en verde sobre un chip sin pastilla
+//   - «relleno sobre gris»   se compone contra la SUPERFICIE y no contra
+//                            blanco, que es el bug entero
+//   - «atenuado a la mitad»  la opacidad de un ancestro atenúa el chip Y su
+//                            superficie, así que la diferencia no se infla
+async function probarMedidorDePastilla(page) {
+  await page.setContent(`
+    <body style="margin:0;background:#fff">
+      <div style="background:#fff">
+        <span data-pastilla="1.320" style="background:#e0e0e0;border:0">relleno visible</span>
+        <span data-pastilla="1.000" style="background:transparent;border:0">sin relleno ni borde</span>
+        <span data-pastilla="1.819" style="background:transparent;border:1px solid #c0c0c0">solo borde</span>
+        <span data-pastilla="1.000" style="background:transparent;border:0 solid #808080">borde sin ancho</span>
+      </div>
+      <div style="background:#f5f5f5">
+        <span data-pastilla="1.211" style="background:#e0e0e0;border:0">relleno sobre gris</span>
+      </div>
+      <div style="background:#fff"><div style="opacity:.5">
+        <span data-pastilla="1.145" style="background:#e0e0e0;border:0">atenuado a la mitad</span>
+      </div></div>
+    </body>`);
+  const medidos = await medirContraste(page, '[data-pastilla]');
+  const esperados = await page.$$eval('[data-pastilla]', (els) => els.map((e) => Number(e.dataset.pastilla)));
+  if (medidos.length !== esperados.length) {
+    failures++;
+    console.error(`[PASTILLA] el medidor midió ${medidos.length} de ${esperados.length} valores conocidos`);
+  }
+  medidos.forEach((m, i) => {
+    if (Math.abs(m.pastilla - esperados[i]) > 0.01) {
+      failures++;
+      console.error(`[PASTILLA] el medidor está mal: «${m.texto}» dio ${m.pastilla.toFixed(3)} y es ${esperados[i]}`);
+    }
+  });
+}
+
 // Los componentes suaves de DaisyUI (`badge-soft`, `alert-soft`) pintan el
 // texto con el color PURO del tema, y los colores que la hoja usaba para el
 // texto de un chip (`--ok`, `--warn`, `--danger`) están oscurecidos justamente
@@ -415,6 +485,37 @@ async function revisarContraste(page, name) {
   if (unicos.length) {
     failures++;
     console.error(`[CONTRASTE] ${name}: ${unicos.map((m) => `«${m.texto}» (${m.clase}) ${m.ratio.toFixed(2)}:1`).join(' · ')}`);
+  }
+}
+
+// La pastilla de un chip: que se lea COMO pastilla y no como texto de color
+// suelto.
+//
+// POR QUÉ EXISTE: `badge-soft` de DaisyUI mezcla su fondo contra
+// `--color-base-100` —o sea contra BLANCO— y no contra la superficie que tiene
+// detrás. Sobre una tarjeta base-200 (`.step-card--locked`, un comentario
+// atendido, una fila fuera del corte) el tinte cae justo en la luminosidad del
+// fondo y la pastilla desaparece: medido, 1,02:1 en el builder con el flujo
+// arrancado, donde se veía como si el chip nunca hubiera existido.
+//
+// El piso es 1,25:1 y no 3:1: el TEXTO del chip ya pasa 4,5:1 —eso lo mide
+// `[CONTRASTE]`— así que la pastilla no carga información y WCAG 1.4.11 no
+// aplica. 1,25 sale de lo que hoy funciona: el chip neutro mide 1,201 y se lee
+// perfecto.
+//
+// LO QUE NO VE: un `.badge` sin texto. El filtro es el de `medirContraste`, y
+// hoy no existe ninguno —el punto de estado del drawer es
+// `flow-drawer__punto`, con guarda propia y piso de 3:1, porque ahí el color
+// SÍ es la información—. Si algún día hay un chip vacío, este piso le queda
+// corto.
+const PISO_DE_PASTILLA = 1.25;
+
+async function revisarPastilla(page, name) {
+  const bajos = (await medirContraste(page, '.badge')).filter((m) => m.pastilla < PISO_DE_PASTILLA);
+  const unicos = [...new Map(bajos.map((m) => [m.clase, m])).values()].slice(0, 6);
+  if (unicos.length) {
+    failures++;
+    console.error(`[PASTILLA] ${name}: ${unicos.map((m) => `«${m.texto}» (${m.clase}) ${m.pastilla.toFixed(2)}:1`).join(' · ')}`);
   }
 }
 
@@ -614,6 +715,7 @@ async function capturar(page, name) {
   await revisarClasesDescartadas(page, name);
   await revisarCardSinBody(page, name);
   await revisarContraste(page, name);
+  await revisarPastilla(page, name);
   shots.push(name);
 }
 
@@ -684,6 +786,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 
   await probarMedidorDeContraste(page);
+  await probarMedidorDePastilla(page);
 
   page.on('pageerror', (e) => { failures++; console.error(`[JS ERROR] ${e.message}`); });
   page.on('response', (r) => {

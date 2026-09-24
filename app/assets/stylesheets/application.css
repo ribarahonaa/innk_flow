@@ -1264,6 +1264,32 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
 .badge-soft.badge-warning { color: var(--warn); }
 .badge-soft.badge-error { color: var(--danger); }
 
+/* La pastilla de un chip se compone contra SU superficie.
+
+   `badge-soft` de DaisyUI mezcla fondo y borde contra `--color-base-100`, o
+   sea contra BLANCO, y no contra lo que el chip tenga detrás. Sobre una
+   tarjeta `--bg` (base-200) el tinte cae justo en la luminosidad del fondo y
+   la pastilla desaparece: 1,02:1 medido en el builder con el flujo arrancado,
+   donde el chip se veía como texto de color suelto. Con alfa se compone sobre
+   el fondo real por construcción, así que no hay lista de superficies que
+   mantener a mano.
+
+   El que define la pastilla es el BORDE, no el relleno: el texto se apoya en
+   el relleno, y subirlo hasta que se viera lo dejaba en 3,92:1 sobre base-200
+   en tema claro. Con 4% y 30% la peor pastilla mide 1,53 (claro) y 1,59
+   (oscuro) y el peor texto 4,85 y 4,63, los dos arriba de su piso. Los
+   números salen de medir; subir el relleno los baja.
+
+   Una sola regla y no seis: `currentColor` resuelve al color con el que el
+   chip TERMINA pintando —incluidos `--ok`, `--warn` y `--danger`, que la
+   regla de arriba le pone al texto de las tres variantes de aviso— así que
+   cada variante tiñe con lo suyo y una variante nueva no se puede olvidar.
+   Sin capa, como el resto de las clases propias: así le gana a DaisyUI. */
+.badge-soft {
+  background-color: color-mix(in oklab, currentColor 4%, transparent);
+  border-color: color-mix(in oklab, currentColor 30%, transparent);
+}
+
 .island-placeholder { text-align: center; padding: 40px; }
 
 @media (max-width: 1040px) {
