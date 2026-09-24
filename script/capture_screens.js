@@ -443,8 +443,15 @@ async function probarMedidorDeContraste(page) {
 //                            guarda pasaría en verde sobre un chip sin pastilla
 //   - «relleno sobre gris»   se compone contra la SUPERFICIE y no contra
 //                            blanco, que es el bug entero
-//   - «atenuado a la mitad»  la opacidad de un ancestro atenúa el chip Y su
-//                            superficie, así que la diferencia no se infla
+//   - «atenuado sobre gris»  la opacidad de un ancestro atenúa el chip Y su
+//                            superficie, así que la diferencia no se infla.
+//                            La superficie de adentro del grupo tiene que ser
+//                            OPACA y distinta del fondo de afuera: con un
+//                            grupo atenuado sobre blanco y superficie
+//                            transparente, atenuar blanco sobre blanco da
+//                            blanco y el caso mide lo mismo con y sin las dos
+//                            líneas que protege —medido: 1,1447 en los dos—.
+//                            Así mide 1,251 bien y 1,895 mutado
 async function probarMedidorDePastilla(page) {
   await page.setContent(`
     <body style="margin:0;background:#fff">
@@ -457,9 +464,9 @@ async function probarMedidorDePastilla(page) {
       <div style="background:#f5f5f5">
         <span data-pastilla="1.211" style="background:#e0e0e0;border:0">relleno sobre gris</span>
       </div>
-      <div style="background:#fff"><div style="opacity:.5">
-        <span data-pastilla="1.145" style="background:#e0e0e0;border:0">atenuado a la mitad</span>
-      </div></div>
+      <div style="background:#fff"><div style="opacity:.5"><div style="background:#b0b0b0">
+        <span data-pastilla="1.251" style="background:#e0e0e0;border:0">atenuado sobre gris</span>
+      </div></div></div>
     </body>`);
   const medidos = await medirContraste(page, '[data-pastilla]');
   const esperados = await page.$$eval('[data-pastilla]', (els) => els.map((e) => Number(e.dataset.pastilla)));
@@ -503,11 +510,20 @@ async function revisarContraste(page, name) {
 // aplica. 1,25 sale de lo que hoy funciona: el chip neutro mide 1,201 y se lee
 // perfecto.
 //
-// LO QUE NO VE: un `.badge` sin texto. El filtro es el de `medirContraste`, y
-// hoy no existe ninguno —el punto de estado del drawer es
-// `flow-drawer__punto`, con guarda propia y piso de 3:1, porque ahí el color
-// SÍ es la información—. Si algún día hay un chip vacío, este piso le queda
-// corto.
+// LO QUE NO VE, y son tres:
+//
+//   - Un `.badge` sin texto. El filtro es el de `medirContraste`, y hoy no
+//     existe ninguno —el punto de estado del drawer es `flow-drawer__punto`,
+//     con guarda propia y piso de 3:1, porque ahí el color SÍ es la
+//     información—. Si algún día hay un chip vacío, este piso le queda corto.
+//   - Una pantalla sin ningún `.badge`: mide cero y pasa. Si los chips dejaran
+//     de llamarse `badge` —que es lo que pasó cuando `.status-chip` pasó a
+//     `badge`— esto quedaría verde sin medir nada. Lo tapan el spec de Ruby
+//     «todos los chips son badge» y el conteo del muestrario, que sí exige
+//     haber medido tantas muestras como declara.
+//   - Un borde punteado se acredita entero. `border-dashed` cubre bastante
+//     menos superficie que uno sólido y acá se cuentan igual; el nodo salteado
+//     del mapa del flujo es el caso vivo.
 const PISO_DE_PASTILLA = 1.25;
 
 async function revisarPastilla(page, name) {
@@ -679,6 +695,25 @@ async function revisarMuestrario(page, tema) {
   if (bajos.length) {
     failures++;
     console.error(`[CONTRASTE] muestrario ${tema}: ${bajos.map((m) => `${m.clase} ${m.ratio.toFixed(2)}:1`).join(' · ')}`);
+  }
+
+  // Y la pastilla, por la MISMA razón por la que el muestrario existe para el
+  // contraste: el recorrido no garantiza mostrar cada variante en cada tema
+  // —la pasada oscura son diez pantallas— así que sin esto la pastilla de
+  // `no_factible`, del chip de versión o de `evaluador_ia` puede no medirse
+  // nunca en oscuro.
+  //
+  // Encima es el mejor banco que tiene el script: las muestras atenuadas se
+  // inyectan dentro de `.feedback-round--cerrada .feedback-item`, que es
+  // `background: var(--bg)` — la superficie base-200 donde vivía el bug.
+  //
+  // Sólo los chips: `.alert` queda afuera a propósito (son cajas grandes con
+  // borde propio). Se filtra por el prefijo porque toda clase de chip empieza
+  // con `badge `, y hay un spec de Ruby que lo exige.
+  const sinPastilla = medidos.filter((m) => m.clase.startsWith('badge ') && m.pastilla < PISO_DE_PASTILLA);
+  if (sinPastilla.length) {
+    failures++;
+    console.error(`[PASTILLA] muestrario ${tema}: ${sinPastilla.map((m) => `${m.clase} ${m.pastilla.toFixed(2)}:1`).join(' · ')}`);
   }
 }
 
