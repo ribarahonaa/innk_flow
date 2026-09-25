@@ -79,6 +79,58 @@ RSpec.describe "saltear un módulo", type: :request do
     end
   end
 
+  # `ChallengeStepPolicy#skip?` es `administers?(challenge)` y no mira el estado
+  # del módulo, así que la ruta llega a uno ya COMPLETADO: `skip!` le pisaba el
+  # `status`, le reescribía el `completed_at` y respondía «Módulo salteado.».
+  # Un módulo que corrió entero pasaba a decir que nunca corrió, con sus
+  # evaluaciones intactas debajo.
+  #
+  # Es la misma superficie que el defecto del salteo: sin control en ninguna
+  # vista, pero la ruta y la policy sí llegan.
+  it "no reescribe uno que ya terminó, y lo dice" do
+    challenge = arrancado(%w[ideation reporting])
+    # Por el dominio y no por `advance`: completar «Idear» desde la ruta pide
+    # el mínimo de ideas postuladas, y lo que este ejemplo prueba es el POST de
+    # abajo.
+    completado = as_company(company) do
+      paso = challenge.steps.ordered.first
+      Flow::Handlers::Base.for(paso).complete!
+      challenge.pipeline.continue!
+      paso.reload
+    end
+    expect(completado).to be_completed
+    cerrado_en = completado.completed_at
+
+    post skip_challenge_step_path(challenge, completado)
+
+    expect(flash[:alert]).to include("ya terminó")
+    as_company(company) do
+      quedo = challenge.steps.ordered.first.reload
+      expect(quedo).to be_completed
+      expect(quedo.completed_at).to eq(cerrado_en)
+      expect(quedo.settings).not_to have_key("skip_reason")
+    end
+  end
+
+  # Y lo mismo con uno ya salteado: un segundo POST le reescribía el motivo y
+  # la fecha.
+  it "ni uno ya salteado" do
+    challenge = arrancado(%w[ideation evaluation reporting])
+    primero = as_company(company) { challenge.steps.ordered.first }
+    post skip_challenge_step_path(challenge, primero), params: { reason: "el primero" }
+    salteado = as_company(company) { challenge.steps.ordered.first.reload }
+    cerrado_en = salteado.completed_at
+
+    post skip_challenge_step_path(challenge, salteado), params: { reason: "otro motivo" }
+
+    expect(flash[:alert]).to include("ya terminó")
+    as_company(company) do
+      quedo = challenge.steps.ordered.first.reload
+      expect(quedo.completed_at).to eq(cerrado_en)
+      expect(quedo.settings["skip_reason"]).to eq("el primero")
+    end
+  end
+
   it "quien participa no puede saltear" do
     challenge = arrancado(%w[ideation evaluation])
     participante = without_tenant do
