@@ -286,7 +286,10 @@ module Flow
     # `validate` no lo vuelve imposible: mira el formulario de «Idear» y la
     # fuente de puntaje de una selección, no los errores del set de una
     # evaluación.
-    def not_ready_failure(error) = failure(["el módulo no está listo para arrancar: #{error.message}"])
+    # El mensaje ya viene nombrando el módulo desde `Base#activate!`, así que
+    # acá no se le agrega ningún encuadre: el de la pantalla lo pone el
+    # controller («Módulo salteado, pero el flujo no avanzó: …»).
+    def not_ready_failure(error) = failure([error.message])
 
     # Se llama SIEMPRE con el lock del desafío tomado: reordenar o cerrar
     # mientras otro proceso avanza el flujo es justo lo que el lock evita. Las

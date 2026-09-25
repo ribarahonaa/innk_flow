@@ -38,7 +38,17 @@ module Flow
         return step if step.touched?
 
         ready, reasons = can_activate?
-        raise Flow::Errors::StepNotReady, reasons.join(". ") unless ready
+        # EL NOMBRE DEL MÓDULO LO PONE ACÁ, no cada handler. Éste es el único
+        # lugar donde una negativa se vuelve excepción, así que un handler nuevo
+        # que se niegue no puede olvidarse —que es lo que pasó con `Evaluation`,
+        # cuyos motivos salen de `CriteriaSet#validation_errors` y no saben de
+        # módulos: con dos evaluaciones en el flujo, el aviso no decía cuál—.
+        # Sus razones dicen el PORQUÉ; el «cuál» es de quien avisa.
+        #
+        # Y va en el MENSAJE y no en un atributo de la excepción:
+        # `Flow::Steps::ActivateJob` la deja escapar a propósito, y en el log de
+        # un job nadie arma una frase mejor.
+        raise Flow::Errors::StepNotReady, "«#{step.name}» no está listo para arrancar: #{reasons.join('. ')}" unless ready
 
         step.transaction do
           resolve_config!

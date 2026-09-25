@@ -411,6 +411,46 @@ RSpec.describe Flow::Pipeline do
       expect(challenge.reload).to be_running
     end
 
+    # DOS evaluaciones, y ésa es toda la guarda: con una sola, cualquier mensaje
+    # nombra la correcta por accidente y el ejemplo no distingue nada —el mismo
+    # agujero que una fixture de posiciones 1, 2 y 3—. Los nombres se ponen a
+    # mano porque `derive_name` le da a las dos el mismo por defecto.
+    #
+    # El nombre lo pone el sitio del `raise` y no el handler: los errores de una
+    # evaluación salen de `CriteriaSet#validation_errors`, que no sabe de
+    # módulos, así que `Evaluation#can_activate?` nunca se nombró y nada avisaba.
+    it "dice QUÉ módulo no está listo, y no el otro" do
+      challenge = create(:challenge, status: "draft")
+      seed_form!(challenge.steps.create!(kind: "ideation", position: 1, status: "completed"))
+      challenge.steps.create!(kind: "evaluation", position: 2, name: "Técnica", status: "completed")
+      comite = challenge.steps.create!(kind: "evaluation", position: 3, name: "Comité")
+      challenge.update!(status: "running")
+      challenge.steps.reset
+      with_broken_set!(comite)
+
+      result = described_class.new(challenge).continue!
+
+      expect(result).not_to be_ok
+      expect(result.error_sentence).to include("«Comité»")
+      expect(result.error_sentence).not_to include("«Técnica»")
+      expect(result.error_sentence).to match(/al menos un criterio activo/)
+    end
+
+    # La otra mitad del cambio: `Ideation` y `Selection` dejaron de nombrarse a
+    # sí mismas dentro de su razón, porque con el nombre puesto en el `raise`
+    # quedaba duplicado. Esto lo cuenta.
+    it "y lo nombra UNA vez, también cuando el motivo lo da el handler" do
+      challenge = build_pipeline(%w[ideation:completed selection:pending])
+      as_company(company) { challenge.steps.ordered.last.update!(name: "Corte") }
+      challenge.steps.reset
+
+      result = described_class.new(challenge).continue!
+
+      expect(result).not_to be_ok
+      expect(result.error_sentence.scan("«Corte»").size).to eq(1), result.error_sentence
+      expect(result.error_sentence).to match(/no tiene criterios propios ni una evaluación previa/)
+    end
+
     it "no toca nada si ya hay un módulo en curso" do
       challenge = build_pipeline(%w[ideation:active evaluation:pending])
       result = described_class.new(challenge).continue!
