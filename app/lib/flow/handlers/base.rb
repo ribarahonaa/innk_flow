@@ -76,6 +76,15 @@ module Flow
       # Devuelve `false` cuando se niega, y ésa es la ÚNICA copia de la regla:
       # el controller lee la respuesta en vez de repetir el predicado, que es
       # como las dos se desincronizarían.
+      #
+      # Ojo con el contrato, que NO es el de sus hermanos: `activate!` y
+      # `complete!` devuelven el step también cuando no hacen nada, porque ahí
+      # la repetición es idempotencia —pedir de nuevo lo mismo—. Sobre un
+      # módulo completado saltear no es repetir, es otra operación, y por eso
+      # se contesta que no. Sobre uno ya salteado sí es el caso idempotente
+      # puro y aun así devuelve `false`, para que el mensaje sea uno solo. Un
+      # `paso = handler.skip!` futuro revienta con NoMethodError sobre `false`;
+      # los tres llamadores de hoy leen la respuesta o la ignoran a sabiendas.
       def skip!(reason: nil)
         return false if step.completed? || step.skipped?
 

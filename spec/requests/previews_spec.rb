@@ -106,7 +106,13 @@ RSpec.describe "previsualizar el desafío", type: :request do
 
     consultas = consultas_a("criteria") { get challenge_preview_path(challenge) }
 
+    # El NOMBRE lo pinta el snapshot, así que con el memo devolviendo un hash
+    # vacío las consultas desaparecen y esa aserción sigue verde mientras la
+    # ficha se degrada a «Criterio sin escala resoluble.» en los tres. El input
+    # sólo existe si la fila viva resolvió su escala (`_criterion_field:9`), y
+    # es lo que ata el memo a lo que se ve.
     expect(response.body).to include("Impacto", "Riesgo", "Costo")
+    expect(response.body).to include('name="scores[impacto]"', 'name="scores[riesgo]"')
     expect(consultas.size).to be <= 2, "#{consultas.size} consultas a criteria:\n  #{consultas.join("\n  ")}"
   end
 

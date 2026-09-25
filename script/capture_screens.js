@@ -850,11 +850,18 @@ async function abrirPlegables(page) {
 // el orden del snapshot»).
 //
 // La prosa partida por un hijo inline SÍ se ve, desde que los nodos de texto
-// propios se unen con espacio. Ojo con cómo se prueba eso: con un separador que
-// lleva texto —`<span>Impacto<b>·</b>Numérico</span>`— el `<b>` se reporta por
-// su cuenta, porque «·» no es identificador, y la falta del PADRE queda tapada.
-// El caso del autotest usa un separador sin texto propio, que es la forma que
-// de verdad se escapaba.
+// propios se unen con espacio. Ojo con cómo se prueba eso, porque el ejemplo
+// con el que esto estuvo anotado falla de DOS formas a la vez:
+//
+//   - con un separador que lleva texto —`<span>Impacto<b>·</b>Numerico</span>`—
+//     el `<b>` se reporta por su cuenta, porque «·» no es identificador, y la
+//     falta del PADRE queda tapada;
+//   - y con tilde —«Numérico»— el token fusionado no pasa el filtro ASCII de
+//     `IDENTIFICADOR`, así que el padre se reportaba igual y no hay nada que
+//     demostrar.
+//
+// El caso del autotest va sin tilde y con un separador sin texto propio, que es
+// la única combinación que de verdad se escapaba.
 const SUPERFICIES_DE_CODIGO = 'code, kbd, samp, pre, .code-input';
 const IDENTIFICADOR = /^[A-Za-z0-9_.-]+$/;
 
@@ -866,9 +873,18 @@ async function medirMonoEnProsa(page) {
     for (const el of document.querySelectorAll('body *')) {
       if (el.closest(selCodigo)) continue;
       // Con espacio y no pegado: dos fragmentos separados por un hijo inline se
-      // FUSIONABAN en un token —«Impacto» + «Numérico» = «ImpactoNumérico»— que
-      // pasaba por identificador. Con un solo nodo no cambia nada, y lo que ya
-      // fallaba el test sigue fallándolo.
+      // FUSIONABAN en un token —«Impacto» + «Numerico» = «ImpactoNumerico»— que
+      // pasaba por identificador. SIN TILDE, y no es un detalle del ejemplo:
+      // `IDENTIFICADOR` es ASCII puro, así que «ImpactoNumérico» nunca pasó el
+      // filtro y esa forma se reportaba igual. La fusión sólo se escapa cuando
+      // los dos fragmentos son ASCII.
+      //
+      // Con un solo nodo no cambia nada, y lo que ya fallaba el test sigue
+      // fallándolo: el cambio sólo puede reportar de más, nunca de menos. Lo
+      // que habilita es un falso positivo posible —dos identificadores
+      // separados por un hijo sin texto, «v3» + ícono + «v4», leen como prosa—.
+      // Hoy da cero en las 66 pantallas; cuando aparezca, la respuesta es darle
+      // a cada identificador su propio elemento mono, no aflojar el join.
       const propio = [...el.childNodes]
         .filter((n) => n.nodeType === 3)
         .map((n) => n.textContent)

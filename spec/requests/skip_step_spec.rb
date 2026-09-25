@@ -123,7 +123,9 @@ RSpec.describe "saltear un módulo", type: :request do
 
     post skip_challenge_step_path(challenge, salteado), params: { reason: "otro motivo" }
 
-    expect(flash[:alert]).to include("ya terminó")
+    # «ya está salteado» y no «ya terminó»: son dos motivos distintos y el
+    # aviso los distingue.
+    expect(flash[:alert]).to include("ya está salteado")
     as_company(company) do
       quedo = challenge.steps.ordered.first.reload
       expect(quedo.completed_at).to eq(cerrado_en)

@@ -249,6 +249,29 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       expect(documento.css(".assessment-detail").size).to eq(4)
       expect(consultas.size).to eq(2), consultas.join("\n")
     end
+
+    # La MISMA forma que se sacó de `criteria_preview`, pero en el camino
+    # caliente: la ficha que se completa una vez por idea buscaba la fila viva
+    # de cada criterio con un `find_by` propio. El memo del handler ya estaba
+    # hecho; sólo faltaba que esta vista lo usara.
+    #
+    # El conteo muerde por lo mismo que allá: los ids son distintos, así que la
+    # caché de consultas no sirve la repetición. Y la aserción del input es lo
+    # que ata el memo a lo que se PINTA —el nombre sale del snapshot, así que
+    # sin la fila viva la ficha se degrada a «Criterio sin escala resoluble.»
+    # con las tres etiquetas intactas—.
+    it "no busca la fila de cada criterio de a una en la ficha de evaluación" do
+      sign_in(admin, company: company)
+      idea = as_company(company) { challenge.ideas.order(:created_at).first }
+
+      consultas = consultas_a("criteria") do
+        get new_challenge_step_assessment_path(challenge, paso("evaluation"), idea_id: idea.id)
+      end
+
+      expect(response.body).to include('name="scores[impacto]"', 'name="scores[factibilidad]"',
+                                       'name="scores[esfuerzo]"')
+      expect(consultas.size).to eq(1), consultas.join("\n")
+    end
   end
 
   describe "selección" do

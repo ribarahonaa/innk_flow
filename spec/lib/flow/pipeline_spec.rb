@@ -34,7 +34,7 @@ RSpec.describe Flow::Pipeline do
   # `Pipeline#validate` no mira —mira el formulario de «Idear» y la fuente de
   # puntaje de una selección, no los errores del set—, así que es el que llega
   # hasta `activate!`.
-  def con_set_roto!(step)
+  def with_broken_set!(step)
     set = CriteriaSet.create!(name: "Roto", scope: "library")
     set.refresh_status!
     step.update!(criteria_set: set)
@@ -304,7 +304,7 @@ RSpec.describe Flow::Pipeline do
       challenge = build_pipeline(%w[ideation evaluation], challenge_status: "draft")
       pipeline = described_class.new(challenge)
       pipeline.start!
-      con_set_roto!(challenge.steps.ordered.last)
+      with_broken_set!(challenge.steps.ordered.last)
 
       idea = create(:idea, challenge: challenge)
       Flow::Ideas::PublishVersion.new(idea, payload: { "titulo" => "Una idea" }).call
@@ -323,7 +323,7 @@ RSpec.describe Flow::Pipeline do
     # también llegaba al 500.
     it "no arranca con un 500 si el primer módulo no puede activarse" do
       challenge = build_pipeline(%w[evaluation ideation], challenge_status: "draft")
-      con_set_roto!(challenge.steps.ordered.first)
+      with_broken_set!(challenge.steps.ordered.first)
 
       result = described_class.new(challenge).start!
 
@@ -400,7 +400,7 @@ RSpec.describe Flow::Pipeline do
     # dice con su rama de failure. Lo que se saca es el 500.
     it "avisa en vez de reventar si el siguiente pendiente no puede arrancar" do
       challenge = build_pipeline(%w[ideation:skipped evaluation:pending])
-      con_set_roto!(challenge.steps.ordered.last)
+      with_broken_set!(challenge.steps.ordered.last)
 
       result = described_class.new(challenge).continue!
 

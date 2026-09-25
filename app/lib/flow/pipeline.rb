@@ -212,7 +212,7 @@ module Flow
         success(first)
       end
     rescue Flow::Errors::StepNotReady => e
-      no_pudo_abrir(e)
+      not_ready_failure(e)
     end
 
     def advance!
@@ -228,7 +228,7 @@ module Flow
         open_next_or_close!
       end
     rescue Flow::Errors::StepNotReady => e
-      no_pudo_abrir(e)
+      not_ready_failure(e)
     end
 
     # Abrir el siguiente módulo pendiente, o cerrar el desafío si no queda
@@ -243,7 +243,7 @@ module Flow
     def continue!
       challenge.with_lock { open_next_or_close! }
     rescue Flow::Errors::StepNotReady => e
-      no_pudo_abrir(e)
+      not_ready_failure(e)
     end
 
     # Cerrar el desafío a mano, con el flujo donde esté.
@@ -286,7 +286,7 @@ module Flow
     # `validate` no lo vuelve imposible: mira el formulario de «Idear» y la
     # fuente de puntaje de una selección, no los errores del set de una
     # evaluación.
-    def no_pudo_abrir(error) = failure(["el módulo no está listo para arrancar: #{error.message}"])
+    def not_ready_failure(error) = failure(["el módulo no está listo para arrancar: #{error.message}"])
 
     # Se llama SIEMPRE con el lock del desafío tomado: reordenar o cerrar
     # mientras otro proceso avanza el flujo es justo lo que el lock evita. Las
