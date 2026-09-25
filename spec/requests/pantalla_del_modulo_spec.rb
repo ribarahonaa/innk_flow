@@ -275,6 +275,58 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
   end
 
   describe "selección" do
+    # `Selection#gates_for` buscaba `Criterion.find_by` por cada filtro y por
+    # cada IDEA, y «Cómo se decide» otra vez por filtro. Medido con 2 filtros y
+    # 4 ideas, a la base llegaban 2 consultas y no 10: la CACHÉ de consultas de
+    # Rails sirve la repetición idéntica sin ir a la base, así que el N+1 por
+    # idea estaba en la forma del código y no en el costo.
+    #
+    # Igual se arregla, y lo que se gana es no depender de esa caché: existe
+    # dentro de un request y este mismo código en un job explotaría. Lo que el
+    # conteo cuida es que quede UNA consulta y no una por filtro.
+    #
+    # La fixture necesita VARIAS ideas y VARIOS filtros de todas formas, o el
+    # conteo no podría crecer y el ejemplo no distinguiría una forma de la otra.
+    describe "los filtros no se buscan una vez por idea" do
+      let!(:challenge) do
+        as_company(company) do
+          c = create(:challenge, name: "Merma", ai_default_mode: "human")
+          seed_form!(c.steps.create!(kind: "ideation", position: 1))
+          seleccion = c.steps.create!(kind: "selection", position: 2, name: "Corte",
+                                      config: { "score_source" => { "type" => "manual" } })
+          set = CriteriaSet.create!(name: "Filtros", scope: "inline", owner_step: seleccion)
+          ["titulo", "resumen"].each_with_index do |campo, i|
+            set.criteria.create!(name: "Tiene #{campo}", key: "tiene_#{campo}", weight: 0,
+                                 source: "automatic", scale_type: "boolean", position: i,
+                                 source_config: { "check" => "field_present", "field_key" => campo })
+          end
+          seleccion.update!(criteria_set_id: set.id)
+          c
+        end
+      end
+
+      before do
+        ["Sensores", "Cámaras", "Balanza", "Turnos"].each { |t| postular!(challenge, author: paula, titulo: t) }
+        as_company(company) do
+          challenge.pipeline.start!
+          challenge.pipeline.advance!
+        end
+      end
+
+      it "carga los criterios de los filtros una sola vez" do
+        sign_in(admin, company: company)
+        consultas = consultas_a("criteria") { get challenge_step_path(challenge, paso("selection")) }
+
+        expect(documento.css(".fila-de-idea, tbody tr").size).to be >= 4
+        # Los dos filtros tienen que estar RENDERIZADOS, o `eq(1)` se cumple
+        # igual con un `WHERE 1=0` y una fixture que perdió sus filtros pasaría
+        # en verde.
+        expect(response.body).to include("Tiene titulo", "Tiene resumen")
+        expect(consultas.size).to eq(1), consultas.join("\n")
+      end
+
+    end
+
     # Un grupo por escenario y no un `before` suelto, como en reportería: el
     # registro de decisiones necesita dos ideas y el corte ya confirmado, y un
     # `before` de afuera corre también para los grupos de adentro.
@@ -415,9 +467,11 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
     # siendo verdadero con el desafío cerrado. Es la ÚNICA de las cinco
     # pantallas donde los dos bloques no preguntan lo mismo.
     #
-    # `close!` cierra el desafío sin tocar los módulos, así que un módulo
-    # activo con el desafío cerrado es un estado alcanzable: quien administra
-    # cortó el desafío antes de terminar el flujo.
+    # `close!` saltea el módulo que estaba corriendo, así que el escenario es
+    # «quien administra cortó el desafío antes de terminar el flujo» con ese
+    # módulo `skipped`. Lo que la guarda mira es el DESAFÍO cerrado, no el
+    # estado del módulo: `advance?` no pregunta por `closed?` y
+    # `update_pipeline?` sí.
     it "con el desafío cerrado el resumen no anuncia quiénes acompañan" do
       as_company(company) { challenge.pipeline.close! }
       sign_in(admin, company: company)

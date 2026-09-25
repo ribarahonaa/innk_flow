@@ -296,6 +296,95 @@ RSpec.describe Flow::Pipeline do
     end
   end
 
+  # Saltear el módulo en curso lo deja `skipped`, o sea sin módulo activo. Lo
+  # que sigue —abrir el siguiente pendiente, o cerrar el desafío si no
+  # queda— es la COLA de `advance!`, y `advance!` entero no se puede usar: su
+  # primera línea corta con `failure` justo cuando no hay activo, que es el
+  # estado que deja el salteo. `StepsController#skip` llamaba a `advance!` ahí,
+  # así que saltear dejaba el flujo trabado sin que nada avisara.
+  describe "#continue!" do
+    it "abre el siguiente pendiente después de saltear el que estaba en curso" do
+      challenge = build_pipeline(%w[ideation:skipped evaluation:pending reporting:pending])
+      result = described_class.new(challenge).continue!
+
+      expect(result).to be_ok
+      expect(challenge.steps.ordered.second.reload).to be_active
+      expect(challenge.reload).to be_running
+    end
+
+    it "cierra el desafío si no queda ninguno pendiente" do
+      challenge = build_pipeline(%w[ideation:completed reporting:skipped])
+      result = described_class.new(challenge).continue!
+
+      expect(result).to be_ok
+      expect(challenge.reload).to be_closed
+    end
+
+    # El `if active_step.nil?` que `skip` tenía protegía sin querer algo más
+    # grande: en un desafío EN BORRADOR tampoco hay módulo en curso, así que
+    # sin pedir `running?` un salteo autorizado sobre un borrador lo CERRABA
+    # —o le activaba un módulo adentro, y con el desafío en borrador
+    # `insertion_floor` devuelve nil, así que el builder insertaría antes de un
+    # módulo ya tocado—. Ni la policy ni `skip!` miran el estado del desafío.
+    it "no cierra un desafío en borrador" do
+      challenge = build_pipeline(%w[reporting:skipped], challenge_status: "draft")
+      result = described_class.new(challenge).continue!
+
+      expect(result).not_to be_ok
+      expect(challenge.reload).to be_draft
+    end
+
+    it "no activa un módulo adentro de un borrador" do
+      challenge = build_pipeline(%w[ideation:skipped evaluation:pending], challenge_status: "draft")
+      described_class.new(challenge).continue!
+
+      expect(challenge.steps.ordered.second.reload).to be_pending
+      expect(challenge.reload).to be_draft
+    end
+
+    it "no toca nada si ya hay un módulo en curso" do
+      challenge = build_pipeline(%w[ideation:active evaluation:pending])
+      result = described_class.new(challenge).continue!
+
+      expect(result).not_to be_ok
+      expect(challenge.steps.ordered.second.reload).to be_pending
+    end
+  end
+
+  # Cerrar un desafío a mano dejaba su módulo EN CURSO, y con eso el estado del
+  # desafío y el del flujo se contradecían en la misma pantalla: el chip decía
+  # «Cerrado» y la tarjeta «Flujo» decía «ahora: Reporte de cierre», y el mapa
+  # del flujo y el drawer pintaban ese módulo como activo. Arreglarlo en la
+  # vista tapaba una de las tres caras; la causa es que `close!` no cerraba lo
+  # que estaba corriendo.
+  describe "#close!" do
+    it "saltea el módulo en curso: no queda nada corriendo en un desafío cerrado" do
+      challenge = build_pipeline(%w[ideation:completed reporting:active])
+      result = described_class.new(challenge).close!
+
+      expect(result).to be_ok
+      expect(challenge.reload).to be_closed
+      expect(challenge.steps.ordered.reload.map(&:status)).to eq(%w[completed skipped])
+      expect(described_class.new(challenge).active_step).to be_nil
+    end
+
+    it "deja constancia de por qué se salteó" do
+      challenge = build_pipeline(%w[ideation:active])
+      described_class.new(challenge).close!
+
+      paso = challenge.steps.ordered.first.reload
+      expect(paso.resolved_config["skip_reason"]).to eq("se cerró el desafío")
+    end
+
+    it "no toca los módulos si no había ninguno en curso" do
+      challenge = build_pipeline(%w[ideation:completed reporting:pending])
+      described_class.new(challenge).close!
+
+      expect(challenge.reload).to be_closed
+      expect(challenge.steps.ordered.reload.map(&:status)).to eq(%w[completed pending])
+    end
+  end
+
   describe "config vs resolved_config" do
     it "un step pendiente lee de config; uno activo, de resolved_config congelado" do
       challenge = build_pipeline(%w[ideation evaluation], challenge_status: "draft")
