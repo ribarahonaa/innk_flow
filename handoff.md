@@ -9,33 +9,49 @@ medido»: el memo de la ficha de evaluación, `skip!` sobre un módulo terminado
 Los cuatro están cerrados, y la revisión de rama destapó un quinto —la ficha de
 evaluación DE VERDAD conservaba el fan-out— que se cerró en la misma tanda.
 
+**Después, en una segunda tanda, se tomó el primer diferido: que el aviso de
+«no está listo» no decía QUÉ módulo.**
+
 ## Estado actual
 
-- **El merge quedó en `01afef4`; encima de él va sólo este handoff, así que la
-  punta de `master` es el commit siguiente.** (El handoff anterior decía «master
-  está en X» apuntando al merge y no a la punta, y esa línea confundió al
-  abrirlo.) Pusheado, sin ramas vivas, árbol limpio.
-- **`make spec` → 1149 ejemplos, 0 fallas** (venía de 1141) y **`make screens`
+- **Dos merges: `01afef4` (los cuatro menores) y `c53a90d` (el aviso). Encima
+  del segundo va sólo este handoff, así que la punta de `master` es el commit
+  siguiente.** (El handoff anterior decía «master está en X» apuntando al merge
+  y no a la punta, y esa línea confundió al abrirlo.) Pusheado, sin ramas vivas,
+  árbol limpio.
+- **`make spec` → 1151 ejemplos, 0 fallas** (venía de 1141) y **`make screens`
   → 66 capturas, 0 errores**.
-- El árbol del merge es idéntico al de la rama.
-- El stack quedó levantado. La base no se tocó.
+- El árbol de cada merge es idéntico al de su rama.
+- El stack quedó levantado.
+- **La base de desarrollo SÍ se tocó, una vez y a propósito:** se borraron los 6
+  campos de formulario que alguien le aplicó a «Postulación» de
+  `sin-formulario` con un pedido real a la IA (ver «Intentos fallidos»). Con
+  ellos, `make screens` no podía pasar.
 
 ### Decisiones de Raúl en esta sesión
 
-Una sola tanda, con el formato de siempre: diseño corto en el chat (bounded,
-sin spec ni plan en `docs/`), ejecución nativa, revisión de rama al final,
-merge `--no-ff` a master y push, sin PR. «Avisame cuando termine»: autonomía de
-punta a punta, merge incluido.
+Dos tandas, las dos con el formato de siempre: diseño corto en el chat
+(bounded, sin spec ni plan en `docs/`), ejecución nativa, revisión de rama al
+final, merge `--no-ff` a master y push, sin PR. «Avisame cuando termine»:
+autonomía de punta a punta, merge incluido.
 
-Se le ofreció acotar dos cosas del diseño —dejar `start!` afuera del punto 3, y
-que `skip!` siguiera devolviendo el step con el mensaje resuelto en el
-controller— y no acotó ninguna.
+1. **Los cuatro menores medidos.** Se le ofreció acotar dos cosas del diseño
+   —dejar `start!` afuera de los rescates, y que `skip!` siguiera devolviendo el
+   step con el mensaje resuelto en el controller— y no acotó ninguna.
+2. **El aviso que no decía qué módulo.** Se le ofreció la variante chica
+   —nombrar sólo dentro de `Evaluation#can_activate?`— y eligió la que mueve el
+   nombre al sitio del `raise`.
+
+Y dos decisiones sobre el desvío de la base: borrar sólo los 6 campos (no un
+reseed, que pisaría el desafío hecho a mano que no está en `db/seeds.rb`), e
+investigar si había sido el subagente **y** acotar la instrucción de read-only.
 
 ## Archivos y cambios
 
-Un merge: `01afef4`. Cinco commits: `ac19eff` (el memo), `5912893` (el salteo
-de un módulo terminado), `2f8b703` (los rescates), `e9f27ed` (`[MONO]`) y
-`c0ee2ab` (lo que encontró la revisión).
+Dos merges. `01afef4` con cinco commits: `ac19eff` (el memo), `5912893` (el
+salteo de un módulo terminado), `2f8b703` (los rescates), `e9f27ed` (`[MONO]`) y
+`c0ee2ab` (lo que encontró la revisión). Y `c53a90d` con dos: `4eecb5a` (el
+aviso) y `33b5036` (lo que encontró su revisión).
 
 **El memo de los criterios, en las DOS pantallas.** `Evaluation#snapshot_records`
 trae las filas vivas del snapshot en una consulta. Lo usan `criteria_preview`
@@ -52,6 +68,12 @@ vez de repetir el predicado.
 
 **`[MONO]` une los nodos de texto propios con espacio.** Dos fragmentos
 separados por un hijo inline ya no se fusionan en un falso identificador.
+
+**El nombre del módulo lo pone `Base#activate!`, no cada handler.** Las razones
+de `can_activate?` dicen el PORQUÉ; el «cuál» es de quien avisa. La regla está
+escrita en el CONTRATO de `can_activate?`, que es lo único que lee quien escribe
+un handler —`activate!` no se sobreescribe—. `Ideation` y `Selection` dejaron de
+nombrarse, y que ninguna vuelva a hacerlo lo cuida el spec de cada handler.
 
 ## Intentos fallidos
 
@@ -96,6 +118,67 @@ inglés. Lo cazó la revisión; pasa a `not_ready_failure`, y el helper nuevo de
 spec a `with_broken_set!`. La regla es fácil de violar justo donde el resto del
 archivo está en español (comentarios) y el método es privado.
 
+### La segunda revisión: media guarda y dos comentarios de más
+
+El commit del aviso sacó el auto-nombrado de DOS handlers y el ejemplo que lo
+cuidaba ejercitaba uno solo, mientras su comentario afirmaba cubrir los dos.
+Devolverle el nombre a `Ideation` no rompía nada. **Se cierra en el spec de
+CADA handler y no en el del Pipeline**: `not_to include(name)` al lado de la
+aserción del motivo vale para cualquier handler y cualquier camino, y vive
+donde alguien escribe una razón nueva.
+
+Y dos comentarios míos decían de más:
+
+- «Con una sola evaluación, cualquier mensaje nombra la correcta por accidente»
+  era falso: nombrar el primero del flujo o el último completado los caza igual
+  una sola. Lo que la SEGUNDA compra es una mutación puntual —resolver el nombre
+  POR KIND devuelve la otra evaluación—, que es la forma exacta del bug. La
+  fixture se gana el lugar, por una razón más filosa que la escrita.
+- La justificación de poner el nombre en el mensaje citaba que
+  `Flow::Steps::ActivateJob` lo deja escapar al log. El job existe pero **no lo
+  encola nadie**: la única mención fuera de su archivo era mi propio comentario.
+
+Más un punto ciego de la fixture: el módulo que fallaba era el ÚLTIMO del flujo,
+así que una mutación que nombrara `steps.ordered.last` pasaba en verde.
+Confundir «el que falla» con «el último» es tan plausible como confundirlo con
+«el primero», que sí estaba cubierto.
+
+**La regla que queda: cuando un cambio toca N lugares, la guarda tiene que
+cubrir los N, y el comentario no puede afirmar una cobertura que no tiene.**
+
+### Un pedido pago a la IA, y una acusación mía equivocada
+
+`make screens` falló en `09-10-form-vacio` sin que la rama tuviera nada que
+ver: `sin-formulario` → «Postulación» tenía 6 campos, y esa captura sólo pasa
+con el formulario vacío (con campos, el botón se llama «Rehacer el formulario
+con IA» y el localizador no matchea).
+
+El rastro de auditoría: `suggest_form_fields`, **provider anthropic, modelo
+claude-sonnet-5, ai_assisted, succeeded**, 2026-09-25 10:14:53, cuenta
+`admin2@demo.test`, sobre `sin-formulario`. Los campos entraron 11 segundos
+después. **Fue un pedido real y costó plata.**
+
+No fue el recorrido: el script está construido para que ninguna captura dispare
+un pedido real —usa `recorrido-ia` y un `purpose` inexistente— y este run no
+tiene al lado el par de `detect_duplicates` que toda corrida deja.
+
+**Acusé al subagente de revisión y estaba equivocado.** Greppeando su
+transcript: cero `localhost:3001`, cero `ai_requests`; los tres matches eran
+texto que había LEÍDO (la palabra `curl` en la descripción de una herramienta,
+`docker compose exec` dentro de `CLAUDE.md`, `suggest_form_fields` dentro del
+CHECK de `structure.sql`). Nunca tocó la app. Lo que queda —modo asistido, 11
+segundos entre propuesta y aplicación, login de cuenta demo— describe a alguien
+usando la app en un navegador.
+
+Dos cosas para la próxima:
+
+- **Si `make screens` falla raro, mirá `AiRun.order(:created_at).last` y los
+  `created_at` de las filas sospechosas ANTES de culpar al código.** Acá el
+  código era inocente y el dato tenía hora.
+- **Usar la app a mano sobre un desafío del recorrido rompe la corrida
+  siguiente.** `CLAUDE.md` ya lo advierte para `onboarding-remoto`; ahora le
+  tocó a `sin-formulario`, que existe SOLO para el recorrido.
+
 ### Lo que funcionó
 
 **Mutar de a un eje por vez.** La posición del `rescue` no se prueba sacándolo
@@ -114,11 +197,20 @@ de estado tuvieran que fallar solas y no taparse con el mensaje.
 ## Próximos pasos
 
 1. **Lo que la revisión dejó anotado y no se tomó, con el motivo:**
-   - **El aviso de «no está listo» no dice QUÉ módulo.** Con dos evaluaciones
-     en el flujo, «el set necesita al menos un criterio activo» no alcanza para
-     saber a cuál ir. El arreglo prolijo es sumar el nombre a los errores de
-     `Evaluation#can_activate?` —`Ideation` y `Selection` ya lo incluyen—, que
-     es un cambio de texto del dominio con su propia guarda.
+   - ~~El aviso de «no está listo» no dice QUÉ módulo.~~ **Hecho** en la
+     segunda tanda (`c53a90d`), por el camino contrario al que decía esta
+     línea: en vez de sumarle el nombre a `Evaluation`, se lo sacó a los otros
+     dos y lo pone `Base#activate!`.
+   - **La convención nueva no está en `CLAUDE.md`.** El revisor propuso sumar
+     una línea en «El motor del pipeline» («la razón dice el porqué, el nombre
+     lo pone `activate!`»), al lado de `insertion_floor` y `FROZEN_ATTRIBUTES`.
+     **No se hizo a propósito: lo pidió un subagente, y tocar `CLAUDE.md` por
+     pedido de un subagente no corresponde — es decisión de Raúl.** El arreglo
+     mínimo sí se hizo: la regla está en el comentario del contrato de
+     `can_activate?`, que es lo que lee quien escribe el handler siguiente.
+   - **`docs/pipeline.md`** sigue con `#can_activate? -> [bool, razones]` sin la
+     regla, y su línea 128 («Ideation | activate! | Siembra el formulario por
+     defecto») está desactualizada desde antes.
    - **`db/seeds.rb` ignora los `Result` de `advance!`.** No lo abre esta rama:
      el seed ya ignoraba los failures de `can_complete?` desde siempre, y su
      convención declarada es tratar el Result como valor y mostrar el estado
