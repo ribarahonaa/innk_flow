@@ -211,6 +211,8 @@ module Flow
         Flow::Handlers::Base.for(first).activate!
         success(first)
       end
+    rescue Flow::Errors::StepNotReady => e
+      not_ready_failure(e)
     end
 
     def advance!
@@ -225,6 +227,8 @@ module Flow
         handler.complete!
         open_next_or_close!
       end
+    rescue Flow::Errors::StepNotReady => e
+      not_ready_failure(e)
     end
 
     # Abrir el siguiente módulo pendiente, o cerrar el desafío si no queda
@@ -238,6 +242,8 @@ module Flow
     # condición era verdadero y la llamada no podía hacer nada.
     def continue!
       challenge.with_lock { open_next_or_close! }
+    rescue Flow::Errors::StepNotReady => e
+      not_ready_failure(e)
     end
 
     # Cerrar el desafío a mano, con el flujo donde esté.
@@ -262,6 +268,25 @@ module Flow
     end
 
     private
+
+    # El módulo que se iba a abrir no estaba listo. `activate!` lo dice
+    # levantando `StepNotReady`, y no lo rescataba nadie: el pedido moría con un
+    # 500 —en el camino del salteo, encima con el salteo ya guardado—.
+    #
+    # Los tres rescates van AFUERA del `with_lock`, y esa posición es el diseño
+    # y no una casualidad de dónde entró el `rescue`: así la excepción atraviesa
+    # la transacción y se deshace lo que el camino hubiera escrito. En
+    # `advance!` eso es el `complete!` del módulo en curso —rescatado adentro
+    # quedaría completado y sin nadie abierto, o sea el flujo trabado, y no hay
+    # control en ninguna vista para destrabarlo—; en `start!`, el `running` del
+    # desafío. En `continue!` no hay nada que deshacer: el salteo se guardó
+    # antes, en su propia transacción, y `activate!` levanta ANTES de abrir la
+    # suya.
+    #
+    # `validate` no lo vuelve imposible: mira el formulario de «Idear» y la
+    # fuente de puntaje de una selección, no los errores del set de una
+    # evaluación.
+    def not_ready_failure(error) = failure(["el módulo no está listo para arrancar: #{error.message}"])
 
     # Se llama SIEMPRE con el lock del desafío tomado: reordenar o cerrar
     # mientras otro proceso avanza el flujo es justo lo que el lock evita. Las

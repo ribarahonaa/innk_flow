@@ -33,7 +33,11 @@
           = hidden_field_tag :idea_id, @idea.id
 
           - @handler.scored_criteria.each do |criterion|
-            - record = Criterion.find_by(id: criterion["id"])
+            -# Del memo del handler y no `Criterion.find_by` acá: era una
+            -# consulta por criterio, y ésta es la ficha que se completa una vez
+            -# por idea. El snapshot no alcanza —`_criterion_field` necesita la
+            -# fila viva para resolver la escala—, así que se traen todas juntas.
+            - record = @handler.snapshot_records[criterion["id"]]
             - existing = @assessment.assessment_scores.detect { |s| s.criterion_key == criterion["key"] }
             - ai_score = @ai_scores[criterion["key"]]
             - value_now = existing&.raw_value

@@ -65,29 +65,6 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
     documento.css(".app-aside h1, .app-aside h2").map { |n| "#{n.name}: #{n.text.strip}" }
   end
 
-  # Cuenta las consultas a una tabla durante el bloque. Para los N+1: el número
-  # que importa no es cuántas consultas hace la pantalla sino si CRECE con las
-  # filas, así que los ejemplos siembran varias y fijan un tope que no depende
-  # de cuántas haya.
-  def consultas_a(tabla)
-    sql = []
-    sub = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
-      next if payload[:name] == "SCHEMA" || payload[:cached]
-
-      next unless payload[:sql].include?(%(FROM "#{tabla}"))
-
-      # Con el origen: el número solo dice que sobran consultas, no cuál de
-      # las tres lecturas de la misma lista las hace. Encontrar ESTE N+1 llevó
-      # a `evaluation.html.haml:13` y no a donde el reporte decía.
-      origen = caller.grep(%r{/app/}).first(2)
-      sql << "#{payload[:sql][0, 70]}\n      <- #{origen.join("\n      <- ")}"
-    end
-    yield
-    sql
-  ensure
-    ActiveSupport::Notifications.unsubscribe(sub)
-  end
-
   def postular!(challenge, author:, titulo:)
     as_company(company) do
       i = create(:idea, challenge: challenge, author: author)
@@ -271,6 +248,29 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       expect(documento.css(".fila-de-idea").size).to eq(4)
       expect(documento.css(".assessment-detail").size).to eq(4)
       expect(consultas.size).to eq(2), consultas.join("\n")
+    end
+
+    # La MISMA forma que se sacó de `criteria_preview`, pero en el camino
+    # caliente: la ficha que se completa una vez por idea buscaba la fila viva
+    # de cada criterio con un `find_by` propio. El memo del handler ya estaba
+    # hecho; sólo faltaba que esta vista lo usara.
+    #
+    # El conteo muerde por lo mismo que allá: los ids son distintos, así que la
+    # caché de consultas no sirve la repetición. Y la aserción del input es lo
+    # que ata el memo a lo que se PINTA —el nombre sale del snapshot, así que
+    # sin la fila viva la ficha se degrada a «Criterio sin escala resoluble.»
+    # con las tres etiquetas intactas—.
+    it "no busca la fila de cada criterio de a una en la ficha de evaluación" do
+      sign_in(admin, company: company)
+      idea = as_company(company) { challenge.ideas.order(:created_at).first }
+
+      consultas = consultas_a("criteria") do
+        get new_challenge_step_assessment_path(challenge, paso("evaluation"), idea_id: idea.id)
+      end
+
+      expect(response.body).to include('name="scores[impacto]"', 'name="scores[factibilidad]"',
+                                       'name="scores[esfuerzo]"')
+      expect(consultas.size).to eq(1), consultas.join("\n")
     end
   end
 

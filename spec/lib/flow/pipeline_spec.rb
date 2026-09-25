@@ -29,6 +29,18 @@ RSpec.describe Flow::Pipeline do
     challenge
   end
 
+  # Un módulo que NO puede arrancar. `Evaluation#can_activate?` se niega con un
+  # set sin criterios activos, y es el único «no está listo» que
+  # `Pipeline#validate` no mira —mira el formulario de «Idear» y la fuente de
+  # puntaje de una selección, no los errores del set—, así que es el que llega
+  # hasta `activate!`.
+  def with_broken_set!(step)
+    set = CriteriaSet.create!(name: "Roto", scope: "library")
+    set.refresh_status!
+    step.update!(criteria_set: set)
+    step
+  end
+
   describe "#insertion_floor" do
     it "es nil en borrador: no hay piso, todo es reordenable" do
       challenge = build_pipeline(%w[ideation evaluation selection], challenge_status: "draft")
@@ -280,6 +292,47 @@ RSpec.describe Flow::Pipeline do
       expect(challenge.reload).to be_closed
     end
 
+    # `activate!` levanta `StepNotReady` y no lo rescataba nadie: el pedido
+    # moría con un 500.
+    #
+    # El rescate va AFUERA del `with_lock`, y esa posición es el diseño: acá la
+    # excepción atraviesa la transacción, así que el `complete!` del módulo en
+    # curso se DESHACE. Rescatarlo adentro lo dejaría completado y sin nadie
+    # abierto, o sea el flujo trabado y sin control en ninguna vista para
+    # destrabarlo.
+    it "no completa el módulo en curso si el siguiente no puede arrancar" do
+      challenge = build_pipeline(%w[ideation evaluation], challenge_status: "draft")
+      pipeline = described_class.new(challenge)
+      pipeline.start!
+      with_broken_set!(challenge.steps.ordered.last)
+
+      idea = create(:idea, challenge: challenge)
+      Flow::Ideas::PublishVersion.new(idea, payload: { "titulo" => "Una idea" }).call
+      idea.update!(submitted_at: Time.current)
+
+      result = pipeline.advance!
+
+      expect(result).not_to be_ok
+      expect(result.error_sentence).to match(/al menos un criterio activo/)
+      expect(challenge.steps.ordered.first.reload).to be_active
+      expect(challenge.steps.ordered.last.reload).to be_pending
+    end
+
+    # `validate` no cubre este caso —mira el formulario y la fuente de puntaje,
+    # no los errores del set—, así que arrancar con una evaluación adelante
+    # también llegaba al 500.
+    it "no arranca con un 500 si el primer módulo no puede activarse" do
+      challenge = build_pipeline(%w[evaluation ideation], challenge_status: "draft")
+      with_broken_set!(challenge.steps.ordered.first)
+
+      result = described_class.new(challenge).start!
+
+      expect(result).not_to be_ok
+      expect(result.error_sentence).to match(/al menos un criterio activo/)
+      expect(challenge.reload).to be_draft
+      expect(challenge.steps.ordered.first.reload).to be_pending
+    end
+
     it "un módulo de evaluación no se cierra sin evaluaciones" do
       challenge = build_pipeline(%w[ideation evaluation], challenge_status: "draft")
       pipeline = described_class.new(challenge)
@@ -340,6 +393,22 @@ RSpec.describe Flow::Pipeline do
 
       expect(challenge.steps.ordered.second.reload).to be_pending
       expect(challenge.reload).to be_draft
+    end
+
+    # Acá el salteo YA se guardó en su propia transacción, así que no hay nada
+    # que deshacer: queda salteado, el flujo no se mueve y el controller lo
+    # dice con su rama de failure. Lo que se saca es el 500.
+    it "avisa en vez de reventar si el siguiente pendiente no puede arrancar" do
+      challenge = build_pipeline(%w[ideation:skipped evaluation:pending])
+      with_broken_set!(challenge.steps.ordered.last)
+
+      result = described_class.new(challenge).continue!
+
+      expect(result).not_to be_ok
+      expect(result.error_sentence).to match(/al menos un criterio activo/)
+      expect(challenge.steps.ordered.first.reload).to be_skipped
+      expect(challenge.steps.ordered.last.reload).to be_pending
+      expect(challenge.reload).to be_running
     end
 
     it "no toca nada si ya hay un módulo en curso" do

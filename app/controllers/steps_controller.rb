@@ -110,7 +110,17 @@ class StepsController < ApplicationController
 
   def skip
     authorize @step, :skip?
-    @step.handler.skip!(reason: params[:reason])
+    # `skip!` se niega sobre un módulo que ya terminó, y la respuesta es suya:
+    # preguntarlo acá sería una segunda copia del predicado.
+    unless @step.handler.skip!(reason: params[:reason])
+      # Dos motivos y dos mensajes: uno salteado no «terminó», se salteó, y
+      # decirle lo mismo a los dos deja a quien lo pide sin saber cuál de las
+      # dos cosas pasó.
+      ya = @step.skipped? ? "ya está salteado" : "ya terminó"
+      return redirect_to challenge_step_path(@step.challenge, @step),
+                         alert: "«#{@step.name}» #{ya}: no se saltea."
+    end
+
     # Saltear deja el módulo `skipped`, o sea sin ninguno en curso, y `continue!`
     # abre el siguiente pendiente o cierra el desafío. Acá decía `advance!`, que
     # corta con `failure` exactamente en ese estado —y encima detrás de un

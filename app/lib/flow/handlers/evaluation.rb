@@ -102,10 +102,23 @@ module Flow
       # evalúan mientras todavía puede cambiarla. Los genéricos se instancian
       # sin guardar: son los mismos que sembraría `before_resolve_config!`.
       def criteria_preview
-        return criteria_snapshot.map { |c| [c, Criterion.find_by(id: c["id"])] } if step.touched?
+        return criteria_snapshot.map { |c| [c, snapshot_records[c["id"]]] } if step.touched?
 
         records = step.criteria_set&.active_criteria || generic_criteria
         records.map { |record| [record.to_snapshot, record] }
+      end
+
+      # La fila VIVA de cada criterio del snapshot, en una consulta.
+      #
+      # Era un `find_by` por criterio, y acá el conteo sí lo pincha: los ids son
+      # distintos, así que la caché de consultas de Rails no sirve la repetición
+      # —a diferencia del memo de los filtros de selección, donde el fan-out
+      # repetía el mismo SQL y ningún contador podía verlo—.
+      #
+      # Puede faltar: un criterio borrado después de congelar el snapshot deja
+      # su fila sin fila viva, y la ficha lo dibuja igual con lo congelado.
+      def snapshot_records
+        @snapshot_records ||= Criterion.where(id: criteria_snapshot.filter_map { |c| c["id"] }).index_by(&:id)
       end
 
       def generic_criteria

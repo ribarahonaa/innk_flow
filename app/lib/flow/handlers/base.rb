@@ -65,7 +65,29 @@ module Flow
         step
       end
 
+      # Saltear un módulo que TODAVÍA no terminó. Uno completado o ya salteado
+      # no se reescribe: pisarle el `status` le hacía decir que nunca corrió
+      # —con sus evaluaciones y sus entries intactas debajo— y encima le movía
+      # el `completed_at` y el motivo.
+      #
+      # Lo alcanza la ruta: `ChallengeStepPolicy#skip?` es
+      # `administers?(challenge)` y no mira el estado del módulo.
+      #
+      # Devuelve `false` cuando se niega, y ésa es la ÚNICA copia de la regla:
+      # el controller lee la respuesta en vez de repetir el predicado, que es
+      # como las dos se desincronizarían.
+      #
+      # Ojo con el contrato, que NO es el de sus hermanos: `activate!` y
+      # `complete!` devuelven el step también cuando no hacen nada, porque ahí
+      # la repetición es idempotencia —pedir de nuevo lo mismo—. Sobre un
+      # módulo completado saltear no es repetir, es otra operación, y por eso
+      # se contesta que no. Sobre uno ya salteado sí es el caso idempotente
+      # puro y aun así devuelve `false`, para que el mensaje sea uno solo. Un
+      # `paso = handler.skip!` futuro revienta con NoMethodError sobre `false`;
+      # los tres llamadores de hoy leen la respuesta o la ignoran a sabiendas.
       def skip!(reason: nil)
+        return false if step.completed? || step.skipped?
+
         step.transaction do
           merged = (step.resolved_config || step.config || {}).merge("skip_reason" => reason)
           step.update!(status: "skipped", resolved_config: merged, completed_at: Time.current)

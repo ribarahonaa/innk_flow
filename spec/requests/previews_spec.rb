@@ -82,6 +82,40 @@ RSpec.describe "previsualizar el desafío", type: :request do
     expect(response.body).not_to include("criterios genéricos")
   end
 
+  # Con el módulo ya tocado la ficha sale del SNAPSHOT congelado, y de ahí cada
+  # criterio traía su fila viva con un `find_by` propio: una consulta por
+  # criterio.
+  #
+  # Este conteo SÍ muerde, a diferencia del de los filtros de selección: los ids
+  # son distintos por criterio, así que el SQL también, y la caché de consultas
+  # no lo esconde. Tres criterios para que el número pueda crecer con las filas
+  # —con uno solo, un fan-out y un memo miden igual—.
+  it "no pide una consulta por criterio para la ficha de un módulo ya tocado" do
+    as_company(company) do
+      set = CriteriaSet.create!(name: "Propios", scope: "library")
+      [["Impacto", "impacto", 0.5], ["Riesgo", "riesgo", 0.3], ["Costo", "costo", 0.2]].each_with_index do |(name, key, weight), i|
+        set.criteria.create!(name: name, key: key, weight: weight, source: "manual",
+                             scale_type: "numeric", scale_config: { "min" => 1, "max" => 10 },
+                             position: i)
+      end
+      set.refresh_status!
+      step = challenge.steps.find_by(kind: "evaluation")
+      step.update!(criteria_set: set)
+      Flow::Handlers::Base.for(step).activate!
+    end
+
+    consultas = consultas_a("criteria") { get challenge_preview_path(challenge) }
+
+    # El NOMBRE lo pinta el snapshot, así que con el memo devolviendo un hash
+    # vacío las consultas desaparecen y esa aserción sigue verde mientras la
+    # ficha se degrada a «Criterio sin escala resoluble.» en los tres. El input
+    # sólo existe si la fila viva resolvió su escala (`_criterion_field:9`), y
+    # es lo que ata el memo a lo que se ve.
+    expect(response.body).to include("Impacto", "Riesgo", "Costo")
+    expect(response.body).to include('name="scores[impacto]"', 'name="scores[riesgo]"')
+    expect(consultas.size).to be <= 2, "#{consultas.size} consultas a criteria:\n  #{consultas.join("\n  ")}"
+  end
+
   it "explica el corte de una selección en palabras" do
     get challenge_preview_path(challenge)
 
