@@ -22,7 +22,11 @@ evaluación DE VERDAD conservaba el fan-out— que se cerró en la misma tanda.
 - **`make spec` → 1151 ejemplos, 0 fallas** (venía de 1141) y **`make screens`
   → 66 capturas, 0 errores**.
 - El árbol de cada merge es idéntico al de su rama.
-- El stack quedó levantado.
+- **El stack quedó BAJADO**, y no por una orden: al cerrar la sesión los
+  contenedores ya no estaban —ni corriendo ni detenidos, borrados—, después de
+  un `make screens` que había pasado. `make up` los repone. **El volumen
+  `innk_flow_postgres_data` sobrevive**, así que la base está intacta, incluido
+  el desafío hecho a mano que no está en `db/seeds.rb`.
 - **La base de desarrollo SÍ se tocó, una vez y a propósito:** se borraron los 6
   campos de formulario que alguien le aplicó a «Postulación» de
   `sin-formulario` con un pedido real a la IA (ver «Intentos fallidos»). Con
