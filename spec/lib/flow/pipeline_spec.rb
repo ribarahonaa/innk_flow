@@ -411,6 +411,54 @@ RSpec.describe Flow::Pipeline do
       expect(challenge.reload).to be_running
     end
 
+    # DOS evaluaciones, y con una razón puntual: lo que la segunda caza es
+    # resolver el nombre POR KIND —`steps.find_by(kind: step.kind)` devuelve
+    # «Técnica» y no el módulo que falla—, que es exactamente la forma del bug.
+    # Otras mutaciones (nombrar el primero del flujo) ya las cazaría una sola.
+    # Los nombres se ponen a mano porque `derive_name` le da a las dos el mismo
+    # por defecto.
+    #
+    # Y el que falla NO es el último del flujo, a propósito: con «Comité» al
+    # final, una mutación que nombrara `steps.ordered.last` pasaría en verde.
+    #
+    # El nombre lo pone el sitio del `raise` y no el handler: los errores de una
+    # evaluación salen de `CriteriaSet#validation_errors`, que no sabe de
+    # módulos, así que `Evaluation#can_activate?` nunca se nombró y nada avisaba.
+    it "dice QUÉ módulo no está listo, y no el otro" do
+      challenge = create(:challenge, status: "draft")
+      seed_form!(challenge.steps.create!(kind: "ideation", position: 1, status: "completed"))
+      challenge.steps.create!(kind: "evaluation", position: 2, name: "Técnica", status: "completed")
+      comite = challenge.steps.create!(kind: "evaluation", position: 3, name: "Comité")
+      challenge.steps.create!(kind: "reporting", position: 4, name: "Cierre")
+      challenge.update!(status: "running")
+      challenge.steps.reset
+      with_broken_set!(comite)
+
+      result = described_class.new(challenge).continue!
+
+      expect(result).not_to be_ok
+      expect(result.error_sentence).to include("«Comité»")
+      expect(result.error_sentence).not_to include("«Técnica»")
+      expect(result.error_sentence).to match(/al menos un criterio activo/)
+    end
+
+    # `Ideation` y `Selection` dejaron de nombrarse a sí mismas dentro de su
+    # razón, porque con el nombre puesto en el `raise` quedaría duplicado. Esto
+    # lo cuenta POR EL CAMINO, y sólo para `Selection`; que ninguna de las dos
+    # se nombre lo cuida el spec de cada handler, que es donde alguien escribe
+    # una razón nueva.
+    it "y lo nombra UNA vez, también cuando el motivo lo da el handler" do
+      challenge = build_pipeline(%w[ideation:completed selection:pending])
+      challenge.steps.ordered.last.update!(name: "Corte")
+      challenge.steps.reset
+
+      result = described_class.new(challenge).continue!
+
+      expect(result).not_to be_ok
+      expect(result.error_sentence.scan("«Corte»").size).to eq(1), result.error_sentence
+      expect(result.error_sentence).to match(/no tiene criterios propios ni una evaluación previa/)
+    end
+
     it "no toca nada si ya hay un módulo en curso" do
       challenge = build_pipeline(%w[ideation:active evaluation:pending])
       result = described_class.new(challenge).continue!

@@ -21,7 +21,9 @@ module Flow
       def can_activate?
         return [true, []] if step.form_fields.any?
 
-        [false, ["«#{step.name}» no tiene formulario: nadie podría postular una idea. " \
+        # Sin nombrarse: el módulo lo pone `Base#activate!` al levantar, y acá
+        # quedaría duplicado.
+        [false, ["no tiene formulario: nadie podría postular una idea. " \
                  "Definí las preguntas antes de arrancar."]]
       end
 

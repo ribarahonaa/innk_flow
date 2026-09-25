@@ -75,6 +75,8 @@ RSpec.describe Flow::Handlers::Selection do
       ready, reasons = described_class.new(step).can_activate?
       expect(ready).to be(false)
       expect(reasons.join).to match(/no tiene criterios propios ni una evaluación previa/)
+      # Igual que en «Idear»: el nombre lo pone `activate!`, no la razón.
+      expect(reasons.join).not_to include(step.name)
     end
   end
 

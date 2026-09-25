@@ -32,13 +32,28 @@ module Flow
 
       # ¿Están dadas las precondiciones para arrancar este módulo?
       # => [bool, [razones]]
+      #
+      # LAS RAZONES DICEN EL PORQUÉ, NUNCA EL CUÁL: el nombre del módulo lo
+      # pone `activate!` al levantar. Nombrarse acá lo duplica.
       def can_activate? = [true, []]
 
       def activate!
         return step if step.touched?
 
         ready, reasons = can_activate?
-        raise Flow::Errors::StepNotReady, reasons.join(". ") unless ready
+        # EL NOMBRE DEL MÓDULO LO PONE ACÁ, no cada handler. Éste es el único
+        # lugar donde una negativa se vuelve excepción, así que un handler nuevo
+        # que se niegue no puede olvidarse —que es lo que pasó con `Evaluation`,
+        # cuyos motivos salen de `CriteriaSet#validation_errors` y no saben de
+        # módulos: con dos evaluaciones en el flujo, el aviso no decía cuál—.
+        # Sus razones dicen el PORQUÉ; el «cuál» es de quien avisa.
+        #
+        # Y va en el MENSAJE y no en un atributo de la excepción: el único
+        # consumidor real es `Pipeline#not_ready_failure`, que sólo necesita el
+        # texto, y quien la deje escapar a un log —`Flow::Steps::ActivateJob`,
+        # hoy SIN NINGÚN ENCOLADOR, o una llamada directa— no tiene ahí a nadie
+        # que arme una frase mejor.
+        raise Flow::Errors::StepNotReady, "«#{step.name}» no está listo para arrancar: #{reasons.join('. ')}" unless ready
 
         step.transaction do
           resolve_config!

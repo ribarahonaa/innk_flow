@@ -38,7 +38,10 @@ module Flow
         return [true, []] if manual_source?
         return [true, []] if resolvable_sources.any?
 
-        [false, ["«#{step.name}» no tiene criterios propios ni una evaluación previa " \
+        # Sin nombrarse: lo pone `Base#activate!`. Ojo que `Pipeline#validate`
+        # tiene su propio texto para esto, con el nombre adentro, y ése no pasa
+        # por el raise.
+        [false, ["no tiene criterios propios ni una evaluación previa " \
                  "de la cual tomar puntaje"]]
       end
 
