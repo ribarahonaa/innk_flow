@@ -131,6 +131,33 @@ RSpec.describe "saltear un módulo", type: :request do
     end
   end
 
+  # El defecto se veía acá: `activate!` levanta `StepNotReady` y nadie lo
+  # rescataba, así que el POST moría con un 500 DESPUÉS de que el salteo ya se
+  # había guardado. Quien lo pedía veía la pantalla de error y no se enteraba de
+  # que el módulo había quedado salteado.
+  it "no revienta si el siguiente no puede arrancar: el salteo queda y lo dice" do
+    challenge = arrancado(%w[ideation evaluation])
+    activo = as_company(company) do
+      paso = challenge.steps.ordered.first
+      # Un set sin criterios activos: es lo único que `validate` no mira, así
+      # que llega hasta `activate!`.
+      set = CriteriaSet.create!(name: "Roto", scope: "library")
+      set.refresh_status!
+      challenge.steps.ordered.last.update!(criteria_set: set)
+      paso
+    end
+
+    post skip_challenge_step_path(challenge, activo)
+
+    expect(response).to have_http_status(:found)
+    expect(flash[:alert]).to include("el flujo no avanzó", "al menos un criterio activo")
+    as_company(company) do
+      expect(challenge.steps.ordered.first.reload).to be_skipped
+      expect(challenge.steps.ordered.last.reload).to be_pending
+      expect(challenge.reload).to be_running
+    end
+  end
+
   it "quien participa no puede saltear" do
     challenge = arrancado(%w[ideation evaluation])
     participante = without_tenant do
