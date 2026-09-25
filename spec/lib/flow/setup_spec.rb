@@ -201,6 +201,15 @@ RSpec.describe Flow::Setup do
       expect(step(:finish)).to be_done
       expect(setup.done_count).to eq(setup.total)
     end
+
+    # La pista de este paso tiene una rama para el desafío ya arrancado que NO
+    # se renderiza —las dos vistas que instancian `Flow::Setup` guardan por
+    # `draft?`— y por eso una revisión la propuso como código muerto. No lo es:
+    # la clase sirve este caso, y sin esta línea el único argumento a favor de
+    # conservarla era un comentario.
+    it "y su pista dice el estado del desafío, no qué van a ver las personas" do
+      expect(step(:finish).hint).to eq("En curso")
+    end
   end
 
   # La pantalla de creación dibuja el camino antes de que el desafío exista,

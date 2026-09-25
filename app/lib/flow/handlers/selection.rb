@@ -47,27 +47,43 @@ module Flow
       # los de sí/no los responde una persona o la IA.
       def gate_criteria = settings["criteria"] || []
 
-      # Los criterios de los filtros, UNA vez.
+      # El criterio de un filtro y su descripción, UNA vez cada uno.
       #
-      # `gates_for` corre por idea y «Cómo se decide» otra vez por filtro, así
-      # que esto se pedía una vez por filtro Y por idea. Lo tapaba la caché de
-      # consultas de Rails, que sirve la repetición idéntica sin ir a la base
-      # —medido: con 2 filtros y 4 ideas llegaban 2 consultas y no 10—, así que
-      # el N+1 estaba en la forma y no en el costo. Se va igual: apoyarse en esa
-      # caché es apoyarse en que el código corra adentro de un request.
+      # `gates_for` corre por IDEA y ninguna de las dos cosas depende de la
+      # idea, así que las dos se pedían una vez por filtro y por idea: el
+      # criterio con un `find_by`, y la descripción caminando
+      # `criterion.criteria_set.owner_step.challenge.pipeline.ideation_step` y
+      # sus campos adentro de `FieldPresent#field_label`.
       #
-      # NO se puede resolver leyendo el snapshot, que es lo que parece obvio:
-      # `FieldPresent#field_label` camina `criterion.criteria_set.owner_step…`
-      # para traer el label del campo, así que un `Criterion.new` armado con el
-      # snapshot degradaría «Título» a «titulo».
+      # Ojo con el TAMAÑO, porque medirlo lo corrigió: a la base llegaban 2
+      # consultas a `criteria` y 1 a `form_fields`, no 10 y 8. La caché de
+      # consultas de Rails sirve la repetición idéntica sin ir a la base, así
+      # que el N+1 estaba en la FORMA del código y no en el costo. Se arregla
+      # igual, porque esa caché existe sólo adentro de un request y este mismo
+      # código en un job sí explotaría.
+      #
+      # Por lo mismo, NADA de esto lo puede pinchar un conteo de consultas: la
+      # caché lo esconde. El conteo del spec cuida que el criterio se cargue una
+      # vez; que la descripción también, no lo cuida nadie.
+      #
+      # Y no se resuelve leyendo el snapshot, que es lo que parece obvio:
+      # `field_label` necesita la fila viva para llegar al formulario, así que un
+      # `Criterion.new` armado con el snapshot degradaría «Título» a «titulo».
       def gate_criterion(id) = gate_criteria_records[id]
-
-      def automatic_gates = gate_criteria.select { |c| c["source"] == "automatic" }
-      def verdict_gates = gate_criteria.select { |c| %w[manual ai].include?(c["source"]) }
 
       def gate_criteria_records
         @gate_criteria_records ||= Criterion.where(id: gate_criteria.filter_map { |c| c["id"] }).index_by(&:id)
       end
+
+      def gate_description(id)
+        @gate_descriptions ||= {}
+        return @gate_descriptions[id] if @gate_descriptions.key?(id)
+
+        @gate_descriptions[id] = gate_criterion(id)&.check&.description
+      end
+
+      def automatic_gates = gate_criteria.select { |c| c["source"] == "automatic" }
+      def verdict_gates = gate_criteria.select { |c| %w[manual ai].include?(c["source"]) }
 
       def verdicts_for(idea_id)
         @verdicts ||= SelectionVerdict.where(challenge_step_id: step.id).group_by(&:idea_id)
@@ -146,7 +162,7 @@ module Flow
             result = criterion&.verify(idea)
             { key: config["key"], name: config["name"], kind: :automatic,
               passed: result&.passed?, detail: result&.detail,
-              description: criterion&.check&.description }
+              description: gate_description(config["id"]) }
           else
             verdict = verdicts_for(idea.id).find { |v| v.criterion_key == config["key"] }
             { key: config["key"], name: config["name"], kind: :verdict,

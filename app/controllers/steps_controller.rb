@@ -120,8 +120,15 @@ class StepsController < ApplicationController
     # Sin el `if`: la guarda vive en `continue!`, que no hace nada si quedó
     # alguno en curso —salteando uno PENDIENTE más adelante no hay nada que
     # abrir—.
-    @step.challenge.pipeline.continue!
-    redirect_to challenge_path(@step.challenge), notice: "Módulo salteado."
+    seguir = @step.challenge.pipeline.continue!
+    # Si `continue!` se niega, el salteo ya se guardó pero el flujo no se movió,
+    # y decir sólo «Módulo salteado» taparía el motivo. Se niega cuando quedó
+    # otro módulo en curso —salteando uno pendiente más adelante, donde no hay
+    # nada que abrir— y cuando el desafío no está en curso.
+    return redirect_to(challenge_path(@step.challenge), notice: "Módulo salteado.") if seguir.ok?
+
+    redirect_to challenge_path(@step.challenge),
+                alert: "Módulo salteado, pero el flujo no avanzó: #{seguir.error_sentence}"
   end
 
   private

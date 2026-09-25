@@ -55,11 +55,13 @@
         - elsif actual
           = "ahora: #{actual.name} · módulo #{@challenge.steps.index(actual) + 1} de #{@challenge.steps.size}"
         - else
-          -# Sin conteo: llegar acá es haber completado el último módulo
-          -# —`advance!` activa el siguiente pendiente o cierra, en la misma
-          -# transacción—, así que no quedan módulos sin correr y un «7 de 7»
-          -# sólo repetiría el largo del flujo.
-          = "flujo terminado"
+          -# Desde que la rama del desafío cerrado va adelante, acá sólo llega
+          -# un desafío EN CURSO sin ningún módulo activo, o sea un flujo
+          -# trabado: completar el último cierra el desafío —`advance!` activa
+          -# el siguiente pendiente o cierra, en la misma transacción— y
+          -# entonces cae en la rama de arriba. Decirle «terminado» a esto
+          -# sería mentir.
+          = "ningún módulo en curso"
     = render "challenges/flow_strip", challenge: @challenge
 
     - if @report.errors.any?

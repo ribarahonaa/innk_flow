@@ -318,8 +318,13 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
         consultas = consultas_a("criteria") { get challenge_step_path(challenge, paso("selection")) }
 
         expect(documento.css(".fila-de-idea, tbody tr").size).to be >= 4
+        # Los dos filtros tienen que estar RENDERIZADOS, o `eq(1)` se cumple
+        # igual con un `WHERE 1=0` y una fixture que perdió sus filtros pasaría
+        # en verde.
+        expect(response.body).to include("Tiene titulo", "Tiene resumen")
         expect(consultas.size).to eq(1), consultas.join("\n")
       end
+
     end
 
     # Un grupo por escenario y no un `before` suelto, como en reportería: el
@@ -462,9 +467,11 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
     # siendo verdadero con el desafío cerrado. Es la ÚNICA de las cinco
     # pantallas donde los dos bloques no preguntan lo mismo.
     #
-    # `close!` cierra el desafío sin tocar los módulos, así que un módulo
-    # activo con el desafío cerrado es un estado alcanzable: quien administra
-    # cortó el desafío antes de terminar el flujo.
+    # `close!` saltea el módulo que estaba corriendo, así que el escenario es
+    # «quien administra cortó el desafío antes de terminar el flujo» con ese
+    # módulo `skipped`. Lo que la guarda mira es el DESAFÍO cerrado, no el
+    # estado del módulo: `advance?` no pregunta por `closed?` y
+    # `update_pipeline?` sí.
     it "con el desafío cerrado el resumen no anuncia quiénes acompañan" do
       as_company(company) { challenge.pipeline.close! }
       sign_in(admin, company: company)

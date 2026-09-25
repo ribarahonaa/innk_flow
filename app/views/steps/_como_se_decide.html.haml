@@ -26,14 +26,14 @@
         - gates.each do |gate|
           -# Del memo del handler y no `Criterion.find_by` acá: era otra consulta
           -# por filtro, encima de las de `gates_for`.
-          - criterion = handler.gate_criterion(gate["id"])
+          - descripcion = handler.gate_description(gate["id"])
           %li.field-list__item
             %span
               = gate["name"]
               %span{ class: chip_de_origen(gate["source"]) }= t("flow.criterion_sources.#{gate['source']}")
             %span.field-list__type
-              - if gate["source"] == "automatic" && criterion&.check
-                = criterion.check.description
+              - if gate["source"] == "automatic" && descripcion.present?
+                = descripcion
               - else
                 veredicto por idea
 

@@ -54,20 +54,24 @@ RSpec.describe "pedirle a la IA que testee", type: :request do
     expect(response.body).to include("test_idea")
   end
 
-  # Ofrecerlo con `advance?` (que es `manager?` a secas, la misma que autoriza
-  # el link «Testear») en vez de la policy que en verdad autoriza el pedido
-  # —`ChallengePolicy#update_pipeline?`, vía `AiSuggestionPolicy#request?`—
-  # deja el botón ofrecido después de que el desafío cierra: `Flow::Pipeline
-  # #close!` sólo toca el desafío, nunca el estado de sus módulos, así que el
-  # de testing sigue `active?` con el desafío ya `closed`. `advance?` no mira
-  # `closed?`; `update_pipeline?` sí. Con la vista vieja esto fallaba: el
-  # botón aparecía igual y apretarlo rebotaba con 403.
-  it "con el desafío cerrado y el módulo todavía activo, no se le ofrece ni a quien administra" do
+  # Ofrecerlo con `advance?` (que es `administers?` a secas, la misma que
+  # autoriza el link «Testear») en vez de la policy que en verdad autoriza el
+  # pedido —`ChallengePolicy#update_pipeline?`, vía `AiSuggestionPolicy#request?`—
+  # deja el botón ofrecido después de que el desafío cierra. Lo que da los
+  # dientes es el DESAFÍO cerrado y no el estado del módulo: `advance?` no mira
+  # `closed?` y `update_pipeline?` sí, así que con la vista vieja el botón
+  # aparecía igual y apretarlo rebotaba con 403.
+  #
+  # El escenario cambió y vale decir cómo: `close!` dejaba el módulo `active?`
+  # con el desafío ya `closed`, y esa contradicción se veía en tres lugares de
+  # la misma pantalla, así que ahora saltea lo que estaba corriendo. La guarda
+  # no depende de eso.
+  it "con el desafío cerrado no se le ofrece ni a quien administra" do
     sign_in(admin, company: company)
     modulo = paso
     as_company(company) { challenge.pipeline.close! }
 
-    expect(as_company(company) { modulo.reload.active? }).to be(true)
+    expect(as_company(company) { modulo.reload.skipped? }).to be(true)
 
     get challenge_step_path(challenge, modulo)
 

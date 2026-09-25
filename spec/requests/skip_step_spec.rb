@@ -60,6 +60,25 @@ RSpec.describe "saltear un módulo", type: :request do
     end
   end
 
+  # Saltear uno PENDIENTE más adelante no tiene nada que abrir, así que
+  # `continue!` se niega. Se avisa en vez de decir sólo «Módulo salteado»: el
+  # salteo se guardó igual, y eso sube el piso de inserción del flujo —los
+  # pendientes anteriores dejan de poder moverse o borrarse—, que es demasiado
+  # para dejarlo sin decir nada.
+  it "saltear uno pendiente no mueve el que está en curso, y lo dice" do
+    challenge = arrancado(%w[ideation evaluation reporting])
+    pendiente = as_company(company) { challenge.steps.ordered.last }
+
+    post skip_challenge_step_path(challenge, pendiente)
+
+    expect(flash[:alert]).to include("el flujo no avanzó")
+    as_company(company) do
+      pasos = challenge.steps.ordered.reload
+      expect(pasos.first).to be_active
+      expect(pasos.last).to be_skipped
+    end
+  end
+
   it "quien participa no puede saltear" do
     challenge = arrancado(%w[ideation evaluation])
     participante = without_tenant do

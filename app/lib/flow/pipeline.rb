@@ -237,22 +237,51 @@ module Flow
     # módulo en curso dejaba el flujo trabado y sin avisar: el `if` de la
     # condición era verdadero y la llamada no podía hacer nada.
     def continue!
-      return failure(["hay un módulo en curso"]) if active_step
-
       challenge.with_lock { open_next_or_close! }
     end
 
+    # Cerrar el desafío a mano, con el flujo donde esté.
+    #
+    # Saltea el módulo en curso, y no es prolijidad: dejándolo activo, el estado
+    # del desafío y el del flujo se contradecían en la misma pantalla —el chip
+    # decía «Cerrado», la tarjeta «Flujo» decía «ahora: X», y el mapa del flujo
+    # y el drawer pintaban ese módulo como activo—. Arreglarlo en la vista
+    # tapaba una de las tres caras.
+    #
+    # Salteado y no completado: no llegó a cerrarse por sus condiciones, lo
+    # cortó el cierre del desafío, y el motivo queda escrito en el
+    # `skip_reason`. Los pendientes no se tocan: nunca corrieron y su estado ya
+    # lo dice.
     def close!
-      challenge.update!(status: "closed", closed_at: Time.current)
-      success(nil)
+      challenge.with_lock do
+        corriendo = active_step
+        Flow::Handlers::Base.for(corriendo).skip!(reason: "se cerró el desafío") if corriendo
+        challenge.update!(status: "closed", closed_at: Time.current)
+        success(nil)
+      end
     end
 
     private
 
     # Se llama SIEMPRE con el lock del desafío tomado: reordenar o cerrar
-    # mientras otro proceso avanza el flujo es justo lo que el lock evita.
+    # mientras otro proceso avanza el flujo es justo lo que el lock evita. Las
+    # dos guardas van ACÁ y no en `continue!` por eso mismo: leídas afuera, dos
+    # llamadas concurrentes veían las dos «no hay activo» y la segunda activaba
+    # un módulo de más.
+    #
+    # `running?` no es de más. El `if active_step.nil?` que `skip` tenía
+    # protegía sin querer algo más grande: en un desafío EN BORRADOR tampoco
+    # hay módulo en curso, y ni `ChallengeStepPolicy#skip?` ni
+    # `Handlers::Base#skip!` miran el estado del desafío, así que un salteo
+    # autorizado sobre un borrador lo CERRABA —o le activaba un módulo adentro,
+    # y con el desafío en borrador `insertion_floor` devuelve nil, o sea que el
+    # builder pasaría a insertar antes de un módulo ya tocado—. Sacar el `if`
+    # sin reponer la regla convirtió un arreglo en algo destructivo.
     def open_next_or_close!
       challenge.steps.reset
+      return failure(["el desafío no está en curso"]) unless challenge.running?
+      return failure(["hay un módulo en curso"]) if active_step
+
       following = challenge.steps.ordered.find(&:pending?)
       if following
         Flow::Handlers::Base.for(following).activate!
