@@ -65,29 +65,6 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
     documento.css(".app-aside h1, .app-aside h2").map { |n| "#{n.name}: #{n.text.strip}" }
   end
 
-  # Cuenta las consultas a una tabla durante el bloque. Para los N+1: el número
-  # que importa no es cuántas consultas hace la pantalla sino si CRECE con las
-  # filas, así que los ejemplos siembran varias y fijan un tope que no depende
-  # de cuántas haya.
-  def consultas_a(tabla)
-    sql = []
-    sub = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
-      next if payload[:name] == "SCHEMA" || payload[:cached]
-
-      next unless payload[:sql].include?(%(FROM "#{tabla}"))
-
-      # Con el origen: el número solo dice que sobran consultas, no cuál de
-      # las tres lecturas de la misma lista las hace. Encontrar ESTE N+1 llevó
-      # a `evaluation.html.haml:13` y no a donde el reporte decía.
-      origen = caller.grep(%r{/app/}).first(2)
-      sql << "#{payload[:sql][0, 70]}\n      <- #{origen.join("\n      <- ")}"
-    end
-    yield
-    sql
-  ensure
-    ActiveSupport::Notifications.unsubscribe(sub)
-  end
-
   def postular!(challenge, author:, titulo:)
     as_company(company) do
       i = create(:idea, challenge: challenge, author: author)
