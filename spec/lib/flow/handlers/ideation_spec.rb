@@ -32,6 +32,9 @@ RSpec.describe Flow::Handlers::Ideation do
 
       expect(ok).to be(false)
       expect(errors.join).to include("no tiene formulario")
+      # La razón dice el PORQUÉ y no el CUÁL: el nombre lo pone `activate!` al
+      # levantar, así que nombrarse acá saldría dos veces en el aviso.
+      expect(errors.join).not_to include(vacio.name)
     end
 
     it "y no lo inventa: el formulario queda como lo dejó su dueño" do

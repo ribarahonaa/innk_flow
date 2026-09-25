@@ -152,7 +152,9 @@ RSpec.describe "saltear un módulo", type: :request do
     post skip_challenge_step_path(challenge, activo)
 
     expect(response).to have_http_status(:found)
-    expect(flash[:alert]).to include("el flujo no avanzó", "al menos un criterio activo")
+    # Con el nombre: que el Result lo traiga no prueba que llegue a la pantalla.
+    expect(flash[:alert]).to include("el flujo no avanzó", "«Evaluación»",
+                                     "al menos un criterio activo")
     as_company(company) do
       expect(challenge.steps.ordered.first.reload).to be_skipped
       expect(challenge.steps.ordered.last.reload).to be_pending

@@ -32,6 +32,9 @@ module Flow
 
       # ¿Están dadas las precondiciones para arrancar este módulo?
       # => [bool, [razones]]
+      #
+      # LAS RAZONES DICEN EL PORQUÉ, NUNCA EL CUÁL: el nombre del módulo lo
+      # pone `activate!` al levantar. Nombrarse acá lo duplica.
       def can_activate? = [true, []]
 
       def activate!
@@ -45,9 +48,11 @@ module Flow
         # módulos: con dos evaluaciones en el flujo, el aviso no decía cuál—.
         # Sus razones dicen el PORQUÉ; el «cuál» es de quien avisa.
         #
-        # Y va en el MENSAJE y no en un atributo de la excepción:
-        # `Flow::Steps::ActivateJob` la deja escapar a propósito, y en el log de
-        # un job nadie arma una frase mejor.
+        # Y va en el MENSAJE y no en un atributo de la excepción: el único
+        # consumidor real es `Pipeline#not_ready_failure`, que sólo necesita el
+        # texto, y quien la deje escapar a un log —`Flow::Steps::ActivateJob`,
+        # hoy SIN NINGÚN ENCOLADOR, o una llamada directa— no tiene ahí a nadie
+        # que arme una frase mejor.
         raise Flow::Errors::StepNotReady, "«#{step.name}» no está listo para arrancar: #{reasons.join('. ')}" unless ready
 
         step.transaction do

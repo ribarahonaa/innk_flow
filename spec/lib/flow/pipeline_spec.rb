@@ -411,10 +411,15 @@ RSpec.describe Flow::Pipeline do
       expect(challenge.reload).to be_running
     end
 
-    # DOS evaluaciones, y ésa es toda la guarda: con una sola, cualquier mensaje
-    # nombra la correcta por accidente y el ejemplo no distingue nada —el mismo
-    # agujero que una fixture de posiciones 1, 2 y 3—. Los nombres se ponen a
-    # mano porque `derive_name` le da a las dos el mismo por defecto.
+    # DOS evaluaciones, y con una razón puntual: lo que la segunda caza es
+    # resolver el nombre POR KIND —`steps.find_by(kind: step.kind)` devuelve
+    # «Técnica» y no el módulo que falla—, que es exactamente la forma del bug.
+    # Otras mutaciones (nombrar el primero del flujo) ya las cazaría una sola.
+    # Los nombres se ponen a mano porque `derive_name` le da a las dos el mismo
+    # por defecto.
+    #
+    # Y el que falla NO es el último del flujo, a propósito: con «Comité» al
+    # final, una mutación que nombrara `steps.ordered.last` pasaría en verde.
     #
     # El nombre lo pone el sitio del `raise` y no el handler: los errores de una
     # evaluación salen de `CriteriaSet#validation_errors`, que no sabe de
@@ -424,6 +429,7 @@ RSpec.describe Flow::Pipeline do
       seed_form!(challenge.steps.create!(kind: "ideation", position: 1, status: "completed"))
       challenge.steps.create!(kind: "evaluation", position: 2, name: "Técnica", status: "completed")
       comite = challenge.steps.create!(kind: "evaluation", position: 3, name: "Comité")
+      challenge.steps.create!(kind: "reporting", position: 4, name: "Cierre")
       challenge.update!(status: "running")
       challenge.steps.reset
       with_broken_set!(comite)
@@ -436,12 +442,14 @@ RSpec.describe Flow::Pipeline do
       expect(result.error_sentence).to match(/al menos un criterio activo/)
     end
 
-    # La otra mitad del cambio: `Ideation` y `Selection` dejaron de nombrarse a
-    # sí mismas dentro de su razón, porque con el nombre puesto en el `raise`
-    # quedaba duplicado. Esto lo cuenta.
+    # `Ideation` y `Selection` dejaron de nombrarse a sí mismas dentro de su
+    # razón, porque con el nombre puesto en el `raise` quedaría duplicado. Esto
+    # lo cuenta POR EL CAMINO, y sólo para `Selection`; que ninguna de las dos
+    # se nombre lo cuida el spec de cada handler, que es donde alguien escribe
+    # una razón nueva.
     it "y lo nombra UNA vez, también cuando el motivo lo da el handler" do
       challenge = build_pipeline(%w[ideation:completed selection:pending])
-      as_company(company) { challenge.steps.ordered.last.update!(name: "Corte") }
+      challenge.steps.ordered.last.update!(name: "Corte")
       challenge.steps.reset
 
       result = described_class.new(challenge).continue!
