@@ -56,7 +56,7 @@
               - attachment = @attachments[field.key]
               %dd{ class: ("is-empty" if attachment.nil?) }
                 - if attachment
-                  = link_to attachment.file.filename.to_s, rails_blob_path(attachment.file, disposition: "attachment")
+                  = link_to attachment.file.filename.to_s, challenge_idea_attachment_path(@challenge, @idea, attachment)
                 - else
                   = "—"
             - else

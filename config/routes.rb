@@ -46,6 +46,8 @@ Rails.application.routes.draw do
       end
       resources :reports, only: %i[create] do
         collection { get :statuses }
+        # El archivo lo sirve la app, no Active Storage.
+        member { get :download }
       end
     end
 
@@ -57,6 +59,9 @@ Rails.application.routes.draw do
       # Quiénes más participaron de la idea. Sin esto el criterio automático
       # "participan al menos N personas" no lo puede cumplir nadie.
       resources :contributors, only: %i[create destroy], controller: "idea_contributors"
+      # El adjunto hereda la visibilidad de la idea, así que se baja por acá y
+      # no por las rutas de Active Storage, que no preguntan nada.
+      resources :attachments, only: %i[show], controller: "idea_attachments"
     end
 
     # Dispara una tarea de IA sobre este desafío (o uno de sus módulos/ideas).

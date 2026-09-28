@@ -185,3 +185,36 @@ hace posible el selector post-login sin resolver subdominios.
 
 Preguntas intrínsecamente cross-tenant sobre un `User` (`companies_count`,
 `all_memberships`) usan `bypass!` dentro de `User`, declarado en la allowlist.
+
+### Los archivos: Active Storage queda afuera de las cuatro capas
+
+`active_storage_blobs` y `active_storage_attachments` no tienen `company_id`, no
+son `TenantScoped` y sus FKs no son compuestas. Son globales sin haberlo
+decidido: las trae el engine.
+
+Lo que las vuelve seguras no es una capa, es que **nada llega a un blob por su
+id**. Las rutas del engine están cerradas (`config.active_storage.draw_routes =
+false` en `config/application.rb`), porque su controller verifica la firma del
+blob y nada más: sin sesión, sin membresía, sin Pundit y sin tenant, con una
+firma que no vence. Con esas rutas dibujadas, quien tuviera la URL bajaba el
+archivo para siempre, sin sesión y desde cualquier empresa.
+
+Los dos archivos que la app entrega los sirven dos acciones, cada una detrás de
+la policy del registro del que el archivo cuelga:
+
+| Archivo | Acción | Qué la autoriza |
+|---|---|---|
+| El adjunto de una idea | `IdeaAttachmentsController#show` | La idea, por `policy_scope` — y el adjunto se busca DENTRO de las versiones de esa idea, no por id global |
+| El reporte de un módulo | `ReportsController#download` | `ChallengeStepPolicy#report?`, la misma puerta que generarlo |
+
+**Un `has_one_attached` nuevo necesita su propia acción detrás de una policy.**
+No hay un camino genérico y no debería haberlo: quién puede ver un archivo es
+una pregunta sobre el registro del que cuelga, no sobre el archivo. Y ojo con la
+señal de error: `blob.url` y `rails_blob_path` ya no existen, así que el intento
+de servirlo por el engine falla con `NoMethodError` y no con un 403.
+
+Entregar el archivo va por `ApplicationController#send_attached_file`, que
+concentra lo que se hace mal fácil: que esté adjunto (sin eso `send_data`
+revienta con 500, y un reporte `dashboard` nace `ready` sin archivo), el
+`content_type_for_serving` que fuerza octet-stream para html y svg, y el
+`disposition: "attachment"`.

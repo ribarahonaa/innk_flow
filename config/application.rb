@@ -20,6 +20,19 @@ module InnkFlow
     # migraciones necesitan resolver.
     config.autoload_lib(ignore: %w[assets tasks])
 
+    # Las rutas de Active Storage NO se dibujan. Su controller verifica la firma
+    # del blob y nada más: sin sesión, sin membresía, sin Pundit y sin tenant, y
+    # la firma no vence, así que quien tuviera la URL bajaba el archivo para
+    # siempre desde cualquier empresa. Los dos archivos que la app entrega —el
+    # adjunto de una idea y el reporte de un módulo— los sirven
+    # `IdeaAttachmentsController` y `ReportsController#download`, cada uno
+    # detrás de su policy. Dejar de usarlas no alcanzaba: la ruta seguía
+    # abierta y toda URL ya emitida seguía sirviendo.
+    #
+    # Se puede porque acá no hay direct uploads, ni variantes, ni imágenes en el
+    # PDF de reportería: nada más las usaba.
+    config.active_storage.draw_routes = false
+
     # ─────────────────────────────────────────────────────────────────────
     # DECISIÓN DE FASE 0, NO REVERSIBLE BARATO:
     #
