@@ -714,7 +714,7 @@ RSpec.describe Flow::Workshops::Open do
       expect(resultado.ok).to be(true)
       expect(resultado.rejected.map(&:id)).to eq([v_malo.id])
       expect(v_malo.reload).to be_closed
-      expect(v_malo.closed_reason).to include("evaluación")
+      expect(v_malo.closed_reason).to include("Evaluación")
       expect(v_bueno.reload).to be_open
       expect(taller.reload).to be_open
     end
@@ -798,7 +798,7 @@ module Flow
       def motivo(step)
         return "El desafío no tiene ningún módulo en curso." if step.nil?
 
-        "El desafío está en #{I18n.t("flow.step_kinds.#{step.kind}", default: step.kind)}, " \
+        "El desafío está en #{I18n.t("flow.kinds.#{step.kind}")}, " \
           "y un taller sólo trabaja sobre idear o evolución."
       end
 
@@ -1185,11 +1185,13 @@ end
 
 - [ ] **Step 4: Rutas y controllers**
 
-En `config/routes.rb`, dentro de `resources :workshops`:
+En `config/routes.rb`, **dentro del `member do` que ya creó Task 5**. El `to:`
+explícito es obligatorio: `post :convoke` a secas mapea a `workshops#convoke`,
+no al controller que esta tarea escribe.
 
 ```ruby
-      post :convoke
-      delete :dismiss
+      post   :convoke, to: "workshop_convocations#create"
+      delete :dismiss, to: "workshop_convocations#destroy"
 ```
 
 ```ruby
@@ -1530,7 +1532,18 @@ end
 Run: `make spec-file FILE=spec/requests/workshop_sala_evolucion_spec.rb`
 Expected: FAIL.
 
-- [ ] **Step 3: El controller**
+- [ ] **Step 3: La ruta**
+
+Dentro del bloque `salas` que creó Task 7, al lado de `resources :ideas`:
+
+```ruby
+      resources :proposals, only: %i[create], controller: "workshop_proposals"
+```
+
+Con eso el helper es `workshop_sala_proposals_path(workshop, sala)`, que es el
+que usa el spec de arriba.
+
+- [ ] **Step 4: El controller**
 
 ```ruby
 # frozen_string_literal: true
@@ -1574,7 +1587,7 @@ class WorkshopProposalsController < ApplicationController
 end
 ```
 
-- [ ] **Step 4: Correr, verificar, commitear**
+- [ ] **Step 5: Correr, verificar, commitear**
 
 Run: `make spec-file FILE=spec/requests/workshop_sala_evolucion_spec.rb`
 Expected: PASS.
