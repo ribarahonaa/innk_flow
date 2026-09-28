@@ -97,9 +97,60 @@ RSpec.describe "esquema: aislamiento por empresa en la base" do
 
   # `ON DELETE SET NULL` sobre una FK compuesta nulea TODAS las columnas del
   # lado local si no se acota con `(columna)` — company_id incluida, que es
-  # NOT NULL. Los tres tests de arriba son introspección estática y no lo
-  # ven: una FK compuesta sin acotador sigue siendo compuesta. Este borra de
-  # verdad para probar la garantía completa.
+  # NOT NULL. Los tres tests de arriba no lo ven porque miran otra cosa: una
+  # FK compuesta sin acotador sigue siendo compuesta. Postgres 15+ guarda el
+  # acotador en `confdelsetcols`, así que este sí se puede leer del catálogo,
+  # y de TODAS las FKs a la vez.
+  #
+  # La regla se escribe como «nulear no puede romper un NOT NULL» y no como «la
+  # lista no puede nombrar company_id»: es la misma garantía sobre las FKs de
+  # tenencia, pero además cubre cualquier otra columna NOT NULL, y acotar la
+  # columna equivocada —`SET NULL (x_id)` con `x_id` NOT NULL pasa el DDL y
+  # revienta al borrar, sin company_id a la vista— sin tener que acordarse.
+  #
+  # Lo que NO ve: `ON DELETE SET DEFAULT` comparte el mecanismo y la misma
+  # columna del catálogo, pero ahí la falla depende del default de cada
+  # columna y no solo de su NOT NULL. `add_tenant_fk` no sabe producirlo
+  # (`ON_DELETE` no tiene la clave), así que solo llegaría por SQL a mano.
+  it "ninguna FK ON DELETE SET NULL nulea una columna NOT NULL" do
+    # Un acotador vacío significa «nulea todas», así que ahí las columnas
+    # escritas son `conkey` entero.
+    set_null = sql(<<~SQL)
+      SELECT con.conname AS name,
+             (SELECT string_agg(att.attname, ', ' ORDER BY att.attname)
+                FROM pg_attribute att
+                WHERE att.attrelid = con.conrelid
+                  AND att.attnum = ANY (coalesce(nullif(con.confdelsetcols, '{}'), con.conkey))
+                  AND att.attnotnull
+             )          AS not_null_columns
+      FROM pg_constraint con
+      JOIN pg_class src ON src.oid = con.conrelid
+      JOIN pg_namespace n ON n.oid = src.relnamespace
+      WHERE con.contype = 'f' AND n.nspname = 'public' AND con.confdeltype = 'n'
+    SQL
+
+    # El piso. Sin esto una consulta rota devuelve cero filas, `rompen` queda
+    # vacío y el ejemplo pasa midiendo NADA, que es indistinguible de estar
+    # todo bien: la misma ceguera que el autotest de `[MONO]` y el muestrario
+    # de contraste existen para tapar. Las dos que nacieron sin acotador
+    # tienen que aparecer en lo medido.
+    expect(set_null.map { |fk| fk["name"] }).to include(
+      "selection_verdicts_criterion_id_same_company",
+      "selection_verdicts_ai_run_id_same_company"
+    )
+
+    rompen = set_null.select { |fk| fk["not_null_columns"].present? }
+
+    expect(rompen).to be_empty, lambda {
+      "FKs SET NULL que al borrar el padre escriben NULL en una columna NOT NULL:\n" +
+        rompen.map { |fk| "  - #{fk['name']} → #{fk['not_null_columns']}" }.join("\n") +
+        "\n\nUsá `add_tenant_fk ..., on_delete: :nullify` (lib/flow/migration_helpers.rb),\n" \
+        "que acota con `SET NULL (columna)`."
+    }
+  end
+
+  # El de arriba lee la declaración; este borra de verdad, que es lo único que
+  # prueba la garantía completa de punta a punta.
   it "borrar el padre de un ON DELETE SET NULL compuesto no se lleva puesto company_id" do
     company = without_tenant { create(:company) }
 

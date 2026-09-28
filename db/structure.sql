@@ -1,4 +1,4 @@
-\restrict FFBxWpX9Bq1Tw3v5lWLkdHA2i4eJslzzKPabGf8gz9WNzqkC3P1gkquhz8lknGL
+\restrict rnXvMHt8R2iLTNSkUfPTubeFfdGtVMgwiux8snNAmwot2eQsVZiYa0BtldnB0Xp
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -140,7 +140,7 @@ CREATE TABLE public.ai_runs (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT ai_runs_mode_check CHECK (((mode)::text = ANY (ARRAY[('ai_assisted'::character varying)::text, ('ai_auto'::character varying)::text]))),
-    CONSTRAINT ai_runs_purpose_check CHECK (((purpose)::text = ANY ((ARRAY['propose_pipeline'::character varying, 'suggest_form_fields'::character varying, 'suggest_criteria'::character varying, 'generate_ideas'::character varying, 'coauthor_field'::character varying, 'detect_duplicates'::character varying, 'suggest_feedback'::character varying, 'evaluate_idea'::character varying, 'decide_verdicts'::character varying, 'evolve_idea'::character varying, 'summarize_challenge'::character varying, 'test_idea'::character varying])::text[]))),
+    CONSTRAINT ai_runs_purpose_check CHECK (((purpose)::text = ANY (ARRAY[('propose_pipeline'::character varying)::text, ('suggest_form_fields'::character varying)::text, ('suggest_criteria'::character varying)::text, ('generate_ideas'::character varying)::text, ('coauthor_field'::character varying)::text, ('detect_duplicates'::character varying)::text, ('suggest_feedback'::character varying)::text, ('evaluate_idea'::character varying)::text, ('decide_verdicts'::character varying)::text, ('evolve_idea'::character varying)::text, ('summarize_challenge'::character varying)::text, ('test_idea'::character varying)::text]))),
     CONSTRAINT ai_runs_status_check CHECK (((status)::text = ANY (ARRAY[('queued'::character varying)::text, ('running'::character varying)::text, ('succeeded'::character varying)::text, ('failed'::character varying)::text])))
 );
 
@@ -2587,7 +2587,7 @@ ALTER TABLE ONLY public.selection_decisions
 --
 
 ALTER TABLE ONLY public.selection_verdicts
-    ADD CONSTRAINT selection_verdicts_ai_run_id_same_company FOREIGN KEY (ai_run_id, company_id) REFERENCES public.ai_runs(id, company_id) ON DELETE SET NULL;
+    ADD CONSTRAINT selection_verdicts_ai_run_id_same_company FOREIGN KEY (ai_run_id, company_id) REFERENCES public.ai_runs(id, company_id) ON DELETE SET NULL (ai_run_id);
 
 
 --
@@ -2603,7 +2603,7 @@ ALTER TABLE ONLY public.selection_verdicts
 --
 
 ALTER TABLE ONLY public.selection_verdicts
-    ADD CONSTRAINT selection_verdicts_criterion_id_same_company FOREIGN KEY (criterion_id, company_id) REFERENCES public.criteria(id, company_id) ON DELETE SET NULL;
+    ADD CONSTRAINT selection_verdicts_criterion_id_same_company FOREIGN KEY (criterion_id, company_id) REFERENCES public.criteria(id, company_id) ON DELETE SET NULL (criterion_id);
 
 
 --
@@ -2698,11 +2698,12 @@ ALTER TABLE ONLY public.step_tests
 -- PostgreSQL database dump complete
 --
 
-\unrestrict FFBxWpX9Bq1Tw3v5lWLkdHA2i4eJslzzKPabGf8gz9WNzqkC3P1gkquhz8lknGL
+\unrestrict rnXvMHt8R2iLTNSkUfPTubeFfdGtVMgwiux8snNAmwot2eQsVZiYa0BtldnB0Xp
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260928120000'),
 ('20260922120000'),
 ('20260921120000'),
 ('20260907140000'),

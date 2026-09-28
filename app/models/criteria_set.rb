@@ -17,7 +17,22 @@ class CriteriaSet < ApplicationRecord
   # congelado en el snapshot del módulo y en las columnas de la tabla.
   has_many :criteria, -> { order(:position, :created_at) },
            dependent: :destroy, inverse_of: :criteria_set
-  has_many :challenge_steps, dependent: :nullify
+  # `restrict_with_error` y no `nullify`: vaciarle criteria_set_id a un módulo
+  # lo hace por `update_all`, sin validaciones, así que reescribía en silencio
+  # un FROZEN_ATTRIBUTE de un módulo ya arrancado. Y borrar el set se llevaba
+  # sus criterios (`dependent: :destroy` de arriba), que es de donde el
+  # snapshot congelado resuelve las escalas POR ID: el módulo se quedaba
+  # mostrando «Criterio sin escala resoluble.» en cada fila. Un set que usa
+  # alguien no se borra; el que no usa nadie, sí.
+  #
+  # Ojo: la base sigue siendo la permisiva. `challenge_steps_criteria_set_id_
+  # same_company` es `ON DELETE SET NULL (criteria_set_id)`, así que lo que no
+  # pase por `destroy` —un `delete_all`, un `dependent: :delete_all` que alguien
+  # sume, SQL a mano— vacía la columna igual. No se cambió a RESTRICT porque el
+  # `after` de `spec/system/builder_island_spec.rb` limpia con `delete_all`
+  # borrando `CriteriaSet` antes que `ChallengeStep`, y a nivel base eso
+  # empezaría a reventar. La guarda es del modelo; la base no la respalda.
+  has_many :challenge_steps, dependent: :restrict_with_error
 
   validates :name, presence: true
   validates :scope, inclusion: { in: SCOPES }
