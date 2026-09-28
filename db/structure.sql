@@ -1,4 +1,4 @@
-\restrict XJqmq1xV7ZhOi1KuD1OJtHXSQpVIN1jQdfTelIGmMfCo9wPim1bFzQLeygsxaeM
+\restrict 1H7SebmvAfraWiz3hOb4kZrDd8kNYXw4jhdjdKPyNbquEE4a2RdM8pXZ96dNhBo
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -456,7 +456,7 @@ CREATE TABLE public.idea_versions (
     embedding public.vector(1024),
     embedding_model character varying,
     embedded_at timestamp(6) without time zone,
-    CONSTRAINT idea_versions_actor_type_check CHECK (((actor_type)::text = ANY (ARRAY[('human'::character varying)::text, ('ai'::character varying)::text])))
+    CONSTRAINT idea_versions_actor_type_check CHECK (((actor_type)::text = ANY ((ARRAY['human'::character varying, 'ai'::character varying, 'workshop'::character varying])::text[])))
 );
 
 
@@ -3076,11 +3076,12 @@ ALTER TABLE ONLY public.workshop_proposals
 -- PostgreSQL database dump complete
 --
 
-\unrestrict XJqmq1xV7ZhOi1KuD1OJtHXSQpVIN1jQdfTelIGmMfCo9wPim1bFzQLeygsxaeM
+\unrestrict 1H7SebmvAfraWiz3hOb4kZrDd8kNYXw4jhdjdKPyNbquEE4a2RdM8pXZ96dNhBo
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260928140000'),
 ('20260928130000'),
 ('20260928120000'),
 ('20260922120000'),

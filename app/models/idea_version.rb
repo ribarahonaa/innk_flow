@@ -8,7 +8,7 @@
 class IdeaVersion < ApplicationRecord
   include TenantScoped
 
-  ACTOR_TYPES = %w[human ai].freeze
+  ACTOR_TYPES = %w[human ai workshop].freeze
 
   belongs_to :idea
   belongs_to :created_by, class_name: "User", optional: true
