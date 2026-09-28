@@ -117,8 +117,53 @@ async function revisarPlegableTrasMorph(page, name, selector) {
 // verdad — los ✓/✗ de veredicto vivían dentro del formulario del corte, así
 // que apretarlos enviaba el corte. En el DOM no se ve, porque el parser ya lo
 // aplanó: hay que mirar el HTML SERVIDO.
-async function revisarFormsAnidados(page, name, url) {
-  const html = await (await page.request.get(BASE + url)).text().catch(() => '');
+//
+// Vive en `capturar()`, o sea que corre en TODAS las pantallas del recorrido.
+// Estuvo en `shot()`, que es UNO de los caminos: las que se llegan por clic o
+// por `goto` suelto la salteaban, y tres la repetían a mano —justo las que
+// juntan varios forms en una pantalla: el editor de campos y el bloque de
+// criterios conviven CON el form del módulo, uno detrás del otro—. La guarda
+// que `CLAUDE.md` nombra por el bug del corte quedaba ciega en la mayoría del
+// recorrido, empezando por todas las pantallas a las que se llega por clic.
+//
+// La URL sale de `page.url()` y no de un parámetro: escrita a mano se olvida
+// el query string, y una pantalla a la que se llegó por un redirect se releía
+// por la URL vieja.
+async function revisarFormsAnidados(page, name) {
+  // Sin el fragmento: no viaja al servidor, así que la respuesta vuelve con
+  // la URL pelada y la comparación de abajo daría un falso negativo.
+  const url = page.url().split('#')[0];
+
+  // Piso. Sin él una lectura fallida pasa midiendo CERO —sin HTML no hay
+  // `<form>` que contar y el conteo da 0—, que es la forma en que una guarda
+  // aprueba sin haber mirado nada. Y hay una segunda manera de medir la nada:
+  // `page.request.get` SIGUE los redirects, así que con la sesión perdida
+  // devolvía el login (200, con su propio form) y la guarda daba verde sobre
+  // el documento equivocado. Por eso no alcanza con que la respuesta esté
+  // bien: tiene que ser la de ESTA URL.
+  let respuesta;
+  try {
+    respuesta = await page.request.get(url);
+  } catch (e) {
+    failures++;
+    console.error(`[FORMS] ${name}: no se pudo releer el HTML servido de ${url} (${e.message.split('\n')[0]})`);
+    return;
+  }
+  // `estadoEsperado` es el mismo mecanismo declarado que usan las dos
+  // pantallas de error: se perdona el estado que se DECLARÓ, no «>= 400».
+  const esperado = estadoEsperado || 200;
+  if (respuesta.status() !== esperado || respuesta.url() !== url) {
+    failures++;
+    console.error(`[FORMS] ${name}: releer ${url} dio ${respuesta.status()} en ${respuesta.url()}, y se esperaba ${esperado} en la misma URL`);
+    return;
+  }
+  const html = await respuesta.text();
+  if (!html.includes('</html>')) {
+    failures++;
+    console.error(`[FORMS] ${name}: lo que respondió ${url} no es un documento HTML`);
+    return;
+  }
+
   let profundidad = 0;
   let maxima = 0;
   for (const etiqueta of html.match(/<form\b|<\/form>/g) || []) {
@@ -792,17 +837,6 @@ async function revisarMuestrario(page, tema) {
   }
 }
 
-// La captura y las revisiones que solo piden la pantalla ya pintada.
-//
-// La mayoría de las pantallas no se abren por URL —se llega a ellas con un
-// clic, esperando que monte una isla— y por eso no pasan por `shot()`. La
-// revisión de clases descartadas corría en tres pantallas sueltas y el spec
-// dice «en cada pantalla del recorrido»: acá adentro corre en todas,
-// incluidas las que solo existen después de navegar.
-//
-// Sin números a propósito: este comentario, `README.md` y `CLAUDE.md` los
-// tenían, y los tres se desactualizaron cada vez que se sumó una captura. El
-// número real lo imprime la corrida al terminar.
 // Abre todos los `<details>` de la pantalla, para la FOTO.
 //
 // NO es cobertura de medición: un `<details>` cerrado NO le saca la caja a sus
@@ -952,8 +986,30 @@ async function revisarMonoEnProsa(page, name) {
   }
 }
 
+// La captura y las revisiones que solo piden la pantalla ya pintada.
+//
+// La mayoría de las pantallas no se abren por URL —se llega a ellas con un
+// clic, esperando que monte una isla— y por eso no pasan por `shot()`. La
+// revisión de clases descartadas corría en tres pantallas sueltas y el spec
+// dice «en cada pantalla del recorrido»: acá adentro corre en todas,
+// incluidas las que solo existen después de navegar.
+//
+// `[TEXTO]`, `[FORMS]` y `[RITMO]` estaban declaradas en `shot()` por la
+// misma razón por la que la de clases estaba suelta, y con el mismo
+// resultado: `[TEXTO]` afirmaba «se revisa en CADA pantalla» y no era cierto,
+// y las otras dos se repetían a mano en cinco lugares, que es como una guarda
+// se convierte en una lista de excepciones. Una guarda declarada acá no se
+// puede olvidar en una pantalla; una declarada en `shot()` se olvida en todas
+// las demás.
+//
+// Sin números a propósito: este comentario, `README.md` y `CLAUDE.md` los
+// tenían, y los tres se desactualizaron cada vez que se sumó una captura. El
+// número real lo imprime la corrida al terminar.
 async function capturar(page, name) {
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
+  await revisarTexto(page, name);
+  await revisarFormsAnidados(page, name);
+  await revisarRitmo(page, name);
   await revisarClasesDescartadas(page, name);
   await revisarCardSinBody(page, name);
   await revisarContraste(page, name);
@@ -965,9 +1021,6 @@ async function capturar(page, name) {
 async function shot(page, name, url, prepare) {
   await page.goto(BASE + url, { waitUntil: 'networkidle' });
   if (prepare) await prepare(page);
-  await revisarTexto(page, name);
-  await revisarFormsAnidados(page, name, url);
-  await revisarRitmo(page, name);
   await capturar(page, name);
 }
 
@@ -990,8 +1043,6 @@ async function shotConEstado(page, name, url, status) {
     failures++;
     console.error(`[ESTADO] ${name}: se esperaba ${status} y respondió ${respuesta.status()}`);
   }
-  await revisarTexto(page, name);
-  await revisarRitmo(page, name);
   await capturar(page, name);
   estadoEsperado = null;
 }
@@ -1244,12 +1295,6 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       failures++;
       console.error('[ISLA] el editor del formulario no montó');
     }
-
-    // El editor de campos quedó FUERA del form del módulo (los dos conviven
-    // en la misma pantalla, uno detrás del otro): si quedara adentro, el
-    // navegador se comería el form interno y sus botones pasarían a
-    // pertenecer al externo.
-    await revisarFormsAnidados(page, '05b-form', new URL(page.url()).pathname);
   } else {
     failures++;
     console.error('[LINK] la tarjeta de «Idear» no ofrece ir a su pantalla');
@@ -1355,11 +1400,6 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       failures++;
       console.error(`[ISLA] la cara de configuración de «${label}» no montó`);
     }
-
-    // Esta cara combina tres forms en la misma pantalla (el módulo, los
-    // criterios o el formulario, y las asignaciones): el mismo riesgo de
-    // form-dentro-de-form que ya se pagó una vez en la pantalla del corte.
-    await revisarFormsAnidados(page, `05e-config-${slug}`, new URL(page.url()).pathname);
   }
 
   await shot(page, '06-ideas', `/challenges/${CHALLENGE}/ideas`);
@@ -1651,12 +1691,6 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       failures++;
       console.error('[IA] el módulo pendiente perdió el marco de sugerencias de criterios');
     }
-
-    // El bloque de criterios quedó FUERA del form del módulo (los dos
-    // conviven en la misma pantalla, uno detrás del otro): si quedara
-    // adentro, el navegador se comería el form interno y sus botones
-    // pasarían a pertenecer al externo.
-    await revisarFormsAnidados(page, '09-12-criterios-del-modulo', new URL(page.url()).pathname);
   } else {
     failures++;
     console.error('[LINK] no se encontró el módulo de selección pendiente con criterios propios');
@@ -1931,11 +1965,6 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   } else {
     await aRun.click();
     await page.waitForURL(/\/ai_runs\//);
-    // `capturar()` no corre `[RITMO]` —lo corre `shot()`, y acá se navega por
-    // link y no por `shot()`— y ésta es de las pocas capturas nuevas donde
-    // importa: `ai_runs/show` pone hasta tres `.card` hermanas directas de
-    // `.app-main` (prompt, respuesta, sugerencias derivadas).
-    await revisarRitmo(page, '14-ai-run');
     await revisarBloqueDeCodigo(page, '14-ai-run');
     await capturar(page, '14-ai-run');
   }
@@ -1962,10 +1991,6 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       console.error(`[LINK] no se pudo extraer el id del set de «${hrefEditar}»`);
     } else {
       await page.goto(`${BASE}/criteria_sets/${idSet}`, { waitUntil: 'networkidle' });
-      // Misma razón que en `14-ai-run`: se llega por `goto`, no por `shot()`.
-      // `criteria_sets/show` es hija directa de `.app-main`, así que
-      // `.app-main > .card` matchea.
-      await revisarRitmo(page, '15-criteria-set');
       await capturar(page, '15-criteria-set');
     }
   }
