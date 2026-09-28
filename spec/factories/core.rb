@@ -66,4 +66,33 @@ FactoryBot.define do
     sequence(:label) { |n| "Campo #{n}" }
     field_type { "text" }
   end
+
+  factory :workshop do
+    sequence(:name) { |n| "Taller #{n}" }
+    mode { "group" }
+    status { "draft" }
+  end
+
+  factory :workshop_challenge do
+    workshop
+    challenge
+  end
+
+  factory :workshop_group do
+    workshop
+    sequence(:name) { |n| "Mesa #{n}" }
+  end
+
+  factory :workshop_group_member do
+    workshop_group
+    user { Flow::Tenant.bypass! { create(:user) } }
+  end
+
+  factory :workshop_proposal do
+    workshop_group
+    idea
+    challenge_step
+    payload { {} }
+    status { "pending" }
+  end
 end

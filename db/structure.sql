@@ -1,4 +1,4 @@
-\restrict rnXvMHt8R2iLTNSkUfPTubeFfdGtVMgwiux8snNAmwot2eQsVZiYa0BtldnB0Xp
+\restrict XJqmq1xV7ZhOi1KuD1OJtHXSQpVIN1jQdfTelIGmMfCo9wPim1bFzQLeygsxaeM
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -140,7 +140,7 @@ CREATE TABLE public.ai_runs (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT ai_runs_mode_check CHECK (((mode)::text = ANY (ARRAY[('ai_assisted'::character varying)::text, ('ai_auto'::character varying)::text]))),
-    CONSTRAINT ai_runs_purpose_check CHECK (((purpose)::text = ANY (ARRAY[('propose_pipeline'::character varying)::text, ('suggest_form_fields'::character varying)::text, ('suggest_criteria'::character varying)::text, ('generate_ideas'::character varying)::text, ('coauthor_field'::character varying)::text, ('detect_duplicates'::character varying)::text, ('suggest_feedback'::character varying)::text, ('evaluate_idea'::character varying)::text, ('decide_verdicts'::character varying)::text, ('evolve_idea'::character varying)::text, ('summarize_challenge'::character varying)::text, ('test_idea'::character varying)::text]))),
+    CONSTRAINT ai_runs_purpose_check CHECK (((purpose)::text = ANY ((ARRAY['propose_pipeline'::character varying, 'suggest_form_fields'::character varying, 'suggest_criteria'::character varying, 'generate_ideas'::character varying, 'coauthor_field'::character varying, 'detect_duplicates'::character varying, 'suggest_feedback'::character varying, 'evaluate_idea'::character varying, 'decide_verdicts'::character varying, 'evolve_idea'::character varying, 'summarize_challenge'::character varying, 'test_idea'::character varying])::text[]))),
     CONSTRAINT ai_runs_status_check CHECK (((status)::text = ANY (ARRAY[('queued'::character varying)::text, ('running'::character varying)::text, ('succeeded'::character varying)::text, ('failed'::character varying)::text])))
 );
 
@@ -268,7 +268,7 @@ CREATE TABLE public.challenge_steps (
     updated_at timestamp(6) without time zone NOT NULL,
     criteria_set_id uuid,
     CONSTRAINT challenge_steps_ai_mode_check CHECK (((ai_mode IS NULL) OR ((ai_mode)::text = ANY (ARRAY[('human'::character varying)::text, ('ai_assisted'::character varying)::text, ('ai_auto'::character varying)::text])))),
-    CONSTRAINT challenge_steps_kind_check CHECK (((kind)::text = ANY (ARRAY[('ideation'::character varying)::text, ('evolution'::character varying)::text, ('evaluation'::character varying)::text, ('selection'::character varying)::text, ('reporting'::character varying)::text, ('testing'::character varying)::text]))),
+    CONSTRAINT challenge_steps_kind_check CHECK (((kind)::text = ANY ((ARRAY['ideation'::character varying, 'evolution'::character varying, 'evaluation'::character varying, 'selection'::character varying, 'reporting'::character varying, 'testing'::character varying])::text[]))),
     CONSTRAINT challenge_steps_status_check CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('activating'::character varying)::text, ('active'::character varying)::text, ('completed'::character varying)::text, ('skipped'::character varying)::text])))
 );
 
@@ -507,7 +507,7 @@ CREATE TABLE public.memberships (
     role character varying DEFAULT 'participant'::character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT memberships_role_check CHECK (((role)::text = ANY (ARRAY[('admin'::character varying)::text, ('gestor'::character varying)::text, ('evaluator'::character varying)::text, ('participant'::character varying)::text])))
+    CONSTRAINT memberships_role_check CHECK (((role)::text = ANY ((ARRAY['admin'::character varying, 'gestor'::character varying, 'evaluator'::character varying, 'participant'::character varying])::text[])))
 );
 
 
@@ -688,8 +688,8 @@ CREATE TABLE public.step_tests (
     tested_at timestamp(6) without time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT step_tests_actor_type_check CHECK (((actor_type)::text = ANY (ARRAY[('human'::character varying)::text, ('ai'::character varying)::text]))),
-    CONSTRAINT step_tests_verdict_check CHECK (((verdict)::text = ANY (ARRAY[('factible'::character varying)::text, ('con_reservas'::character varying)::text, ('no_factible'::character varying)::text])))
+    CONSTRAINT step_tests_actor_type_check CHECK (((actor_type)::text = ANY ((ARRAY['human'::character varying, 'ai'::character varying])::text[]))),
+    CONSTRAINT step_tests_verdict_check CHECK (((verdict)::text = ANY ((ARRAY['factible'::character varying, 'con_reservas'::character varying, 'no_factible'::character varying])::text[])))
 );
 
 
@@ -704,6 +704,92 @@ CREATE TABLE public.users (
     password_digest character varying,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: workshop_challenges; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workshop_challenges (
+    id uuid DEFAULT public.uuid_generate_v7() NOT NULL,
+    company_id uuid NOT NULL,
+    workshop_id uuid NOT NULL,
+    challenge_id uuid NOT NULL,
+    challenge_step_id uuid,
+    status character varying DEFAULT 'open'::character varying NOT NULL,
+    closed_reason character varying,
+    closed_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workshop_challenges_status_check CHECK (((status)::text = ANY ((ARRAY['open'::character varying, 'closed'::character varying])::text[])))
+);
+
+
+--
+-- Name: workshop_group_members; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workshop_group_members (
+    id uuid DEFAULT public.uuid_generate_v7() NOT NULL,
+    company_id uuid NOT NULL,
+    workshop_group_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: workshop_groups; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workshop_groups (
+    id uuid DEFAULT public.uuid_generate_v7() NOT NULL,
+    company_id uuid NOT NULL,
+    workshop_id uuid NOT NULL,
+    name character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: workshop_proposals; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workshop_proposals (
+    id uuid DEFAULT public.uuid_generate_v7() NOT NULL,
+    company_id uuid NOT NULL,
+    workshop_group_id uuid NOT NULL,
+    idea_id uuid NOT NULL,
+    challenge_step_id uuid NOT NULL,
+    payload jsonb DEFAULT '{}'::jsonb NOT NULL,
+    status character varying DEFAULT 'pending'::character varying NOT NULL,
+    reviewed_by_id uuid,
+    reviewed_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workshop_proposals_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'accepted'::character varying, 'rejected'::character varying])::text[])))
+);
+
+
+--
+-- Name: workshops; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workshops (
+    id uuid DEFAULT public.uuid_generate_v7() NOT NULL,
+    company_id uuid NOT NULL,
+    name character varying NOT NULL,
+    mode character varying DEFAULT 'group'::character varying NOT NULL,
+    status character varying DEFAULT 'draft'::character varying NOT NULL,
+    scheduled_at timestamp(6) without time zone,
+    created_by_id uuid,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workshops_mode_check CHECK (((mode)::text = ANY ((ARRAY['individual'::character varying, 'group'::character varying])::text[]))),
+    CONSTRAINT workshops_status_check CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'open'::character varying, 'closed'::character varying])::text[])))
 );
 
 
@@ -1153,6 +1239,86 @@ ALTER TABLE ONLY public.step_tests
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workshop_challenges workshop_challenges_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_challenges
+    ADD CONSTRAINT workshop_challenges_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workshop_challenges workshop_challenges_tenant_uniq; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_challenges
+    ADD CONSTRAINT workshop_challenges_tenant_uniq UNIQUE (id, company_id);
+
+
+--
+-- Name: workshop_group_members workshop_group_members_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_group_members
+    ADD CONSTRAINT workshop_group_members_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workshop_group_members workshop_group_members_tenant_uniq; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_group_members
+    ADD CONSTRAINT workshop_group_members_tenant_uniq UNIQUE (id, company_id);
+
+
+--
+-- Name: workshop_groups workshop_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_groups
+    ADD CONSTRAINT workshop_groups_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workshop_groups workshop_groups_tenant_uniq; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_groups
+    ADD CONSTRAINT workshop_groups_tenant_uniq UNIQUE (id, company_id);
+
+
+--
+-- Name: workshop_proposals workshop_proposals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_proposals
+    ADD CONSTRAINT workshop_proposals_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workshop_proposals workshop_proposals_tenant_uniq; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_proposals
+    ADD CONSTRAINT workshop_proposals_tenant_uniq UNIQUE (id, company_id);
+
+
+--
+-- Name: workshops workshops_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshops
+    ADD CONSTRAINT workshops_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workshops workshops_tenant_uniq; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshops
+    ADD CONSTRAINT workshops_tenant_uniq UNIQUE (id, company_id);
 
 
 --
@@ -1919,6 +2085,90 @@ CREATE UNIQUE INDEX index_users_on_lower_email ON public.users USING btree (lowe
 
 
 --
+-- Name: index_workshop_challenges_on_company_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_challenges_on_company_id ON public.workshop_challenges USING btree (company_id);
+
+
+--
+-- Name: index_workshop_challenges_on_workshop_id_and_challenge_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_workshop_challenges_on_workshop_id_and_challenge_id ON public.workshop_challenges USING btree (workshop_id, challenge_id);
+
+
+--
+-- Name: index_workshop_group_members_on_company_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_group_members_on_company_id ON public.workshop_group_members USING btree (company_id);
+
+
+--
+-- Name: index_workshop_group_members_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_group_members_on_user_id ON public.workshop_group_members USING btree (user_id);
+
+
+--
+-- Name: index_workshop_group_members_on_workshop_group_id_and_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_workshop_group_members_on_workshop_group_id_and_user_id ON public.workshop_group_members USING btree (workshop_group_id, user_id);
+
+
+--
+-- Name: index_workshop_groups_on_company_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_groups_on_company_id ON public.workshop_groups USING btree (company_id);
+
+
+--
+-- Name: index_workshop_groups_on_workshop_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_groups_on_workshop_id ON public.workshop_groups USING btree (workshop_id);
+
+
+--
+-- Name: index_workshop_proposals_on_company_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_proposals_on_company_id ON public.workshop_proposals USING btree (company_id);
+
+
+--
+-- Name: index_workshop_proposals_on_idea_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_proposals_on_idea_id ON public.workshop_proposals USING btree (idea_id);
+
+
+--
+-- Name: index_workshop_proposals_on_reviewed_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_proposals_on_reviewed_by_id ON public.workshop_proposals USING btree (reviewed_by_id);
+
+
+--
+-- Name: index_workshops_on_company_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshops_on_company_id ON public.workshops USING btree (company_id);
+
+
+--
+-- Name: index_workshops_on_created_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshops_on_created_by_id ON public.workshops USING btree (created_by_id);
+
+
+--
 -- Name: ai_runs ai_runs_challenge_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2127,6 +2377,14 @@ ALTER TABLE ONLY public.challenge_steps
 
 
 --
+-- Name: workshops fk_rails_0cc96860fd; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshops
+    ADD CONSTRAINT fk_rails_0cc96860fd FOREIGN KEY (created_by_id) REFERENCES public.users(id);
+
+
+--
 -- Name: ai_suggestions fk_rails_1156bc766f; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2140,6 +2398,14 @@ ALTER TABLE ONLY public.ai_suggestions
 
 ALTER TABLE ONLY public.challenges
     ADD CONSTRAINT fk_rails_1353858338 FOREIGN KEY (company_id) REFERENCES public.companies(id);
+
+
+--
+-- Name: workshop_groups fk_rails_159edc4f65; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_groups
+    ADD CONSTRAINT fk_rails_159edc4f65 FOREIGN KEY (company_id) REFERENCES public.companies(id);
 
 
 --
@@ -2164,6 +2430,22 @@ ALTER TABLE ONLY public.idea_contributors
 
 ALTER TABLE ONLY public.reports
     ADD CONSTRAINT fk_rails_38dc9ec35b FOREIGN KEY (company_id) REFERENCES public.companies(id);
+
+
+--
+-- Name: workshop_group_members fk_rails_3948beacef; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_group_members
+    ADD CONSTRAINT fk_rails_3948beacef FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: workshops fk_rails_42ed2095b4; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshops
+    ADD CONSTRAINT fk_rails_42ed2095b4 FOREIGN KEY (company_id) REFERENCES public.companies(id);
 
 
 --
@@ -2239,6 +2521,14 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: workshop_proposals fk_rails_773b228fba; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_proposals
+    ADD CONSTRAINT fk_rails_773b228fba FOREIGN KEY (reviewed_by_id) REFERENCES public.users(id);
+
+
+--
 -- Name: step_tests fk_rails_79ffe54a91; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2252,6 +2542,14 @@ ALTER TABLE ONLY public.step_tests
 
 ALTER TABLE ONLY public.ai_runs
     ADD CONSTRAINT fk_rails_80e4cc04b9 FOREIGN KEY (company_id) REFERENCES public.companies(id);
+
+
+--
+-- Name: workshop_group_members fk_rails_8118d6bc55; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_group_members
+    ADD CONSTRAINT fk_rails_8118d6bc55 FOREIGN KEY (company_id) REFERENCES public.companies(id);
 
 
 --
@@ -2311,6 +2609,14 @@ ALTER TABLE ONLY public.form_fields
 
 
 --
+-- Name: workshop_proposals fk_rails_a750d08b74; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_proposals
+    ADD CONSTRAINT fk_rails_a750d08b74 FOREIGN KEY (company_id) REFERENCES public.companies(id);
+
+
+--
 -- Name: ideas fk_rails_a7a91f1df3; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2364,6 +2670,14 @@ ALTER TABLE ONLY public.idea_versions
 
 ALTER TABLE ONLY public.feedback_items
     ADD CONSTRAINT fk_rails_bf283495fd FOREIGN KEY (resolved_by_id) REFERENCES public.users(id);
+
+
+--
+-- Name: workshop_challenges fk_rails_c127deba39; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_challenges
+    ADD CONSTRAINT fk_rails_c127deba39 FOREIGN KEY (company_id) REFERENCES public.companies(id);
 
 
 --
@@ -2695,14 +3009,79 @@ ALTER TABLE ONLY public.step_tests
 
 
 --
+-- Name: workshop_challenges workshop_challenges_challenge_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_challenges
+    ADD CONSTRAINT workshop_challenges_challenge_id_same_company FOREIGN KEY (challenge_id, company_id) REFERENCES public.challenges(id, company_id) ON DELETE CASCADE;
+
+
+--
+-- Name: workshop_challenges workshop_challenges_challenge_step_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_challenges
+    ADD CONSTRAINT workshop_challenges_challenge_step_id_same_company FOREIGN KEY (challenge_step_id, company_id) REFERENCES public.challenge_steps(id, company_id) ON DELETE SET NULL (challenge_step_id);
+
+
+--
+-- Name: workshop_challenges workshop_challenges_workshop_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_challenges
+    ADD CONSTRAINT workshop_challenges_workshop_id_same_company FOREIGN KEY (workshop_id, company_id) REFERENCES public.workshops(id, company_id) ON DELETE CASCADE;
+
+
+--
+-- Name: workshop_group_members workshop_group_members_workshop_group_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_group_members
+    ADD CONSTRAINT workshop_group_members_workshop_group_id_same_company FOREIGN KEY (workshop_group_id, company_id) REFERENCES public.workshop_groups(id, company_id) ON DELETE CASCADE;
+
+
+--
+-- Name: workshop_groups workshop_groups_workshop_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_groups
+    ADD CONSTRAINT workshop_groups_workshop_id_same_company FOREIGN KEY (workshop_id, company_id) REFERENCES public.workshops(id, company_id) ON DELETE CASCADE;
+
+
+--
+-- Name: workshop_proposals workshop_proposals_challenge_step_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_proposals
+    ADD CONSTRAINT workshop_proposals_challenge_step_id_same_company FOREIGN KEY (challenge_step_id, company_id) REFERENCES public.challenge_steps(id, company_id) ON DELETE CASCADE;
+
+
+--
+-- Name: workshop_proposals workshop_proposals_idea_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_proposals
+    ADD CONSTRAINT workshop_proposals_idea_id_same_company FOREIGN KEY (idea_id, company_id) REFERENCES public.ideas(id, company_id) ON DELETE CASCADE;
+
+
+--
+-- Name: workshop_proposals workshop_proposals_workshop_group_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_proposals
+    ADD CONSTRAINT workshop_proposals_workshop_group_id_same_company FOREIGN KEY (workshop_group_id, company_id) REFERENCES public.workshop_groups(id, company_id) ON DELETE CASCADE;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict rnXvMHt8R2iLTNSkUfPTubeFfdGtVMgwiux8snNAmwot2eQsVZiYa0BtldnB0Xp
+\unrestrict XJqmq1xV7ZhOi1KuD1OJtHXSQpVIN1jQdfTelIGmMfCo9wPim1bFzQLeygsxaeM
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260928130000'),
 ('20260928120000'),
 ('20260922120000'),
 ('20260921120000'),
