@@ -17,6 +17,12 @@ module Flow
       end
 
       def call
+        # Primero de todo: un `user_id` vacío llega como `nil` desde el
+        # controller (`User.find_by`), y sin esta guarda en modo individual
+        # se intenta nombrar la mesa con `nil.name` — después de haberla
+        # creado. Va ANTES de `convoked?`, que ya rompía con `@user.id`.
+        return person_required if @user.nil?
+
         # Antes de crear nada: en modo individual, crear la mesa y recién
         # después chocar con la validación dejaría una mesa vacía colgada.
         return already_convoked if convoked?
@@ -44,6 +50,7 @@ module Flow
 
       def already_convoked = Result.new(ok: false, member: nil, errors: ["Ya está en una mesa de este taller."])
       def group_required = Result.new(ok: false, member: nil, errors: ["Hay que elegir una mesa."])
+      def person_required = Result.new(ok: false, member: nil, errors: ["Hay que elegir una persona."])
     end
   end
 end

@@ -77,7 +77,9 @@ RSpec.describe "mesas y convocatoria", type: :request do
       end.not_to(change { as_company(company) { WorkshopGroupMember.count } })
 
       follow_redirect!
-      expect(response.body).to include("mesa")
+      # Mensaje exacto: "mesa" solo también matchearía "Ya está en una mesa
+      # de este taller.", que es el otro camino de error del servicio.
+      expect(response.body).to include("Hay que elegir una mesa.")
     end
 
     it "desconvoca a alguien de su mesa" do
@@ -111,6 +113,21 @@ RSpec.describe "mesas y convocatoria", type: :request do
       follow_redirect!
       expect(response).to have_http_status(:ok)
       expect(as_company(company) { individual_workshop.workshop_groups.last.members.to_a }).to eq([paula])
+    end
+
+    # `User.find_by(id: params[:user_id])` devuelve `nil` si el POST llega sin
+    # el parámetro. Antes de la guarda en el servicio, esto reventaba con un
+    # 500 en modo individual (intentaba nombrar la mesa con `nil.name`).
+    it "sin user_id no revienta, y no crea ninguna mesa" do
+      sign_in(admin, company: company)
+
+      expect do
+        post convoke_workshop_path(individual_workshop)
+      end.not_to(change { as_company(company) { individual_workshop.workshop_groups.count } })
+
+      expect(response).to redirect_to(workshop_path(individual_workshop))
+      follow_redirect!
+      expect(response.body).to include("Hay que elegir una persona.")
     end
   end
 end

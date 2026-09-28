@@ -28,32 +28,39 @@
       %ul.field-list
         - groups.each do |group|
           %li.field-list__item
-            .assignment-row
-              %span
-                = group.name
-                %span.muted= " · #{Flow::Texto.contar(group.members.size, 'persona')}"
-              .assignment-row__actions
-                = button_to "Eliminar mesa", workshop_workshop_group_path(workshop, group), method: :delete,
-                            class: "btn btn-ghost btn-sm",
-                            form: { data: { turbo_confirm: "¿Eliminar esta mesa? Se saca a quien esté en ella." } }
+            -# `.field-list__item` es `display: flex` (una fila, con sus hijos
+            -# repartidos por `justify-content: space-between`): con tres
+            -# hijos sueltos —esta cabecera, la lista de integrantes y el form
+            -# de convocar— quedaban lado a lado en vez de apilados. Un solo
+            -# `%div` envolvente, mismo arreglo que pide CLAUDE.md para el
+            -# `alert` de DaisyUI que también reparte por columnas.
+            %div
+              .assignment-row
+                %span
+                  = group.name
+                  %span.muted= " · #{Flow::Texto.contar(group.members.size, 'persona')}"
+                .assignment-row__actions
+                  = button_to "Eliminar mesa", workshop_workshop_group_path(workshop, group), method: :delete,
+                              class: "btn btn-ghost btn-sm",
+                              form: { data: { turbo_confirm: "¿Eliminar esta mesa? Se saca a quien esté en ella." } }
 
-            - if group.members.any?
-              %ul.field-list
-                - group.members.each do |person|
-                  %li.field-list__item
-                    %span= person.name
-                    = button_to "Sacar", dismiss_workshop_path(workshop), method: :delete,
-                                params: { user_id: person.id }, class: "btn btn-ghost btn-sm"
+              - if group.members.any?
+                %ul.field-list
+                  - group.members.each do |person|
+                    %li.field-list__item
+                      %span= person.name
+                      = button_to "Sacar", dismiss_workshop_path(workshop), method: :delete,
+                                  params: { user_id: person.id }, class: "btn btn-ghost btn-sm"
 
-            - if workshop.mode == "group" && convocable.any?
-              -# El `id:` explícito evita ids duplicados: cada mesa repite este
-              -# mismo form, y sin distinguirlos el DOM tiene tantos
-              -# `#user_id` como mesas.
-              = form_with url: convoke_workshop_path(workshop), method: :post, class: "assignment-add" do
-                = hidden_field_tag :workshop_group_id, group.id, id: "mesa_#{group.id}"
-                = select_tag :user_id, options_from_collection_for_select(convocable, :id, :name),
-                             include_blank: "Sumar a esta mesa…", id: "convocar_#{group.id}"
-                = submit_tag "Convocar", class: "btn btn-ghost btn-sm"
+              - if workshop.mode == "group" && convocable.any?
+                -# El `id:` explícito evita ids duplicados: cada mesa repite
+                -# este mismo form, y sin distinguirlos el DOM tiene tantos
+                -# `#user_id` como mesas.
+                = form_with url: convoke_workshop_path(workshop), method: :post, class: "assignment-add" do
+                  = hidden_field_tag :workshop_group_id, group.id, id: "mesa_#{group.id}"
+                  = select_tag :user_id, options_from_collection_for_select(convocable, :id, :name),
+                               include_blank: "Sumar a esta mesa…", id: "convocar_#{group.id}", required: true
+                  = submit_tag "Convocar", class: "btn btn-ghost btn-sm"
 
     - if workshop.mode == "group"
       = form_with url: workshop_workshop_groups_path(workshop), method: :post, class: "assignment-add" do
@@ -63,5 +70,5 @@
       %p.field-hint Convocar arma la mesa de esa persona sola.
       = form_with url: convoke_workshop_path(workshop), method: :post, class: "assignment-add" do
         = select_tag :user_id, options_from_collection_for_select(convocable, :id, :name),
-                     include_blank: "Convocar…"
+                     include_blank: "Convocar…", required: true
         = submit_tag "Convocar", class: "btn btn-ghost btn-sm"
