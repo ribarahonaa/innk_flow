@@ -223,8 +223,10 @@ RSpec.describe "reglas de quien participa", type: :request do
         expect(estados).to eq([404, 404])
       end
 
-      # Lo que cuelga de la idea tampoco: un comentario o una propuesta de la IA
-      # sobre ella. Los dos se buscaban por id a secas, en toda la empresa.
+      # Lo que cuelga de la idea tampoco: un comentario, una propuesta de la IA
+      # o un adjunto de ella. Los tres se buscaban por id a secas —los dos
+      # primeros en toda la empresa, el adjunto por las rutas de Active Storage,
+      # que no preguntan ni quién sos—.
       describe "ni lo que cuelga de ella" do
         let!(:comentario_ajeno) do
           as_company(company) do
@@ -248,6 +250,20 @@ RSpec.describe "reglas de quien participa", type: :request do
             instance_exec(id, &pedido)
             response.status
           end
+        end
+
+        let!(:adjunto_ajeno) do
+          as_company(company) do
+            IdeaAttachment.create!(idea_version_id: ajena.current_version_id, field_key: "costeo")
+          end
+        end
+
+        it "bajar un adjunto de ella" do
+          estados = con_ajeno_y_con_inexistente(adjunto_ajeno) do |id|
+            get challenge_idea_attachment_path(challenge, ajena, id)
+          end
+
+          expect(estados).to eq([404, 404])
         end
 
         it "cerrar un comentario sobre ella" do

@@ -185,7 +185,12 @@ RSpec.describe "quiénes participan y qué adjuntan", type: :request do
 
       get challenge_idea_path(challenge, idea)
 
+      adjunto = as_company(company) { reloaded.current_version.attachments.first }
       expect(response.body).to include("costeo.txt")
+      # Y el href, no sólo el texto: el link se sirve por la app y no por las
+      # rutas de Active Storage, que no preguntan nada.
+      expect(response.body).to include(challenge_idea_attachment_path(challenge, idea, adjunto))
+      expect(response.body).not_to include("/rails/active_storage")
     end
 
     it "descarta un archivo cuya clave no es un campo del formulario" do

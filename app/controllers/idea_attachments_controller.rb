@@ -16,10 +16,7 @@ class IdeaAttachmentsController < ApplicationController
     # buscara global, una idea visible sería la llave del archivo de otra.
     attachment = IdeaAttachment.where(idea_version_id: @idea.versions.select(:id)).find(params[:id])
 
-    send_data attachment.file.download,
-              filename: attachment.file.filename.to_s,
-              type: attachment.file.content_type,
-              disposition: "attachment"
+    send_attached_file(attachment.file)
   end
 
   private

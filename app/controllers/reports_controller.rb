@@ -20,12 +20,11 @@ class ReportsController < ApplicationController
   # blob y nada más. Misma puerta que generarlo.
   def download
     authorize @step, :report?
-    report = Report.where(challenge_step_id: @step.id).find(params[:id])
+    # `downloadable` saca los `dashboard`, que nacen `ready` sin archivo: no son
+    # un archivo que exista, así que no son un 404 por accidente sino por regla.
+    report = Report.where(challenge_step_id: @step.id).downloadable.find(params[:id])
 
-    send_data report.file.download,
-              filename: report.file.filename.to_s,
-              type: report.file.content_type,
-              disposition: "attachment"
+    send_attached_file(report.file)
   end
 
   # Polling: el patrón de ExcelDocument de innk_r5, scopeado al tenant.
@@ -34,10 +33,9 @@ class ReportsController < ApplicationController
     reports = Report.where(challenge_step_id: @step.id, status: "ready").where.not(format: "dashboard")
 
     render json: {
-      ready: reports.map do |report|
-        { id: report.id, format: report.format, kind: report.kind,
-          url: report.file.attached? ? download_challenge_step_report_path(@challenge, @step, report) : nil }
-      end,
+      # Sin `url`: nadie la leía. El JS de `shared/_reports_auto_refresh` mira
+      # `pending` y recarga la pantalla, que es la que trae los links.
+      ready: reports.map { |report| { id: report.id, format: report.format, kind: report.kind } },
       pending: Report.where(challenge_step_id: @step.id, status: "pending").count
     }
   end

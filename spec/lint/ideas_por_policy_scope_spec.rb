@@ -37,6 +37,10 @@ require "rails_helper"
 #   · Lo que no nombra `Idea` ni `ideas` literal: `public_send(:ideas)`, una
 #     variable que ya trae la relación (`rel = @challenge.ideas` en otro método
 #     y después `rel.find`), `%Q{}` y heredocs.
+#   · Una clase cuyo nombre EMPIEZA con `Idea`: el detector pide `\bIdea\b`, y
+#     la `A` de `IdeaAttachment` es carácter de palabra, así que no matchea. Un
+#     `IdeaAttachment.find(params[:id])` en un controller —que es exactamente el
+#     bug que `IdeaAttachmentsController` existe para no tener— pasa de largo.
 #   · Desarmar el scope con algo que no sea `unscope`: `.except(:where)`,
 #     `.rewhere(...)`.
 #   · Sintaxis que confunde a un detector de texto y le esconde el resto de la

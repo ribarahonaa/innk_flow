@@ -90,8 +90,25 @@ RSpec.describe "bajar archivos", type: :request do
 
       get ruta
 
-      expect(response).not_to have_http_status(:ok)
+      # Y no «cualquier cosa menos 200»: así el ejemplo también pasaría si la
+      # autenticación desapareciera y el pedido cayera en un 404 por scope.
+      expect(response).to redirect_to(login_path)
       expect(response.body).not_to include("4.2M CLP")
+    end
+
+    # Sin adjuntar, `file.download` y `file.content_type` devuelven nil y
+    # `send_data` revienta con 500. La fila sin archivo existe: `carry_attachments!`
+    # la crea antes de adjuntar, y la ficha de la idea linkea con `if attachment`
+    # sin preguntar por el archivo.
+    it "una fila sin archivo da 404, no 500" do
+      vacio = as_company(company) do
+        IdeaAttachment.create!(idea_version: propia.current_version, field_key: "costeo").id
+      end
+
+      sign_in(autora, company: company)
+      get challenge_idea_attachment_path(challenge, propia, vacio)
+
+      expect(response).to have_http_status(:not_found)
     end
 
     # El ataque real no es un id inexistente —eso ya daba 404— sino el id de un
@@ -163,7 +180,38 @@ RSpec.describe "bajar archivos", type: :request do
     it "sin sesión tampoco" do
       get download_challenge_step_report_path(challenge, step, report)
 
-      expect(response).not_to have_http_status(:ok)
+      expect(response).to redirect_to(login_path)
+      expect(response.body).not_to include("embudo")
+    end
+
+    # Un reporte `dashboard` nace `ready` SIN archivo —lo hace `create_report!`
+    # en el handler de reportería, en cada módulo— y su id se imprime en la
+    # pantalla. Sin la guarda, pedirlo es un 500 y no un 404.
+    it "un dashboard, que nace ready sin archivo, da 404 y no 500" do
+      tablero = as_company(company) do
+        Report.create!(challenge_step: step, kind: "narrative", format: "dashboard",
+                       status: "ready", scope: {})
+      end
+
+      sign_in(owner, company: company)
+      get download_challenge_step_report_path(challenge, step, tablero)
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    # El polling no tenía NINGÚN spec, y su JSON llevaba la URL del blob: si el
+    # helper hubiera quedado mal escrito, la suite y el recorrido daban verde
+    # mientras el endpoint tiraba 500 y el chip «generando…» no se resolvía.
+    # La clave se fue porque nadie la leía; queda el endpoint cubierto.
+    it "el polling responde sin URLs de archivo" do
+      sign_in(owner, company: company)
+      get statuses_challenge_step_reports_path(challenge, step)
+
+      cuerpo = response.parsed_body
+      expect(response).to have_http_status(:ok)
+      expect(cuerpo["ready"].map { |r| r["id"] }).to include(report.id)
+      expect(cuerpo["ready"].first.keys).not_to include("url")
+      expect(response.body).not_to include("/rails/active_storage")
     end
 
     # Ningún otro spec renderiza esta fila: el único reporte `ready` de la suite

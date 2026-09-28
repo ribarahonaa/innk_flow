@@ -1,9 +1,10 @@
 -# Generar Excel y PDF, y los archivos ya generados. Son herramientas que se
 -# usan al costado del reporte, no el reporte: van en la referencia. La tabla
 -# de cinco columnas que había no entra en la columna, así que es lista.
--# Sólo quien puede generarlos (`report?`): los archivos traen el ranking
--# entero, y el link de Active Storage no pasa por Pundit. Sin esto quien
--# acompaña o evalúa veía dos botones que le rebotaban con 403.
+-# Sólo quien puede generarlos (`report?`): sin esto quien acompaña o evalúa
+-# veía botones que le rebotaban con 403. El link de descarga ya pregunta lo
+-# mismo por su lado (`ReportsController#download`), pero la guarda sigue
+-# siendo de la tarjeta: es la que evita ofrecer lo que no se puede usar.
 - if policy(step).report?
   - downloadable = handler.reports.select { |r| r.format != "dashboard" }
   .card
