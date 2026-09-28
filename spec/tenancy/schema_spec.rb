@@ -97,9 +97,46 @@ RSpec.describe "esquema: aislamiento por empresa en la base" do
 
   # `ON DELETE SET NULL` sobre una FK compuesta nulea TODAS las columnas del
   # lado local si no se acota con `(columna)` — company_id incluida, que es
-  # NOT NULL. Los tres tests de arriba son introspección estática y no lo
-  # ven: una FK compuesta sin acotador sigue siendo compuesta. Este borra de
-  # verdad para probar la garantía completa.
+  # NOT NULL. Los tres tests de arriba no lo ven porque miran otra cosa: una
+  # FK compuesta sin acotador sigue siendo compuesta. Postgres 15+ guarda el
+  # acotador en `confdelsetcols`, así que este sí se puede leer del catálogo,
+  # y de TODAS las FKs a la vez.
+  it "toda FK compuesta ON DELETE SET NULL acota las columnas que nulea" do
+    set_null = sql(<<~SQL)
+      SELECT con.conname AS name,
+             src.relname AS from_table,
+             (SELECT array_agg(att.attname ORDER BY k.ord)
+                FROM unnest(con.conkey) WITH ORDINALITY AS k(attnum, ord)
+                JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = k.attnum
+             )::text     AS from_columns,
+             (SELECT coalesce(array_agg(att.attname ORDER BY k.ord), '{}')
+                FROM unnest(con.confdelsetcols) WITH ORDINALITY AS k(attnum, ord)
+                JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = k.attnum
+             )::text     AS nulled_columns
+      FROM pg_constraint con
+      JOIN pg_class src ON src.oid = con.conrelid
+      JOIN pg_namespace n ON n.oid = src.relnamespace
+      WHERE con.contype = 'f' AND n.nspname = 'public' AND con.confdeltype = 'n'
+    SQL
+
+    # Una lista vacía significa «nulea todas», así que es el mismo defecto que
+    # nombrar company_id explícitamente.
+    sin_acotar = set_null.select do |fk|
+      next false unless fk["from_columns"].include?("company_id")
+
+      fk["nulled_columns"] == "{}" || fk["nulled_columns"].include?("company_id")
+    end
+
+    expect(sin_acotar).to be_empty, lambda {
+      "FKs compuestas SET NULL que se llevan puesto company_id (NOT NULL):\n" +
+        sin_acotar.map { |fk| "  - #{fk['name']} nulea #{fk['nulled_columns']}" }.join("\n") +
+        "\n\nUsá `add_tenant_fk ..., on_delete: :nullify` (lib/flow/migration_helpers.rb),\n" \
+        "que acota con `SET NULL (columna)`."
+    }
+  end
+
+  # El de arriba lee la declaración; este borra de verdad, que es lo único que
+  # prueba la garantía completa de punta a punta.
   it "borrar el padre de un ON DELETE SET NULL compuesto no se lleva puesto company_id" do
     company = without_tenant { create(:company) }
 
