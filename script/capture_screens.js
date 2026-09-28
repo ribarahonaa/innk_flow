@@ -131,8 +131,14 @@ async function revisarPlegableTrasMorph(page, name, selector) {
 // por la URL vieja.
 async function revisarFormsAnidados(page, name) {
   // Sin el fragmento: no viaja al servidor, así que la respuesta vuelve con
-  // la URL pelada y la comparación de abajo daría un falso negativo.
-  const url = page.url().split('#')[0];
+  // la URL pelada y la comparación de abajo daría un falso negativo. Y pasada
+  // por `new URL`, que es lo que normaliza el otro lado de esa comparación:
+  // `page.url()` lo serializa Chromium y la URL de la respuesta la re-parsea
+  // Playwright, así que compararlas crudas apuesta a que las dos escriban
+  // igual el primer query con un espacio o un acento.
+  const pedida = new URL(page.url());
+  pedida.hash = '';
+  const url = pedida.href;
 
   // Piso. Sin él una lectura fallida pasa midiendo CERO —sin HTML no hay
   // `<form>` que contar y el conteo da 0—, que es la forma en que una guarda
@@ -151,22 +157,44 @@ async function revisarFormsAnidados(page, name) {
   }
   // `estadoEsperado` es el mismo mecanismo declarado que usan las dos
   // pantallas de error: se perdona el estado que se DECLARÓ, no «>= 400».
+  //
+  // Que esto no le rompa la corrida a `19-forbidden` y `20-not-found` cuelga
+  // de un hecho medido: un `page.request.get` NO aflora por
+  // `page.on('response')` —cero eventos—, así que releer un 403 no suma un
+  // `[HTTP 403]` espurio. Si aflorara, tampoco lo salvaría el perdón del
+  // listener: pide `isNavigationRequest()` y esto no lo es.
   const esperado = estadoEsperado || 200;
   if (respuesta.status() !== esperado || respuesta.url() !== url) {
     failures++;
     console.error(`[FORMS] ${name}: releer ${url} dio ${respuesta.status()} en ${respuesta.url()}, y se esperaba ${esperado} en la misma URL`);
     return;
   }
-  const html = await respuesta.text();
+  let html;
+  try {
+    html = await respuesta.text();
+  } catch (e) {
+    failures++;
+    console.error(`[FORMS] ${name}: se cortó el cuerpo de ${url} (${e.message.split('\n')[0]})`);
+    return;
+  }
   if (!html.includes('</html>')) {
     failures++;
     console.error(`[FORMS] ${name}: lo que respondió ${url} no es un documento HTML`);
     return;
   }
 
+  // Los `<template>` se sacan antes de contar: su contenido se parsea en un
+  // fragmento aparte, así que ahí el navegador NO aplana un form dentro de
+  // otro y el anidamiento es legal. No es hipotético —`shared/_ia_respuesta`
+  // mete `shared/_ai_suggestion`, con sus `button_to`, adentro de un template
+  // y lo dice en su comentario—: hoy ese template se sirve al tope de
+  // `.app-main` y nunca cae adentro de un form, pero contarlo haría que la
+  // guarda reporte como bug lo que el repo documenta como correcto.
+  const servido = html.replace(/<template\b[\s\S]*?<\/template>/gi, '');
+
   let profundidad = 0;
   let maxima = 0;
-  for (const etiqueta of html.match(/<form\b|<\/form>/g) || []) {
+  for (const etiqueta of servido.match(/<form\b|<\/form>/g) || []) {
     profundidad += etiqueta === '</form>' ? -1 : 1;
     maxima = Math.max(maxima, profundidad);
   }
@@ -1031,6 +1059,10 @@ async function shot(page, name, url, prepare) {
 // `estadoEsperado` vale para la navegación siguiente y sólo para el documento
 // principal. Si llega OTRO estado, sigue fallando: lo que se declara es cuál,
 // no que no importe.
+//
+// Lo leen dos: el listener de respuestas de abajo, y `revisarFormsAnidados`,
+// que NO es una navegación —es un re-GET del mismo documento— y aun así
+// necesita saber con qué estado tiene que responder esta pantalla.
 let estadoEsperado = null;
 
 // Como `shot()`, pero la pantalla responde con el estado declarado. Falla si
@@ -1044,6 +1076,9 @@ async function shotConEstado(page, name, url, status) {
     console.error(`[ESTADO] ${name}: se esperaba ${status} y respondió ${respuesta.status()}`);
   }
   await capturar(page, name);
+  // DESPUÉS de `capturar()`, y no antes: adentro corre `[FORMS]`, que relee
+  // el documento y espera el estado declarado. Subir esta línea deja las dos
+  // pantallas de error fallando con un mensaje que no apunta a la causa.
   estadoEsperado = null;
 }
 
@@ -2436,8 +2471,8 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     // DESPUÉS de capturar, igual que la pasada clara: esta guarda le cambia la
     // clase al chip para medir las dos variantes y después la repone, y
     // mientras está cambiada el chip no es el que la app renderiza. Antes de
-    // la captura, la reposición pasaba a sostener la foto y las cuatro guardas
-    // que viven en `capturar()`.
+    // la captura, la reposición pasaba a sostener la foto y las guardas que
+    // viven en `capturar()`.
     if (nombre === '91-oscuro-desafio') await revisarChipDelDrawer(page, nombre, 'oscuro');
   }
   await page.emulateMedia({ colorScheme: 'light' });
