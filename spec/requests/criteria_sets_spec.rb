@@ -382,6 +382,45 @@ RSpec.describe "sets de criterios", type: :request do
     end
   end
 
+  # Borrar un set de biblioteca en uso se lleva sus criterios
+  # (`dependent: :destroy`), y un módulo YA ARRANCADO resuelve su snapshot
+  # congelado por id contra esa misma tabla: se queda sin escalas y muestra
+  # «Criterio sin escala resoluble.» en cada fila. La ruta y la policy llegan
+  # igual —`destroy?` es `manager?` a secas, sin mirar el uso— aunque ninguna
+  # vista lo ofrezca todavía.
+  describe "borrar un set" do
+    before { sign_in(owner, company: company) }
+
+    def library_set(name)
+      set = CriteriaSet.create!(name: name, scope: "library")
+      set.criteria.create!(name: "Impacto", weight: 1, source: "manual", scale_type: "numeric")
+      set
+    end
+
+    it "no borra uno que un módulo usa, y le deja los criterios intactos" do
+      set, step = as_company(company) do
+        s = library_set("Comité")
+        [s, create(:challenge_step, :active, criteria_set: s)]
+      end
+
+      delete criteria_set_path(set)
+
+      as_company(company) do
+        expect(CriteriaSet.exists?(set.id)).to be(true)
+        expect(set.reload.criteria.count).to eq(1)
+        expect(step.reload.criteria_set_id).to eq(set.id)
+      end
+    end
+
+    it "borra uno que no usa nadie" do
+      set = as_company(company) { library_set("Sin usar") }
+
+      delete criteria_set_path(set)
+
+      as_company(company) { expect(CriteriaSet.exists?(set.id)).to be(false) }
+    end
+  end
+
   describe "quién puede" do
     it "quien participa, no" do
       sign_in(participant, company: company)

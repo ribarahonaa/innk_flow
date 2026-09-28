@@ -26,10 +26,16 @@ class CriteriaSetsController < ApplicationController
     @props = CriteriaSetPresenter.new(@set, membership: current_membership).as_json
   end
 
+  # El modelo se niega si algún módulo lo usa; acá se lee esa respuesta en vez
+  # de repetir el predicado.
   def destroy
     authorize @set
-    @set.destroy!
-    redirect_to criteria_sets_path, notice: "Set eliminado."
+    if @set.destroy
+      redirect_to criteria_sets_path, notice: "Set eliminado."
+    else
+      redirect_to criteria_sets_path,
+                  alert: "«#{@set.name}» lo usa algún módulo: no se puede eliminar."
+    end
   end
 
   def promote
