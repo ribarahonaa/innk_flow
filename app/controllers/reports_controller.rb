@@ -16,6 +16,18 @@ class ReportsController < ApplicationController
                 notice: "Generando el reporte. La pantalla se actualiza sola."
   end
 
+  # El archivo lo sirve la app y no Active Storage, que verifica la firma del
+  # blob y nada más. Misma puerta que generarlo.
+  def download
+    authorize @step, :report?
+    report = Report.where(challenge_step_id: @step.id).find(params[:id])
+
+    send_data report.file.download,
+              filename: report.file.filename.to_s,
+              type: report.file.content_type,
+              disposition: "attachment"
+  end
+
   # Polling: el patrón de ExcelDocument de innk_r5, scopeado al tenant.
   def statuses
     authorize @step, :report?
@@ -24,7 +36,7 @@ class ReportsController < ApplicationController
     render json: {
       ready: reports.map do |report|
         { id: report.id, format: report.format, kind: report.kind,
-          url: report.file.attached? ? rails_blob_path(report.file, disposition: "attachment") : nil }
+          url: report.file.attached? ? download_challenge_step_report_path(@challenge, @step, report) : nil }
       end,
       pending: Report.where(challenge_step_id: @step.id, status: "pending").count
     }

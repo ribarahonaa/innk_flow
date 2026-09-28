@@ -36,4 +36,4 @@
                   = report.generated_at ? l(report.generated_at, format: :short) : "—"
                   = "· #{report.row_count} filas" if report.row_count
               - if report.ready? && report.file.attached?
-                = link_to "Descargar", rails_blob_path(report.file, disposition: "attachment"), class: "btn btn-ghost btn-sm"
+                = link_to "Descargar", download_challenge_step_report_path(step.challenge, step, report), class: "btn btn-ghost btn-sm"
