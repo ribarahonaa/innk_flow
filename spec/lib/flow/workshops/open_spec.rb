@@ -74,4 +74,29 @@ RSpec.describe Flow::Workshops::Open do
       expect(link.closed_at).to be_nil
     end
   end
+
+  # Fix round 1: sin ningún desafío trabajable y con más de uno no
+  # trabajable, el rollback deshace los dos `update!` a "closed". El
+  # `Result` tiene que decir lo mismo que la base: nada se rechazó porque
+  # nada se abrió. Devolver el array viejo (con los vínculos en memoria en
+  # estado "closed") haría fallar la primera aserción, aunque la base esté
+  # bien.
+  it "no informa vínculos rechazados cuando el intento de apertura falla entero" do
+    as_company(company) do
+      first_bad, = challenge_with("evaluation")
+      second_bad, = challenge_with("reporting")
+      workshop = create(:workshop)
+      first_link = create(:workshop_challenge, workshop: workshop, challenge: first_bad)
+      second_link = create(:workshop_challenge, workshop: workshop, challenge: second_bad)
+
+      result = described_class.new(workshop).call
+
+      expect(result.ok).to be(false)
+      expect(result.rejected).to eq([])
+      expect(first_link.reload).to be_open
+      expect(first_link.closed_at).to be_nil
+      expect(second_link.reload).to be_open
+      expect(second_link.closed_at).to be_nil
+    end
+  end
 end

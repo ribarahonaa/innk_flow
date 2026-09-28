@@ -44,7 +44,10 @@ module Flow
           @workshop.update!(status: "open")
         end
 
-        return Result.new(ok: false, rejected: rejected, errors: [no_workable_challenges]) unless @workshop.reload.open?
+        # Acá el rollback ya deshizo los `update!` a "closed": informar esos
+        # vínculos como rechazados sería mentir sobre lo que quedó en la
+        # base. El motivo de la falla ya viaja en `errors`.
+        return Result.new(ok: false, rejected: [], errors: [no_workable_challenges]) unless @workshop.reload.open?
 
         Result.new(ok: true, rejected: rejected, errors: [])
       end
