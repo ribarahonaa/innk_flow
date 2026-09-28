@@ -1,0 +1,38 @@
+- content_for :title, "Nuevo taller"
+
+.card
+  .card-body
+    %h1.page-title Nuevo taller
+    %p.muted Una sesión de trabajo que abarca varios desafíos. Los sumás desde la pantalla del taller, una vez creado.
+
+    = form_with model: @workshop, url: workshops_path, class: "form-doble" do |f|
+      - if @workshop.errors.any?
+        .alert.alert-soft.alert-error= @workshop.errors.full_messages.to_sentence
+
+      .form-doble__col
+        .field
+          = f.label :name, "Nombre"
+          = f.text_field :name, autofocus: true, required: true, placeholder: "Taller de evolución — semana 3"
+        .field
+          = f.label :scheduled_at, "Cuándo"
+          = f.datetime_field :scheduled_at
+          %p.field-hint Opcional: sólo ordena la lista. Nada del comportamiento del taller depende de esta fecha.
+
+      .form-doble__col
+        .field
+          = f.label :mode, "Cómo se trabaja"
+          .radio-cards
+            - Workshop::MODES.each do |mode|
+              %label.radio-card
+                = f.radio_button :mode, mode
+                %span.radio-card__body
+                  %strong= t("flow.workshop_modes.#{mode}")
+          %p.field-hint
+            - if @challenges.any?
+              = "#{Flow::Texto.contar(@challenges.size, 'desafío')} disponibles para sumar, una vez creado el taller."
+            - else
+              Todavía no hay ningún desafío para sumar.
+
+      .form-actions
+        = link_to "Cancelar", workshops_path, class: "btn btn-ghost"
+        = f.submit "Crear taller", class: "btn btn-primary"

@@ -198,3 +198,10 @@ es:
       economica: "Económica"
       legal: "Legal"
       adopcion: "De adopción"
+    workshop_statuses:
+      draft: "Borrador"
+      open: "Abierto"
+      closed: "Cerrado"
+    workshop_modes:
+      individual: "Individual"
+      group: "Por mesas"

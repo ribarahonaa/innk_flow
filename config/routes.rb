@@ -79,6 +79,16 @@ Rails.application.routes.draw do
     end
   end
 
+  # El taller NO cuelga de un desafío: abarca varios. Por eso es de primer
+  # nivel y no está anidado.
+  resources :workshops, only: %i[index new create show update destroy] do
+    member do
+      post :open
+      post :close
+    end
+    resources :workshop_groups, only: %i[create destroy], path: "mesas"
+  end
+
   # Quiénes están en la empresa y con qué rol.
   resources :members, only: %i[index create update destroy], controller: "memberships"
 

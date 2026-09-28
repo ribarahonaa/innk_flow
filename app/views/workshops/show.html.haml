@@ -1,0 +1,15 @@
+-# El encabezado se sirve siempre: lo ve cualquiera a quien `policy_scope`
+-# dejó pasar (convocado, gestor de alguno de sus desafíos, o quien administra
+-# la empresa). El bloque de armado NO: es una variable calculada UNA vez
+-# arriba (`can_assemble`), la misma forma que ya fijó
+-# `steps/_criterios_editor.html.haml`, y no un predicado repetido por bloque.
+- can_assemble = policy(@workshop).update?
+- content_for :title, @workshop.name
+
+.card
+  .card-body
+    %h1.page-title= @workshop.name
+    %p.muted= t("flow.workshop_statuses.#{@workshop.status}")
+
+- if can_assemble
+  = render "workshops/assembly", workshop: @workshop, links: @links, groups: @groups

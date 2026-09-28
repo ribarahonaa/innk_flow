@@ -1,0 +1,69 @@
+-# El bloque de armado del taller: a qué desafíos se enlaza, con qué mesas
+-# cuenta, y abrirlo o cerrarlo. Sólo se renderiza detrás de `can_assemble`
+-# (`show.html.haml`); acá no se vuelve a preguntar el permiso.
+-#
+-# Sumar un desafío es un PATCH a `workshops#update`, que pregunta
+-# `add_challenge?(challenge)` por cada id — no por el taller — así que un
+-# candidato que el gestor no administra queda afuera aunque lo tilde acá.
+-# Las mesas se muestran de sólo lectura: crearlas y convocar gente es tarea de
+-# `WorkshopGroupsController`, que todavía no existe (llega con la
+-# convocatoria). No hay forma de escribir ahí sin él.
+- available_challenges = policy_scope(Challenge).where.not(id: links.map(&:challenge_id))
+
+.card
+  .card-body
+    .section-head
+      %h2.section-title Desafíos
+    %p.muted Cada uno se enlaza contra el módulo que hoy tiene en curso, recién al abrir el taller.
+
+    - if links.empty?
+      %p.muted Todavía no sumaste ningún desafío.
+    - else
+      %ul.field-list
+        - links.each do |link|
+          %li.field-list__item
+            = link_to link.challenge.name, challenge_path(link.challenge)
+            - if link.closed?
+              %span.field-list__type= link.closed_reason
+
+    - if available_challenges.any?
+      = form_with url: workshop_path(workshop), method: :patch, class: "radio-cards" do
+        - available_challenges.each do |challenge|
+          %label.radio-card
+            = check_box_tag "challenge_ids[]", challenge.id, false, id: "challenge_#{challenge.id}"
+            %span.radio-card__body
+              %strong= challenge.name
+        = submit_tag "Sumar al taller", class: "btn btn-ghost btn-sm"
+    - else
+      %p.field-hint No hay más desafíos para sumar.
+
+.card
+  .card-body
+    .section-head
+      %h2.section-title
+        Mesas
+        %span.muted= " · #{Flow::Texto.contar(groups.size, 'mesa')}"
+
+    - if groups.empty?
+      %p.muted Todavía no hay mesas armadas.
+    - else
+      %ul.field-list
+        - groups.each do |group|
+          %li.field-list__item
+            %span= group.name
+            %span.field-list__type= Flow::Texto.contar(group.members.size, "persona")
+
+.card
+  .card-body
+    .section-head
+      %h2.section-title Estado del taller
+
+    - if workshop.draft?
+      %p.muted Abrirlo resuelve, para cada desafío, contra qué módulo trabaja cada mesa.
+      = button_to "Abrir taller", open_workshop_path(workshop), method: :post, class: "btn btn-primary"
+    - elsif workshop.open?
+      %p.muted Cerrarlo cierra todas las salas. No se puede reabrir.
+      = button_to "Cerrar taller", close_workshop_path(workshop), method: :post, class: "btn btn-ghost",
+                  form: { data: { turbo_confirm: "¿Cerrar este taller? No se puede reabrir." } }
+    - else
+      %p.muted Este taller ya cerró.

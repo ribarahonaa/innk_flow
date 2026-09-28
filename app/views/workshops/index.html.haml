@@ -1,0 +1,37 @@
+- content_for :title, "Talleres"
+
+.page-head
+  %div
+    %h1.page-title Talleres
+    %p.muted Sesiones de trabajo que abarcan varios desafíos.
+  - if policy(Workshop).create?
+    = link_to "Nuevo taller", new_workshop_path, class: "btn btn-primary"
+
+- if @workshops.empty?
+  .card
+    .card-body.empty-state
+      %h2 Todavía no hay talleres
+      %p.muted Un taller junta varias mesas trabajando sobre distintos desafíos, en la misma sesión.
+      - if policy(Workshop).create?
+        = link_to "Crear el primero", new_workshop_path, class: "btn btn-primary"
+- else
+  .card
+    .card-body
+      %table.table
+        %thead
+          %tr
+            %th Nombre
+            %th Modo
+            %th Estado
+            %th Cuándo
+        %tbody
+          - @workshops.each do |workshop|
+            %tr
+              %td= link_to workshop.name, workshop_path(workshop)
+              %td= t("flow.workshop_modes.#{workshop.mode}")
+              %td= t("flow.workshop_statuses.#{workshop.status}")
+              %td.muted
+                - if workshop.scheduled_at
+                  = l(workshop.scheduled_at, format: :short)
+                - else
+                  Sin fecha
