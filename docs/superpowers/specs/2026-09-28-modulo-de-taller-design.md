@@ -252,9 +252,15 @@ La mesa tiene un tablero de borradores del desafío vinculado. Crear uno crea la
 `Idea` en `draft` (ver 3.4). El payload toma la forma de los `form_fields` del
 módulo de idear de **ese** desafío.
 
-Postular usa el camino que ya existe. El módulo de idear está activo por
-definición —es la condición del vínculo—, así que no hay riesgo de la idea sin
-fila en ninguna `step_entries`, que es el bug que `CLAUDE.md` deja anotado.
+Postular usa el camino que ya existe: `submitted_at`, y nada más. Idear es el
+único módulo cuyo cohorte arranca vacío —`Flow::Cohort.for` devuelve
+`Idea.none` para `ideation`—, así que ahí no hay `step_entries` que faltar.
+
+El riesgo real es el otro, y es el que `CLAUDE.md` deja anotado: una idea
+creada con idear **cerrado** no cuenta para su `can_complete?` y, si el módulo
+siguiente ya se activó, entra al desafío sin fila en el cohorte de nadie
+—`sync!` ya corrió—. La condición del vínculo lo previene de raíz: el taller
+sólo se abre contra un módulo de idear **activo**.
 
 ### Cara «evolución»
 
