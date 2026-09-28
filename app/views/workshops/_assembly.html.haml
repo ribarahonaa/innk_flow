@@ -5,9 +5,9 @@
 -# Sumar un desafío es un PATCH a `workshops#update`, que pregunta
 -# `add_challenge?(challenge)` por cada id — no por el taller — así que un
 -# candidato que el gestor no administra queda afuera aunque lo tilde acá.
--# Las mesas se muestran de sólo lectura: crearlas y convocar gente es tarea de
--# `WorkshopGroupsController`, que todavía no existe (llega con la
--# convocatoria). No hay forma de escribir ahí sin él.
+-# Las mesas —crearlas y convocar gente— viven en su propio partial
+-# (`workshops/groups`), rendereado más abajo: sigue detrás de este mismo
+-# `can_assemble`, así que tampoco vuelve a preguntar el permiso.
 - available_challenges = policy_scope(Challenge).where.not(id: links.map(&:challenge_id))
 
 .card
@@ -37,21 +37,7 @@
     - else
       %p.field-hint No hay más desafíos para sumar.
 
-.card
-  .card-body
-    .section-head
-      %h2.section-title
-        Mesas
-        %span.muted= " · #{Flow::Texto.contar(groups.size, 'mesa')}"
-
-    - if groups.empty?
-      %p.muted Todavía no hay mesas armadas.
-    - else
-      %ul.field-list
-        - groups.each do |group|
-          %li.field-list__item
-            %span= group.name
-            %span.field-list__type= Flow::Texto.contar(group.members.size, "persona")
+= render "workshops/groups", workshop: workshop, groups: groups
 
 .card
   .card-body

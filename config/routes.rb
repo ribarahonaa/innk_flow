@@ -85,6 +85,10 @@ Rails.application.routes.draw do
     member do
       post :open
       post :close
+      # `to:` explícito: sin él, `post :convoke` mapea a `workshops#convoke`,
+      # que no existe.
+      post   :convoke, to: "workshop_convocations#create"
+      delete :dismiss, to: "workshop_convocations#destroy"
     end
     resources :workshop_groups, only: %i[create destroy], path: "mesas"
   end

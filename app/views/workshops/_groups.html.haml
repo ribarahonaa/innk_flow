@@ -1,0 +1,67 @@
+-# Las mesas del taller: armarlas y convocar gente. Se renderiza desde
+-# `_assembly`, detrás del mismo `can_assemble` (calculado en `show.html.haml`
+-# y reusado en toda la cadena): acá no se vuelve a preguntar el permiso.
+-#
+-# Convocar ES sumar a una mesa (`Flow::Workshops::Convoke`): no hay una lista
+-# de convocados aparte. En modo individual, elegir a la persona alcanza — el
+-# servicio le arma su propia mesa —, así que ahí no hace falta "Crear mesa" ni
+-# elegir a cuál. En modo por mesas hay que decir a CUÁL, así que el alta de
+-# gente vive dentro de cada mesa y "Crear mesa" se ofrece antes de poder
+-# convocar a nadie.
+-#
+-# La lista de candidatos es toda la empresa menos quien ya está en una mesa
+-# de ESTE taller: participar de un desafío vinculado no es estar convocado
+-# (`WorkshopPolicy::Scope`), así que la convocatoria no se acota a eso.
+- already_in_ids = WorkshopGroupMember.joins(:workshop_group).where(workshop_groups: { workshop_id: workshop.id }).select(:user_id)
+- convocable = User.joins(:memberships).where(memberships: { company_id: Current.company.id }).where.not(id: already_in_ids).order(:name)
+
+.card
+  .card-body
+    .section-head
+      %h2.section-title
+        Mesas
+        %span.muted= " · #{Flow::Texto.contar(groups.size, 'mesa')}"
+
+    - if groups.empty?
+      %p.muted Todavía no hay mesas armadas.
+    - else
+      %ul.field-list
+        - groups.each do |group|
+          %li.field-list__item
+            .assignment-row
+              %span
+                = group.name
+                %span.muted= " · #{Flow::Texto.contar(group.members.size, 'persona')}"
+              .assignment-row__actions
+                = button_to "Eliminar mesa", workshop_workshop_group_path(workshop, group), method: :delete,
+                            class: "btn btn-ghost btn-sm",
+                            form: { data: { turbo_confirm: "¿Eliminar esta mesa? Se saca a quien esté en ella." } }
+
+            - if group.members.any?
+              %ul.field-list
+                - group.members.each do |person|
+                  %li.field-list__item
+                    %span= person.name
+                    = button_to "Sacar", dismiss_workshop_path(workshop), method: :delete,
+                                params: { user_id: person.id }, class: "btn btn-ghost btn-sm"
+
+            - if workshop.mode == "group" && convocable.any?
+              -# El `id:` explícito evita ids duplicados: cada mesa repite este
+              -# mismo form, y sin distinguirlos el DOM tiene tantos
+              -# `#user_id` como mesas.
+              = form_with url: convoke_workshop_path(workshop), method: :post, class: "assignment-add" do
+                = hidden_field_tag :workshop_group_id, group.id, id: "mesa_#{group.id}"
+                = select_tag :user_id, options_from_collection_for_select(convocable, :id, :name),
+                             include_blank: "Sumar a esta mesa…", id: "convocar_#{group.id}"
+                = submit_tag "Convocar", class: "btn btn-ghost btn-sm"
+
+    - if workshop.mode == "group"
+      = form_with url: workshop_workshop_groups_path(workshop), method: :post, class: "assignment-add" do
+        = text_field_tag :name, nil, placeholder: "Nombre de la mesa (opcional)"
+        = submit_tag "Crear mesa", class: "btn btn-ghost btn-sm"
+    - elsif convocable.any?
+      %p.field-hint Convocar arma la mesa de esa persona sola.
+      = form_with url: convoke_workshop_path(workshop), method: :post, class: "assignment-add" do
+        = select_tag :user_id, options_from_collection_for_select(convocable, :id, :name),
+                     include_blank: "Convocar…"
+        = submit_tag "Convocar", class: "btn btn-ghost btn-sm"
