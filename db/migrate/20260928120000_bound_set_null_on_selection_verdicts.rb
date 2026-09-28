@@ -28,10 +28,10 @@ class BoundSetNullOnSelectionVerdicts < ActiveRecord::Migration[7.1]
     PARENTS.each do |to_table, column|
       remove_tenant_fk :selection_verdicts, column: column
       execute <<~SQL.squish
-        ALTER TABLE selection_verdicts
+        ALTER TABLE #{quote_table_name(:selection_verdicts)}
           ADD CONSTRAINT selection_verdicts_#{column}_same_company
           FOREIGN KEY (#{column}, company_id)
-          REFERENCES #{to_table} (id, company_id)
+          REFERENCES #{quote_table_name(to_table)} (id, company_id)
           ON DELETE SET NULL
       SQL
     end

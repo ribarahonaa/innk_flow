@@ -405,6 +405,12 @@ RSpec.describe "sets de criterios", type: :request do
 
       delete criteria_set_path(set)
 
+      # El aviso, además del dato: sin esto, un `destroy` sin `if` pasa las tres
+      # aserciones de abajo y le dice «Set eliminado.» a quien lo ve seguir en
+      # la lista.
+      expect(flash[:alert]).to include("no se puede eliminar")
+      expect(flash[:notice]).to be_nil
+
       as_company(company) do
         expect(CriteriaSet.exists?(set.id)).to be(true)
         expect(set.reload.criteria.count).to eq(1)
@@ -417,6 +423,7 @@ RSpec.describe "sets de criterios", type: :request do
 
       delete criteria_set_path(set)
 
+      expect(flash[:notice]).to eq("Set eliminado.")
       as_company(company) { expect(CriteriaSet.exists?(set.id)).to be(false) }
     end
   end
