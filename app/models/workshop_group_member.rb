@@ -19,8 +19,8 @@ class WorkshopGroupMember < ApplicationRecord
   def one_group_per_workshop
     return if workshop_group.nil? || user_id.blank?
 
-    hermanas = WorkshopGroup.where(workshop_id: workshop_group.workshop_id).where.not(id: workshop_group_id)
-    return unless WorkshopGroupMember.where(workshop_group_id: hermanas, user_id: user_id).exists?
+    sibling_groups = WorkshopGroup.where(workshop_id: workshop_group.workshop_id).where.not(id: workshop_group_id)
+    return unless WorkshopGroupMember.where(workshop_group_id: sibling_groups, user_id: user_id).exists?
 
     errors.add(:user_id, "ya está en otra mesa de este taller")
   end
