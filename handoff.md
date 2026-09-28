@@ -2,298 +2,223 @@
 
 ## Objetivo
 
-Cerrar los cuatro menores que el handoff anterior dejaba «con el terreno
-medido»: el memo de la ficha de evaluación, `skip!` sobre un módulo terminado,
-`StepNotReady` sin rescate y la ceguera de `[MONO]` a la prosa partida.
+Ordenar lo pendiente por prioridad y cerrar los dos P0 que salieron de ese
+orden: las dos FKs compuestas `ON DELETE SET NULL` sin acotar y los archivos que
+se servían por fuera de Pundit.
 
-Los cuatro están cerrados, y la revisión de rama destapó un quinto —la ficha de
-evaluación DE VERDAD conservaba el fan-out— que se cerró en la misma tanda.
+Los dos están cerrados, mergeados y pusheados. Cada uno pasó por revisión de
+rama, y las dos revisiones encontraron cosas reales.
 
-**Después, en una segunda tanda, se tomó el primer diferido: que el aviso de
-«no está listo» no decía QUÉ módulo.**
+**El listado vive en una página con estado propio, no en un archivo:**
+https://claude.ai/artifact/C2i3g3ZRz1gUeMuX3bEXrq — 57 tareas tildables en 19
+frentes, cinco tramos de prioridad, y los checks se guardan solos. P0 quedó
+`6 / 6`.
 
 ## Estado actual
 
-- **Dos merges: `01afef4` (los cuatro menores) y `c53a90d` (el aviso). Encima
-  del segundo va sólo este handoff, así que la punta de `master` es el commit
-  siguiente.** (El handoff anterior decía «master está en X» apuntando al merge
-  y no a la punta, y esa línea confundió al abrirlo.) Pusheado, sin ramas vivas,
-  árbol limpio.
-- **`make spec` → 1151 ejemplos, 0 fallas** (venía de 1141) y **`make screens`
+- **Dos merges: `37bb173` (las FKs) y `2bff3e2` (los archivos). La punta de
+  `master` es el commit de este handoff.** Pusheado, sin ramas vivas ni locales
+  ni en el remoto, árbol limpio.
+- **`make spec` → 1169 ejemplos, 0 fallas** (venía de 1151) y **`make screens`
   → 66 capturas, 0 errores**.
 - El árbol de cada merge es idéntico al de su rama.
-- El stack quedó levantado.
-- **La base de desarrollo SÍ se tocó, una vez y a propósito:** se borraron los 6
-  campos de formulario que alguien le aplicó a «Postulación» de
-  `sin-formulario` con un pedido real a la IA (ver «Intentos fallidos»). Con
-  ellos, `make screens` no podía pasar.
+- El stack quedó levantado, con la app reiniciada (el cambio de
+  `config/application.rb` no se recarga en caliente).
+- **La base de desarrollo se tocó tres veces y a propósito:** `db:migrate`, una
+  ida y vuelta `db:rollback` + `db:migrate` para probar el `down`, y `db:seed`
+  para probar que la restricción nueva no rompe el seed. Todas las mediciones
+  destructivas —los `DELETE` que probaban el bug— fueron dentro de una
+  transacción con `ROLLBACK`.
 
 ### Decisiones de Raúl en esta sesión
 
-Dos tandas, las dos con el formato de siempre: diseño corto en el chat
-(bounded, sin spec ni plan en `docs/`), ejecución nativa, revisión de rama al
-final, merge `--no-ff` a master y push, sin PR. «Avisame cuando termine»:
-autonomía de punta a punta, merge incluido.
-
-1. **Los cuatro menores medidos.** Se le ofreció acotar dos cosas del diseño
-   —dejar `start!` afuera de los rescates, y que `skip!` siguiera devolviendo el
-   step con el mensaje resuelto en el controller— y no acotó ninguna.
-2. **El aviso que no decía qué módulo.** Se le ofreció la variante chica
-   —nombrar sólo dentro de `Evaluation#can_activate?`— y eligió la que mueve el
-   nombre al sitio del `raise`.
-
-Y dos decisiones sobre el desvío de la base: borrar sólo los 6 campos (no un
-reseed, que pisaría el desafío hecho a mano que no está en `db/seeds.rb`), e
-investigar si había sido el subagente **y** acotar la instrucción de read-only.
+1. **El listado como página con checks**, no como `docs/backlog.md`: «saber
+   cuáles vamos terminando de forma más simple».
+2. **Cerrar el hallazgo del set de criterios en la misma rama de las FKs**, en
+   vez de dejarlo como ítem propio.
+3. **Borrar del remoto la rama ya mergeada**, condicionado a que estuviera
+   pasada (lo verifiqué antes: era ancestro de master con cero commits propios).
+4. **Para los archivos: cerrar las rutas de Active Storage** (y no sólo dejar de
+   usarlas) **y `send_data`**, sabiendo que carga el archivo en memoria.
+5. «Avisame cuando termine» sobre el P0-2: autonomía de punta a punta, revisión
+   y merge incluidos.
 
 ## Archivos y cambios
 
-Dos merges. `01afef4` con cinco commits: `ac19eff` (el memo), `5912893` (el
-salteo de un módulo terminado), `2f8b703` (los rescates), `e9f27ed` (`[MONO]`) y
-`c0ee2ab` (lo que encontró la revisión). Y `c53a90d` con dos: `4eecb5a` (el
-aviso) y `33b5036` (lo que encontró su revisión).
+**`37bb173` — las dos FKs.** Tres commits: `1fb0f56` (la migración y el
+acotador), `49d7985` (el set en uso no se borra), `12189e6` (lo que encontró la
+revisión).
 
-**El memo de los criterios, en las DOS pantallas.** `Evaluation#snapshot_records`
-trae las filas vivas del snapshot en una consulta. Lo usan `criteria_preview`
-—la previsualización de quien configura— y `assessments/new`, que es la ficha
-que se completa una vez por idea. La segunda no estaba en el plan: la encontró
-la revisión, y es la que pesa.
+`ON DELETE SET NULL` sobre una FK compuesta nulea TODAS las columnas si no se
+acota con `SET NULL (columna)`. Dos de las catorce no lo tenían, así que borrar
+un criterio o un run de IA moría con `PG::NotNullViolation`. El acotador se sumó
+a `add_tenant_fk` DESPUÉS de que esa migración corriera, y las dos viejas
+quedaron mal en la base y en el dump — o sea en todo entorno nuevo y en
+`innk_flow_test`.
 
-**`skip!` no reescribe un módulo que ya terminó.** Se niega sobre `completed?` o
-`skipped?` y devuelve `false`; el controller lee esa respuesta para el aviso en
-vez de repetir el predicado.
+La guarda pasó de cubrir 1 de 14 a leer el catálogo, con la regla escrita como
+**«nulear no puede romper un NOT NULL»** en vez de «no puede nombrar
+company_id»: cubre cualquier otra columna NOT NULL y también acotar la columna
+equivocada. Y tiene **piso**: sin él, una consulta rota devuelve cero filas y el
+ejemplo pasa midiendo nada.
 
-**Los tres rescates de `StepNotReady`, afuera del `with_lock`.** `start!`,
-`advance!` y `continue!` devuelven un `failure` en vez de morir con 500.
+De ahí salió el segundo commit: sin el `NotNullViolation` accidental, borrar un
+set de criterios en uso pasaba a funcionar, y eso se lleva sus criterios — de
+donde el snapshot congelado de un módulo arrancado resuelve las escalas por id.
+Va como `restrict_with_error` en la asociación.
 
-**`[MONO]` une los nodos de texto propios con espacio.** Dos fragmentos
-separados por un hijo inline ya no se fusionan en un falso identificador.
+**`2bff3e2` — los archivos.** Dos commits: `03b7a49` (las dos acciones y el
+cierre de rutas), `4c6c821` (lo que encontró la revisión).
 
-**El nombre del módulo lo pone `Base#activate!`, no cada handler.** Las razones
-de `can_activate?` dicen el PORQUÉ; el «cuál» es de quien avisa. La regla está
-escrita en el CONTRATO de `can_activate?`, que es lo único que lee quien escribe
-un handler —`activate!` no se sobreescribe—. `Ideation` y `Selection` dejaron de
-nombrarse, y que ninguna vuelva a hacerlo lo cuida el spec de cada handler.
+`IdeaAttachmentsController#show` y `ReportsController#download`, cada uno detrás
+de la puerta que ya existía, y `draw_routes = false`. Entregar el archivo va por
+`ApplicationController#send_attached_file`, que concentra la guarda de
+`attached?`, el `content_type_for_serving` y el `disposition`.
 
 ## Intentos fallidos
 
-### Dos datos del handoff anterior que estaban mal, y los dos cambiaban el arreglo
+### Una guarda que no funcionaba por el ORDEN de declaración
 
-- **«Hoy nadie lo alcanza así» (sobre `skip!`) era falso.**
-  `ChallengeStepPolicy#skip?` es `administers?(challenge)` y no mira el estado
-  del módulo, así que la ruta llega a uno completado. No era una guarda
-  preventiva: era un defecto vivo, misma superficie que el bug de salteo de la
-  tanda anterior —sin control en ninguna vista, pero la ruta y la policy sí—.
+La primera versión del «set en uso no se borra» era un `before_destroy` propio y
+**daba verde con el defecto adentro**: el callback que agrega
+`dependent: :nullify` corre ANTES de uno declarado más abajo, así que preguntaba
+`in_use?` cuando los steps ya estaban vaciados y contestaba que no. No se ve
+leyendo la guarda; se ve en el orden de las líneas. Expresar la regla COMO la
+asociación (`restrict_with_error`) borra la pregunta del orden en vez de
+esquivarla.
 
-- **El ejemplo con el que `[MONO]` estaba documentado no tiene el bug que
-  ilustra, y falla de dos formas a la vez.** `<span>Impacto<b>·</b>Numérico</span>`:
-  (a) el `<b>` se reporta por su cuenta, porque «·» no es identificador, así que
-  la guarda «dispara» y la falta del padre queda tapada; y (b)
-  «ImpactoNumérico» no pasa `^[A-Za-z0-9_.-]+$` por la tilde, así que ese padre
-  se reportaba igual. Un autotest escrito con ese caso pasa en verde con el
-  defecto adentro. El caso que quedó va sin tilde y con separador sin texto
-  propio, que es la única combinación que se escapaba. La (b) la encontró la
-  revisión; yo había corregido sólo la (a) y repetido el ejemplo acentuado en
-  la prosa y en el mensaje del commit.
+### Perdí trabajo con `git checkout --`
 
-### Una guarda mía que medía el costo y no la corrección
+Para sacar una mutación de prueba corrí `git checkout -- spec/tenancy/schema_spec.rb`
+sobre un archivo que tenía el rewrite de la guarda **sin commitear**. Se fue
+entero. Lo noté porque la medición siguiente imprimió el mensaje de la versión
+vieja, no el nuevo — o sea que estuve midiendo la guarda vieja creyendo que era
+la nueva. **Para sacar una mutación de un archivo con trabajo sin commitear, el
+reemplazo puntual (sed/python), nunca `git checkout --`.**
 
-El conteo de consultas de `previews_spec` no ataba nada de lo que el memo tiene
-que producir: el NOMBRE del criterio lo pinta el snapshot, así que con
-`snapshot_records` devolviendo `{}` las consultas desaparecen, el conteo pasa y
-el `include("Impacto","Riesgo","Costo")` sigue verde mientras la ficha se
-degrada a «Criterio sin escala resoluble.» en los tres. Es el mismo mecanismo
-que el inventario anterior ya listaba: una aserción que el código roto también
-satisface. Lo ata el `name="scores[impacto]"`, que sólo existe si la fila viva
-resolvió su escala.
+### Dos afirmaciones mías que había que corregir
 
-**La regla que queda: un conteo de consultas mide el costo, nunca la
-corrección. Va siempre con una aserción sobre lo que se pinta, en el mismo
-ejemplo.**
+- **El hunk de `pg_dump` no se puede limpiar.** Dije que re-dumpear sacaría el
+  reformateo incidental de los CHECK. Re-dumpeé: el ruido se **mueve** a otros
+  tres CHECK. Es no determinista entre corridas, así que se queda el dump
+  original y no hay nada que perseguir.
+- **Eran TRES call sites de `rails_blob_path`, no dos.** El tercero es el JSON
+  del polling de reportes. Sin él, el endpoint tiraba 500 en cuanto las rutas se
+  cerraran.
 
-### Un identificador en español escrito bajo la regla nueva
+### Dos ejemplos míos que pasaban por el motivo equivocado
 
-`no_pudo_abrir` fue el primero desde que CLAUDE.md dice que el código va en
-inglés. Lo cazó la revisión; pasa a `not_ready_failure`, y el helper nuevo del
-spec a `with_broken_set!`. La regla es fácil de violar justo donde el resto del
-archivo está en español (comentarios) y el método es privado.
+- **«Sin sesión no entrega el archivo» corría CON sesión.** El `let!` sube el
+  adjunto firmando como la autora. Lo cazó al fallar; va con `reset!`. Y la
+  revisión sumó que afirmar «cualquier cosa menos 200» también pasaría si la
+  autenticación desapareciera y el pedido cayera en un 404 por scope: ahora
+  afirma `redirect_to(login_path)`.
+- **El `link_to` de descargas no lo renderizaba NINGÚN spec.** El único reporte
+  `ready` de la suite es un `dashboard` sin archivo, así que la condición
+  `ready? && attached?` nunca se cumplía y un helper mal escrito daba verde con
+  500 en pantalla.
 
-### La segunda revisión: media guarda y dos comentarios de más
+### Lo que encontraron las revisiones, y que yo no
 
-El commit del aviso sacó el auto-nombrado de DOS handlers y el ejemplo que lo
-cuidaba ejercitaba uno solo, mientras su comentario afirmaba cubrir los dos.
-Devolverle el nombre a `Ideation` no rompía nada. **Se cierra en el spec de
-CADA handler y no en el del Pipeline**: `not_to include(name)` al lado de la
-aserción del motivo vale para cualquier handler y cualquier camino, y vive
-donde alguien escribe una razón nueva.
+- **La guarda nueva podía pasar midiendo cero** (sin el piso).
+- **El aviso del borrado mentía**: las aserciones miraban el dato y no la
+  respuesta, así que un `destroy` sin `if` decía «Set eliminado.» con el set
+  todavía en la lista.
+- **Un archivo no adjunto era 500 y no 404**, alcanzable por todo reporte
+  `dashboard` (nace `ready` sin archivo) y por una fila de adjunto sin archivo.
+- **Un comentario afirmaba lo contrario del código** en un archivo que el diff
+  tocó («el link de Active Storage no pasa por Pundit»).
+- **`\bIdea\b` no matchea `IdeaAttachment`**, así que el lint de ideas no vería
+  el bug que este controller existe para no tener. Está anotado en su lista.
 
-Y dos comentarios míos decían de más:
+### Una acusación mía equivocada, otra vez
 
-- «Con una sola evaluación, cualquier mensaje nombra la correcta por accidente»
-  era falso: nombrar el primero del flujo o el último completado los caza igual
-  una sola. Lo que la SEGUNDA compra es una mutación puntual —resolver el nombre
-  POR KIND devuelve la otra evaluación—, que es la forma exacta del bug. La
-  fixture se gana el lugar, por una razón más filosa que la escrita.
-- La justificación de poner el nombre en el mensaje citaba que
-  `Flow::Steps::ActivateJob` lo deja escapar al log. El job existe pero **no lo
-  encola nadie**: la única mención fuera de su archivo era mi propio comentario.
+`origin/fk-set-null-acotadas` apareció en el remoto sin que yo la pushée, y me
+puse a buscar hooks y a greppear el transcript del revisor. **La había pusheado
+Raúl.** Antes de investigar de quién fue algo en el remoto, preguntar.
 
-Más un punto ciego de la fixture: el módulo que fallaba era el ÚLTIMO del flujo,
-así que una mutación que nombrara `steps.ordered.last` pasaba en verde.
-Confundir «el que falla» con «el último» es tan plausible como confundirlo con
-«el primero», que sí estaba cubierto.
+## Lo que funcionó
 
-**La regla que queda: cuando un cambio toca N lugares, la guarda tiene que
-cubrir los N, y el comentario no puede afirmar una cobertura que no tiene.**
+**Verificar cada hallazgo de la revisión antes de implementarlo.** Las dos
+Important de la primera revisión eran afirmaciones sobre mutaciones que
+sobreviven, así que se comprueban CORRIENDO la mutación: las dos sobrevivían.
+Las dos de la segunda eran un 500 alcanzable, así que se comprueba escribiendo
+el ejemplo y viéndolo fallar con `ArgumentError`. Ninguna se implementó a ciegas.
 
-### Un pedido pago a la IA, y una acusación mía equivocada
+**Mutar la base de test para medir un detector de esquema.** Desacotar de verdad
+una constraint y volverla a acotar es lo único que prueba que el detector mide el
+catálogo y no su propia opinión.
 
-`make screens` falló en `09-10-form-vacio` sin que la rama tuviera nada que
-ver: `sin-formulario` → «Postulación» tenía 6 campos, y esa captura sólo pasa
-con el formulario vacío (con campos, el botón se llama «Rehacer el formulario
-con IA» y el localizador no matchea).
+**Pedirle al revisor las preguntas que me preocupaban**, no sólo el diff. La
+pregunta «¿queda algún camino sin autenticar a un archivo?» devolvió un barrido
+de trece superficies que yo no había mirado (el file server estático, los
+mailers, los jobs, las variantes, el layout del PDF, el disk service).
 
-El rastro de auditoría: `suggest_form_fields`, **provider anthropic, modelo
-claude-sonnet-5, ai_assisted, succeeded**, 2026-09-25 10:14:53, cuenta
-`admin2@demo.test`, sobre `sin-formulario`. Los campos entraron 11 segundos
-después. **Fue un pedido real y costó plata.**
+## Cosas del entorno
 
-No fue el recorrido: el script está construido para que ninguna captura dispare
-un pedido real —usa `recorrido-ia` y un `purpose` inexistente— y este run no
-tiene al lado el par de `detect_duplicates` que toda corrida deja.
-
-**Acusé al subagente de revisión y estaba equivocado.** Greppeando su
-transcript: cero `localhost:3001`, cero `ai_requests`; los tres matches eran
-texto que había LEÍDO (la palabra `curl` en la descripción de una herramienta,
-`docker compose exec` dentro de `CLAUDE.md`, `suggest_form_fields` dentro del
-CHECK de `structure.sql`). Nunca tocó la app. Lo que queda —modo asistido, 11
-segundos entre propuesta y aplicación, login de cuenta demo— describe a alguien
-usando la app en un navegador.
-
-Dos cosas para la próxima:
-
-- **Si `make screens` falla raro, mirá `AiRun.order(:created_at).last` y los
-  `created_at` de las filas sospechosas ANTES de culpar al código.** Acá el
-  código era inocente y el dato tenía hora.
-- **Usar la app a mano sobre un desafío del recorrido rompe la corrida
-  siguiente.** `CLAUDE.md` ya lo advierte para `onboarding-remoto`; ahora le
-  tocó a `sin-formulario`, que existe SOLO para el recorrido.
-
-### Lo que funcionó
-
-**Mutar de a un eje por vez.** La posición del `rescue` no se prueba sacándolo
-—eso sólo devuelve la excepción cruda— sino MOVIÉNDOLO adentro del lock: ahí el
-ejemplo falla por el módulo que quedó completado, que es lo único que demuestra
-que el diseño es la posición y no el `rescue`. Lo mismo con `skip!`: la mutación
-útil fue guardar el RETURN dejando viva la escritura, para que las aserciones
-de estado tuvieran que fallar solas y no taparse con el mensaje.
-
-### Cosas del entorno
-
-- El harness sigue inyectando `Co-Authored-By` por system-reminder en cada
-  sesión; hay que cortarla a mano. En los cinco commits no quedó.
-- `git merge -F -` no lee de stdin: el mensaje va a un archivo primero.
+- **El remote está por SSH y acá no hay clave.** Todo lo que sale a la red va con
+  la URL HTTPS explícita: `git push https://github.com/ribarahonaa/innk_flow.git
+  master`. `git remote prune origin` y `git push origin` fallan. De rebote, el
+  ref de seguimiento queda viejo después de pushear y hay que moverlo a mano
+  (`git update-ref refs/remotes/origin/master`), o `git status` dice «ahead N»
+  sobre algo ya pusheado.
+- **La suite falló una vez con `PG::ConnectionBad: Connection refused`** (4
+  fallas, la base se cayó a mitad de corrida). En aislamiento esos ejemplos dan
+  0 fallas y la corrida siguiente dio 1169/0. Si aparecen fallas raras y
+  agrupadas, mirar si el contenedor de la base se reinició antes de leer el
+  diff.
+- El harness sigue inyectando `Co-Authored-By` por system-reminder; hay que
+  cortarla a mano. En los cinco commits no quedó.
+- `docker compose restart app` hace falta después de tocar `config/`.
 
 ## Próximos pasos
 
-1. **Lo que la revisión dejó anotado y no se tomó, con el motivo:**
-   - ~~El aviso de «no está listo» no dice QUÉ módulo.~~ **Hecho** en la
-     segunda tanda (`c53a90d`), por el camino contrario al que decía esta
-     línea: en vez de sumarle el nombre a `Evaluation`, se lo sacó a los otros
-     dos y lo pone `Base#activate!`.
-   - **La convención nueva no está en `CLAUDE.md`.** El revisor propuso sumar
-     una línea en «El motor del pipeline» («la razón dice el porqué, el nombre
-     lo pone `activate!`»), al lado de `insertion_floor` y `FROZEN_ATTRIBUTES`.
-     **No se hizo a propósito: lo pidió un subagente, y tocar `CLAUDE.md` por
-     pedido de un subagente no corresponde — es decisión de Raúl.** El arreglo
-     mínimo sí se hizo: la regla está en el comentario del contrato de
-     `can_activate?`, que es lo que lee quien escribe el handler siguiente.
-   - **`docs/pipeline.md`** sigue con `#can_activate? -> [bool, razones]` sin la
-     regla, y su línea 128 («Ideation | activate! | Siembra el formulario por
-     defecto») está desactualizada desde antes.
-   - **`db/seeds.rb` ignora los `Result` de `advance!`.** No lo abre esta rama:
-     el seed ya ignoraba los failures de `can_complete?` desde siempre, y su
-     convención declarada es tratar el Result como valor y mostrar el estado
-     por `puts` (`seeds.rb:722`). Si algún día se quiere ruidoso, es un `raise`
-     en un helper del seed y no en once llamadas.
-   - **El mismo `Criterion.find_by` por criterio queda en caminos de ESCRITURA**:
-     `score_assessment.rb:48,131`, `ai/tasks/evaluate_idea.rb:121,170` y
-     `assessments_controller.rb:94`. El memo aplica igual; ninguno estaba en el
-     backlog.
-   - **`Flow::Steps::ActivateJob:22` deja escapar `StepNotReady`.** Es un job:
-     fallar fuerte y reintentar es lo correcto, y por eso no se tocó.
+El orden completo está en la página del listado. Lo inmediato:
 
-2. **Dos capacidades de dominio sin control en ninguna vista**, que es por lo
-   que sus defectos sobreviven sin que nada los toque: **saltear un módulo**
-   (`post :skip`) y **cerrar un desafío a mano** (`post :close`). Las dos tienen
-   policy, cobertura y funcionan; ofrecerlas es decisión de producto y no se
-   tomó. Si se ofrece el salteo, ojo con dos cosas ya anotadas: saltear un
-   módulo PENDIENTE sube el piso de inserción y congela los pendientes
-   anteriores; y `ChallengeStepPolicy#skip?` dice que sí también sobre un módulo
-   cerrado, así que el control tiene que preguntar por el estado —el predicado
-   vive en `Handlers::Base#skip!` y no se duplica—.
+1. **P1, cinco frentes:** `[FORMS]` que no cubre las pantallas a las que se
+   llega por clic (es la guarda que `CLAUDE.md` nombra por el bug del corte, o
+   sea ciega justo donde ya mordió); que nada vigile el relleno por default de
+   `card` desde que se retiró `[CARD]`; asignar a evaluar a un `participant` por
+   POST directo (y que dar de baja a alguien le deje las asignaciones vivas); la
+   sesión que sobrevive a perder la membresía; y el aviso del corte que infla el
+   número con un id fabricado.
 
-3. **Una convención sin decidir:** conviven dos concordancias para la misma
-   forma de frase — `ideas/show:114` concuerda el adjetivo con el TOTAL («1 de 3
-   comentarios atendidos») y el drawer con la CUENTA («1 de 3 listo»). Las dos
-   se defienden en español. Si se quiere una sola regla, el lugar es una línea
-   al lado de `Flow::Texto.plural`.
+2. **P2, cinco decisiones tuyas**, ninguna es trabajo pendiente:
+   - **La línea en `CLAUDE.md`** sobre la convención del nombre en `activate!`.
+     Sigue sin hacerse por lo mismo que la vez pasada: la pidió un subagente.
+     **Y ahora hay una segunda candidata**: que las rutas de Active Storage
+     están cerradas y un `has_one_attached` nuevo necesita su propia acción. Lo
+     documenté en `docs/tenancy.md`, que es un doc y no `CLAUDE.md`; si querés
+     una línea en la sección de multi-tenancy, es tuya.
+   - `docs/pipeline.md` desactualizado en dos puntos.
+   - Los dos controles que no existen en ninguna vista (saltear un módulo,
+     cerrar un desafío).
+   - **Para qué existe `DELETE /criteria_sets/:id`**: el modelo ya se niega si
+     el set está en uso, así que la capacidad es sana; falta decidir si se
+     muestra un control (deshabilitado con el motivo, y ahí es donde el aviso
+     tendría que nombrar QUÉ módulo lo usa) o si se saca la ruta. El precedente
+     de `CLAUDE.md` corta hacia sacarla: `Tasks::EvaluateIdea#editable?` se
+     borró por ser «una capacidad del dominio sin interfaz».
+   - La concordancia del plural.
 
-4. **Lo que sigue midiendo el terreno, del inventario anterior:**
-   - El **«3 / 2»** de `steps/_celdas_de_evaluacion.html.haml:9` (evaluaciones
-     hechas sobre el mínimo, con el numerador capaz de pasar al denominador) y
-     el **«N / M»** de `steps/reporting.html.haml:134`.
-   - El `min-width: 110px` del criterio del desglose alinea la columna de
-     puntajes **sólo mientras cada nombre entre en 110px**. El comentario ya lo
-     dice y propone la forma.
-   - **El falso positivo que habilita el `join(' ')` de `[MONO]`**: dos
-     identificadores separados por un hijo SIN texto —«v3» + ícono + «v4»— leen
-     como prosa. Hoy da cero en las 66 pantallas; cuando aparezca, la respuesta
-     es darle a cada identificador su propio elemento mono, no aflojar el join.
-     Está escrito al lado del cambio.
+3. **Lo que las dos revisiones marcaron y no se tomó, con el motivo:**
+   - Un ejemplo destructivo para las dos constraints arregladas: el piso las
+     nombra, así que revertirlas ya falla.
+   - Consolidar más allá de `send_attached_file`: con dos llamadores no rinde.
+   - `ai_suggestions.criteria_set_id` es la única de sus cuatro columnas de
+     destino **sin foreign key**, así que queda fuera de la garantía de FK
+     compuesta. Dormida: hoy ninguna tarea apunta a un set. Está en el listado.
+   - **Las guardas de esquema ven una FK equivocada pero no una FALTANTE**, así
+     que nada detecta lo de arriba. En el listado.
+   - `active_storage_blobs` y `active_storage_attachments` no tienen
+     `company_id` ni FKs compuestas. Hoy es inocuo porque nada llega a un blob
+     por id, y eso quedó escrito en `docs/tenancy.md`.
+   - Sin CSP (`config/initializers/content_security_policy.rb` está comentado
+     entero). Preexistente, y sólo pesaría si alguien sirviera un adjunto
+     `inline`.
 
-5. **Lo visual que sigue en pie del repaso de capturas:** `Choose File / No file
-   chosen` sin estilo en `16-idea-new`; `18-select-company` con el rol fuera del
-   botón y el separador colgando; el popup de espera sin backdrop
-   (`09-13-ia-espera`); la previsualización que se repite a sí misma en 5 de 7
-   tarjetas; el popup de la IA que dice lo mismo tres veces; el hueco muerto del
-   Brief; «Cómo quedó configurado» encabalgado; la columna «Acción» que apila;
-   «Armar el flujo con IA» sin controles con el flujo arrancado; «Distribución
-   de puntajes» con dos filas de números; «Quién evalúa» duplicado sin el peso.
-
-6. **Los minors diferidos de la revisión de la pastilla**, ninguno urgente:
-   `[PASTILLA]` no asegura «midió al menos N» por pantalla; la regla de
-   `currentColor` debilita `[CLASES]` para los chips suaves; un borde punteado
-   se acredita como pastilla entera; `flow.entry_statuses.skipped` huérfano en
-   `es.yml`; los números del comentario de la hoja salen de 7 pantallas y el
-   comentario no lo acota; `medirContraste` corre dos veces por pantalla sobre
-   `.badge`; y **`.alert` sigue con el 8% de relleno de DaisyUI** — extender
-   `[PASTILLA]` a `.alert` es cambiar un selector.
-
-7. **Los menores diferidos del rol gestor** (variable muerta en
-   `_referencia_evaluacion.html.haml:8`, `AssessmentPolicy#update?` sin
-   cobertura ni llamador vivo, `CriteriaSetPolicy#update?` con
-   `owner_step: nil`, «Ver el set» sin test de polaridad, la tabla de
-   `gestor_administra_spec.rb` sin columnas de `participant` ni `evaluator`) y
-   **dos rastros del renombre dejados a propósito** (el nombre de
-   `gestor_administra_spec.rb` y los documentos de `docs/superpowers/`).
-
-8. **El backlog largo, intacto:** el breadcrumb de `criteria_sets/edit` que para
-   un set `inline` vuelve a una lista que nunca lo muestra;
-   `Pipeline#validate` vs `Selection#can_activate?`; las once FKs con
-   `ON DELETE SET NULL` sin acotador; `[FORMS]` que no cubre las pantallas a
-   las que se llega por clic; los cuatro menores del módulo de testing; el plan
-   2c (el resto de las islas Vue), `SelectionsController#update` sin validación
-   server-side, `criteria_sets#show` huérfana, las 3 consultas de evolución,
-   los tres temas de seguridad preexistentes, y que nada vigila el relleno por
-   default de `card` desde que se retiró `[CARD]`.
-
-9. **Sobre el recorrido como red, tres límites que conviene no olvidar:**
-   - Dos pares de capturas son la MISMA pantalla (`03c-paso-a-paso` =
-     `09-10-form-vacio`, `05e-config-seleccion` = `09-12-criterios-del-modulo`),
-     así que las 66 capturas no son 66 pantallas.
-   - **Sólo corre a 1440 y 1100px.** Abajo de 1024, donde el drawer pasa a ser
-     una tira horizontal y el título se elipsa, no lo mira nada.
-   - **La pasada oscura son diez pantallas y tres no tienen drawer**, así que
-     toda variante que sólo aparezca en un desafío en borrador no se mide en
-     oscuro.
+4. **Lo demás del listado**, sin cambios: los diez visuales del repaso de
+   capturas, `.alert` con el 8% de relleno de DaisyUI (el más barato de todo:
+   es extender `[PASTILLA]` a un selector), los cuatro del módulo de testing,
+   los cinco del rol gestor, los cinco de la pastilla, el terreno ya medido y
+   el backlog largo.
