@@ -13,6 +13,14 @@
 ## Global Constraints
 
 - **El código va en inglés; los comentarios y los mensajes de commit, en español.**
+  **Y este plan se contradice a sí mismo:** varios de sus bloques de código de
+  ejemplo usan variables y métodos privados en español (`hermanas`, `taller`,
+  `mesa`, `persona`, `resultado`, `motivo`, `mesa_de`, `aceptar`…). Es un
+  defecto del plan, no una excepción. **Al implementar, traducí todo
+  identificador nuevo al inglés** —variables locales, métodos, helpers de
+  spec— y dejá los **comentarios y los strings en español**, que es donde van.
+  La regla de `CLAUDE.md` rige para lo que se escribe de ahora en más; lo que
+  ya existe en el repo en español no se toca ni se renombra al pasar.
 - **Toda tabla y toda columna nueva va en inglés, sin excepción.**
 - Todo corre en Docker. **Nunca `bundle exec` en el host.**
 - **Los specs corren con `make spec*`**, que usa `app_test`. `docker compose exec app bundle exec rspec` deja `RAILS_ENV=development` y **todos los request specs dan 403 «Blocked hosts»**.
