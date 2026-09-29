@@ -52,6 +52,11 @@ RSpec.describe "talleres", type: :request do
       patch workshop_path(created), params: { challenge_ids: [propio.id, ajeno.id] }
       expect(as_company(company) { created.workshop_challenges.pluck(:challenge_id) }).to eq([propio.id])
       expect(flash[:notice]).to include("no lo administrás")
+
+      as_company(company) { create(:challenge_step, challenge: propio, kind: "ideation", status: "active") }
+      post open_workshop_path(created)
+      expect(flash[:notice]).to include("Taller abierto")
+      expect(as_company(company) { created.reload.status }).to eq("open")
     end
 
     it "no administra el taller que creó otra persona: 404 y ningún cambio" do

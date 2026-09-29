@@ -103,6 +103,22 @@ RSpec.describe WorkshopPolicy do
       end
     end
 
+    it "si le revocan la asignación del único desafío del taller, deja de administrarlo" do
+      as_company(company) do
+        challenge = create(:challenge)
+        assignment = ChallengeGestor.create!(challenge: challenge, user: challenge_gestor.user)
+        workshop = create(:workshop, created_by: challenge_gestor.user)
+        create(:workshop_challenge, workshop: workshop, challenge: challenge)
+        expect(WorkshopPolicy.new(challenge_gestor, workshop).update?).to be(true)
+
+        assignment.destroy!
+        policy = WorkshopPolicy.new(challenge_gestor, workshop.reload)
+        expect(policy.update?).to be(false)
+        expect(policy.work?).to be(false)
+        expect(policy.manage_groups?).to be(false)
+      end
+    end
+
     it "un taller sin autor (creado por quien ya no está) no se abre a ningún gestor" do
       as_company(company) do
         workshop = create(:workshop, created_by: nil)
@@ -125,10 +141,12 @@ RSpec.describe WorkshopPolicy do
   it "responder update? y work? cuesta una sola consulta de asignaciones, sin importar cuántos vínculos" do
     as_company(company) do
       workshop = create(:workshop)
-      3.times do
+      # Sólo el ÚLTIMO desafío es del gestor: el `any?` viejo recorría los tres
+      # vínculos con un `exists?` cada uno; el subquery, uno solo.
+      3.times do |i|
         challenge = create(:challenge)
         create(:workshop_challenge, workshop: workshop, challenge: challenge)
-        ChallengeGestor.create!(challenge: challenge, user: challenge_gestor.user)
+        ChallengeGestor.create!(challenge: challenge, user: challenge_gestor.user) if i == 2
       end
       policy = WorkshopPolicy.new(challenge_gestor, workshop)
 

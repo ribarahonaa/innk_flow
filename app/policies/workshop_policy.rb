@@ -72,7 +72,10 @@ class WorkshopPolicy < ApplicationPolicy
     return false if membership.nil?
     return true if manager?
     return false unless membership.gestor?
-    return true if record.created_by_id == membership.user_id
+    # La autoría sólo vale mientras el taller no tiene desafíos: cubre crear y
+    # sumar el primero. Con desafíos, la autoridad los sigue: si le revocan la
+    # asignación, no conserva un taller cuyo desafío ya no ve.
+    return true if record.created_by_id == membership.user_id && record.workshop_challenges.empty?
 
     ChallengeGestor.exists?(
       user_id: membership.user_id,

@@ -21,7 +21,8 @@
       -# de ser proponible sin que la pantalla dijera por qué no está.
       - if file_fields.any?
         .alert.alert-soft.alert-warning
-          %div= "#{file_fields.size == 1 ? 'El campo de archivo' : 'Los campos de archivo'} #{file_fields.map(&:label).to_sentence} no se propone desde el taller, por eso no está en el formulario."
+          - una = file_fields.size == 1
+          %div= "#{una ? 'El campo de archivo' : 'Los campos de archivo'} #{file_fields.map(&:label).to_sentence} #{una ? 'no se propone' : 'no se proponen'} desde el taller, por eso #{una ? 'no está' : 'no están'} en el formulario."
       - ideas.each do |idea|
         %div
           %h3= idea.title
