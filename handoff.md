@@ -2,223 +2,215 @@
 
 ## Objetivo
 
-Ordenar lo pendiente por prioridad y cerrar los dos P0 que salieron de ese
-orden: las dos FKs compuestas `ON DELETE SET NULL` sin acotar y los archivos que
-se servían por fuera de Pundit.
+Dos cosas. Primero, cerrar **P1-1** del listado: la guarda `[FORMS]` de
+`make screens` no cubría las pantallas a las que se llega por clic. Segundo,
+diseñar y empezar a construir **el módulo de taller**: un evento que abarca
+varios desafíos y donde la gente trabaja en mesas generando ideas.
 
-Los dos están cerrados, mergeados y pusheados. Cada uno pasó por revisión de
-rama, y las dos revisiones encontraron cosas reales.
-
-**El listado vive en una página con estado propio, no en un archivo:**
-https://claude.ai/artifact/C2i3g3ZRz1gUeMuX3bEXrq — 57 tareas tildables en 19
-frentes, cinco tramos de prioridad, y los checks se guardan solos. P0 quedó
-`6 / 6`.
+Lo primero está mergeado y pusheado. Lo segundo va por la mitad, en una rama
+sin pushear.
 
 ## Estado actual
 
-- **Dos merges: `37bb173` (las FKs) y `2bff3e2` (los archivos). La punta de
-  `master` es el commit de este handoff.** Pusheado, sin ramas vivas ni locales
-  ni en el remoto, árbol limpio.
-- **`make spec` → 1169 ejemplos, 0 fallas** (venía de 1151) y **`make screens`
-  → 66 capturas, 0 errores**.
-- El árbol de cada merge es idéntico al de su rama.
-- El stack quedó levantado, con la app reiniciada (el cambio de
-  `config/application.rb` no se recarga en caliente).
-- **La base de desarrollo se tocó tres veces y a propósito:** `db:migrate`, una
-  ida y vuelta `db:rollback` + `db:migrate` para probar el `down`, y `db:seed`
-  para probar que la restricción nueva no rompe el seed. Todas las mediciones
-  destructivas —los `DELETE` que probaban el bug— fueron dentro de una
-  transacción con `ROLLBACK`.
+### Lo cerrado: P1-1, en `master`
 
-### Decisiones de Raúl en esta sesión
+- **`master` está en `74d95b4`, pusheado.** `make spec` 1169/0 y `make screens`
+  66 capturas / 0 errores sobre el merge.
+- `[FORMS]`, `[TEXTO]` y `[RITMO]` se mudaron de `shot()` a `capturar()`.
+  Medido: de las 66 capturas **sólo 23 pasan por `shot()`**; las otras 43
+  navegan por clic o por `goto` suelto y salteaban las tres guardas. Cinco
+  call sites las repetían a mano.
+- `[FORMS]` ganó **piso**. Tenía dos formas de aprobar sin mirar nada: el
+  `.catch(() => '')` convertía una lectura fallida en cero `<form>`, y
+  `page.request.get` **sigue los redirects**, así que con la sesión perdida
+  contaba los forms del login. Ahora exige el estado declarado, la MISMA URL
+  y un documento HTML.
+- El listado de pendientes quedó en **63 hojas / 21 frentes**, con
+  `forms-por-clic` tildado y tres ítems nuevos:
+  https://claude.ai/artifact/C2i3g3ZRz1gUeMuX3bEXrq
 
-1. **El listado como página con checks**, no como `docs/backlog.md`: «saber
-   cuáles vamos terminando de forma más simple».
-2. **Cerrar el hallazgo del set de criterios en la misma rama de las FKs**, en
-   vez de dejarlo como ítem propio.
-3. **Borrar del remoto la rama ya mergeada**, condicionado a que estuviera
-   pasada (lo verifiqué antes: era ancestro de master con cero commits propios).
-4. **Para los archivos: cerrar las rutas de Active Storage** (y no sólo dejar de
-   usarlas) **y `send_data`**, sabiendo que carga el archivo en memoria.
-5. «Avisame cuando termine» sobre el P0-2: autonomía de punta a punta, revisión
-   y merge incluidos.
+### Lo que va por la mitad: el taller, en `modulo-de-taller`
+
+**Rama `modulo-de-taller`, 14 commits sobre `master`, SIN pushear, árbol
+limpio.** `make spec` **1209/0** (venía de 1169).
+
+Hay spec de diseño y plan de implementación, los dos commiteados:
+
+- `docs/superpowers/specs/2026-09-28-modulo-de-taller-design.md`
+- `docs/superpowers/plans/2026-09-28-modulo-de-taller.md` (diez tareas)
+
+**6 de 10 tareas cerradas**, cada una con revisión de subagente:
+
+| # | Tarea | Commits | Fix rounds |
+|---|---|---|---|
+| 1 | Las cinco tablas y los cinco modelos | `868893d..4922a12` | 1 |
+| 2 | `IdeaVersion` acepta el actor `workshop` | `8a41630` | 0 |
+| 3 | `WorkshopPolicy` y su `Scope` | `71133ed..f648b65` | 1 |
+| 4 | El ciclo de vida (abrir / cerrar) | `cafb752..245e4f0` | 1 |
+| 5 | Rutas, controller y pantallas de armado | `0b5c574` | 0 |
+| 6 | Las mesas y la convocatoria | `def28c8..94be7fa` | 1 |
+
+**Faltan las tareas 7 a 10:** la sala cara «idear», la sala cara «evolución»,
+aceptar/descartar la propuesta desde la ficha de la idea, y seeds + capturas +
+suite.
+
+**El ledger de la ejecución está en
+`.superpowers/sdd/2026-09-28-modulo-de-taller/progress.md`** (git-ignored) y es
+el mapa de recuperación: tiene el barrido previo, todas las rulings, los minor
+diferidos y los briefs por tarea. **No lo borres**: el plan no terminó.
+
+### Las decisiones de diseño, en una línea cada una
+
+Las siete decisiones están argumentadas en el spec. Lo que hay que saber para
+no romperlas:
+
+- **El taller NO es un `kind` del pipeline.** `Flow::Pipeline#active_step` es
+  un módulo activo por construcción. El taller es un evento que se monta sobre
+  la fase en curso.
+- **`Idea` no cambia** y **`IdeaPolicy::Scope` no cambia.** La visibilidad por
+  mesa **cae** de la regla que ya existe: crear un borrador en la sala crea la
+  `Idea` con el resto de la mesa como `idea_contributors` desde el minuto cero.
+- **El vínculo apunta al MÓDULO** (`workshop_challenges.challenge_step_id`), no
+  a la fase. De ahí salen el modo de la sala, el cierre automático y el
+  `challenge_step_id` correcto para no mezclar dos rondas de evolución.
+- **El cierre del vínculo es perezoso**: nada se engancha en `advance!`.
+- En evolución, **la mesa trabaja sólo las ideas de sus integrantes** (sin
+  polinización cruzada), y **el taller propone; el autor publica**.
 
 ## Archivos y cambios
 
-**`37bb173` — las dos FKs.** Tres commits: `1fb0f56` (la migración y el
-acotador), `49d7985` (el set en uso no se borra), `12189e6` (lo que encontró la
-revisión).
+**En `master` (P1-1):** `script/capture_screens.js`, un solo archivo.
 
-`ON DELETE SET NULL` sobre una FK compuesta nulea TODAS las columnas si no se
-acota con `SET NULL (columna)`. Dos de las catorce no lo tenían, así que borrar
-un criterio o un run de IA moría con `PG::NotNullViolation`. El acotador se sumó
-a `add_tenant_fk` DESPUÉS de que esa migración corriera, y las dos viejas
-quedaron mal en la base y en el dump — o sea en todo entorno nuevo y en
-`innk_flow_test`.
+**En `modulo-de-taller`:**
 
-La guarda pasó de cubrir 1 de 14 a leer el catálogo, con la regla escrita como
-**«nulear no puede romper un NOT NULL»** en vez de «no puede nombrar
-company_id»: cubre cualquier otra columna NOT NULL y también acotar la columna
-equivocada. Y tiene **piso**: sin él, una consulta rota devuelve cero filas y el
-ejemplo pasa midiendo nada.
-
-De ahí salió el segundo commit: sin el `NotNullViolation` accidental, borrar un
-set de criterios en uso pasaba a funcionar, y eso se lleva sus criterios — de
-donde el snapshot congelado de un módulo arrancado resuelve las escalas por id.
-Va como `restrict_with_error` en la asociación.
-
-**`2bff3e2` — los archivos.** Dos commits: `03b7a49` (las dos acciones y el
-cierre de rutas), `4c6c821` (lo que encontró la revisión).
-
-`IdeaAttachmentsController#show` y `ReportsController#download`, cada uno detrás
-de la puerta que ya existía, y `draw_routes = false`. Entregar el archivo va por
-`ApplicationController#send_attached_file`, que concentra la guarda de
-`attached?`, el `content_type_for_serving` y el `disposition`.
+- Migraciones: `create_workshops` (cinco tablas con FKs compuestas),
+  `allow_workshop_actor_on_idea_versions` (CHECK de Postgres).
+- Modelos: `workshop.rb`, `workshop_challenge.rb`, `workshop_group.rb`,
+  `workshop_group_member.rb`, `workshop_proposal.rb`.
+- Servicios: `app/lib/flow/workshops/{open,close,convoke}.rb`.
+- Policy: `app/policies/workshop_policy.rb`.
+- Controllers: `workshops_controller.rb`, `workshop_groups_controller.rb`,
+  `workshop_convocations_controller.rb`.
+- Vistas: `app/views/workshops/{index,new,show,_assembly,_groups}.html.haml`.
+- `config/routes.rb`, `config/locales/es.yml`, `spec/factories/core.rb`.
+- Specs nuevos: tenencia, policy, los tres servicios, y dos de requests.
 
 ## Intentos fallidos
 
-### Una guarda que no funcionaba por el ORDEN de declaración
+### El plan se contradecía a sí mismo, y costó un fix round
 
-La primera versión del «set en uso no se borra» era un `before_destroy` propio y
-**daba verde con el defecto adentro**: el callback que agrega
-`dependent: :nullify` corre ANTES de uno declarado más abajo, así que preguntaba
-`in_use?` cuando los steps ya estaban vaciados y contestaba que no. No se ve
-leyendo la guarda; se ve en el orden de las líneas. Expresar la regla COMO la
-asociación (`restrict_with_error`) borra la pregunta del orden en vez de
-esquivarla.
+Las Global Constraints del plan decían «el código va en inglés» y sus propios
+bloques de código de ejemplo usaban variables en español (`hermanas`, `taller`,
+`mesa`…). El revisor de la Task 1 lo cazó como hallazgo. **Se arregló en el
+plan (`d050a21`), no sólo en la Task 1** — si no, se repetía nueve veces.
 
-### Perdí trabajo con `git checkout --`
+**Lección: cuando un hallazgo es del plan, arreglá el plan antes de arreglar la
+tarea.** Después de eso, todos los implementadores tradujeron sin que se los
+pidiera dos veces.
 
-Para sacar una mutación de prueba corrí `git checkout -- spec/tenancy/schema_spec.rb`
-sobre un archivo que tenía el rewrite de la guarda **sin commitear**. Se fue
-entero. Lo noté porque la medición siguiente imprimió el mensaje de la versión
-vieja, no el nuevo — o sea que estuve midiendo la guarda vieja creyendo que era
-la nueva. **Para sacar una mutación de un archivo con trabajo sin commitear, el
-reemplazo puntual (sed/python), nunca `git checkout --`.**
+### Inventé un helper de test que no existe
 
-### Dos afirmaciones mías que había que corregir
+Escribí `sign_in_as(user, company)` en el plan. El helper real es
+`sign_in(user, company:)`, en `spec/support/tenant_helpers.rb`. Lo cazó el
+repaso del plan, antes de ejecutar — pero es exactamente la clase de error que
+hace arrancar una tarea en rojo por la razón equivocada.
 
-- **El hunk de `pg_dump` no se puede limpiar.** Dije que re-dumpear sacaría el
-  reformateo incidental de los CHECK. Re-dumpeé: el ruido se **mueve** a otros
-  tres CHECK. Es no determinista entre corridas, así que se queda el dump
-  original y no hay nada que perseguir.
-- **Eran TRES call sites de `rails_blob_path`, no dos.** El tercero es el JSON
-  del polling de reportes. Sin él, el endpoint tiraba 500 en cuanto las rutas se
-  cerraran.
+### Tres conflictos que el barrido previo destapó, y que habrían costado vueltas
 
-### Dos ejemplos míos que pasaban por el motivo equivocado
+- El plan rotulaba módulos con `flow.step_kinds.<kind>`, que **no existe**; la
+  clave real es `flow.kinds.<kind>`. El `default:` lo silenciaba, así que un
+  implementador razonable habría "arreglado" el test o duplicado la clave.
+- `post :convoke` a secas mapea a `workshops#convoke`, no al controller de
+  convocatorias. Necesita `to:` explícito.
+- La Task 8 usaba `workshop_sala_proposals_path` en su spec y nunca declaraba
+  la ruta.
 
-- **«Sin sesión no entrega el archivo» corría CON sesión.** El `let!` sube el
-  adjunto firmando como la autora. Lo cazó al fallar; va con `reset!`. Y la
-  revisión sumó que afirmar «cualquier cosa menos 200» también pasaría si la
-  autenticación desapareciera y el pedido cayera en un 404 por scope: ahora
-  afirma `redirect_to(login_path)`.
-- **El `link_to` de descargas no lo renderizaba NINGÚN spec.** El único reporte
-  `ready` de la suite es un `dashboard` sin archivo, así que la condición
-  `ready? && attached?` nunca se cumplía y un helper mal escrito daba verde con
-  500 en pantalla.
+### Un razonamiento mío que estaba mal en el spec
 
-### Lo que encontraron las revisiones, y que yo no
+Escribí que postular desde el taller no corre riesgo de «idea sin fila en
+`step_entries`». El razonamiento era falso: **idear es el único módulo cuyo
+cohorte arranca vacío** (`Flow::Cohort.for` devuelve `Idea.none` para
+`ideation`), así que ahí no hay entries que faltar. El riesgo real es el otro
+—crear ideas con idear **cerrado**—, y la condición del vínculo lo previene
+igual. Corregido en el spec.
 
-- **La guarda nueva podía pasar midiendo cero** (sin el piso).
-- **El aviso del borrado mentía**: las aserciones miraban el dato y no la
-  respuesta, así que un `destroy` sin `if` decía «Set eliminado.» con el set
-  todavía en la lista.
-- **Un archivo no adjunto era 500 y no 404**, alcanzable por todo reporte
-  `dashboard` (nace `ready` sin archivo) y por una fila de adjunto sin archivo.
-- **Un comentario afirmaba lo contrario del código** en un archivo que el diff
-  tocó («el link de Active Storage no pasa por Pundit»).
-- **`\bIdea\b` no matchea `IdeaAttachment`**, así que el lint de ideas no vería
-  el bug que este controller existe para no tener. Está anotado en su lista.
+### Una sospecha razonable que resultó falsa (no la vuelvas a perseguir)
 
-### Una acusación mía equivocada, otra vez
+`raise ActiveRecord::Rollback` dentro de `with_lock` **SÍ revierte**, en test y
+en producción. La sospecha era que RSpec envuelve cada ejemplo en una
+transacción y que la anidada se uniría a ella, tragándose el rollback. No pasa:
+`ActiveRecord::TestFixtures` abre la transacción del ejemplo con
+`joinable: false`, así que `with_lock` abre un **SAVEPOINT real**. Sin
+transacción ambiente, `NullTransaction#joinable?` también es `false`.
+Verificado contra el código de activerecord 7.1.3.4.
 
-`origin/fk-set-null-acotadas` apareció en el remoto sin que yo la pushée, y me
-puse a buscar hooks y a greppear el transcript del revisor. **La había pusheado
-Raúl.** Antes de investigar de quién fue algo en el remoto, preguntar.
+### Lo que encontraron las revisiones y yo no
 
-## Lo que funcionó
+- **Dos permisos sin un solo test** en la Task 3: `work?` entero, y la rama del
+  gestor en `Scope#resolve`. En este repo *abrir un permiso de más no rompe
+  ningún otro test*, así que esos huecos no se notan solos.
+- **`result.rejected` quedaba stale** en el camino de fallo de
+  `Flow::Workshops::Open`: el rollback deshacía los cierres pero el array en
+  memoria seguía diciendo que N vínculos se habían cerrado.
+- **`Convoke` reventaba con `user_id` vacío**, alcanzable desde el `select` sin
+  `required:` y desde cualquier POST fabricado. Y el crash no estaba donde el
+  implementador creía: revienta en `convoked?` (`nil.id`), antes de llegar a
+  nombrar la mesa.
+- **Un test que no podía fallar** por lo que decía probar: afirmaba
+  `include("mesa")`, y los DOS mensajes de error del servicio contienen «mesa».
 
-**Verificar cada hallazgo de la revisión antes de implementarlo.** Las dos
-Important de la primera revisión eran afirmaciones sobre mutaciones que
-sobreviven, así que se comprueban CORRIENDO la mutación: las dos sobrevivían.
-Las dos de la segunda eran un 500 alcanzable, así que se comprueba escribiendo
-el ejemplo y viéndolo fallar con `ArgumentError`. Ninguna se implementó a ciegas.
+### Una regla tuya que ya estaba guardada y no apliqué
 
-**Mutar la base de test para medir un detector de esquema.** Desacotar de verdad
-una constraint y volverla a acotar es lo único que prueba que el detector mide el
-catálogo y no su propia opinión.
-
-**Pedirle al revisor las preguntas que me preocupaban**, no sólo el diff. La
-pregunta «¿queda algún camino sin autenticar a un archivo?» devolvió un barrido
-de trece superficies que yo no había mirado (el file server estático, los
-mailers, los jobs, las variantes, el layout del PDF, el disk service).
-
-## Cosas del entorno
-
-- **El remote está por SSH y acá no hay clave.** Todo lo que sale a la red va con
-  la URL HTTPS explícita: `git push https://github.com/ribarahonaa/innk_flow.git
-  master`. `git remote prune origin` y `git push origin` fallan. De rebote, el
-  ref de seguimiento queda viejo después de pushear y hay que moverlo a mano
-  (`git update-ref refs/remotes/origin/master`), o `git status` dice «ahead N»
-  sobre algo ya pusheado.
-- **La suite falló una vez con `PG::ConnectionBad: Connection refused`** (4
-  fallas, la base se cayó a mitad de corrida). En aislamiento esos ejemplos dan
-  0 fallas y la corrida siguiente dio 1169/0. Si aparecen fallas raras y
-  agrupadas, mirar si el contenedor de la base se reinició antes de leer el
-  diff.
-- El harness sigue inyectando `Co-Authored-By` por system-reminder; hay que
-  cortarla a mano. En los cinco commits no quedó.
-- `docker compose restart app` hace falta después de tocar `config/`.
+La memoria `avisar-cambio-de-task` dice «al terminar una tarea, PARAR y
+preguntar». Encadené cinco tareas sin preguntar. El motivo concreto: **la línea
+del índice de `MEMORY.md`** —que es lo único que se carga al arrancar— resumía
+la memoria como «una línea *task N en ejecución* en cada transición» y se comía
+la parte del permiso. **El índice ya está corregido.**
 
 ## Próximos pasos
 
-El orden completo está en la página del listado. Lo inmediato:
+1. **Decidir las dos cosas que quedaron pendientes de Raúl**, que son la misma
+   pregunta de producto:
+   - `Flow::Workshops::Close` **no valida el estado**: `Open` exige `draft?`,
+     pero `Close` no exige `open?`, así que un POST a `close_workshop_path`
+     sobre un taller en borrador lo salta a `closed` sin haber estado abierto.
+   - Con el taller **cerrado** siguen disponibles «crear mesa», «convocar» y
+     «desconvocar».
 
-1. **P1, cinco frentes:** `[FORMS]` que no cubre las pantallas a las que se
-   llega por clic (es la guarda que `CLAUDE.md` nombra por el bug del corte, o
-   sea ciega justo donde ya mordió); que nada vigile el relleno por default de
-   `card` desde que se retiró `[CARD]`; asignar a evaluar a un `participant` por
-   POST directo (y que dar de baja a alguien le deje las asignaciones vivas); la
-   sesión que sobrevive a perder la membresía; y el aviso del corte que infla el
-   número con un id fabricado.
+   Si se resuelven, entran en la Task 7 o en un commit propio. Si no, van a la
+   revisión final de la rama.
 
-2. **P2, cinco decisiones tuyas**, ninguna es trabajo pendiente:
-   - **La línea en `CLAUDE.md`** sobre la convención del nombre en `activate!`.
-     Sigue sin hacerse por lo mismo que la vez pasada: la pidió un subagente.
-     **Y ahora hay una segunda candidata**: que las rutas de Active Storage
-     están cerradas y un `has_one_attached` nuevo necesita su propia acción. Lo
-     documenté en `docs/tenancy.md`, que es un doc y no `CLAUDE.md`; si querés
-     una línea en la sección de multi-tenancy, es tuya.
-   - `docs/pipeline.md` desactualizado en dos puntos.
-   - Los dos controles que no existen en ninguna vista (saltear un módulo,
-     cerrar un desafío).
-   - **Para qué existe `DELETE /criteria_sets/:id`**: el modelo ya se niega si
-     el set está en uso, así que la capacidad es sana; falta decidir si se
-     muestra un control (deshabilitado con el motivo, y ahí es donde el aviso
-     tendría que nombrar QUÉ módulo lo usa) o si se saca la ruta. El precedente
-     de `CLAUDE.md` corta hacia sacarla: `Tasks::EvaluateIdea#editable?` se
-     borró por ser «una capacidad del dominio sin interfaz».
-   - La concordancia del plural.
+2. **Seguir el plan desde la Task 7**, con subagent-driven. El ledger tiene el
+   estado exacto; los briefs de las tareas 7 a 10 ya están generados en el
+   workspace. **Parar y preguntar al cerrar cada tarea.**
 
-3. **Lo que las dos revisiones marcaron y no se tomó, con el motivo:**
-   - Un ejemplo destructivo para las dos constraints arregladas: el piso las
-     nombra, así que revertirlas ya falla.
-   - Consolidar más allá de `send_attached_file`: con dos llamadores no rinde.
-   - `ai_suggestions.criteria_set_id` es la única de sus cuatro columnas de
-     destino **sin foreign key**, así que queda fuera de la garantía de FK
-     compuesta. Dormida: hoy ninguna tarea apunta a un set. Está en el listado.
-   - **Las guardas de esquema ven una FK equivocada pero no una FALTANTE**, así
-     que nada detecta lo de arriba. En el listado.
-   - `active_storage_blobs` y `active_storage_attachments` no tienen
-     `company_id` ni FKs compuestas. Hoy es inocuo porque nada llega a un blob
-     por id, y eso quedó escrito en `docs/tenancy.md`.
-   - Sin CSP (`config/initializers/content_security_policy.rb` está comentado
-     entero). Preexistente, y sólo pesaría si alguien sirviera un adjunto
-     `inline`.
+   - Task 7 — la sala, cara «idear». Es la que trae el truco que sostiene toda
+     la visibilidad.
+   - Task 8 — la sala, cara «evolución».
+   - Task 9 — aceptar o descartar la propuesta desde la ficha de la idea.
+   - Task 10 — seeds propios, capturas y la suite. **`make screens` lo corre el
+     controlador, nunca un subagente.**
 
-4. **Lo demás del listado**, sin cambios: los diez visuales del repaso de
-   capturas, `.alert` con el 8% de relleno de DaisyUI (el más barato de todo:
-   es extender `[PASTILLA]` a un selector), los cuatro del módulo de testing,
-   los cinco del rol gestor, los cinco de la pastilla, el terreno ya medido y
-   el backlog largo.
+3. **Al terminar las diez: revisión final de rama entera**, apuntada a los
+   minor diferidos del ledger, y recién ahí merge + push.
+
+4. **Volver al listado P1**, que sigue con cuatro frentes abiertos: el relleno
+   de `card` sin vigilancia, asignar a evaluar a un `participant` por POST
+   directo, la sesión que sobrevive a perder la membresía, y el aviso del corte
+   con el id fabricado. Más los tres ítems nuevos que sumó esta sesión: el piso
+   de `[RITMO]`, el `form form` en el DOM, y la trampa del `422` renderizado en
+   el lugar.
+
+## Cosas del entorno
+
+- **En desarrollo `FLOW_AI_PROVIDER=anthropic`: un pedido a la IA cuesta plata
+  real.** Ningún subagente abre la app ni dispara pedidos a la IA; los
+  implementadores pueden correr `make spec*` y migraciones, nada más.
+- **El remote está por SSH y acá no hay clave.** Todo push va con la URL HTTPS
+  explícita (`git push https://github.com/ribarahonaa/innk_flow.git master`), y
+  después hay que mover el ref de seguimiento a mano con `git update-ref`.
+- **Las ramas van en el directorio del proyecto, sin worktree**: Docker está
+  atado a él.
+- El harness sigue inyectando `Co-Authored-By` por system-reminder; hay que
+  cortarla a mano. En los 14 commits de la rama no quedó ninguna (verificado
+  con grep sobre todo el rango).

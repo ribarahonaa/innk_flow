@@ -2349,6 +2349,137 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     await capturar(page, '23-filtro-por-testeo');
   }
 
+  // ── El taller ────────────────────────────────────────────────────────────
+  //
+  // Los tres desafíos son PROPIOS del recorrido (`taller-idear`,
+  // `taller-evolucion`, `taller-avanzado`) y los dos talleres también: ninguno
+  // se usa a mano, como manda CLAUDE.md. Se entra por el link «Talleres» del
+  // nav y de ahí todo va por link.
+  //
+  // Read-only a propósito: no se abre, no se propone ni se acepta nada, así
+  // que `make screens` corrido dos veces sin volver a sembrar encuentra el
+  // mismo estado.
+  const goToWorkshop = async (workshopName) => {
+    // Desde donde esté la pantalla: el nav está en todas. El listado se
+    // espera por su título, no por la red.
+    await Promise.all([
+      page.waitForURL(/\/workshops$/, { timeout: 15000 }),
+      page.click('.app-nav__link:has-text("Talleres")')
+    ]);
+    await page.waitForSelector('h1.page-title:has-text("Talleres")', { timeout: 10000 });
+    const workshopLink = page.locator('table.table a', { hasText: workshopName });
+    if (!(await workshopLink.count())) {
+      failures++;
+      console.error(`[LINK] el listado de talleres no tiene «${workshopName}»`);
+      return false;
+    }
+    await Promise.all([
+      page.waitForURL(/\/workshops\/[^/]+$/, { timeout: 15000 }),
+      workshopLink.first().click()
+    ]);
+    await page.waitForSelector('h1.page-title', { timeout: 10000 });
+    return true;
+  };
+
+  // 24: el taller en borrador, con el bloque de armado. «Abrir taller» sólo
+  // existe en este estado.
+  if (await goToWorkshop('Taller de planificación (borrador)')) {
+    if (!(await page.locator('button:has-text("Abrir taller"), input[value="Abrir taller"]').count())) {
+      failures++;
+      console.error('[TALLER] el taller en borrador no ofrece «Abrir taller»');
+    }
+    if (!(await page.locator('h2.section-title', { hasText: 'Mesas' }).count())) {
+      failures++;
+      console.error('[TALLER] el bloque de armado no muestra las mesas');
+    }
+    // Un taller en BORRADOR no tiene salas: nadie lo abrió todavía, y sus
+    // vínculos tienen `challenge_step_id` nulo a propósito. La pantalla llegó
+    // a dibujar una sala por desafío anunciando «el desafío avanzó de fase»
+    // —falso sobre un borrador recién armado— y esta captura pasó igual,
+    // porque las guardas de arriba sólo buscan «Abrir taller» y «Mesas» y las
+    // de `capturar()` son genéricas y no leen ese texto.
+    //
+    // Se mide por el TÍTULO de la sala —el nombre del desafío como
+    // `h2.section-title`—, que sobrevive a un cambio de redacción; en el
+    // armado los desafíos son links dentro de `.field-list`, no encabezados.
+    const draftRooms = await page.locator('h2.section-title', {
+      hasText: /^Ideas para (la sala de descanso|la inducción de nuevos ingresos)$/
+    }).count();
+    if (draftRooms) {
+      failures++;
+      console.error(`[TALLER] el taller en borrador dibuja ${draftRooms} sala(s): todavía no se abrió`);
+    }
+    await capturar(page, '24-taller-armado');
+  }
+
+  // 25, 26 y 28 son la MISMA pantalla —las salas de un taller abierto viven
+  // en el mismo `show`—, y cada captura exige lo suyo: si una sala dejara de
+  // renderizar, la otra seguiría pasando.
+  if (await goToWorkshop('Taller de mejora continua')) {
+    // 25: la sala de idear ofrece el formulario del módulo de ideación.
+    if (!(await page.locator('form[action$="/ideas"] input[value="Crear borrador"]').count())) {
+      failures++;
+      console.error('[TALLER] la sala de idear no ofrece «Crear borrador»');
+    }
+    if (!(await page.locator('p.muted', { hasText: 'El borrador se comparte con Paula Participante' }).count())) {
+      failures++;
+      console.error('[TALLER] la sala de idear no dice con quién se comparte el borrador');
+    }
+    await capturar(page, '25-taller-sala-idear');
+
+    // 26: la sala de evolución, un formulario por idea de la mesa (las dos de
+    // Paula; la de Pedro es de la otra mesa y no entra).
+    const proposalForms = await page.locator('form[action$="/proposals"] input[value="Proponer"]').count();
+    if (proposalForms !== 2) {
+      failures++;
+      console.error(`[TALLER] la sala de evolución ofrece ${proposalForms} propuestas y se esperaban 2 (las ideas de la mesa)`);
+    }
+    await capturar(page, '26-taller-sala-evolucion');
+
+    // 28: el desafío que avanzó de fase se ve cerrado, y DICE POR QUÉ. El
+    // motivo también aparece en la lista de armado, así que se acota a la
+    // tarjeta de la sala.
+    const closedRoom = page.locator('.card', {
+      has: page.locator('h2.section-title', { hasText: 'Ideas para el manual de seguridad' })
+    }).locator('p.muted');
+    const closedReason = (await closedRoom.count()) ? await closedRoom.first().innerText() : '';
+    if (!/El desafío está en Evaluación, y un taller sólo trabaja sobre idear o evolución/.test(closedReason)) {
+      failures++;
+      console.error(`[TALLER] el vínculo cerrado no dice su motivo: «${closedReason}»`);
+    }
+    await capturar(page, '28-taller-vinculo-cerrado');
+
+    // 27: la propuesta de la mesa, en la ficha de la idea. Por link: taller →
+    // desafío → «Ideas» → la idea. La ficha la ve quien administra, que no es
+    // autor: la propuesta se muestra, sin botones.
+    await Promise.all([
+      page.waitForURL(/\/challenges\/taller-evolucion$/, { timeout: 15000 }),
+      page.locator('.field-list a', { hasText: 'Ideas para la inducción de nuevos ingresos' }).first().click()
+    ]);
+    await Promise.all([
+      page.waitForURL(/\/challenges\/taller-evolucion\/ideas$/, { timeout: 15000 }),
+      page.locator('a.btn:has-text("Ideas")').first().click()
+    ]);
+    await Promise.all([
+      page.waitForURL(/\/ideas\/[^/]+$/, { timeout: 15000 }),
+      page.locator('.idea-list__item', { hasText: 'Un buddy para la primera semana' })
+        .locator('.idea-list__link').first().click()
+    ]);
+    // Se espera la tarjeta de la propuesta, que sólo existe con la ficha
+    // nueva pintada.
+    await page.waitForSelector('[id^="workshop_proposal_"]', { timeout: 10000 });
+    const proposalCard = page.locator('[id^="workshop_proposal_"]');
+    if (!/Propuesta de la mesa «Mesa Bodega»/.test(await proposalCard.first().innerText())) {
+      failures++;
+      console.error('[TALLER] la ficha no muestra la propuesta de la mesa');
+    }
+    if (await proposalCard.locator('button:has-text("Aceptar"), input[value="Aceptar"]').count()) {
+      failures++;
+      console.error('[TALLER] quien no es autor ve «Aceptar» en la propuesta');
+    }
+    await capturar(page, '27-taller-propuesta-en-la-idea');
+  }
+
   // ── Las tres que piden otra sesión ──────────────────────────────────────
   //
   // Van últimas de la pasada clara: el recorrido como admin ya terminó, así

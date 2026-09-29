@@ -14,9 +14,12 @@ module Flow
         def error_sentence = errors.join(". ")
       end
 
+      # `enqueue_embedding: false` lo pide quien envuelve esto en una
+      # transacción PROPIA: ver `enqueue_embedding!`.
       def initialize(idea, payload:, author: nil, actor_type: "human", source_step: nil,
-                     change_note: nil, title: nil, files: {})
+                     change_note: nil, title: nil, files: {}, enqueue_embedding: true)
         @idea = idea
+        @enqueue_embedding = enqueue_embedding
         @payload = payload || {}
         @files = (files || {}).reject { |_, file| file.blank? }
         @author = author
@@ -51,11 +54,26 @@ module Flow
         # Fuera de la transacción y del lock: calcular el vector llama a un
         # servicio externo y publicar no puede quedar esperándolo ni fallar
         # con él.
-        EmbedVersionJob.perform_later(version.company_id, version.id) if version
+        @published_version = version
+        enqueue_embedding! if @enqueue_embedding
 
         Result.new(ok: true, version: version, errors: [])
       rescue ActiveRecord::RecordInvalid => e
         Result.new(ok: false, version: nil, errors: e.record.errors.full_messages)
+      end
+
+      # Encolar el job DENTRO de una transacción externa es una carrera perdida:
+      # si el worker toma el job antes del commit, `IdeaVersion.find_by(id:)`
+      # devuelve nil y `EmbedVersion#call` hace `return false if @version.nil?`
+      # —éxito silencioso, sin excepción y sin reintento—, y la versión queda
+      # sin vector sin que nadie se entere. Quien envuelve esto en su propia
+      # transacción pasa `enqueue_embedding: false` y llama acá DESPUÉS del
+      # commit. Sin versión nueva (`unchanged?`) no hay nada que encolar.
+      def enqueue_embedding!
+        return false if @published_version.nil?
+
+        EmbedVersionJob.perform_later(@published_version.company_id, @published_version.id)
+        true
       end
 
       private

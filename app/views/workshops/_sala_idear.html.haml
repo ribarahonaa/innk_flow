@@ -1,0 +1,23 @@
+-# La sala de idear de UN desafío: un formulario con los campos del módulo de
+-# ideación de ESE desafío. Se renderiza desde `show.html.haml`, detrás de
+-# `can_work`; acá no se vuelve a preguntar el permiso.
+- mates = group ? group.members.reject { |person| person.id == current_user.id } : []
+
+.card
+  .card-body
+    %h2.section-title= link.challenge.name
+    - if group.nil?
+      -# Sin mesa el controller rechaza el POST (`reject_without_group`):
+      -# ofrecer el formulario igual sería un control que no responde.
+      %p.muted Sólo se crea un borrador desde una mesa: no estás en ninguna de este taller.
+    - else
+      - if mates.any?
+        %p.muted= "El borrador se comparte con #{mates.map(&:name).to_sentence}: es de la mesa, no solo tuyo."
+      = form_with url: workshop_sala_ideas_path(workshop, link), multipart: true do
+        -# `id_prefix` por vínculo: un taller con dos desafíos en idear repite
+        -# esta sala, y sin prefijo los dos formularios emiten el mismo
+        -# `id="payload_titulo"` — el `<label for>` del segundo enfoca el campo
+        -# del primero.
+        = render "ideas/form_fields", fields: link.challenge_step.form_fields, payload: {},
+                                      id_prefix: "sala_#{link.id}_"
+        = submit_tag "Crear borrador", class: "btn btn-primary"

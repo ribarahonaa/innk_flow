@@ -1,0 +1,42 @@
+-# El encabezado se sirve siempre: lo ve cualquiera a quien `policy_scope`
+-# dejó pasar (convocado, gestor de alguno de sus desafíos, o quien administra
+-# la empresa). El bloque de armado NO: es una variable calculada UNA vez
+-# arriba (`can_assemble`), la misma forma que ya fijó
+-# `steps/_criterios_editor.html.haml`, y no un predicado repetido por bloque.
+- can_assemble = policy(@workshop).update?
+-# Igual para las salas: `can_work` se calcula UNA vez y gobierna el bloque.
+- can_work = policy(@workshop).work?
+- content_for :title, @workshop.name
+
+.card
+  .card-body
+    %h1.page-title= @workshop.name
+    %p.muted= t("flow.workshop_statuses.#{@workshop.status}")
+
+- if can_assemble
+  = render "workshops/assembly", workshop: @workshop, links: @links, groups: @groups
+
+- if can_work
+  - @links.each do |link|
+    -# Un `case` con rama por defecto y NO una cadena de `elsif`: el vínculo
+    -# que avanzó —`open` con su módulo ya terminado— no caía en ninguna rama
+    -# y la sala salía en blanco, sin un solo mensaje. Con `else`, el estado
+    -# que alguien agregue mañana se ve en vez de tragarse la pantalla.
+    - case link.room_state
+    - when :ideation
+      = render "workshops/sala_idear", workshop: @workshop, link: link, group: @my_group
+    - when :evolution
+      = render "workshops/sala_evolucion", workshop: @workshop, link: link, group: @my_group
+    - when :unopened
+      -# El taller todavía no se abrió: no hay sala que dibujar. La rama existe
+      -# y está vacía A PROPÓSITO, en vez de dejar que caiga en el `else`: ahí
+      -# un borrador recién armado anunciaba «el desafío avanzó de fase», que
+      -# es falso. El armado de más arriba ya lista sus desafíos.
+    - else
+      -# Cerrada NO es desaparecida: la sala dice por qué. El motivo lo
+      -# materializó `MaterializeClosures` antes de renderizar; el texto suelto
+      -# cubre el vínculo que todavía no pasó por ahí.
+      .card
+        .card-body
+          %h2.section-title= link.challenge.name
+          %p.muted= link.closed_reason.presence || "Esta sala ya no admite trabajo: el desafío avanzó de fase."

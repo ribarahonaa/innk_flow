@@ -79,6 +79,41 @@ Rails.application.routes.draw do
     end
   end
 
+  # El taller NO cuelga de un desafío: abarca varios. Por eso es de primer
+  # nivel y no está anidado.
+  resources :workshops, only: %i[index new create show update destroy] do
+    member do
+      post :open
+      post :close
+      # `to:` explícito: sin él, `post :convoke` mapea a `workshops#convoke`,
+      # que no existe.
+      post   :convoke, to: "workshop_convocations#create"
+      delete :dismiss, to: "workshop_convocations#destroy"
+      # Sacar un desafío del taller. El ciclo de vida lo pone junto a sumarlo,
+      # o sea en borrador. El id del vínculo viaja como parámetro: no hay un
+      # controller de vínculos, la baja es del taller.
+      delete :remove_challenge
+    end
+    resources :workshop_groups, only: %i[create destroy], path: "mesas"
+    # La sala de UN desafío dentro del taller. El id es el del VÍNCULO, no el
+    # del desafío: el vínculo es el que sabe contra qué módulo se trabaja.
+    resources :workshop_challenges, only: [], path: "salas", as: :sala do
+      resources :ideas, only: %i[create], controller: "workshop_ideas"
+      resources :proposals, only: %i[create], controller: "workshop_proposals"
+    end
+  end
+
+  # La propuesta se acepta desde la ficha de la idea, que es donde la ve su
+  # autor: no cuelga del taller.
+  resources :ideas, only: [] do
+    resources :workshop_proposals, only: [], controller: "idea_workshop_proposals" do
+      member do
+        post :accept
+        post :reject
+      end
+    end
+  end
+
   # Quiénes están en la empresa y con qué rol.
   resources :members, only: %i[index create update destroy], controller: "memberships"
 

@@ -1,0 +1,43 @@
+-# Lo que una mesa del taller propone sobre esta idea. Solo el autor la acepta
+-# o la descarta, y no se edita al aceptar.
+-#
+-# Las dos condiciones son DISTINTAS y van por separado. Aceptar publica una
+-# versión con `source_step` de esa ronda, así que se vence con ella
+-# (`actionable?`). Descartar no escribe en ninguna conversación: alcanza con
+-# que siga pendiente. Colgando los dos botones de `actionable?`, una propuesta
+-# vencida se quedaba en la ficha PARA SIEMPRE, con un aviso y ningún control
+-# —una capacidad del dominio sin interfaz, que es el defecto por el que se
+-# borró `Tasks::EvaluateIdea#editable?`, dado vuelta—.
+- proposals.each do |proposal|
+  - can_accept = proposal.actionable? && policy(proposal).accept?
+  - can_reject = proposal.pending? && policy(proposal).reject?
+  .card{ id: "workshop_proposal_#{proposal.id}" }
+    .card-body
+      %h2.section-title= "Propuesta de la mesa «#{proposal.workshop_group.name}»"
+      - if !proposal.actionable?
+        -# `alert` es display:grid con grid-auto-flow:column: los hijos sueltos
+        -# se reparten en columnas, así que va todo dentro de UN `%div`.
+        .alert.alert-soft.alert-warning
+          %div
+            = "La ronda «#{proposal.challenge_step.name}» ya cerró: esta propuesta venció y ya no se puede aceptar."
+            - if can_reject
+              = " Descartala para sacarla de la ficha."
+      %dl
+        - fields.each do |field|
+          - value = proposal.payload[field.key]
+          - next if value.blank?
+          %dt= field.label
+          %dd= value
+      - if can_accept || can_reject
+        .flex.gap-2
+          - if can_accept
+            = button_to "Aceptar", accept_idea_workshop_proposal_path(idea, proposal),
+                        class: "btn btn-primary btn-sm", form: { data: { turbo_frame: "_top" } }
+          - if can_reject
+            = button_to "Descartar", reject_idea_workshop_proposal_path(idea, proposal),
+                        class: "btn btn-ghost btn-sm", form: { data: { turbo_frame: "_top" } }
+      - elsif proposal.actionable?
+        -# `elsif actionable?` y no `else`: con la ronda cerrada el aviso de
+        -# arriba ya explica por qué no hay botones, y decir además «solo quien
+        -# es autor…» son dos explicaciones para lo mismo.
+        %p.muted Solo quien es autor de la idea puede aceptarla o descartarla.

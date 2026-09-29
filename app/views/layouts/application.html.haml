@@ -36,6 +36,10 @@
         %nav.app-nav
           = link_to "Desafíos", challenges_path,
                     class: ["app-nav__link", ("is-active" if controller_name.in?(%w[challenges steps ideas assessments]))]
+          -# Sin condicionar a `manages_challenges?`: a un taller se entra por
+          -# convocatoria, y quien participa en una mesa es quien más lo necesita.
+          = link_to "Talleres", workshops_path,
+                    class: ["app-nav__link", ("is-active" if controller_name.start_with?("workshop"))]
           - if current_membership&.manages_challenges?
             = link_to "Criterios", criteria_sets_path,
                       class: ["app-nav__link", ("is-active" if controller_name == "criteria_sets")]
