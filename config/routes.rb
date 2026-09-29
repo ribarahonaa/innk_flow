@@ -91,6 +91,11 @@ Rails.application.routes.draw do
       delete :dismiss, to: "workshop_convocations#destroy"
     end
     resources :workshop_groups, only: %i[create destroy], path: "mesas"
+    # La sala de UN desafío dentro del taller. El id es el del VÍNCULO, no el
+    # del desafío: el vínculo es el que sabe contra qué módulo se trabaja.
+    resources :workshop_challenges, only: [], path: "salas", as: :sala do
+      resources :ideas, only: %i[create], controller: "workshop_ideas"
+    end
   end
 
   # Quiénes están en la empresa y con qué rol.

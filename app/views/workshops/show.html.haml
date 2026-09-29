@@ -4,6 +4,8 @@
 -# arriba (`can_assemble`), la misma forma que ya fijó
 -# `steps/_criterios_editor.html.haml`, y no un predicado repetido por bloque.
 - can_assemble = policy(@workshop).update?
+-# Igual para las salas: `can_work` se calcula UNA vez y gobierna el bloque.
+- can_work = policy(@workshop).work?
 - content_for :title, @workshop.name
 
 .card
@@ -13,3 +15,14 @@
 
 - if can_assemble
   = render "workshops/assembly", workshop: @workshop, links: @links, groups: @groups
+
+- if can_work
+  - @links.each do |link|
+    - if link.closed?
+      -# Cerrada NO es desaparecida: la sala dice por qué.
+      .card
+        .card-body
+          %h2.section-title= link.challenge.name
+          %p.muted= link.closed_reason
+    - elsif link.kind == "ideation" && link.workable?
+      = render "workshops/sala_idear", workshop: @workshop, link: link, group: @my_group
