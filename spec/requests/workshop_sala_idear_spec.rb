@@ -95,6 +95,46 @@ RSpec.describe "sala del taller: idear", type: :request do
     expect(flash[:alert]).to include("Título en blanco")
   end
 
+  # Simétrico con la sala de evolución, que ya lo exigía. `work?` es del TALLER
+  # y da true por `administers_any?` sin mesa: sin esta guarda, quien administra
+  # creaba una idea a su nombre sin pasar nunca por `IdeaPolicy#create?`.
+  it "quien administra y no está en ninguna mesa recibe un aviso, no una idea" do
+    admin = without_tenant do
+      u = create(:user, email: "admin@test.dev")
+      create(:membership, :admin, company: company, user: u)
+      u
+    end
+    sign_in(admin, company: company)
+
+    expect { post_draft }.not_to(change { as_company(company) { Idea.count } })
+    expect(response).to redirect_to(workshop_path(setup[:workshop]))
+    expect(flash[:alert]).to include("desde una mesa")
+  end
+
+  # El segundo agujero que cierra la misma guarda: `set_link` busca el vínculo
+  # dentro del taller y nada más, así que un gestor entraba por el desafío que
+  # SÍ administra y posteaba a la sala de uno ajeno —que por la ruta normal le
+  # da 404—. Y de paso el gestor no postula ideas propias: es conflicto de
+  # interés, no permisos.
+  it "un gestor no crea en la sala de un desafío ajeno del mismo taller" do
+    gestor = without_tenant do
+      u = create(:user, email: "gestor@test.dev")
+      create(:membership, :gestor, company: company, user: u)
+      u
+    end
+    as_company(company) do
+      propio = create(:challenge)
+      create(:challenge_step, challenge: propio, kind: "ideation", status: "active")
+      ChallengeGestor.create!(challenge: propio, user: gestor)
+      create(:workshop_challenge, workshop: setup[:workshop], challenge: propio)
+    end
+    sign_in(gestor, company: company)
+
+    # La sala a la que postea es la del desafío que NO administra.
+    expect { post_draft }.not_to(change { as_company(company) { Idea.count } })
+    expect(flash[:alert]).to include("desde una mesa")
+  end
+
   describe "la pantalla del taller" do
     it "ofrece a quien está en la mesa el formulario del módulo, diciendo con quién se comparte" do
       sign_in(ana, company: company)
@@ -126,6 +166,25 @@ RSpec.describe "sala del taller: idear", type: :request do
         expect(link.closed_at).to be_present
         expect(link.closed_reason).to include("Evolución")
       end
+    end
+
+    # Un taller con dos desafíos en idear es el caso más natural, y sin prefijo
+    # las dos salas emiten el mismo `id="payload_<clave>"`: el `<label for>` de
+    # la segunda enfoca el campo de la primera.
+    it "con dos salas de idear no repite ids de DOM" do
+      as_company(company) do
+        otro = create(:challenge)
+        paso = create(:challenge_step, challenge: otro, kind: "ideation", status: "active")
+        create(:form_field, challenge_step: paso, label: "Resumen", field_type: "text")
+        create(:workshop_challenge, workshop: setup[:workshop], challenge: otro, challenge_step: paso)
+      end
+      sign_in(ana, company: company)
+      get workshop_path(setup[:workshop])
+
+      ids = response.body.scan(/\bid="([^"]+)"/).flatten
+      expect(ids.grep(/payload_/).size).to eq(2)
+      expect(ids.tally.select { |_, n| n > 1 }.keys.grep(/payload_/)).to be_empty
+      expect(response.body.scan(/for="([^"]*payload_[^"]*)"/).flatten.uniq.size).to eq(2)
     end
 
     it "muestra la sala cerrada con su motivo en vez de hacerla desaparecer" do

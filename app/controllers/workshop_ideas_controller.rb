@@ -13,11 +13,21 @@ class WorkshopIdeasController < ApplicationController
     authorize @workshop, :work?
     return reject_room unless @link.workable? && @link.kind == "ideation"
 
+    # Misma guarda que la sala de evolución, y por dos motivos a la vez.
+    # `work?` es del TALLER y devuelve true por `administers_any?` sin mesa:
+    # sin esto, quien administra un desafío del taller creaba una idea a su
+    # nombre —sin pasar nunca por `IdeaPolicy#create?`, que al gestor se lo
+    # prohíbe por conflicto de interés— y podía hacerlo en la sala de un
+    # desafío ajeno, que por la ruta normal le da 404. Y el `&.` de más abajo
+    # toleraba el `nil` creando una idea sin un solo contribuyente.
+    group = group_of(current_user)
+    return reject_without_group unless group
+
     result = nil
     ActiveRecord::Base.transaction do
       idea = @link.challenge.ideas.new(author: current_user, status: "draft", origin: "human")
       idea.save!
-      group_of(current_user)&.members&.each do |person|
+      group.members.each do |person|
         next if person.id == current_user.id
 
         idea.idea_contributors.create!(user: person)
@@ -66,5 +76,10 @@ class WorkshopIdeasController < ApplicationController
   def reject_room
     redirect_to workshop_path(@workshop),
                 alert: "Esta sala ya no admite trabajo: el desafío avanzó de fase."
+  end
+
+  def reject_without_group
+    redirect_to workshop_path(@workshop),
+                alert: "Sólo se crea un borrador desde una mesa: no estás en ninguna de este taller."
   end
 end
