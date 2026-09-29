@@ -52,7 +52,14 @@
   .card
     .card-body
       %h2.section-title Brief
-      %p= simple_format(@challenge.brief)
+      -# Sin `%p` alrededor: `simple_format` YA devuelve `<p>…</p>`, y un `<p>`
+      -# dentro de otro no es HTML válido. El parser cierra el de afuera al ver
+      -# el de adentro y convierte el `</p>` sobrante en un tercero, así que la
+      -# tarjeta llevaba DOS párrafos vacíos —uno arriba del texto y otro
+      -# abajo— con sus márgenes y los `gap` de `.card-body`: 72px de nada en
+      -# una tarjeta de 212px. En el DOM no se ve, porque el parser ya lo
+      -# aplanó: se ve midiendo.
+      = simple_format(@challenge.brief, class: "challenge-brief")
 
 .card
   .card-body

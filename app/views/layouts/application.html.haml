@@ -60,7 +60,12 @@
           %span.app-header__company= current_company&.name
           %span.app-header__user
             = current_user.name
-            %span.app-header__role= current_membership&.role
+            -# Sólo si hay membresía. Sin ella —el selector de empresa, o a
+            -# quien le sacaron el acceso— el chip salía igual y VACÍO: una
+            -# pastilla de 14×2px que en pantalla se lee como un «—» suelto
+            -# entre el nombre y «Cambiar empresa».
+            - if current_membership
+              %span.app-header__role= current_membership.role
           - if current_user.multi_company?
             = link_to "Cambiar empresa", select_company_path, class: "app-header__link"
           = button_to "Salir", logout_path, method: :delete, class: "app-header__link app-header__link--button"

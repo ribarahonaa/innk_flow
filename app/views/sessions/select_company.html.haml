@@ -18,8 +18,13 @@
       %ul.company-list
         - @memberships.each do |membership|
           %li
-            = button_to membership.company.name,
-                        choose_company_path,
+            -# El rol va ADENTRO del botón. Afuera quedaba colgando debajo y a
+            -# la izquierda —texto huérfano que no se lee como parte de la
+            -# opción, y encima con el valor crudo del enum («admin»)—.
+            -# `button_to` con bloque lo mete en el `<button>`; nada de un
+            -# elemento aparte, que sería un form adentro de otro.
+            = button_to choose_company_path,
                         params: { company_id: membership.company_id },
-                        class: "btn btn-ghost btn-block"
-            %span.muted= membership.role
+                        class: "btn btn-ghost btn-block company-option" do
+              %span= membership.company.name
+              %span.company-option__role= t("flow.roles.#{membership.role}")
