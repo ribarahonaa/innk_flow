@@ -99,6 +99,17 @@ Rails.application.routes.draw do
     end
   end
 
+  # La propuesta se acepta desde la ficha de la idea, que es donde la ve su
+  # autor: no cuelga del taller.
+  resources :ideas, only: [] do
+    resources :workshop_proposals, only: [], controller: "idea_workshop_proposals" do
+      member do
+        post :accept
+        post :reject
+      end
+    end
+  end
+
   # Quiénes están en la empresa y con qué rol.
   resources :members, only: %i[index create update destroy], controller: "memberships"
 

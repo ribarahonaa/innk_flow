@@ -1,0 +1,25 @@
+-# Lo que una mesa del taller propone sobre esta idea. Solo el autor la acepta
+-# o la descarta, y no se edita al aceptar. Una propuesta cuya ronda ya cerró
+-# se muestra vencida y sin botones: no desaparece.
+- proposals.each do |proposal|
+  - can_review = proposal.actionable? && policy(proposal).accept?
+  .card{ id: "workshop_proposal_#{proposal.id}" }
+    .card-body
+      %h2.section-title= "Propuesta de la mesa «#{proposal.workshop_group.name}»"
+      - if !proposal.actionable?
+        .alert.alert-soft.alert-warning
+          %div La ronda «#{proposal.challenge_step.name}» ya cerró: esta propuesta venció y ya no se puede aceptar.
+      %dl
+        - fields.each do |field|
+          - value = proposal.payload[field.key]
+          - next if value.blank?
+          %dt= field.label
+          %dd= value
+      - if can_review
+        .flex.gap-2
+          = button_to "Aceptar", accept_idea_workshop_proposal_path(idea, proposal),
+                      class: "btn btn-primary btn-sm", form: { data: { turbo_frame: "_top" } }
+          = button_to "Descartar", reject_idea_workshop_proposal_path(idea, proposal),
+                      class: "btn btn-ghost btn-sm", form: { data: { turbo_frame: "_top" } }
+      - elsif proposal.actionable?
+        %p.muted Solo quien es autor de la idea puede aceptarla o descartarla.

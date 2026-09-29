@@ -26,6 +26,7 @@
       = button_to "Postular", submit_challenge_idea_path(@challenge, @idea), class: "btn btn-primary"
 
 = render "shared/ai_suggestions", suggestions: @pending_suggestions
+= render "shared/workshop_proposal", proposals: @workshop_proposals, idea: @idea, fields: @fields
 
 .idea-layout
   .idea-layout__main
