@@ -98,6 +98,51 @@ RSpec.describe "aceptar una propuesta de taller", type: :request do
     expect(flash[:notice]).to eq("Propuesta descartada.")
   end
 
+  it "descartar una propuesta vencida funciona: no escribe en ninguna conversación" do
+    as_company(company) { setup[:round].update!(status: "completed") }
+    sign_in(ana, company: company)
+    reject
+
+    expect(proposal_status).to eq("rejected")
+    expect(flash[:notice]).to eq("Propuesta descartada.")
+  end
+
+  it "descartar una propuesta ya aceptada no la pisa" do
+    sign_in(ana, company: company)
+    accept
+    reject
+
+    expect(proposal_status).to eq("accepted")
+    expect(flash[:alert]).to eq("Esta propuesta ya fue resuelta.")
+  end
+
+  it "descartar una propuesta ya descartada no cambia quién la revisó" do
+    as_company(company) { setup[:proposal].update!(status: "rejected", reviewed_by: admin) }
+    sign_in(ana, company: company)
+    reject
+
+    expect(flash[:alert]).to eq("Esta propuesta ya fue resuelta.")
+    expect(as_company(company) { setup[:proposal].reload.reviewed_by_id }).to eq(admin.id)
+  end
+
+  it "aceptar dos veces no publica dos versiones y avisa que ya fue resuelta" do
+    sign_in(ana, company: company)
+    accept
+    expect { accept }.not_to(change { versions_count })
+
+    expect(flash[:alert]).to eq("Esta propuesta ya fue resuelta.")
+    expect(flash[:alert]).not_to include("ya cerró")
+  end
+
+  it "aceptar una propuesta descartada no la publica" do
+    as_company(company) { setup[:proposal].update!(status: "rejected") }
+    sign_in(ana, company: company)
+
+    expect { accept }.not_to(change { versions_count })
+    expect(flash[:alert]).to eq("Esta propuesta ya fue resuelta.")
+    expect(proposal_status).to eq("rejected")
+  end
+
   it "quien no ve la idea recibe 404" do
     stranger = make_member("carla@test.dev", :participant)
     sign_in(stranger, company: company)
