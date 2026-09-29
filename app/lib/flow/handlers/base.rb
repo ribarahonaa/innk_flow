@@ -80,13 +80,25 @@ module Flow
         step
       end
 
-      # Saltear un módulo que TODAVÍA no terminó. Uno completado o ya salteado
-      # no se reescribe: pisarle el `status` le hacía decir que nunca corrió
-      # —con sus evaluaciones y sus entries intactas debajo— y encima le movía
-      # el `completed_at` y el motivo.
+      # Saltear un módulo que TODAVÍA no terminó, en un desafío EN CURSO. Uno
+      # completado o ya salteado no se reescribe: pisarle el `status` le hacía
+      # decir que nunca corrió —con sus evaluaciones y sus entries intactas
+      # debajo— y encima le movía el `completed_at` y el motivo.
+      #
+      # Y saltear fuera del flujo en curso no es saltear: en un desafío EN
+      # BORRADOR el módulo queda `skipped` y `Pipeline#continue!` se niega, o
+      # sea que el salteo se guarda y nada se mueve. Lo que deja atrás es peor
+      # que inútil: `activate!` sale por `return step if step.touched?`, así
+      # que ese módulo no arranca nunca más, y si es el primero del flujo
+      # `start!` deja el desafío `running` sin NINGÚN módulo activo. Salteando
+      # «Idear» además silencia el error de arranque, porque `Pipeline#validate`
+      # sólo exige formulario mientras `ideation.pending?`.
+      #
+      # `Pipeline#close!` no se ve afectado: llama a esto ANTES de pasar el
+      # desafío a `closed`, con el flujo todavía en curso.
       #
       # Lo alcanza la ruta: `ChallengeStepPolicy#skip?` es
-      # `administers?(challenge)` y no mira el estado del módulo.
+      # `administers?(challenge)` y no mira ninguno de los dos estados.
       #
       # Devuelve `false` cuando se niega, y ésa es la ÚNICA copia de la regla:
       # el controller lee la respuesta en vez de repetir el predicado, que es
@@ -102,6 +114,7 @@ module Flow
       # los tres llamadores de hoy leen la respuesta o la ignoran a sabiendas.
       def skip!(reason: nil)
         return false if step.completed? || step.skipped?
+        return false unless step.challenge.running?
 
         step.transaction do
           merged = (step.resolved_config || step.config || {}).merge("skip_reason" => reason)

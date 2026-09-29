@@ -7,9 +7,17 @@ module Flow
       DEFAULT_MIN_ASSESSMENTS = 1
       AGGREGATIONS = %w[mean median trimmed_mean].freeze
 
-      # Criterios genéricos para cuando nadie configuró el módulo. Igual que
-      # «Idear» siembra campos por defecto: la maqueta tiene que poder correr
-      # de punta a punta sin obligar a configurar todo primero.
+      # Criterios genéricos para cuando nadie configuró el módulo: la maqueta
+      # tiene que poder correr de punta a punta sin obligar a configurar todo
+      # primero. Si el módulo llega a `activate!` sin set, se los siembra en un
+      # set `inline` propio (`before_resolve_config!`, más abajo).
+      #
+      # Acá decía «igual que “Idear” siembra campos por defecto», y eso dejó de
+      # ser cierto: `Ideation` sembraba tres campos al activar y NO lo hace más
+      # —su `can_activate?` se niega si no hay `form_fields`—, justamente porque
+      # inventar las preguntas al arrancar dejaba al dueño sin verlas nunca. Los
+      # dos casos no son el mismo: un criterio genérico no le pide nada a nadie,
+      # una pregunta del formulario sí.
       DEFAULT_CRITERIA = [
         { key: "impacto", name: "Impacto", weight: 0.4, scale_type: "numeric",
           description: "Cuánto mueve la aguja si funciona.",

@@ -55,6 +55,31 @@ module ApplicationHelper
     "ai-suggestions"
   end
 
+  # ¿Se le ofrece «Saltear» a esta persona sobre este módulo?
+  #
+  # Son DOS preguntas y no una, y por eso vive acá y no en la policy:
+  # `ChallengeStepPolicy#skip?` es `administers?` a secas y su propio
+  # comentario dice por qué —«dice que sí también sobre un módulo completado;
+  # el botón tiene que preguntar además por el estado, no duplicarse el
+  # predicado acá»—. Quien decide de verdad sobre el estado es
+  # `Handlers::Base#skip!`, que se niega sobre uno `completed` o `skipped`:
+  # sin esa mitad el botón aparecía igual y el `alert` del controller era el
+  # que lo contaba, que es el control-que-no-responde de siempre.
+  #
+  # `running?` es la segunda mitad y espeja la otra negativa de `skip!`: fuera
+  # del flujo en curso no se saltea. La regla es de `skip!` —acá se pregunta
+  # para no dibujar un control que va a rebotar, no para decidir—, y está ahí
+  # porque sobre un BORRADOR el salteo se guardaba y `continue!` se negaba,
+  # dejando un módulo `skipped` que `activate!` no vuelve a tocar nunca
+  # —devuelve sin hacer nada sobre uno ya tocado—: si era el primero del flujo,
+  # `start!` abría el desafío sin NINGÚN módulo activo.
+  #
+  # UNA definición, consultada dos veces por pantalla —el resumen del plegable
+  # y el bloque—: escrita en cada vista, las dos mitades divergen.
+  def puede_saltear?(step)
+    policy(step).skip? && step.challenge.running? && !step.completed? && !step.skipped?
+  end
+
   # Las filas de «cómo quedó configurado»: `[etiqueta, valor legible]` por cada
   # campo del esquema que tenga algo que decir sobre este módulo.
   #

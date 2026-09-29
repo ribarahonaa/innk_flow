@@ -453,8 +453,10 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       expect(zonas[:ajustes]).to include("Ajustes del módulo", "Modo de IA", "Elegí a quién sumar")
       # Fija el texto entero: el orden de los bloques y el conector que pone
       # `to_sentence`, que sale del locale (`:es`, vía rails-i18n) y en inglés
-      # diría «and».
-      expect(documento.at_css(".ajustes__titulo .muted").text).to eq("nombre, modo de IA y quiénes acompañan")
+      # diría «and». «Saltear el módulo» va último a propósito: es lo más
+      # consecuente del plegable y no lo primero que se busca al abrirlo.
+      expect(documento.at_css(".ajustes__titulo .muted").text)
+        .to eq("nombre, modo de IA, quiénes acompañan y saltear el módulo")
       expect(titulos_de_la_referencia).to eq(["Progreso", "Quiénes acompañan", "Cómo quedó configurado"])
       expect(documento.css(".panel").map { |n| n["class"] }).to eq([])
       expect(titulos_de_mas_en_la_referencia).to be_empty
@@ -481,6 +483,11 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       expect(resumen).to include("nombre", "modo de IA")
       expect(resumen).not_to include("quiénes acompañan")
       expect(zonas[:ajustes]).not_to include("Elegí a quién sumar")
+      # Y tampoco saltear: `close!` deja el módulo `skipped` y el desafío
+      # cerrado, que son las dos mitades que `puede_saltear?` mira además de
+      # la policy —`advance?` sigue diciendo que sí acá al lado—.
+      expect(resumen).not_to include("saltear")
+      expect(zonas[:ajustes]).not_to include("Saltear el módulo")
     end
 
     it "quien participa: sin quiénes acompañan y sin ajustes" do

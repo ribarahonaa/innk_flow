@@ -1,4 +1,8 @@
 - content_for :title, @challenge.name
+-# El módulo en curso, si hay alguno. Se lee arriba de todo porque lo miran dos
+-# cosas: el aviso del control de cerrar —que nombra el módulo que va a quedar
+-# salteado— y el encabezado de la tarjeta «Flujo».
+- actual = @challenge.steps.find(&:active?)
 .page-head
   %div
     %p.breadcrumb= link_to "Desafíos", challenges_path
@@ -15,6 +19,28 @@
       = link_to "Editar flujo", builder_challenge_path(@challenge), class: "btn btn-ghost"
     - if policy(@challenge).start?
       = button_to "Arrancar", start_challenge_path(@challenge), class: "btn btn-primary"
+    -# Cerrar a mano, con el flujo donde esté. Acá y no en la pantalla de un
+    -# módulo: es del desafío entero.
+    -#
+    -# Acá la policy SÍ alcanza para decidir si mostrarlo —`close?` es
+    -# `administers?(record) && record.running?`, o sea que ya trae el estado—,
+    -# al revés de `skip?`. Es el mismo predicado que autoriza el POST, así que
+    -# el botón no puede aparecer donde va a rebotar.
+    -#
+    -# El aviso nombra lo que se pierde y no pregunta «¿estás seguro?»:
+    -# `Pipeline#close!` saltea el módulo en curso —no lo completa— y los
+    -# pendientes se quedan sin ejecutar. No hay ruta para reabrir.
+    - if policy(@challenge).close?
+      - por_correr = @challenge.steps.count(&:pending?)
+      -# Cada frase trae SU verbo, concordado con SU número. Un `agree` sobre
+      -# la cantidad de frases contaba lo que no era: sin módulo en curso y con
+      -# tres pendientes decía «Con eso queda 3 módulos sin ejecutar».
+      - detalle = []
+      - detalle << "«#{actual.name}» queda salteado sin terminar" if actual
+      - detalle << "#{Flow::Texto.agree(por_correr, 'queda', 'quedan')} #{Flow::Texto.contar(por_correr, 'módulo')} sin ejecutar" if por_correr.positive?
+      - que_pasa = detalle.any? ? "Con eso #{detalle.to_sentence}. " : ""
+      = button_to "Cerrar el desafío", close_challenge_path(@challenge), class: "btn btn-ghost",
+                  form: { data: { turbo_confirm: "¿Cerrar «#{@challenge.name}»? #{que_pasa}Un desafío cerrado no se reabre." } }
 
 -# En borrador la ficha del desafío es el punto de partida: ahí va el camino.
 - if @challenge.draft? && policy(@challenge).builder?
@@ -28,7 +54,6 @@
       %h2.section-title Brief
       %p= simple_format(@challenge.brief)
 
-- actual = @challenge.steps.find(&:active?)
 .card
   .card-body
     .section-head

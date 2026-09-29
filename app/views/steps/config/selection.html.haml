@@ -2,4 +2,15 @@
 = render "steps/config/shell", step: @step
 = render "steps/config/modulo", step: @step, props: @settings_props
 = render "steps/criterios_editor", step: @step, suggestions: @pending_suggestions
+-# Saltear el módulo va ÚLTIMO, igual que en la cara de ejecución —donde vive
+-# al fondo de «Ajustes del módulo», plegado—: es el control más consecuente
+-# de la pantalla y no puede quedar arriba de los editores a los que uno vino.
+-#
+-# Estuvo una línea más arriba, adentro de `config/modulo`, para tenerlo en un
+-# solo lugar para los seis kinds; la posición ganó, así que va repetido y lo
+-# cuida un spec que barre los seis (`skip_step_spec`).
+-#
+-# Su guarda es propia (`puede_saltear?`: policy Y estado), no la de esta
+-# pantalla: con el desafío en borrador no se ofrece.
+= render "steps/saltear", step: @step
 = render "shared/setup_nav", challenge: @challenge

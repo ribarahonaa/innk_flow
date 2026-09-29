@@ -3,8 +3,14 @@
 module Flow
   module Steps
     # Activación de un módulo: materializa el cohorte y dispara los efectos
-    # del handler. Va a Sidekiq porque es O(cantidad de ideas) y puede
-    # encolar una llamada a la IA por idea.
+    # del handler.
+    #
+    # HOY NO LO ENCOLA NADIE. `Pipeline` activa en línea —`start!` y
+    # `open_next_or_close!` llaman a `Handlers::Base#activate!` directo—, así
+    # que esta clase respeta el contrato del handler y espera a que alguien la
+    # use. Está pensada para Sidekiq porque activar es O(cantidad de ideas) y
+    # puede encolar una llamada a la IA por idea, pero eso es la razón por la
+    # que existe, no algo que esté pasando.
     #
     # El tenant viaja en el payload y se abre a mano: un job no tiene request
     # que haya establecido Current.company.

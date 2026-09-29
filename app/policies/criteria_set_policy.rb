@@ -38,9 +38,4 @@ class CriteriaSetPolicy < ApplicationPolicy
   # botón de promover, que copia uno `inline` a la biblioteca. Las dos cosas
   # escriben patrimonio común.
   def create? = manager?
-
-  # Borrar es una acción de las pantallas de biblioteca; un set `inline` se va
-  # solo con su módulo.
-  def destroy? = manager?
 end
-
