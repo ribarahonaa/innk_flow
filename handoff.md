@@ -11,13 +11,13 @@ Tres cosas, las tres terminadas y **mergeadas y pusheadas a `master`**:
 
 ## Estado actual
 
-- **`master` está en `87e97e6`, pusheado.** `make spec` **1358/0** sobre el
+- **`master` está en `15cd01e`, pusheado.** `make spec` **1358/0** sobre el
   resultado mergeado (venía de 1169 antes del taller); `make screens`
   **71 capturas / 0 errores**.
 - Las ramas `modulo-de-taller` y `taller-pendientes` se mergearon y se borraron.
   **`origin/modulo-de-taller` sigue viva en GitHub** apuntando a `d3bc6b8`, que
   hoy es ancestro de `master`: borrarla es una decisión pendiente.
-- El listado de pendientes: **P0, P1 y P2 cerrados**.
+- El listado de pendientes: **P0, P1, P2 y P3 cerrados**. Queda P4.
   https://claude.ai/artifact/C2i3g3ZRz1gUeMuX3bEXrq
   (los checks del artefacto **no** están tildados para lo de esta sesión —
   hay que tildar `card-relleno`, `asignar-rol`, `asignar-baja`,
@@ -65,6 +65,22 @@ cuatro filas desactualizadas, el contrato de `skip!`, y `Flow::Steps::ActivateJo
 como job vivo que **nadie encola**. Las diez corregidas y verificadas contra el
 código. La regla del nombre quedó escrita en `CLAUDE.md`, y las dos
 concordancias de plural que conviven a propósito quedaron explicadas.
+
+
+**P3, los once visuales.** Ninguno se había arreglado solo. Entraron al sistema
+visual el campo de archivo y el rol del selector de empresa; el popup de espera
+oscurece la pantalla; el Brief perdió 72px de nada que eran **dos párrafos
+vacíos de un `<p>` dentro de otro**; el histograma tiene proporciones que no
+mienten (medido 1:2); y el relleno de `.alert` **no era un selector**: eran DOS
+filtros —`revisarPastilla` y uno del muestrario que decía que `.alert` quedaba
+afuera a propósito— más el arreglo de la hoja.
+
+**Y un hallazgo que no estaba en el listado:** el tope de la franja de
+referencia (`max-height: 320px`) era **incompatible con su propia guarda**. 320
+permite un título en 470px y `[REFERENCIA]` corta en 450, así que estaba
+condenada a fallar en cuanto cualquier tarjeta de referencia creciera. El tope
+ahora sale de la cuenta, escrita en el comentario, y **ataja antes que la
+guarda**.
 
 **Los diagramas.** `docs/arquitectura.html` y `docs/proceso.html` regenerados
 con el taller —como **evento**, no como etapa— y con cinco afirmaciones viejas
@@ -192,8 +208,10 @@ anotada y nunca verificada es peor que ninguna.
    de minuto parten la tanda y el registro dice «1 idea» dos veces
    (`spec/requests/selection_screen_spec.rb:138`). Apareció una vez en una
    corrida y después verde en cinco.
-5. **Seguir por P3 y P4**: los once ítems visuales del repaso de capturas, el
-   relleno de `.alert`, y los tramos de menores ya triageados.
+5. **Seguir por P4**, el último tramo: los cuatro del módulo de testing, los
+   cinco del rol gestor, los cinco de la pastilla, el terreno ya medido, los
+   dos puntos ciegos de `[FORMS]` y el backlog largo. Todo triageado y sin
+   urgencia.
    https://claude.ai/artifact/C2i3g3ZRz1gUeMuX3bEXrq
 
 ## Cosas del entorno
