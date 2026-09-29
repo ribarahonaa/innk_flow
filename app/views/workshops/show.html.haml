@@ -26,3 +26,5 @@
           %p.muted= link.closed_reason
     - elsif link.kind == "ideation" && link.workable?
       = render "workshops/sala_idear", workshop: @workshop, link: link, group: @my_group
+    - elsif link.kind == "evolution" && link.workable?
+      = render "workshops/sala_evolucion", workshop: @workshop, link: link, group: @my_group

@@ -95,6 +95,7 @@ Rails.application.routes.draw do
     # del desafío: el vínculo es el que sabe contra qué módulo se trabaja.
     resources :workshop_challenges, only: [], path: "salas", as: :sala do
       resources :ideas, only: %i[create], controller: "workshop_ideas"
+      resources :proposals, only: %i[create], controller: "workshop_proposals"
     end
   end
 

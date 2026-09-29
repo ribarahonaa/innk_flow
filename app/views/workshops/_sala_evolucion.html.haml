@@ -1,0 +1,24 @@
+-# La sala de evolución de UN desafío: por cada idea que la mesa puede trabajar,
+-# un formulario con el payload propuesto. Se renderiza desde `show.html.haml`,
+-# detrás de `can_work`. Los formularios son hermanos, nunca anidados.
+- ideation = link.challenge.pipeline.ideation_step
+-# Un archivo no viaja en una propuesta: sólo campos de valor.
+- fields = ideation ? ideation.form_fields.ordered.reject { |field| field.field_type == "file" } : []
+- ideas = group ? group.workable_ideas(link.challenge).includes(:current_version).to_a : []
+
+.card
+  .card-body
+    %h2.section-title= link.challenge.name
+    - if group.nil?
+      %p.muted Sólo se propone desde una mesa: no estás en ninguna de este taller.
+    - elsif ideas.empty?
+      %p.muted Ninguna persona de tu mesa tiene ideas en este desafío todavía.
+    - else
+      %p.muted Proponé cambios sobre las ideas de tu mesa: quien es autor decide si los acepta.
+      - ideas.each do |idea|
+        %div
+          %h3= idea.title
+          = form_with url: workshop_sala_proposals_path(workshop, link) do
+            = hidden_field_tag :idea_id, idea.id, id: "idea_id_#{idea.id}"
+            = render "ideas/form_fields", fields: fields, payload: idea.payload
+            = submit_tag "Proponer", class: "btn btn-primary"
