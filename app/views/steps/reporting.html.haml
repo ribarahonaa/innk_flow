@@ -108,11 +108,17 @@
       .histogram
         - max = data["distribution"].map { _1["count"] }.max.to_f
         - data["distribution"].each do |bucket|
+          -# El conteo va ARRIBA de su barra y sólo si hay algo que contar. Iba
+          -# debajo de la etiqueta del tramo, así que el eje eran dos filas de
+          -# números pegadas —«0 / 0», «10 / 0», «50 / 1»— sin nada que dijera
+          -# cuál era el tramo y cuál el conteo, y de diez tramos ocho decían
+          -# cero. Arriba de la barra el número está donde está el dato.
           .histogram__col
+            - if bucket["count"].to_i.positive?
+              %span.histogram__count= bucket["count"]
             .histogram__bar{ style: "height: #{max.positive? ? (bucket['count'] / max * 100).round : 0}%",
                              title: "#{bucket['count']} ideas" }
             %span.histogram__label= bucket["label"].split("–").first
-            %span.histogram__count= bucket["count"]
 
 - if data["evaluators"].any?
   .card

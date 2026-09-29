@@ -43,16 +43,21 @@ module RespuestaDeIa
     "La IA no pudo responder: #{result.error_sentence}"
   end
 
+  # El mensaje NO vuelve a decir «La IA respondió»: eso ya lo dice el título del
+  # popup (`shared/_ia_respuesta`), y arrancar el párrafo con las mismas tres
+  # palabras dejaba la tarjeta diciendo lo mismo dos veces seguidas —tres,
+  # contando la propuesta que el popup repite del panel que tiene detrás—.
+  # Acá va lo único que el título no dice: qué hacer ahora.
   def mensaje_de_exito(result)
     return "Listo: la evaluación de la IA ya está en la lista." if result.run&.purpose == "evaluate_idea"
-    return "La IA respondió y se aplicó automáticamente." if result.suggestion&.accepted?
+    return "Se aplicó automáticamente." if result.suggestion&.accepted?
 
     # Un pedido repetido mientras la propuesta anterior sigue sin revisar no
     # llama de nuevo al proveedor: se dice con todas las letras, en vez de
     # anunciar una respuesta nueva que no existe.
     return "Ya había una propuesta esperando tu revisión." if result.reused?
 
-    "La IA respondió. Revisá la propuesta antes de aplicarla."
+    "Revisá la propuesta antes de aplicarla."
   end
 
   # El modo efectivo del módulo manda; si la tarea no cuelga de un módulo
