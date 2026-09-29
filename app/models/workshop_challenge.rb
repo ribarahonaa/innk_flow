@@ -38,11 +38,19 @@ class WorkshopChallenge < ApplicationRecord
   # valor cerrado y un `case` con `else`, el silencio es imposible: un estado
   # nuevo cae en la rama por defecto y se ve.
   #
+  # :unopened es el vínculo de un taller que TODAVÍA NO SE ABRIÓ. Ahí
+  # `challenge_step_id` es nulo a propósito —lo resuelve `Flow::Workshops::Open`—
+  # y `workable?` es false, igual que en el vínculo que venció: sin este valor
+  # los dos caían en la misma rama y un borrador recién armado anunciaba «el
+  # desafío avanzó de fase», que es falso. Es el mismo estado que
+  # `MaterializeClosures` ya protegía del lado de la ESCRITURA.
+  #
   # :stale es el vínculo que todavía no pasó por `MaterializeClosures`. En la
   # pantalla no debería verse —el controller materializa antes de renderizar—,
   # pero tiene nombre para que no vuelva a ser un hueco.
   def room_state
     return :closed if closed?
+    return :unopened if workshop.draft?
     return :stale unless workable?
 
     WORKABLE_KINDS.include?(kind) ? kind.to_sym : :stale

@@ -182,6 +182,17 @@ RSpec.describe "aceptar una propuesta de taller", type: :request do
       expect(response.body).not_to include("workshop_proposal_#{setup[:proposal].id}")
     end
 
+    # Dos explicaciones para lo mismo es una de más: con la ronda cerrada el
+    # aviso ya dice por qué no hay botones.
+    it "a quien no es autor, una vencida le da UN solo motivo" do
+      as_company(company) { setup[:round].update!(status: "completed") }
+      sign_in(admin, company: company)
+      get challenge_idea_path(setup[:challenge], setup[:idea])
+
+      expect(response.body).to include("venció")
+      expect(response.body).not_to include("Solo quien es autor")
+    end
+
     it "no ofrece botones a quien administra, que ve la propuesta" do
       sign_in(admin, company: company)
       get challenge_idea_path(setup[:challenge], setup[:idea])

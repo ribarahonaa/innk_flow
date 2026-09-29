@@ -27,6 +27,11 @@
       = render "workshops/sala_idear", workshop: @workshop, link: link, group: @my_group
     - when :evolution
       = render "workshops/sala_evolucion", workshop: @workshop, link: link, group: @my_group
+    - when :unopened
+      -# El taller todavía no se abrió: no hay sala que dibujar. La rama existe
+      -# y está vacía A PROPÓSITO, en vez de dejar que caiga en el `else`: ahí
+      -# un borrador recién armado anunciaba «el desafío avanzó de fase», que
+      -# es falso. El armado de más arriba ya lista sus desafíos.
     - else
       -# Cerrada NO es desaparecida: la sala dice por qué. El motivo lo
       -# materializó `MaterializeClosures` antes de renderizar; el texto suelto

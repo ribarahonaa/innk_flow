@@ -48,6 +48,31 @@ RSpec.describe Flow::Workshops::Convoke do
     end
   end
 
+  # El UNIQUE (workshop_id, user_id) es lo que la validación no puede
+  # garantizar: `convoked?` y `one_group_per_workshop` son los dos un `exists?`
+  # seguido de un `save`, y dos convocatorias concurrentes los atraviesan. Los
+  # dos stubs son exactamente eso: al mirar, la otra fila todavía no estaba.
+  # Que la base frene a la segunda es correcto; el 500 no.
+  it "la convocatoria que pierde la carrera contra el índice avisa, no revienta" do
+    as_company(company) do
+      workshop = create(:workshop)
+      persona = without_tenant { create(:user) }
+      create(:workshop_group_member, workshop_group: create(:workshop_group, workshop: workshop), user: persona)
+      otra_mesa = create(:workshop_group, workshop: workshop)
+
+      service = described_class.new(workshop, persona, group: otra_mesa)
+      allow(service).to receive(:convoked?).and_return(false)
+      allow_any_instance_of(WorkshopGroupMember).to receive(:one_group_per_workshop)
+
+      result = service.call
+
+      expect(result.ok).to be(false)
+      # El mensaje del rescate, no el de la validación («ya está en otra
+      # mesa…»): si el rescate no estuviera, esto sería un RecordNotUnique.
+      expect(result.errors).to eq(["Ya está en una mesa de este taller."])
+    end
+  end
+
   # Un POST fabricado sin `user_id` llega con `user: nil` (el controller hace
   # `User.find_by(id: params[:user_id])`, que devuelve `nil` si falta). Sin
   # esta guarda, en modo individual el servicio intenta nombrar la mesa con

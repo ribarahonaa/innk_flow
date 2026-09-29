@@ -103,6 +103,24 @@ RSpec.describe "talleres", type: :request do
       expect(flash[:alert]).to include("borrador")
     end
 
+    # La contracara de la guarda `open?` de `MaterializeClosures`: el mismo
+    # estado, del lado de la LECTURA. Un vínculo de borrador tiene
+    # `challenge_step_id` nulo a propósito, y anunciarlo como «el desafío
+    # avanzó de fase» es falso: el desafío no avanzó, el taller no se abrió.
+    it "un taller en borrador no dibuja salas ni dice que el desafío avanzó" do
+      as_company(company) { create(:workshop_challenge, workshop: workshop, challenge: uno) }
+      sign_in(admin, company: company)
+      get workshop_path(workshop)
+
+      expect(response).to have_http_status(:ok)
+      # El armado sí está: la pantalla se renderizó entera.
+      expect(response.body).to include("Sumar al taller")
+      # Y ninguna sala: el título de una sala es el nombre del desafío como
+      # `h2.section-title`; en el armado los desafíos son links, no encabezados.
+      expect(response.body).not_to include(%(<h2 class="section-title">#{uno.name}</h2>))
+      expect(response.body).not_to include("Esta sala ya no admite trabajo")
+    end
+
     it "ofrece el control de sacar sólo mientras es borrador" do
       link = as_company(company) { create(:workshop_challenge, workshop: workshop, challenge: uno) }
       sign_in(admin, company: company)

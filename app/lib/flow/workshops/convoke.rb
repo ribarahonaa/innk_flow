@@ -35,6 +35,14 @@ module Flow
         return Result.new(ok: true, member: member, errors: []) if member.save
 
         Result.new(ok: false, member: nil, errors: member.errors.full_messages)
+      rescue ActiveRecord::RecordNotUnique
+        # El UNIQUE (workshop_id, user_id) es justamente lo que `convoked?` no
+        # puede garantizar: es un `exists?` seguido de un `save`, y dos
+        # convocatorias concurrentes lo atraviesan. Que la base frene a la que
+        # llega segunda es lo correcto; lo que no corresponde es que salga un
+        # 500. Es el mismo «ya está en una mesa» que la lectura habría dicho,
+        # y vuelve por el mismo `Result` que el resto del servicio.
+        already_convoked
       end
 
       private

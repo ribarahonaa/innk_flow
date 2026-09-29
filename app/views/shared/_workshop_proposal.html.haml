@@ -36,5 +36,8 @@
           - if can_reject
             = button_to "Descartar", reject_idea_workshop_proposal_path(idea, proposal),
                         class: "btn btn-ghost btn-sm", form: { data: { turbo_frame: "_top" } }
-      - else
+      - elsif proposal.actionable?
+        -# `elsif actionable?` y no `else`: con la ronda cerrada el aviso de
+        -# arriba ya explica por qué no hay botones, y decir además «solo quien
+        -# es autor…» son dos explicaciones para lo mismo.
         %p.muted Solo quien es autor de la idea puede aceptarla o descartarla.

@@ -2392,6 +2392,23 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       failures++;
       console.error('[TALLER] el bloque de armado no muestra las mesas');
     }
+    // Un taller en BORRADOR no tiene salas: nadie lo abrió todavía, y sus
+    // vínculos tienen `challenge_step_id` nulo a propósito. La pantalla llegó
+    // a dibujar una sala por desafío anunciando «el desafío avanzó de fase»
+    // —falso sobre un borrador recién armado— y esta captura pasó igual,
+    // porque las guardas de arriba sólo buscan «Abrir taller» y «Mesas» y las
+    // de `capturar()` son genéricas y no leen ese texto.
+    //
+    // Se mide por el TÍTULO de la sala —el nombre del desafío como
+    // `h2.section-title`—, que sobrevive a un cambio de redacción; en el
+    // armado los desafíos son links dentro de `.field-list`, no encabezados.
+    const draftRooms = await page.locator('h2.section-title', {
+      hasText: /^Ideas para (la sala de descanso|la inducción de nuevos ingresos)$/
+    }).count();
+    if (draftRooms) {
+      failures++;
+      console.error(`[TALLER] el taller en borrador dibuja ${draftRooms} sala(s): todavía no se abrió`);
+    }
     await capturar(page, '24-taller-armado');
   }
 
