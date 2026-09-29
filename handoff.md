@@ -11,13 +11,13 @@ Tres cosas, las tres terminadas y **mergeadas y pusheadas a `master`**:
 
 ## Estado actual
 
-- **`master` está en `a6c4593`, pusheado.** `make spec` **1343/0** sobre el
+- **`master` está en `87e97e6`, pusheado.** `make spec` **1358/0** sobre el
   resultado mergeado (venía de 1169 antes del taller); `make screens`
   **71 capturas / 0 errores**.
 - Las ramas `modulo-de-taller` y `taller-pendientes` se mergearon y se borraron.
   **`origin/modulo-de-taller` sigue viva en GitHub** apuntando a `d3bc6b8`, que
   hoy es ancestro de `master`: borrarla es una decisión pendiente.
-- El listado de pendientes: **P0 cerrado, P1 cerrado**.
+- El listado de pendientes: **P0, P1 y P2 cerrados**.
   https://claude.ai/artifact/C2i3g3ZRz1gUeMuX3bEXrq
   (los checks del artefacto **no** están tildados para lo de esta sesión —
   hay que tildar `card-relleno`, `asignar-rol`, `asignar-baja`,
@@ -48,6 +48,30 @@ que relee es el que se fotografió; y nada vigilaba el relleno por default de
 puesto y se resuelve en el selector; asignar a evaluar valida el rol del lado
 del servidor y la baja **suelta** las asignaciones; y el corte filtra los ids
 por `policy_scope` y cuenta sobre lo que de verdad avanzó.
+
+**P2, los controles.** Saltear un módulo y cerrar un desafío existían con ruta,
+policy y cobertura y **ninguna vista las ofrecía**. Se ofrecen las dos, con
+guarda de policy **y de estado** —`skip?` dice que sí también sobre un módulo
+cerrado— y confirmación que dice qué pasa: saltear un pendiente **sube el piso
+de inserción**. De paso, saltear un pendiente dejó de contestar en rojo una
+operación que salió bien (era el 100% del camino nuevo), y `skip!` dejó de
+aceptar un desafío en **borrador**, donde dejaba el flujo corriendo sin nadie
+activo y **silenciaba el error de arranque de Idear**.
+
+**P2, lo demás.** Se sacó `DELETE /criteria_sets/:id`, con el comentario del
+precedente y el camino de vuelta. **`docs/pipeline.md` tenía DIEZ afirmaciones
+falsas o viejas**, no las dos anotadas: la tabla de handlers sin `Testing`,
+cuatro filas desactualizadas, el contrato de `skip!`, y `Flow::Steps::ActivateJob`
+como job vivo que **nadie encola**. Las diez corregidas y verificadas contra el
+código. La regla del nombre quedó escrita en `CLAUDE.md`, y las dos
+concordancias de plural que conviven a propósito quedaron explicadas.
+
+**Los diagramas.** `docs/arquitectura.html` y `docs/proceso.html` regenerados
+con el taller —como **evento**, no como etapa— y con cinco afirmaciones viejas
+corregidas, entre ellas un «404, nunca 403» que `CLAUDE.md` ya había desmentido.
+Publicados: https://claude.ai/artifact/86a1MJf9xuRBmmGpDHmczw ·
+https://claude.ai/artifact/QrNVi9xvzRgaZ5UsibSueB
+
 
 ## Archivos y cambios
 
@@ -162,10 +186,14 @@ anotada y nunca verificada es peor que ninguna.
      **una** de las tres cosas que medía `[CARD]`; está dicho en `CLAUDE.md`
      para que nadie lo dé por cubierto.
    - El resto de los minors del tramo P4 del artefacto, intactos.
-4. **Seguir por P2**, que son cuatro decisiones tuyas listas para ejecutarse
-   (la convención nueva en `CLAUDE.md`, `docs/pipeline.md`, los dos controles
-   de dominio sin vista, y para qué existe `DELETE /criteria_sets/:id`), y
-   después P3 y P4.
+4. **Un flake horario preexistente, encontrado de paso y sin arreglar:**
+   `Selection#decide!` escribe `decided_at: Time.current` **por fila** y la
+   vista agrupa con `.change(sec: 0)`. Dos filas a los dos lados de un cambio
+   de minuto parten la tanda y el registro dice «1 idea» dos veces
+   (`spec/requests/selection_screen_spec.rb:138`). Apareció una vez en una
+   corrida y después verde en cinco.
+5. **Seguir por P3 y P4**: los once ítems visuales del repaso de capturas, el
+   relleno de `.alert`, y los tramos de menores ya triageados.
    https://claude.ai/artifact/C2i3g3ZRz1gUeMuX3bEXrq
 
 ## Cosas del entorno
