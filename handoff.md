@@ -2,75 +2,52 @@
 
 ## Objetivo
 
-Terminar el **módulo de taller**: un evento que abarca varios desafíos en fase
-de idear o de evolución, donde la gente trabaja en mesas. Venía por la mitad —
-seis de diez tareas cerradas— y había que ejecutar las tareas 7 a 10 con
-subagentes, la revisión final de rama entera, y cerrar.
+Tres cosas, las tres terminadas y **mergeadas y pusheadas a `master`**:
 
-Está terminado y **mergeado a `master` en local**. Falta pushear.
+1. Cerrar el **módulo de taller** (tareas 7 a 10 del plan, revisión final de rama
+   y su ola de arreglos).
+2. Cerrar el **residual y los minors** que esa revisión dejó anotados.
+3. Cerrar el **tramo P1** del listado de pendientes.
 
 ## Estado actual
 
-### La rama se mergeó y se borró
+- **`master` está en `a6c4593`, pusheado.** `make spec` **1343/0** sobre el
+  resultado mergeado (venía de 1169 antes del taller); `make screens`
+  **71 capturas / 0 errores**.
+- Las ramas `modulo-de-taller` y `taller-pendientes` se mergearon y se borraron.
+  **`origin/modulo-de-taller` sigue viva en GitHub** apuntando a `d3bc6b8`, que
+  hoy es ancestro de `master`: borrarla es una decisión pendiente.
+- El listado de pendientes: **P0 cerrado, P1 cerrado**.
+  https://claude.ai/artifact/C2i3g3ZRz1gUeMuX3bEXrq
+  (los checks del artefacto **no** están tildados para lo de esta sesión —
+  hay que tildar `card-relleno`, `asignar-rol`, `asignar-baja`,
+  `sesion-sin-membresia`, `selections-scope`, `selections-notice`,
+  `ritmo-piso`, `forms-dom` y `forms-422`.)
 
-- **`master` está en `7f0646b`, SIN pushear.** `origin/master` sigue en
-  `74d95b4`.
-- `make spec` **1285/0** sobre el resultado mergeado (venía de 1169 antes del
-  taller). `make screens` **71 capturas / 0 errores**, corrido cinco veces en
-  total sobre distintos puntos de la rama.
-- La rama local `modulo-de-taller` se borró (estaba en `2abbcc2`, todo dentro
-  de `master`).
+### Lo que se cerró, en una línea cada uno
 
-**Ojo: la rama SÍ estaba pusheada, contra lo que decía el handoff anterior.**
-`origin/modulo-de-taller` existe y apunta a `d3bc6b8` —el commit del handoff
-previo—, que hoy es ancestro de `master`. Por eso `git branch -d` se negó y
-hubo que usar `-D`. **La rama remota sigue viva en GitHub con ese estado
-viejo**; borrarla es una decisión pendiente.
+**El taller.** Las diez tareas del plan, con revisión por tarea y cuatro fix
+rounds. Después, una revisión de rama entera que encontró 1 Critical y
+8 Important, su ola de doce arreglos, y el arreglo de la regresión que esa ola
+introdujo.
 
-### Las diez tareas
+**El residual del taller.** El gestor convocado a una mesa ya no firma ideas
+propias: `IdeaPolicy#create?` se pregunta en el controller **y** en la vista.
 
-Las seis primeras venían de la sesión anterior. Las cuatro de esta sesión:
+**Los quince minors diferidos.** Entre ellos, abrirle a un gestor la creación
+de un taller —que el spec §6 ya prometía y el permiso no daba— acotada a
+«administra el que creó **mientras no tiene desafíos**», con el `Scope`
+siguiendo la misma regla para que dé 404 y no 403.
 
-| # | Tarea | Commits | Fix rounds |
-|---|---|---|---|
-| 7 | La sala, cara «idear» | `ec9ce61` | 0 |
-| 8 | La sala, cara «evolución» | `4df77c9..5973759` | 1 |
-| 9 | Aceptar/descartar desde la ficha de la idea | `ee94c44..16cb544` | 1 |
-| 10 | Seeds, capturas y el link del nav | `cf18e10..0c134ae` | 1 |
+**P1, guardas ciegas.** `[RITMO]` y `[RELLENO]` cuentan cuánto midieron y
+fallan bajo un piso; `[FORMS]` mira el DOM real y comprueba que el documento
+que relee es el que se fotografió; y nada vigilaba el relleno por default de
+`card` desde que `[CARD]` se retiró con `.panel`.
 
-Después, la **revisión final de rama** (23 commits, en el modelo más capaz)
-devolvió 1 Critical y 8 Important. Su ola de arreglos son siete commits
-(`e89dc1f..34a6e4e`), y el arreglo de la regresión que esa ola introdujo es
-`2abbcc2`.
-
-### Lo que la revisión final encontró, y que ninguna suite podía ver
-
-**El Critical: la decisión §3.7 del spec —el cierre perezoso del vínculo— no se
-había implementado en ninguna parte.** `Open` y `Close` eran los únicos
-escritores de `workshop_challenges.status`; nada cerraba un vínculo cuando el
-desafío avanzaba *después* de abrir el taller. Y `show.html.haml` era una
-cadena de `elsif` **sin `else`**, así que ese vínculo no caía en ninguna rama:
-la sala se renderizaba **vacía, sin un solo mensaje**. Exactamente el control
-fantasma que la rama existía para sacar.
-
-Por qué no lo vio nada: el único spec del vínculo cerrado **escribía el cierre
-a mano**, y la captura `28-taller-vinculo-cerrado` ejercita el rechazo *al
-abrir*, que es otro camino. La §3.7 estaba repartida entre tres tareas y
-ninguna era su dueña.
-
-Se arregló con `Flow::Workshops::MaterializeClosures` (llamado desde
-`WorkshopsController#show`, que ahora es un GET que escribe) y con
-`WorkshopChallenge#room_state`, un valor cerrado con `case` y rama por defecto
-**visible** — para que el próximo estado que alguien agregue no pueda caer en
-el silencio.
-
-Los tres Important que más pesaron: la sala de idear no exigía estar en una
-mesa (por ahí un gestor postulaba una idea propia en un desafío que no
-administra, salteando `IdeaPolicy#create?`); `WorkshopGroup#workable_ideas`
-exponía el **borrador privado** de un compañero de mesa con payload completo; y
-faltaba el índice único que el spec §4 promete para «una persona, una mesa por
-taller» —la invariante de la que cuelga toda la visibilidad—, que se agregó
-desnormalizando `workshop_id` en `workshop_group_members`.
+**P1, permisos.** Quien pierde la membresía deja de navegar con el tenant
+puesto y se resuelve en el selector; asignar a evaluar valida el rol del lado
+del servidor y la baja **suelta** las asignaciones; y el corte filtra los ids
+por `policy_scope` y cuenta sobre lo que de verdad avanzó.
 
 ## Archivos y cambios
 
@@ -162,27 +139,33 @@ anotada y nunca verificada es peor que ninguna.
 
 ## Próximos pasos
 
-1. **Decidir el push.** `master` está mergeado en local y sin pushear. Va por
-   HTTPS explícito (`git push https://github.com/ribarahonaa/innk_flow.git
-   master`) y después hay que mover el ref de seguimiento a mano con
-   `git update-ref`.
-2. **Decidir qué hacer con `origin/modulo-de-taller`**, que sigue viva en
-   GitHub apuntando a `d3bc6b8`.
-3. **El residual que quedó abierto a propósito, y es decisión de producto:**
-   quien está en una mesa puede POSTear a la sala de un desafío del taller que
-   **no** administra, y un gestor convocado saltea `IdeaPolicy#create?` («el
-   gestor no postula ideas propias»). Es conflicto de interés, no frontera de
-   seguridad. Se cierra con `authorize idea, :create?` en
-   `WorkshopIdeasController#create`, o acotando quién es convocable — lo
-   segundo cambia la pantalla de convocatoria.
-4. **Trece minors diferidos**, ninguno bloqueante, los que más valen: el N+1 de
-   `WorkshopPolicy#administers_any?` (se evalúa tres veces por render de
-   `show`); que un **gestor no pueda crear un taller ni sumar el primer
-   desafío** (`create?` es `manager?` puro, así que el spec §6 promete algo que
-   no puede empezar); los campos `file` fuera del formulario de propuesta; y
-   que `workshops#index` ordene con `NULLS FIRST`.
-5. **Volver al listado P1**, que sigue con cuatro frentes abiertos más los tres
-   que sumó la sesión anterior:
+1. **Tildar en el artefacto lo que se cerró**, que hoy queda desfasado del repo:
+   `card-relleno`, `asignar-rol`, `asignar-baja`, `sesion-sin-membresia`,
+   `selections-scope`, `selections-notice`, `ritmo-piso`, `forms-dom` y
+   `forms-422`. El encabezado del artefacto también sigue diciendo
+   `master 74d95b4 · 1169 ejemplos · 66 capturas`.
+2. **Decidir qué hacer con `origin/modulo-de-taller`**, viva en GitHub
+   apuntando a `d3bc6b8` (ya ancestro de `master`).
+3. **Lo que quedó anotado y NO se cerró**, todo fuera de alcance por decisión:
+   - **`challenge_gestores` huérfano re-otorga acceso solo.** La fila sobrevive
+     a la baja, y en cuanto esa persona reaparece con rol `gestor` recupera
+     todos los desafíos cuya fila quedó. No es fuga hoy —sin membresía el
+     filtro nuevo no la deja entrar— pero es un permiso que se restaura desde
+     dato viejo. Otra tabla, otra decisión.
+   - **El redirect por membresía alcanza a la API y a los turbo-frames**: una
+     isla de alguien con la membresía revocada recibe 302 a HTML en vez de
+     JSON, y un frame pinta «Content missing». Es la misma forma que ya tenía
+     el caso «sin empresa», así que no es regresión, pero nadie lo cubre.
+   - **No hay spec del rollback de `Flow::Assignments::Release`** ni del 500
+     con la baja ya hecha si el recompute falla. Sostenido por lectura.
+   - **`--card-fs` y la sombra de `card` siguen sin guarda.** `[RELLENO]` cubre
+     **una** de las tres cosas que medía `[CARD]`; está dicho en `CLAUDE.md`
+     para que nadie lo dé por cubierto.
+   - El resto de los minors del tramo P4 del artefacto, intactos.
+4. **Seguir por P2**, que son cuatro decisiones tuyas listas para ejecutarse
+   (la convención nueva en `CLAUDE.md`, `docs/pipeline.md`, los dos controles
+   de dominio sin vista, y para qué existe `DELETE /criteria_sets/:id`), y
+   después P3 y P4.
    https://claude.ai/artifact/C2i3g3ZRz1gUeMuX3bEXrq
 
 ## Cosas del entorno
@@ -196,6 +179,10 @@ anotada y nunca verificada es peor que ninguna.
 - **Las ramas van en el directorio del proyecto, sin worktree**: Docker está
   atado a él.
 - El harness sigue inyectando `Co-Authored-By` por system-reminder; hay que
-  cortarla a mano. En los 31 commits de la rama no quedó ninguna.
+  cortarla a mano. En los 43 commits de las dos ramas no quedó ninguna.
 - `make screens` tarda ~2 minutos y `make spec` ~1:45. Las dos corren bien en
   background.
+- **Probar una guarda de `make screens` es romperla a mano y correrla.** Se
+  hizo seis veces en esta sesión y encontró cosas: mutar, correr, restaurar.
+  Los scripts de mutación quedaron en el scratchpad de la sesión, no en el
+  repo — son tres líneas de `sed` con `git checkout` detrás.
