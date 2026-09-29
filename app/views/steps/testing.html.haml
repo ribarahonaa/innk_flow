@@ -68,17 +68,22 @@
                 - else
                   = "—"
               %td.text-right
-                -# El link pregunta LA MISMA policy que autoriza al controller, no
-                -# `step.active?` a secas: con eso se le mostraba a quien se comía
-                -# un 403 al apretarlo (la lección del link «Evaluar»).
-                - if puede_testear && @step.active?
-                  = link_to(test ? "Re-testear" : "Testear",
-                            new_challenge_step_step_test_path(@challenge, @step, idea_id: entry.idea_id),
-                            class: "btn btn-ghost btn-sm")
-                - if puede_pedir_ia && @step.active? && @step.effective_ai_mode != "human"
-                  = button_to "IA", challenge_ai_requests_path(@challenge, purpose: "test_idea",
-                                                               step_id: @step.id, idea_id: entry.idea_id),
-                              class: "btn btn-ghost btn-sm", title: "Que la IA testee esta idea"
+                -# Los dos controles en una línea. `button_to` es un `<form>`, y
+                -# un form es `display: block`: sueltos en la celda, el «IA»
+                -# caía debajo del otro y la columna se angostaba hasta partir
+                -# «Re-testear» por el guion.
+                .row-actions
+                  -# El link pregunta LA MISMA policy que autoriza al controller, no
+                  -# `step.active?` a secas: con eso se le mostraba a quien se comía
+                  -# un 403 al apretarlo (la lección del link «Evaluar»).
+                  - if puede_testear && @step.active?
+                    = link_to(test ? "Re-testear" : "Testear",
+                              new_challenge_step_step_test_path(@challenge, @step, idea_id: entry.idea_id),
+                              class: "btn btn-ghost btn-sm")
+                  - if puede_pedir_ia && @step.active? && @step.effective_ai_mode != "human"
+                    = button_to "IA", challenge_ai_requests_path(@challenge, purpose: "test_idea",
+                                                                 step_id: @step.id, idea_id: entry.idea_id),
+                                class: "btn btn-ghost btn-sm", title: "Que la IA testee esta idea"
 
 - content_for :referencia do
   = render "steps/progreso", progress: handler.progress

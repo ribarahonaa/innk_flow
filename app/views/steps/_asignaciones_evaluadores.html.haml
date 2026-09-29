@@ -48,6 +48,14 @@
                 %span.muted= " · #{Flow::Texto.contar(notas, "evaluación")}"
               - else
                 %span.muted · sin evaluar
+              -# Con el módulo cerrado no hay campo de peso que lo muestre, y
+              -# sin esto la lista quedaba idéntica a la de la referencia pero
+              -# SIN el peso: el chip «con pesos» arriba y el texto prometiendo
+              -# «cuánto pesó cada voto queda como está», y después ninguna fila
+              -# decía cuánto pesó. Mientras el módulo está abierto lo dice el
+              -# campo, así que acá sería repetirlo.
+              - if cerrado && asignacion.weighted?
+                %span.muted= " · peso #{asignacion.weight.to_f}"
             - unless cerrado
               .assignment-row__actions
                 = form_with url: challenge_step_step_assignment_path(challenge, step, asignacion),
