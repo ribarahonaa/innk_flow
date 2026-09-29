@@ -27,21 +27,20 @@
   - handler = step.handler
   .card
     .card-body
+      -# Sin la descripción genérica del `kind`, que arriba de cada tarjeta se
+      -# repetía a sí misma: el encabezado ya nombra el kind, y la rama de
+      -# abajo cuenta lo mismo pero de ESTE módulo y con su configuración. En
+      -# el desafío sembrado quedaban las dos líneas diciendo lo mismo en cinco
+      -# de las siete tarjetas —«…el autor la actualiza, cada cambio queda como
+      -# una versión nueva» sobre «…su autor publica una versión nueva»;
+      -# «avanzan las mejores» sobre «avanzan las 3 mejores»— y en reportería y
+      -# en testing casi con las mismas palabras. La genérica sigue viva donde
+      -# sí describe algo que todavía no existe: la paleta del builder
+      -# (`PipelinePresenter`).
       .section-head
-        %div
-          %h2.section-title
-            = "#{index + 1}. #{step.name}"
-            %span.muted= " · #{t("flow.kinds.#{step.kind}")}"
-          -# Sin la descripción genérica del `kind`, que arriba de cada tarjeta
-          -# se repetía a sí misma: el encabezado ya nombra el kind, y la rama
-          -# de abajo cuenta lo mismo pero de ESTE módulo y con su
-          -# configuración. En el desafío sembrado quedaban las dos líneas
-          -# diciendo lo mismo en cinco de las siete tarjetas —«…el autor la
-          -# actualiza, cada cambio queda como una versión nueva» sobre «…su
-          -# autor publica una versión nueva»; «avanzan las mejores» sobre
-          -# «avanzan las 3 mejores»— y en reportería y en testing casi con las
-          -# mismas palabras. La genérica sigue viva donde sí describe algo que
-          -# todavía no existe: la paleta del builder (`PipelinePresenter`).
+        %h2.section-title
+          = "#{index + 1}. #{step.name}"
+          %span.muted= " · #{t("flow.kinds.#{step.kind}")}"
         %span{ class: chip_de_estado(step.status) }= t("flow.statuses.#{step.status}")
 
       - case step.kind

@@ -1129,8 +1129,16 @@ input:focus, textarea:focus, select:focus {
    `margin-block: 1em` que `@layer base` le da a todo `<p>` NO colapsa con
    nada: se suma al gap del título y al relleno de la tarjeta. Arriba y al
    final no separa de nada —para eso está el relleno—; entre párrafo y párrafo
-   sí, y 6px + el gap dan los 14px de siempre. */
-.challenge-brief { margin: 0 0 6px; }
+   sí, y 6px + el gap dan los 14px de siempre.
+
+   `max-width` acá y no heredado: la medida de prosa la reparte
+   `.app-main > .card p:not([class])` —doscientas líneas más arriba— y
+   ponerle una clase a este párrafo lo sacó de ese selector. Sin esto el brief
+   renderiza en UNA línea de 1.032px (medido en `04-challenge.png`), que es
+   justo lo que ese bloque existe para que no pase: un párrafo a 1.440px de
+   línea no se lee por más que la tarjeta sí quiera ese ancho. Ninguna guarda
+   de `make screens` lo mide. */
+.challenge-brief { margin: 0 0 6px; max-width: var(--prosa); }
 .challenge-brief:last-child { margin-bottom: 0; }
 
 /* Mapa compacto del pipeline */

@@ -64,8 +64,12 @@
             -# quien le sacaron el acceso— el chip salía igual y VACÍO: una
             -# pastilla de 14×2px que en pantalla se lee como un «—» suelto
             -# entre el nombre y «Cambiar empresa».
+            -# Traducido, como en la lista de cuentas del login y en el
+            -# selector de empresa: el valor crudo del enum («admin») era el
+            -# único lugar de la app donde el rol se mostraba sin pasar por
+            -# `flow.roles`.
             - if current_membership
-              %span.app-header__role= current_membership.role
+              %span.app-header__role= t("flow.roles.#{current_membership.role}")
           - if current_user.multi_company?
             = link_to "Cambiar empresa", select_company_path, class: "app-header__link"
           = button_to "Salir", logout_path, method: :delete, class: "app-header__link app-header__link--button"

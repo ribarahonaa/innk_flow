@@ -757,13 +757,15 @@ async function revisarContraste(page, name) {
 //
 // Extenderlo son DOS selectores, no uno, y el segundo es fácil de no ver: acá
 // abajo, y el filtro propio del muestrario (`revisarMuestrario`), que se
-// quedaba con las clases que empiezan en `badge `. Sin ése, las tres variantes
-// de aviso —que el muestrario YA inyecta para `[CONTRASTE]`— seguirían sin
-// medir pastilla en oscuro, que es justo para lo que el muestrario existe: la
-// pasada oscura son diez pantallas y ninguna tiene un aviso. Lo que no hace
-// falta tocar es el medidor: lo que `medirContraste` compone —el fondo real de
-// atrás, el borde sólo si tiene ancho, la atenuación de los ancestros— no sabe
-// ni le importa qué componente está midiendo.
+// quedaba con las clases que empiezan en `badge `. Lo que el segundo agrega es
+// COBERTURA POR VARIANTE en cada tema: de las tres de aviso, la pasada oscura
+// muestra `alert-warning` —`99-oscuro-idear` lo tiene, el de «Ya hay ideas
+// postuladas…» de `steps/_campos_editor`— y no muestra ninguna de
+// `alert-success` ni de `alert-error`. El muestrario YA inyecta las tres para
+// `[CONTRASTE]`; sin sumarlo, esas dos no medirían pastilla en oscuro jamás.
+// Lo que no hace falta tocar es el medidor: lo que `medirContraste` compone
+// —el fondo real de atrás, el borde sólo si tiene ancho, la atenuación de los
+// ancestros— no sabe ni le importa qué componente está midiendo.
 //
 // El piso es 1,25:1 y no 3:1: el TEXTO del chip ya pasa 4,5:1 —eso lo mide
 // `[CONTRASTE]`— así que la pastilla no carga información y WCAG 1.4.11 no
