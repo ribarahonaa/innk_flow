@@ -91,24 +91,37 @@ https://claude.ai/artifact/QrNVi9xvzRgaZ5UsibSueB
 
 ## Archivos y cambios
 
-57 archivos, +6328/−223. Lo que hay que saber para moverse:
+Cinco tandas mergeadas a `master`, de `74d95b4` a `c7a60ed`. Dónde vive cada
+cosa:
 
-- **Modelos:** `workshop.rb`, `workshop_challenge.rb` (tiene `room_state`, que
-  es quien decide la cara de la sala), `workshop_group.rb` (`workable_ideas`,
-  la unión por mesa), `workshop_group_member.rb`, `workshop_proposal.rb`.
-- **Servicios:** `app/lib/flow/workshops/{open,close,convoke,materialize_closures}.rb`.
-- **Policies:** `workshop_policy.rb`, `workshop_proposal_policy.rb`.
-- **Controllers:** seis, más `ideas_controller.rb` tocado para publicar
-  `@workshop_proposals`.
-- **Vistas:** `workshops/{index,new,show,_assembly,_groups,_sala_idear,_sala_evolucion}`,
-  `shared/_workshop_proposal`, el link «Talleres» en el layout, y
-  `ideas/_form_fields` con un `id_prefix` opcional.
-- **Migraciones:** `create_workshops`, `allow_workshop_actor_on_idea_versions`,
-  `add_workshop_to_group_members`. `db/structure.sql` commiteado.
-- **Specs nuevos:** trece archivos. `spec/requests/workshop_sala_idear_spec.rb`
-  tiene el test más valioso de la rama: beto (misma mesa) recibe 200 y carla
-  (afuera) 404 **sobre la misma idea**, así que se cae si alguien toca
-  `IdeaPolicy::Scope` o deja de sembrar contribuyentes.
+- **El taller** (57 archivos): cinco modelos en `app/models/workshop*.rb`
+  —`workshop_challenge.rb` tiene `room_state`, que decide la cara de la sala;
+  `workshop_group.rb` tiene `workable_ideas`, la unión por mesa—; cuatro
+  servicios en `app/lib/flow/workshops/`; `workshop_policy.rb` y
+  `workshop_proposal_policy.rb`; seis controllers; las vistas de
+  `app/views/workshops/`; tres migraciones.
+- **Permisos y sesión:** `app/lib/flow/assignments/release.rb` (suelta las
+  asignaciones al dar de baja), `concerns/tenant_resolution.rb` (el filtro que
+  pide la membresía y desanota la empresa), `step_assignment.rb`
+  (`eligible_user_ids`), `selections_controller.rb`.
+- **Los controles nuevos:** `app/views/steps/_saltear.html.haml` servido en las
+  doce caras, `ApplicationHelper#puede_saltear?`, y el `button_to` de cerrar en
+  `challenges/show.html.haml`.
+- **Las guardas del recorrido:** todo en `script/capture_screens.js`
+  —`PISO_DE_RITMO`, `PISO_DE_CARD_BODY`, el `form form` sobre el DOM, la
+  identidad del documento, `[PASTILLA]` extendida a `.alert`—.
+- **La hoja:** `app/assets/stylesheets/application.css`, sobre todo el tope de
+  la franja de referencia, `.alert-soft`, `.challenge-brief` y el campo de
+  archivo.
+- **Docs:** `docs/pipeline.md` (diez correcciones), `CLAUDE.md` (la regla del
+  nombre, `[RELLENO]` y su alcance), los dos `.json` de los diagramas.
+
+**Dos specs que vale conocer antes de tocar nada:**
+`spec/requests/workshop_sala_idear_spec.rb` tiene el test más valioso del
+taller —beto (misma mesa) recibe 200 y carla (afuera) 404 **sobre la misma
+idea**, así que se cae si alguien toca `IdeaPolicy::Scope` o deja de sembrar
+contribuyentes—; y `spec/policies/gestor_administra_spec.rb` existe porque
+**abrir un permiso de más no rompe ningún test**, y cerrarlo de más tampoco.
 
 ## Intentos fallidos
 
@@ -166,6 +179,62 @@ con error.
 **Lección, la misma de siempre en este repo: una guarda que nadie vio fallar no
 es una guarda.** Y la variante nueva: **arreglar el lado de la escritura de un
 estado no arregla el lado de la lectura.**
+
+### Una guarda que nadie vio fallar no es una guarda
+
+Se probó **seis veces** en esta sesión, rompiendo a mano y corriendo: mutar,
+correr, restaurar. Encontró cosas cada vez. Las dos que más valen:
+
+- La ola de arreglos de la revisión final del taller **introdujo una regresión
+  que `make screens` dejó pasar en verde**, porque la guarda de esa captura
+  sólo miraba dos textos.
+- `[RITMO]` pasaba en un tercio de las pantallas **sin comparar nada**, y
+  mudarla a `capturar()` hizo que ese silencio se leyera como cobertura.
+
+Los scripts de mutación quedaron en el scratchpad, no en el repo: son tres
+líneas de `sed` con `git checkout` detrás.
+
+### Un tope que hace imposible que su propia guarda pase
+
+`max-height: 320px` en la franja de referencia permitía un título en 470px, y
+`[REFERENCIA]` corta en 450: **estaba condenada a fallar** en cuanto cualquier
+tarjeta de referencia creciera. Nadie lo había notado porque el margen real era
+de 3px. La lección: cuando una guarda mide una suma, el tope de cada sumando
+tiene que salir de la misma cuenta — y la cuenta va escrita al lado.
+
+### Arreglar una cosa rompe otra, en silencio
+
+Pasó dos veces seguidas y las dos las cazó la revisión, no la suite:
+
+- Sacarle al Brief los 72px muertos le sacó **la medida de prosa**, porque
+  ponerle clase al párrafo lo saca de `.app-main > .card p:not([class])`.
+  Quedó una línea de 1032px, y **ninguna guarda mide ancho de línea**.
+- Ofrecer el control de saltear hizo que el camino más común terminara en un
+  `alert` rojo sobre una operación que **salía bien**.
+
+### Los comentarios mienten antes que el código
+
+Tres apariciones en una sesión: uno decía que `skip!` no mira el estado del
+desafío (dejó de ser cierto en el mismo fix que lo dejó huérfano), otro que
+ninguna pantalla oscura tiene avisos (`99-oscuro-idear` tiene uno), y otro que
+`EmbedVersionJob` lo cubre Sidekiq por reintento (es un **no-op silencioso**:
+`find_by` da `nil` y `EmbedVersion#call` devuelve `false`).
+
+**Y los docs mienten más:** `docs/pipeline.md` tenía **diez** afirmaciones
+falsas o viejas, no las dos que el listado anotaba.
+
+### Un test que no puede fallar por lo que dice probar
+
+Cuatro veces en esta sesión. La más instructiva: el ejemplo del desafío cerrado
+en `testing_ia_spec` estaba tapado por `@step.active?`, así que sacar la guarda
+que decía probar **no lo ponía en rojo**. Se verifica de una sola forma:
+revertir la guarda y mirar el test.
+
+### Filtrar la salida de `make screens` puede tapar el error
+
+Corrí con `| tail -6` y reporté «falló» sin poder decir por qué: la línea de
+`[REFERENCIA]` había quedado fuera del recorte. Guardá la salida entera a un
+archivo y filtrá después.
 
 ### Una premisa que estaba escrita en el ledger y era falsa
 
