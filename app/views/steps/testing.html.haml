@@ -93,6 +93,12 @@
 
   = render "steps/config_congelada", step: @step
 
+-# El resumen se arma con las MISMAS guardas que los bloques de adentro: con
+-# el texto fijo anunciaba «nombre y modo de IA» y nada más, así que el bloque
+-# de saltear quedaba adentro sin que el plegado lo dijera.
 - if puede_testear
-  = render layout: "steps/ajustes", locals: { resumen: ["nombre", "modo de IA"].to_sentence } do
+  - ajustes = ["nombre", "modo de IA"]
+  - ajustes << "saltear el módulo" if puede_saltear?(@step)
+  = render layout: "steps/ajustes", locals: { resumen: ajustes.to_sentence } do
     = render "steps/ai_mode", step: @step
+    = render "steps/saltear", step: @step, tarjeta: false

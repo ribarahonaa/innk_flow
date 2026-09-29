@@ -10,10 +10,12 @@ class ChallengeStepPolicy < ApplicationPolicy
   #
   # `skip?` NO mira el estado del módulo, así que dice que sí también sobre uno
   # completado. Quien se niega ahí es `Handlers::Base#skip!`, que es donde vive
-  # esa regla una sola vez. Si algún día se dibuja un control «Saltear» con
-  # `policy(step).skip?`, va a aparecer sobre módulos cerrados y rebotar en ese
-  # aviso —el control fantasma de siempre—: el botón tiene que preguntar además
-  # por el estado, no duplicarse el predicado acá.
+  # esa regla una sola vez. El control «Saltear» de la pantalla del módulo
+  # (`steps/_saltear`) por eso no pregunta esto a secas: pregunta
+  # `ApplicationHelper#puede_saltear?`, que suma el estado del módulo y el del
+  # desafío. Con `skip?` pelado aparecía sobre módulos cerrados y rebotaba en
+  # el aviso del controller —el control fantasma de siempre—; el predicado no
+  # se duplica acá porque esto es «quién», no «cuándo».
   def advance? = administers?(record&.challenge)
   def skip? = administers?(record&.challenge)
 

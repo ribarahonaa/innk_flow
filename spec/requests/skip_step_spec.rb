@@ -2,12 +2,16 @@
 
 require "rails_helper"
 
-# Saltear un módulo NO tiene control en ninguna vista —la ruta existe y la
-# policy también, pero nada la ofrece— así que un request spec es la única
-# cobertura posible, y por eso el defecto sobrevivió: `skip` llamaba a
-# `advance!` para seguir el flujo, y `advance!` corta con `failure` justo
-# cuando no hay módulo en curso, que es el estado que el salteo acaba de
-# dejar. Saltear trababa el flujo sin avisar.
+# Saltear un módulo fue mucho tiempo una capacidad del dominio SIN ninguna
+# vista que la ofreciera —la ruta y la policy existían y nada las usaba—, y
+# por eso el defecto sobrevivió: `skip` llamaba a `advance!` para seguir el
+# flujo, y `advance!` corta con `failure` justo cuando no hay módulo en curso,
+# que es el estado que el salteo acaba de dejar. Saltear trababa el flujo sin
+# avisar.
+#
+# Ahora hay control (`steps/_saltear`), y su parte está al final del archivo:
+# la ruta sigue llegando a estados que el botón no ofrece, así que los
+# ejemplos del POST se quedan igual de necesarios.
 RSpec.describe "saltear un módulo", type: :request do
   let!(:company) { without_tenant { create(:company, slug: "acme") } }
   let!(:admin) do
@@ -176,5 +180,153 @@ RSpec.describe "saltear un módulo", type: :request do
 
     expect(response).to have_http_status(:forbidden)
     as_company(company) { expect(challenge.steps.ordered.first.reload).to be_active }
+  end
+
+  # ── El control ────────────────────────────────────────────────────────────
+  #
+  # Hasta acá saltear era una capacidad del dominio sin interfaz: la ruta, el
+  # servicio y la policy existían y ninguna vista los ofrecía. El control vive
+  # en «Ajustes del módulo» de la cara de ejecución y suelto en la de
+  # configuración —se usa poco y no es el trabajo del módulo—, y su guarda son
+  # DOS preguntas, no una: `ChallengeStepPolicy#skip?` (que es `administers?` a
+  # secas) Y el estado, porque `skip!` se niega sobre uno `completed` o
+  # `skipped` y `continue!` no se mueve sin el desafío en curso.
+  describe "el control en la pantalla del módulo" do
+    def boton(challenge, step)
+      Nokogiri::HTML(response.body).at_css("form[action=\"#{skip_challenge_step_path(challenge, step)}\"]")
+    end
+
+    # Cuenta la anidación de <form> en el HTML SERVIDO: en el DOM no se ve,
+    # porque el navegador descarta el interno al parsear y sus botones pasan a
+    # pertenecer al externo. Mismo chequeo que `selection_screen_spec`.
+    # Lo que anuncia el plegado de «Ajustes del módulo».
+    def resumen_de_los_ajustes
+      Nokogiri::HTML(response.body).at_css(".ajustes__titulo")&.text.to_s
+    end
+
+    def profundidad_maxima_de_forms(html)
+      maxima = 0
+      actual = 0
+      html.scan(%r{<form\b|</form>}) do |etiqueta|
+        actual += etiqueta == "</form>" ? -1 : 1
+        maxima = [maxima, actual].max
+      end
+      maxima
+    end
+
+    it "quien administra lo ve sobre el módulo en curso, y el aviso dice a dónde pasa el flujo" do
+      challenge = arrancado(%w[ideation evaluation reporting])
+      activo = as_company(company) { challenge.steps.ordered.first }
+
+      get challenge_step_path(challenge, activo)
+
+      form = boton(challenge, activo)
+      expect(form).not_to be_nil
+      expect(form.text).to include("Saltear el módulo")
+      expect(form["data-turbo-confirm"]).to include("«Idear»", "sin terminar",
+                                                    "el flujo pasa a «Evaluación»")
+      # El resumen del plegable se arma con la MISMA guarda que el bloque: si
+      # no, el plegado anuncia algo que adentro no está, o lo esconde.
+      expect(resumen_de_los_ajustes).to include("saltear el módulo")
+    end
+
+    it "y el formulario del salteo no queda adentro de otro" do
+      challenge = arrancado(%w[ideation evaluation reporting])
+      activo = as_company(company) { challenge.steps.ordered.first }
+
+      get challenge_step_path(challenge, activo)
+
+      expect(boton(challenge, activo)).not_to be_nil
+      expect(profundidad_maxima_de_forms(response.body)).to eq(1)
+    end
+
+    it "quien participa no lo ve" do
+      challenge = arrancado(%w[ideation evaluation reporting])
+      participante = without_tenant do
+        u = create(:user, email: "mira@test.dev")
+        create(:membership, company: company, user: u, role: "participant")
+        u
+      end
+      activo = as_company(company) { challenge.steps.ordered.first }
+      sign_in(participante, company: company)
+
+      get challenge_step_path(challenge, activo)
+
+      expect(response).to have_http_status(:ok)
+      expect(boton(challenge, activo)).to be_nil
+    end
+
+    # La mitad que la policy NO contesta: `skip?` dice que sí sobre un módulo
+    # ya cerrado. Sin esta guarda el botón aparecía igual y el `alert` del
+    # controller era el que avisaba — el control que no responde.
+    it "no aparece sobre un módulo que ya terminó" do
+      challenge = arrancado(%w[ideation reporting])
+      completado = as_company(company) do
+        paso = challenge.steps.ordered.first
+        Flow::Handlers::Base.for(paso).complete!
+        challenge.pipeline.continue!
+        paso.reload
+      end
+
+      get challenge_step_path(challenge, completado)
+
+      expect(response).to have_http_status(:ok)
+      expect(as_company(company) { challenge.steps.ordered.first.reload }).to be_completed
+      expect(boton(challenge, completado)).to be_nil
+      # Y el plegable tampoco lo anuncia: sigue abriéndose por el nombre y el
+      # modo de IA, que ahí sí se pueden tocar.
+      expect(resumen_de_los_ajustes).to include("nombre")
+      expect(resumen_de_los_ajustes).not_to include("saltear")
+    end
+
+    it "ni sobre uno ya salteado" do
+      challenge = arrancado(%w[ideation evaluation reporting])
+      primero = as_company(company) { challenge.steps.ordered.first }
+      post skip_challenge_step_path(challenge, primero)
+      salteado = as_company(company) { challenge.steps.ordered.first.reload }
+      expect(salteado).to be_skipped
+
+      get challenge_step_path(challenge, salteado)
+
+      expect(boton(challenge, salteado)).to be_nil
+    end
+
+    # Saltear uno PENDIENTE sube el piso de inserción: los pendientes que
+    # quedan antes dejan de poder moverse o borrarse. Es lo que el aviso tiene
+    # que decir, porque no se ve por ningún lado.
+    it "sobre uno pendiente, el aviso nombra el piso de inserción" do
+      challenge = arrancado(%w[ideation evaluation reporting])
+      pendiente = as_company(company) { challenge.steps.ordered.last }
+
+      get challenge_step_path(challenge, pendiente)
+
+      form = boton(challenge, pendiente)
+      expect(form).not_to be_nil
+      expect(form["data-turbo-confirm"]).to include("No se va a ejecutar", "sube el piso del flujo",
+                                                    "1 módulo pendiente")
+      # En la cara de configuración el bloque convive con el `form_with` que
+      # guarda nombre, modo de IA y ajustes: tiene que quedar a su lado y no
+      # adentro.
+      expect(profundidad_maxima_de_forms(response.body)).to eq(1)
+    end
+
+    # `skip!` no mira el estado del DESAFÍO y `continue!` se niega fuera de
+    # curso: sobre un borrador el salteo se guardaría igual, y un módulo
+    # `skipped` primero en el flujo deja el desafío arrancando sin nadie
+    # activo, porque `activate!` no toca un módulo ya tocado.
+    it "no aparece en un desafío en borrador" do
+      challenge = as_company(company) do
+        c = create(:challenge, name: "Sin arrancar", ai_default_mode: "human")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
+        c.steps.create!(kind: "reporting", position: 2)
+        c
+      end
+      paso = as_company(company) { challenge.steps.ordered.last }
+
+      get challenge_step_path(challenge, paso)
+
+      expect(response).to have_http_status(:ok)
+      expect(boton(challenge, paso)).to be_nil
+    end
   end
 end

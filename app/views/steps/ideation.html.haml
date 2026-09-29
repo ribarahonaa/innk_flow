@@ -40,8 +40,13 @@
 - ajustes = []
 - ajustes += ["nombre", "modo de IA"] if policy(@step).advance?
 - ajustes << "el formulario" if policy(@step).manage_form?
+-# Saltear va último: es lo más consecuente de los ajustes y no lo primero que
+-# se busca al abrirlos. Su guarda es `puede_saltear?` —policy Y estado—, la
+-# misma que el bloque, así que el resumen no puede anunciar lo que no está.
+- ajustes << "saltear el módulo" if puede_saltear?(@step)
 - if ajustes.any?
   = render layout: "steps/ajustes", locals: { resumen: ajustes.to_sentence } do
     = render "steps/ai_mode", step: @step
     - if policy(@step).manage_form?
       = render "steps/campos_editor", step: @step, tarjeta: false
+    = render "steps/saltear", step: @step, tarjeta: false

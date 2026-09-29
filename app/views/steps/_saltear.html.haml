@@ -1,0 +1,58 @@
+-# Saltear el módulo: cerrarlo sin ejecutarlo y seguir con lo que venga.
+-#
+-# Existía como capacidad del dominio —ruta, `Handlers::Base#skip!` y
+-# `ChallengeStepPolicy#skip?`— sin ninguna vista que la ofreciera. Va donde va
+-# lo que se hace poco y no es el trabajo del módulo: adentro de «Ajustes del
+-# módulo» en la cara de ejecución (`tarjeta: false`) y suelto, como una
+-# tarjeta más, en la de configuración.
+-#
+-# La guarda es UNA variable y vive en la vista: `puede_saltear?` suma el
+-# ESTADO a la policy, que no lo mira (ver el helper). Se pregunta acá y en el
+-# resumen del plegable, que es la misma pregunta hecha dos veces y no dos
+-# preguntas.
+- return unless puede_saltear?(step)
+
+-# Una sola lectura de los módulos para las dos frases. `ordered` y no el orden
+-# de la asociación: lo que se mira es qué queda ANTES y qué DESPUÉS en el
+-# flujo. `proximo` es el que abriría `continue!` después del salteo —el mismo
+-# `steps.ordered.find(&:pending?)` que usa `open_next_or_close!`— y sólo lo
+-# lee la rama del módulo en curso; sobre uno pendiente sería él mismo.
+- pasos = step.challenge.steps.ordered.to_a
+- proximo = pasos.find(&:pending?)
+
+- if step.pending?
+  -# Saltear uno PENDIENTE sube el piso de inserción (`Flow::Pipeline#insertion_floor`):
+  -# `skipped` cuenta como tocado, así que a partir de ahí no se puede colocar
+  -# nada antes y los pendientes que quedaron atrás dejan de poder moverse o
+  -# borrarse (`can_remove?` pide `can_place_at?`). Eso no se ve en ninguna
+  -# pantalla: si no lo dice el aviso, no lo dice nadie.
+  - antes = pasos.count { |otro| otro.pending? && otro.position.to_d < step.position.to_d }
+  - if antes.zero?
+    - piso = "Además sube el piso del flujo: no se va a poder agregar ningún módulo antes que éste."
+  - else
+    - cuantos = "#{Flow::Texto.contar(antes, 'módulo')} #{Flow::Texto.plural('pendiente', antes)}"
+    - queda = Flow::Texto.agree(antes, "queda", "quedan")
+    - va = Flow::Texto.agree(antes, "va", "van")
+    - piso = "Además sube el piso del flujo: #{cuantos} que #{queda} antes ya no se #{va} a poder mover ni borrar."
+  - aviso = "¿Saltear «#{step.name}»? No se va a ejecutar y no se puede deshacer. #{piso}"
+- else
+  - destino = proximo ? "el flujo pasa a «#{proximo.name}»" : "con eso se cierra el desafío"
+  - aviso = "¿Saltear «#{step.name}»? Queda cerrado sin terminar, no se puede volver a abrir y #{destino}."
+
+= render layout: "steps/bloque", locals: { tarjeta: local_assigns.fetch(:tarjeta, true) } do
+  %h2.section-title Saltear este módulo
+  - if step.pending?
+    %p.muted El flujo lo pasa de largo cuando llegue hasta acá. Queda salteado, no se ejecuta y no se puede volver a poner en la fila.
+    %p.field-hint.field-hint--warn= piso
+  - elsif proximo
+    %p.muted= "Se cierra sin terminar y el flujo pasa a «#{proximo.name}». Lo que ya se hizo acá queda, pero el módulo no se vuelve a abrir."
+  - else
+    %p.muted Se cierra sin terminar y, como no queda ningún módulo pendiente, con eso se cierra el desafío.
+
+  -# Hermano de los otros bloques, nunca adentro de uno: cada `button_to` es un
+  -# `<form>`, y un form adentro de otro lo descarta el navegador reasignándole
+  -# los botones al de afuera. En los ajustes convive con el form del nombre y
+  -# el modo de IA; en la cara de configuración, con el del módulo.
+  = button_to "Saltear el módulo", skip_challenge_step_path(step.challenge, step),
+              class: "btn btn-ghost btn-sm",
+              form: { data: { turbo_confirm: aviso } }

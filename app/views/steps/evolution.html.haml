@@ -75,7 +75,9 @@
 - ajustes = []
 - ajustes += ["nombre", "modo de IA"] if policy(@step).advance?
 - ajustes << "quiénes acompañan" if policy(@challenge).update_pipeline?
+- ajustes << "saltear el módulo" if puede_saltear?(@step)
 - if ajustes.any?
   = render layout: "steps/ajustes", locals: { resumen: ajustes.to_sentence } do
     = render "steps/ai_mode", step: @step
     = render "steps/asignaciones_gestores", step: @step, candidates: @gestor_candidates, tarjeta: false
+    = render "steps/saltear", step: @step, tarjeta: false

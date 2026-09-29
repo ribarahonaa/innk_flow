@@ -224,4 +224,71 @@ RSpec.describe "desafíos", type: :request do
     end
   end
 
+  # Cerrar un desafío a mano era, como saltear, una capacidad del dominio sin
+  # interfaz: ruta, servicio y policy existían y nada los ofrecía. El control
+  # vive en la ficha, que es donde vive lo del desafío entero, y su guarda es
+  # `ChallengePolicy#close?` —el MISMO predicado que autoriza el POST—, que ya
+  # trae el estado adentro (`administers? && running?`).
+  describe "el control de cerrar el desafío" do
+    def boton_de_cerrar(challenge)
+      Nokogiri::HTML(response.body).at_css("form[action=\"#{close_challenge_path(challenge)}\"]")
+    end
+
+    def con_reporte_en_curso(status)
+      as_company(company) do
+        c = create(:challenge, name: "Merma", status: status)
+        seed_form!(c.steps.create!(kind: "ideation", position: 1, name: "Postulación",
+                                   status: status == "draft" ? "pending" : "completed"))
+        c.steps.create!(kind: "reporting", position: 2, name: "Reporte de cierre",
+                        status: status == "running" ? "active" : "pending")
+        c.steps.create!(kind: "evaluation", position: 3, name: "Repaso")
+        c
+      end
+    end
+
+    it "quien administra lo ve, y el aviso nombra lo que se pierde" do
+      sign_in(owner, company: company)
+      challenge = con_reporte_en_curso("running")
+
+      get challenge_path(challenge)
+
+      form = boton_de_cerrar(challenge)
+      expect(form).not_to be_nil
+      expect(form.text).to include("Cerrar el desafío")
+      expect(form["data-turbo-confirm"]).to include("«Reporte de cierre» salteado sin terminar",
+                                                    "1 módulo sin ejecutar", "no se reabre")
+    end
+
+    it "quien participa no lo ve" do
+      challenge = con_reporte_en_curso("running")
+      sign_in(participant, company: company)
+
+      get challenge_path(challenge)
+
+      expect(response).to have_http_status(:ok)
+      expect(boton_de_cerrar(challenge)).to be_nil
+    end
+
+    # El estado, que acá sí lo contesta la policy: un borrador todavía no
+    # arrancó, así que no hay nada que cerrar. Lo que se ofrece es arrancarlo.
+    it "en borrador no se ofrece" do
+      sign_in(owner, company: company)
+      challenge = con_reporte_en_curso("draft")
+
+      get challenge_path(challenge)
+
+      expect(response.body).to include("Arrancar")
+      expect(boton_de_cerrar(challenge)).to be_nil
+    end
+
+    it "con el desafío ya cerrado tampoco" do
+      sign_in(owner, company: company)
+      challenge = con_reporte_en_curso("closed")
+
+      get challenge_path(challenge)
+
+      expect(response.body).to include("flujo terminado")
+      expect(boton_de_cerrar(challenge)).to be_nil
+    end
+  end
 end
