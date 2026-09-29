@@ -26,6 +26,7 @@ es:
     attributes:
       step_assignment:
         weight: "El peso"
+        user: "Esa persona"
     errors:
       messages:
         record_invalid: "La validación falló: %{errors}"

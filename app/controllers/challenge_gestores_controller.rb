@@ -38,6 +38,10 @@ class ChallengeGestoresController < ApplicationController
     end
 
     asignacion.destroy!
+    # Un gestor es elegible para evaluar por esta asignación y no por su rol,
+    # así que sacarlo de acá lo deja tan fantasma como una baja de la empresa.
+    # Qué se suelta y qué no vive una sola vez, en el servicio.
+    Flow::Assignments::Release.new(asignacion.user_id).call
     volver notice: "Ya no acompaña este desafío."
   end
 

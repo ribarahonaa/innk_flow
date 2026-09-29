@@ -40,6 +40,7 @@ class MembershipsController < ApplicationController
     return redirect_to(members_path, alert: ultimo_admin) if quita_al_ultimo_admin?
 
     if @membership.update(role: params[:role])
+      soltar_asignaciones!
       redirect_to members_path, notice: "#{@membership.user.name} ahora es #{rol(@membership)}."
     else
       redirect_to members_path, alert: @membership.errors.full_messages.to_sentence
@@ -52,10 +53,25 @@ class MembershipsController < ApplicationController
     return redirect_to(members_path, alert: ultimo_admin) if quita_al_ultimo_admin?
 
     @membership.destroy!
+    soltar_asignaciones!
     redirect_to members_path, notice: "Ya no forma parte de esta empresa."
   end
 
   private
+
+  # Dejar de estar —o dejar de tener un rol que evalúe— no puede dejar viva una
+  # asignación a evaluar: `min_assessments_for` cuenta a los asignados, así que
+  # un fantasma deja el módulo esperando una evaluación que nadie puede
+  # escribir. Va DESPUÉS de guardar, porque la elegibilidad se pregunta contra
+  # lo que quedó. Lo que no se suelta —quien ya evaluó, un módulo cerrado— está
+  # en `Flow::Assignments::Release`.
+  #
+  # A propósito FUERA de una transacción con la baja: la baja es el acto que
+  # importa y soltar asignaciones es la limpieza. Si la limpieza fallara,
+  # deshacer la baja devolvería el acceso por un recompute roto, y el fantasma
+  # que quedara ya tiene su red —`AssessmentPolicy#create?` le pide llegar al
+  # desafío, no sólo estar asignado—.
+  def soltar_asignaciones! = Flow::Assignments::Release.new(@membership.user_id).call
 
   # Por `policy_scope`: una membresía que no ves no existe.
   def set_membership = @membership = policy_scope(Membership).find(params[:id])
