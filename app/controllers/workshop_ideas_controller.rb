@@ -23,13 +23,18 @@ class WorkshopIdeasController < ApplicationController
     group = group_of(current_user)
     return reject_without_group unless group
 
+    # Estar en la mesa no alcanza: firmar una idea es de `IdeaPolicy#create?`,
+    # que al gestor se lo niega por conflicto de interés. Puede acompañar la
+    # mesa, no proponer la suya. Acá el 403 es correcto: ya ve el taller.
+    idea = @link.challenge.ideas.new(author: current_user, status: "draft", origin: "human")
+    authorize idea, :create?
+
     result = nil
     # El `perform_later` del vector va FUERA de esta transacción: adentro, un
     # worker que tome el job antes del commit no encuentra la versión y
     # `EmbedVersion` devuelve false en silencio, sin excepción ni reintento.
     publish = nil
     ActiveRecord::Base.transaction do
-      idea = @link.challenge.ideas.new(author: current_user, status: "draft", origin: "human")
       idea.save!
       group.members.each do |person|
         next if person.id == current_user.id

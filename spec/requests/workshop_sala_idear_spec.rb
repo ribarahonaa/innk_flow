@@ -148,6 +148,53 @@ RSpec.describe "sala del taller: idear", type: :request do
     expect(flash[:alert]).to include("desde una mesa")
   end
 
+  # Un gestor puede sentarse en una mesa y acompañarla, pero no firmar una idea:
+  # `IdeaPolicy#create?` es conflicto de interés. `work?` y la mesa no lo cubren.
+  describe "un gestor convocado a la mesa" do
+    let!(:gestor) do
+      without_tenant do
+        u = create(:user, email: "gestor-mesa@test.dev")
+        create(:membership, :gestor, company: company, user: u)
+        u
+      end
+    end
+
+    before do
+      as_company(company) do
+        ChallengeGestor.create!(challenge: setup[:challenge], user: gestor)
+        group = setup[:workshop].workshop_groups.first
+        create(:workshop_group_member, workshop_group: group, user: gestor)
+      end
+    end
+
+    it "no crea la idea: 403 por conflicto de interés" do
+      sign_in(gestor, company: company)
+
+      expect { post_draft }.not_to(change { as_company(company) { Idea.count } })
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it "no recibe el formulario en la pantalla" do
+      sign_in(gestor, company: company)
+      get workshop_path(setup[:workshop])
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).not_to include(%(name="payload[#{setup[:field].key}]"))
+      expect(response.body).not_to include("Crear borrador")
+    end
+  end
+
+  # Anti-sobrecorrección: cerrar de más no rompe ningún otro ejemplo.
+  it "quien participa y está en la mesa sigue creando y viendo el formulario" do
+    sign_in(ana, company: company)
+    get workshop_path(setup[:workshop])
+    expect(response.body).to include(%(name="payload[#{setup[:field].key}]"))
+    expect(response.body).to include("Crear borrador")
+
+    expect { post_draft }.to(change { as_company(company) { Idea.count } }.by(1))
+    expect(response).to redirect_to(workshop_path(setup[:workshop]))
+  end
+
   describe "la pantalla del taller" do
     it "ofrece a quien está en la mesa el formulario del módulo, diciendo con quién se comparte" do
       sign_in(ana, company: company)
