@@ -54,6 +54,31 @@ RSpec.describe Flow::Workshops::MaterializeClosures do
     end
   end
 
+  # En borrador el `challenge_step_id` es nulo A PROPÓSITO: lo resuelve `Open`.
+  # Sin esta guarda, entrar al armado de un taller recién creado cerraba todos
+  # sus vínculos con «El desafío no tiene ningún módulo en curso».
+  it "no toca los vínculos de un taller en borrador" do
+    as_company(company) do
+      workshop = create(:workshop, status: "draft")
+      link = create(:workshop_challenge, workshop: workshop, challenge: create(:challenge))
+
+      expect(described_class.new(workshop).call).to be_empty
+      expect(link.reload).to be_open
+      expect(link.closed_reason).to be_nil
+    end
+  end
+
+  it "no toca los vínculos de un taller cerrado: de eso ya se encargó Close" do
+    as_company(company) do
+      workshop = create(:workshop, status: "closed")
+      link = create(:workshop_challenge, workshop: workshop, challenge: create(:challenge),
+                                         status: "closed", closed_reason: "El taller se cerró.")
+
+      expect(described_class.new(workshop).call).to be_empty
+      expect(link.reload.closed_reason).to eq("El taller se cerró.")
+    end
+  end
+
   it "no toca el vínculo que sigue trabajable ni el que ya estaba cerrado" do
     as_company(company) do
       challenge = create(:challenge)

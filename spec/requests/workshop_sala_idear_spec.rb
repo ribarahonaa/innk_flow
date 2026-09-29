@@ -85,6 +85,18 @@ RSpec.describe "sala del taller: idear", type: :request do
     expect(response).to have_http_status(:not_found)
   end
 
+  # El job se encola DESPUÉS de la transacción externa: adentro, un worker que
+  # lo tome antes del commit no encuentra la versión y `EmbedVersion` devuelve
+  # false en silencio, sin excepción ni reintento.
+  it "encola el vector de la versión una sola vez, ya commiteada" do
+    sign_in(ana, company: company)
+
+    expect { post_draft }.to have_enqueued_job(Flow::Ideas::EmbedVersionJob).exactly(:once)
+
+    version_id = as_company(company) { Idea.order(:created_at).last.current_version_id }
+    expect(enqueued_jobs.last["arguments"].last).to eq(version_id)
+  end
+
   it "si la versión no se puede publicar, no queda una idea vacía" do
     allow_any_instance_of(Flow::Ideas::PublishVersion).to receive(:call).and_return(
       Flow::Ideas::PublishVersion::Result.new(ok: false, version: nil, errors: [ "Título en blanco" ])
@@ -93,6 +105,7 @@ RSpec.describe "sala del taller: idear", type: :request do
 
     expect { post_draft }.not_to(change { as_company(company) { Idea.count } })
     expect(flash[:alert]).to include("Título en blanco")
+    expect(enqueued_jobs).to be_empty
   end
 
   # Simétrico con la sala de evolución, que ya lo exigía. `work?` es del TALLER

@@ -18,6 +18,13 @@ module Flow
 
       # Devuelve los vínculos que cerró.
       def call
+        # Sólo un taller ABIERTO tiene vínculos que se venzan. En borrador el
+        # `challenge_step_id` todavía es nulo a propósito —lo resuelve `Open`—,
+        # así que sin esta guarda entrar al armado los cerraba a todos con «El
+        # desafío no tiene ningún módulo en curso». Y uno cerrado ya pasó por
+        # `Close`.
+        return [] unless @workshop.open?
+
         stale = @workshop.workshop_challenges.includes(:challenge, :challenge_step)
                          .select { |link| link.open? && !link.workable? }
         return [] if stale.empty?

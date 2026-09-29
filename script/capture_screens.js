@@ -2420,7 +2420,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     await capturar(page, '26-taller-sala-evolucion');
 
     // 28: el desafío que avanzó de fase se ve cerrado, y DICE POR QUÉ. El
-    // El motivo también aparece en la lista de armado, así que se acota a la
+    // motivo también aparece en la lista de armado, así que se acota a la
     // tarjeta de la sala.
     const closedRoom = page.locator('.card', {
       has: page.locator('h2.section-title', { hasText: 'Ideas para el manual de seguridad' })

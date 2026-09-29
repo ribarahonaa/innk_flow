@@ -17,6 +17,10 @@ class IdeaWorkshopProposalsController < ApplicationController
 
     result = nil
     already_resolved = false
+    # El `perform_later` del vector va FUERA del `with_lock`: adentro, un
+    # worker que tome el job antes del commit no encuentra la versión y
+    # `EmbedVersion` devuelve false en silencio, sin excepción ni reintento.
+    publish = nil
     # `with_lock` relee la propuesta bajo lock: dos aceptaciones concurrentes
     # (doble clic, pestaña vieja) no publican dos versiones.
     @proposal.with_lock do
@@ -26,11 +30,13 @@ class IdeaWorkshopProposalsController < ApplicationController
         raise ActiveRecord::Rollback
       end
 
-      result = Flow::Ideas::PublishVersion.new(
+      publish = Flow::Ideas::PublishVersion.new(
         @idea, payload: @proposal.payload, author: current_user, actor_type: "workshop",
                source_step: @proposal.challenge_step,
-               change_note: "Propuesta de la mesa «#{@proposal.workshop_group.name}»"
-      ).call
+               change_note: "Propuesta de la mesa «#{@proposal.workshop_group.name}»",
+               enqueue_embedding: false
+      )
+      result = publish.call
       # Sin versión publicada no hay nada que aceptar.
       raise ActiveRecord::Rollback unless result.ok?
 
@@ -41,6 +47,8 @@ class IdeaWorkshopProposalsController < ApplicationController
       end
       @proposal.update!(status: "accepted", reviewed_by: current_user, reviewed_at: Time.current)
     end
+
+    publish.enqueue_embedding! if result&.ok?
 
     if already_resolved
       resolved

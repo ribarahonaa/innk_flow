@@ -18,12 +18,16 @@ class WorkshopIdeasController < ApplicationController
     # sin esto, quien administra un desafío del taller creaba una idea a su
     # nombre —sin pasar nunca por `IdeaPolicy#create?`, que al gestor se lo
     # prohíbe por conflicto de interés— y podía hacerlo en la sala de un
-    # desafío ajeno, que por la ruta normal le da 404. Y el `&.` de más abajo
-    # toleraba el `nil` creando una idea sin un solo contribuyente.
+    # desafío ajeno, que por la ruta normal le da 404. Y el `&.` que había al
+    # sembrar los contribuyentes toleraba el `nil`: la idea nacía sin uno solo.
     group = group_of(current_user)
     return reject_without_group unless group
 
     result = nil
+    # El `perform_later` del vector va FUERA de esta transacción: adentro, un
+    # worker que tome el job antes del commit no encuentra la versión y
+    # `EmbedVersion` devuelve false en silencio, sin excepción ni reintento.
+    publish = nil
     ActiveRecord::Base.transaction do
       idea = @link.challenge.ideas.new(author: current_user, status: "draft", origin: "human")
       idea.save!
@@ -32,14 +36,18 @@ class WorkshopIdeasController < ApplicationController
 
         idea.idea_contributors.create!(user: person)
       end
-      result = Flow::Ideas::PublishVersion.new(
+      publish = Flow::Ideas::PublishVersion.new(
         idea, payload: payload_params, author: current_user,
               source_step: @link.challenge_step, files: file_params,
-              change_note: "Creada en el taller «#{@workshop.name}»"
-      ).call
+              change_note: "Creada en el taller «#{@workshop.name}»",
+              enqueue_embedding: false
+      )
+      result = publish.call
       # Sin versión no hay borrador: no se deja una idea vacía colgada.
       raise ActiveRecord::Rollback unless result.ok?
     end
+
+    publish.enqueue_embedding! if result.ok?
 
     if result.ok?
       redirect_to workshop_path(@workshop), notice: "Borrador creado en la sala."

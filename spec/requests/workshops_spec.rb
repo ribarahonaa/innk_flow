@@ -104,11 +104,14 @@ RSpec.describe "talleres", type: :request do
     end
 
     it "ofrece el control de sacar sólo mientras es borrador" do
-      as_company(company) { create(:workshop_challenge, workshop: workshop, challenge: uno) }
+      link = as_company(company) { create(:workshop_challenge, workshop: workshop, challenge: uno) }
       sign_in(admin, company: company)
 
       get workshop_path(workshop)
       expect(response.body).to include(remove_challenge_workshop_path(workshop))
+      # Entrar al armado de un borrador NO cierra sus vínculos: el
+      # `challenge_step_id` nulo es el estado correcto hasta que se abre.
+      expect(as_company(company) { link.reload }).to be_open
 
       as_company(company) { workshop.update!(status: "open") }
       get workshop_path(workshop)
