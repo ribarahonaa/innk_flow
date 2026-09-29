@@ -571,10 +571,14 @@ body {
    etiqueta que ocupaba tres líneas ocupa una, así que la columna no crece
    —importa, porque `[REFERENCIA]` exige que entre en una pantalla—.
 
-   El `row-gap` es chico a propósito: 8px entre la etiqueta y su valor los
-   separaría más que la línea que separa una fila de la siguiente. */
+   El `row-gap` va en CERO y el `column-gap` se queda en 8px: entre la etiqueta
+   y su valor no hace falta aire —son dos líneas de distinto tamaño y distinto
+   color, y la fila ya se separa de la siguiente con su `padding` y su línea—.
+   Y no es gratis: 2px por fila partida engordaron la tarjeta de `22-testing`
+   de 297 a 301px, que es justo lo que le hizo pasar el techo a `[REFERENCIA]`
+   (ver `@media (max-width: 1279px)`). */
 .app-aside .field-list__item {
-  gap: 2px 8px;
+  gap: 0 8px;
   flex-wrap: wrap;
   padding: 5px 0;
   border: 0;
@@ -768,6 +772,11 @@ body {
     position: static;
     max-height: none;
     overflow: visible;
+    /* 16px y no los 24px de la columna. Acá la referencia es una FRANJA entre
+       la barra oscura y el trabajo, no una columna que tiene que alinear su
+       primera tarjeta con el contenido de al lado: 24px arriba y abajo son
+       48px que se cobran enteros del presupuesto de abajo. */
+    padding-block: 16px;
     /* Es lo ÚNICO que marca dónde termina lo que se consulta y empieza lo
        que se hace, desde que la referencia subió al tope. */
     border-bottom: 1px solid var(--tenue);
@@ -781,10 +790,29 @@ body {
   /* En UNA fila que se desliza de costado. En varias filas, las cuatro
      tarjetas de evaluación formaban una banda de 727px que empujaba el título
      del módulo afuera de la primera pantalla; en una, la banda mide lo que la
-     tarjeta más alta, y ninguna pasa de 320px: una lista larga scrollea
-     adentro de su tarjeta. */
+     tarjeta más alta, y ninguna pasa del tope: una lista larga scrollea
+     adentro de su tarjeta.
+
+     EL TOPE SALE DE LA CUENTA, no de redondear. `[REFERENCIA]` exige que a
+     1100×900 el título del módulo quede arriba de los 450px, y hasta el
+     título hay una suma fija:
+
+         56 (barra)  +  16 (esta franja arriba)  +  H  +  16 (abajo)
+              +  1 (la línea)  +  24 (el relleno de `.app-main`)
+              +  21 (del tope del trabajo al tope del título)
+         =  134 + H
+
+     o sea que el tope tiene que ser H ≤ 316, y con 300 quedan 16px de aire
+     para el error de medición. Estaba en 320 con 24px de relleno, que da
+     150 + H: ahí el tope PERMITÍA un título en 470px, o sea que la guarda
+     estaba condenada a fallar en cuanto una tarjeta de referencia creciera lo
+     suficiente. La de `22-testing` llegó a 301px y lo hizo (451px). Ahora mide
+     297 y el tope la ataja antes que la guarda: si alguna crece, scrollea
+     adentro suyo y la franja no se mueve. Si cambiás uno de los tres números
+     —el relleno de acá arriba, este tope o el de `.app-main`— rehacé la
+     cuenta. */
   .app-aside { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; align-items: flex-start; }
-  .app-aside > * { flex: 0 0 280px; max-height: 320px; overflow-y: auto; }
+  .app-aside > * { flex: 0 0 280px; max-height: 300px; overflow-y: auto; }
   /* Sin esto las dos caen en la columna del flujo, al lado del drawer. */
   .app-shell--con-flujo .app-aside,
   .app-shell--con-flujo:has(.app-aside) .app-main { grid-column: 2; }
