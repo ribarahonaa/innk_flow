@@ -560,8 +560,22 @@ body {
    lista de lectura que se mude a la referencia la toma sola. */
 .app-aside .card { --card-p: 16px; }
 .app-aside .field-list { gap: 0; }
+/* Etiqueta y valor en una línea mientras los dos entren, y uno debajo del otro
+   cuando no.
+
+   En 280px las dos columnas se estrechan a la vez y las DOS parten en varias
+   líneas: «Dimensiones / que hay que / cubrir» al lado de «Técnica, Operativa,
+   / Económica, Legal, De / adopción» se lee encabalgado —el ojo cruza y arma
+   renglones que no existen—. Con `flex-wrap` la fila se parte cuando los dos
+   max-content no entran juntos, y ahí cada uno usa el ancho entero: la
+   etiqueta que ocupaba tres líneas ocupa una, así que la columna no crece
+   —importa, porque `[REFERENCIA]` exige que entre en una pantalla—.
+
+   El `row-gap` es chico a propósito: 8px entre la etiqueta y su valor los
+   separaría más que la línea que separa una fila de la siguiente. */
 .app-aside .field-list__item {
-  gap: 8px;
+  gap: 2px 8px;
+  flex-wrap: wrap;
   padding: 5px 0;
   border: 0;
   border-radius: 0;
@@ -883,8 +897,13 @@ body {
 /* ── Form controls ──────────────────────────────────────────────────────── */
 label { display: block; margin-bottom: 5px; font-size: 12px; font-weight: 600; color: var(--muted); }
 
+/* El campo de archivo va con los demás. Estaba fuera de esta lista: el
+   `::file-selector-button` de más arriba le daba forma al botón de adentro,
+   pero el campo en sí no tenía ni borde, ni fondo, ni relleno, así que
+   «Choose File / No file chosen» quedaba suelto sobre la tarjeta al lado de
+   campos que sí tienen caja (`ideas/_form_fields`, el kind `file`). */
 input[type="text"], input[type="email"], input[type="password"],
-input[type="number"], input[type="date"], textarea, select {
+input[type="number"], input[type="date"], input[type="file"], textarea, select {
   width: 100%;
   padding: 9px 11px;
   border: 1px solid var(--borde);
@@ -895,6 +914,11 @@ input[type="number"], input[type="date"], textarea, select {
   color: var(--text);
   font: inherit;
 }
+
+/* Relleno más bajo que el de los demás: adentro ya hay un botón con su propia
+   altura, así que con los 9px del resto el campo medía 12px más que el de
+   arriba y la columna de campos dejaba de alinear. */
+input[type="file"] { padding: 6px 8px; font-size: 13px; }
 
 input:focus, textarea:focus, select:focus {
   outline: none;
@@ -970,6 +994,12 @@ input:focus, textarea:focus, select:focus {
 }
 
 .company-list { list-style: none; padding: 0; display: grid; gap: 10px; }
+/* El nombre a la izquierda y el rol a la derecha, los dos DENTRO del botón.
+   `.btn` centra sus hijos con `justify-content: center`; acá el rol tiene que
+   quedar pegado al otro borde para que se lea como una propiedad de esa
+   opción y no como una etiqueta suelta. */
+.company-option { justify-content: space-between; }
+.company-option__role { color: var(--muted); font-weight: 400; font-size: 12px; }
 .muted { color: var(--muted); }
 
 /* ── Header de sesión ───────────────────────────────────────────────────── */
@@ -1066,6 +1096,15 @@ input:focus, textarea:focus, select:focus {
 .challenge-card__name { margin: 0 0 8px; font-size: 16px; }
 .challenge-card__brief { margin: 0 0 14px; font-size: 13px; }
 
+/* El brief en la ficha del desafío, párrafo por párrafo (los arma
+   `simple_format`). `.card-body` es flex con `gap: 8px`, así que el
+   `margin-block: 1em` que `@layer base` le da a todo `<p>` NO colapsa con
+   nada: se suma al gap del título y al relleno de la tarjeta. Arriba y al
+   final no separa de nada —para eso está el relleno—; entre párrafo y párrafo
+   sí, y 6px + el gap dan los 14px de siempre. */
+.challenge-brief { margin: 0 0 6px; }
+.challenge-brief:last-child { margin-bottom: 0; }
+
 /* Mapa compacto del pipeline */
 .flow-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
 .flow-strip__arrow { color: var(--tenue); }
@@ -1104,6 +1143,17 @@ input:focus, textarea:focus, select:focus {
 /* Lo ya ejecutado se marca en gris: si compite con el acento, el módulo en */
 /* curso deja de destacarse y la tabla queda con un riel azul de punta a punta. */
 .table tr.is-touched td:first-child { border-left: 2px solid var(--borde); }
+
+/* Los controles de una fila, en una línea y pegados al borde de su celda.
+
+   Hace falta porque `button_to` es un `<form>` y un form es `display: block`:
+   dos controles sueltos en la misma celda se apilan, y la columna se queda con
+   el ancho del más angosto —«Re-testear» se partía por el guion en la tabla
+   del testeo—. El `nowrap` es de acá y no del `.btn`: la etiqueta de un botón
+   no se parte NUNCA, y dejarlo en la celda lo ata a que alguien no se olvide
+   de ponerlo. */
+.row-actions { display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
+.row-actions .btn { white-space: nowrap; }
 
 /* ── Builder ────────────────────────────────────────────────────────────── */
 .builder {
@@ -1316,6 +1366,25 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
    cada variante tiñe con lo suyo y una variante nueva no se puede olvidar.
    Sin capa, como el resto de las clases propias: así le gana a DaisyUI. */
 .badge-soft {
+  background-color: color-mix(in oklab, currentColor 4%, transparent);
+  border-color: color-mix(in oklab, currentColor 30%, transparent);
+}
+
+/* Y lo mismo para el aviso, por el MISMO motivo y con los mismos números.
+
+   `alert-soft` de DaisyUI mezcla relleno (8%) y borde (10%) contra
+   `--color-base-100`, o sea contra el fondo más claro del tema y no contra la
+   superficie que el aviso tenga detrás. Sobre una tarjeta el relleno cae casi
+   en la luminosidad del fondo y el borde del 10% no alcanza a dibujar la caja:
+   el aviso se lee como un párrafo de color suelto, que es exactamente lo que
+   le pasaba al chip. Con alfa se compone sobre el fondo real por construcción.
+
+   `currentColor` otra vez: las tres variantes ya tienen su color de texto
+   corregido acá arriba (`--ok`, `--warn`, `--danger`) y el neutro cae en
+   `base-content`, así que cada una tiñe con lo suyo y una variante nueva no se
+   puede olvidar. Y bajar el relleno de 8% a 4% no le saca contraste al texto:
+   se lo SUMA, porque el fondo se acerca a la superficie. */
+.alert-soft {
   background-color: color-mix(in oklab, currentColor 4%, transparent);
   border-color: color-mix(in oklab, currentColor 30%, transparent);
 }
@@ -1691,11 +1760,31 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
   align-items: end;
   height: 180px;
 }
-.histogram__col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
+/* Tres filas fijas: el conteo, la barra, el tramo.
+
+   La del conteo mide lo mismo TENGA O NO conteo —sólo se dibuja donde hay algo
+   que contar—, porque si no cada columna repartiría distinto su alto y dos
+   barras con el mismo número saldrían de distinto largo: el alto de la barra
+   es un porcentaje del riel, y el riel es lo que sobra.
+
+   De paso arregla algo que ya estaba: en columna flex la barra y la etiqueta
+   se encogían para entrar en los 180px, y como el encogimiento se reparte por
+   tamaño, la barra más alta perdía más que las bajas y las proporciones
+   mentían. Con `minmax(0, 1fr)` el riel tiene alto propio y el porcentaje se
+   mide contra él. */
+.histogram__col {
+  display: grid;
+  grid-template-rows: 13px minmax(0, 1fr) auto;
+  justify-items: center;
+  height: 100%;
+  gap: 4px;
+}
+.histogram__count { grid-row: 1; line-height: 13px; }
+.histogram__label { grid-row: 3; }
 /* Las barras eran el tinte más suave del acento sobre blanco: se leía la
    grilla y no el dato. En tinta de datos, con el contorno un paso más oscuro
    para que dos barras vecinas no se peguen. */
-.histogram__bar { width: 100%; min-height: 2px; background: var(--dato); border: 1px solid var(--dato-fuerte); border-radius: 4px 4px 0 0; }
+.histogram__bar { grid-row: 2; align-self: end; width: 100%; min-height: 2px; background: var(--dato); border: 1px solid var(--dato-fuerte); border-radius: 4px 4px 0 0; }
 .histogram__label, .histogram__count { font-size: 10px; color: var(--muted); }
 .histogram__count { font-weight: 600; }
 
@@ -2399,6 +2488,21 @@ textarea:disabled {
 /* `showModal()` deja el resto de la */
 /* página inerte, que es lo que el aviso viejo no hacía. */
 .ia-espera { text-align: center; }
+
+/* El popup de espera oscurece la pantalla DESDE EL PRIMER FOTOGRAMA.
+
+   El velo no es el `::backdrop` nativo: es el `background-color` del propio
+   `.modal`, y DaisyUI lo hace aparecer con `transition: background-color .3s`
+   más un `@starting-style` que arranca la caja en `opacity: 0`. Durante esos
+   300ms el diálogo flota translúcido sobre una página que se ve entera y
+   despierta —es lo que fotografió `09-13-ia-espera`—, y justo ahí es cuando
+   hace falta que se lea «no toques nada»: `showModal()` ya dejó todo inerte y
+   nada lo muestra.
+
+   Va sólo sobre el de espera. El de respuesta aparece cuando la IA ya
+   contestó, y ahí los 300ms de fundido no tapan ninguna promesa. */
+dialog.modal[data-ia="espera"],
+dialog.modal[data-ia="espera"] .modal-box { transition: none; }
 
 /* El spinner sigue girando aunque esté activado `prefers-reduced-motion`, */
 /* pero eso no lo decide esta app: es el default de `.loading-spinner` de */

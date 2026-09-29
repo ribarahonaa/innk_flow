@@ -738,8 +738,8 @@ async function revisarContraste(page, name) {
   }
 }
 
-// La pastilla de un chip: que se lea COMO pastilla y no como texto de color
-// suelto.
+// La pastilla de un chip o de un aviso: que se lea COMO pastilla y no como
+// texto de color suelto.
 //
 // POR QUÉ EXISTE: `badge-soft` de DaisyUI mezcla su fondo contra
 // `--color-base-100` —o sea contra BLANCO— y no contra la superficie que tiene
@@ -747,6 +747,23 @@ async function revisarContraste(page, name) {
 // atendido, una fila fuera del corte) el tinte cae justo en la luminosidad del
 // fondo y la pastilla desaparece: medido, 1,02:1 en el builder con el flujo
 // arrancado, donde se veía como si el chip nunca hubiera existido.
+//
+// `.alert` mide igual y con el mismo piso. `alert-soft` arrastraba
+// EXACTAMENTE el mismo defecto —8% de relleno y 10% de borde, los dos
+// mezclados contra `--color-base-100`— y estuvo fuera de esta guarda mientras
+// el chip ya estaba adentro, así que nada miraba la única familia que todavía
+// lo tenía. La hoja lo arregla igual que el chip (`.alert-soft`, con alfa
+// sobre `currentColor`).
+//
+// Extenderlo son DOS selectores, no uno, y el segundo es fácil de no ver: acá
+// abajo, y el filtro propio del muestrario (`revisarMuestrario`), que se
+// quedaba con las clases que empiezan en `badge `. Sin ése, las tres variantes
+// de aviso —que el muestrario YA inyecta para `[CONTRASTE]`— seguirían sin
+// medir pastilla en oscuro, que es justo para lo que el muestrario existe: la
+// pasada oscura son diez pantallas y ninguna tiene un aviso. Lo que no hace
+// falta tocar es el medidor: lo que `medirContraste` compone —el fondo real de
+// atrás, el borde sólo si tiene ancho, la atenuación de los ancestros— no sabe
+// ni le importa qué componente está midiendo.
 //
 // El piso es 1,25:1 y no 3:1: el TEXTO del chip ya pasa 4,5:1 —eso lo mide
 // `[CONTRASTE]`— así que la pastilla no carga información y WCAG 1.4.11 no
@@ -759,18 +776,18 @@ async function revisarContraste(page, name) {
 //     existe ninguno —el punto de estado del drawer es `flow-drawer__punto`,
 //     con guarda propia y piso de 3:1, porque ahí el color SÍ es la
 //     información—. Si algún día hay un chip vacío, este piso le queda corto.
-//   - Una pantalla sin ningún `.badge`: mide cero y pasa. Si los chips dejaran
-//     de llamarse `badge` —que es lo que pasó cuando `.status-chip` pasó a
-//     `badge`— esto quedaría verde sin medir nada. Lo tapan el spec de Ruby
-//     «todos los chips son badge» y el conteo del muestrario, que sí exige
-//     haber medido tantas muestras como declara.
+//   - Una pantalla sin ningún `.badge` ni `.alert`: mide cero y pasa. Si los
+//     chips dejaran de llamarse `badge` —que es lo que pasó cuando
+//     `.status-chip` pasó a `badge`— esto quedaría verde sin medir nada. Lo
+//     tapan el spec de Ruby «todos los chips son badge» y el conteo del
+//     muestrario, que sí exige haber medido tantas muestras como declara.
 //   - Un borde punteado se acredita entero. `border-dashed` cubre bastante
 //     menos superficie que uno sólido y acá se cuentan igual; el nodo salteado
 //     del mapa del flujo es el caso vivo.
 const PISO_DE_PASTILLA = 1.25;
 
 async function revisarPastilla(page, name) {
-  const bajos = (await medirContraste(page, '.badge')).filter((m) => m.pastilla < PISO_DE_PASTILLA);
+  const bajos = (await medirContraste(page, '.badge, .alert')).filter((m) => m.pastilla < PISO_DE_PASTILLA);
   const unicos = [...new Map(bajos.map((m) => [m.clase, m])).values()].slice(0, 6);
   if (unicos.length) {
     failures++;
@@ -1025,10 +1042,13 @@ async function revisarMuestrario(page, tema) {
   // inyectan dentro de `.feedback-round--cerrada .feedback-item`, que es
   // `background: var(--bg)` — la superficie base-200 donde vivía el bug.
   //
-  // Sólo los chips: `.alert` queda afuera a propósito (son cajas grandes con
-  // borde propio). Se filtra por el prefijo porque toda clase de chip empieza
-  // con `badge `, y hay un spec de Ruby que lo exige.
-  const sinPastilla = medidos.filter((m) => m.clase.startsWith('badge ') && m.pastilla < PISO_DE_PASTILLA);
+  // Los chips y los avisos, que arrastraban el mismo defecto de DaisyUI (ver
+  // `PISO_DE_PASTILLA`). Se filtra por el prefijo y no se mide todo lo que hay
+  // adentro: toda clase de chip empieza con `badge ` —hay un spec de Ruby que
+  // lo exige— y las tres variantes de aviso, con `alert `.
+  const sinPastilla = medidos.filter(
+    (m) => /^(badge|alert) /.test(m.clase) && m.pastilla < PISO_DE_PASTILLA
+  );
   if (sinPastilla.length) {
     failures++;
     console.error(`[PASTILLA] muestrario ${tema}: ${sinPastilla.map((m) => `${m.clase} ${m.pastilla.toFixed(2)}:1`).join(' · ')}`);
