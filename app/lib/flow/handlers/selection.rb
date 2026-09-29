@@ -179,12 +179,17 @@ module Flow
       # Aplica la decisión sobre un conjunto de ideas, en UNA transacción.
       # Es el único escritor de ideas.status y step_entries.status para este
       # módulo: la proyección no se puede desincronizar del log.
+      #
+      # Devuelve los ids que AVANZARON, que no son los que llegaron: sólo se
+      # decide sobre las ideas que están en el módulo, así que un id de otro
+      # desafío —o inventado— no hace avanzar nada. Quien avisa en pantalla
+      # tiene que contar esto y no el pedido.
       def decide!(advancing_idea_ids, decided_by: nil, reason: nil)
         advancing = Array(advancing_idea_ids).map(&:to_s)
         rows = ranking.index_by { |row| row.idea.id }
 
         ActiveRecord::Base.transaction do
-          step.step_entries.each do |entry|
+          step.step_entries.filter_map do |entry|
             row = rows[entry.idea_id]
             advances = advancing.include?(entry.idea_id.to_s)
 
@@ -201,6 +206,7 @@ module Flow
             end
 
             notify_outcome!(entry.idea, advances)
+            entry.idea_id if advances
           end
         end
       end

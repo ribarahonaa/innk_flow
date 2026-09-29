@@ -6,12 +6,18 @@ class SelectionsController < ApplicationController
 
   def update
     authorize @step, :advance?
-    advancing = Array(params[:advancing_idea_ids]).reject(&:blank?)
 
-    @step.handler.decide!(advancing, decided_by: current_user, reason: params[:reason])
+    # Por `policy_scope` y no por los ids crudos, igual que las dos acciones de
+    # abajo: es la regla del repo para todo lo que toca una idea, y acá además
+    # deja afuera lo que no es una idea de este desafío. `decide!` ya ignoraba
+    # esos ids —itera `step_entries`—, pero eso lo protegía de rebote: el
+    # filtro tiene que estar en la puerta.
+    pedidos = Array(params[:advancing_idea_ids]).reject(&:blank?)
+    advancing = policy_scope(@challenge.ideas).where(id: pedidos).pluck(:id)
 
-    redirect_to challenge_step_path(@challenge, @step),
-                notice: "Corte confirmado: avanzan #{Flow::Texto.contar(advancing.size, "idea")}."
+    avanzan = @step.handler.decide!(advancing, decided_by: current_user, reason: params[:reason])
+
+    redirect_to challenge_step_path(@challenge, @step), notice: aviso_del_corte(avanzan.size)
   end
 
   # Un filtro de sí/no resuelto por una persona.
@@ -42,6 +48,19 @@ class SelectionsController < ApplicationController
   end
 
   private
+
+  # Cuenta lo que AVANZÓ, no lo que llegó en el pedido: con ids inventados el
+  # aviso los contaba igual, porque el `size` era el de los params.
+  #
+  # Y el verbo concuerda. `Flow::Texto.contar` acuerda el sustantivo y con eso
+  # no alcanza: la frase que lo envuelve trae su propio verbo, y quien la
+  # escribe lo deja en plural porque está pensando en el caso de varios —es lo
+  # que documenta `Flow::Texto.faltan` («Faltan 1 idea por testear») y lo que
+  # `WorkshopsController` ya tuvo que corregir dos veces—.
+  def aviso_del_corte(cuantas)
+    verbo = cuantas == 1 ? "avanza" : "avanzan"
+    "Corte confirmado: #{verbo} #{Flow::Texto.contar(cuantas, "idea")}."
+  end
 
   def set_context
     @challenge = policy_scope(Challenge).find_by!(slug: params[:challenge_id])
