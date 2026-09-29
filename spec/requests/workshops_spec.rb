@@ -18,6 +18,21 @@ RSpec.describe "talleres", type: :request do
   let!(:paula) { member("paula@test.dev", :participant) }
   let!(:workshop) { as_company(company) { create(:workshop) } }
 
+  describe "el índice" do
+    it "lista los talleres sin fecha DESPUÉS de los programados" do
+      as_company(company) do
+        workshop.update!(name: "Sin fecha")
+        create(:workshop, name: "Programado cerca", scheduled_at: 1.day.from_now)
+        create(:workshop, name: "Programado lejos", scheduled_at: 30.days.from_now)
+      end
+      sign_in(admin, company: company)
+      get workshops_path
+
+      names = response.body.scan(/Sin fecha|Programado cerca|Programado lejos/)
+      expect(names.uniq).to eq(["Programado lejos", "Programado cerca", "Sin fecha"])
+    end
+  end
+
   # El spec §6 promete «crear» al gestor. Se abre por AUTORÍA: administra el
   # que él creó, y ninguno ajeno.
   describe "un gestor crea talleres" do

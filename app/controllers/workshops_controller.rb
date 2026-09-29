@@ -4,7 +4,9 @@ class WorkshopsController < ApplicationController
   before_action :set_workshop, only: %i[show update destroy open close remove_challenge]
 
   def index
-    @workshops = policy_scope(Workshop).order(scheduled_at: :desc, created_at: :desc)
+    # Postgres pone NULL primero en DESC: sin `nulls_last` los talleres sin
+    # fecha quedaban arriba de los programados.
+    @workshops = policy_scope(Workshop).order(Workshop.arel_table[:scheduled_at].desc.nulls_last, created_at: :desc)
   end
 
   def new
