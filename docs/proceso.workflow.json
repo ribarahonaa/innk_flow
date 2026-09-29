@@ -31,6 +31,17 @@
           "avanza"
         ],
         "note": "Cada módulo congela su configuración al activarse; el nombre y el modo de IA siguen ajustables."
+      },
+      {
+        "id": "el_taller",
+        "label": "El taller",
+        "focus": [
+          "activa",
+          "taller",
+          "mesas",
+          "vence"
+        ],
+        "note": "No es una etapa: es un evento que se monta sobre el módulo activo y se vence cuando el desafío avanza."
       }
     ]
   },
@@ -54,6 +65,10 @@
     {
       "id": "curso",
       "label": "En curso · el pasado no se reescribe"
+    },
+    {
+      "id": "evento",
+      "label": "El taller · un evento sobre la fase en curso"
     }
   ],
   "nodes": [
@@ -118,7 +133,7 @@
       "col": 2,
       "type": "frontend",
       "label": "Módulo por módulo",
-      "sublabel": "cinco tipos, en cualquier orden",
+      "sublabel": "seis tipos, en cualquier orden",
       "width": 164
     },
     {
@@ -158,6 +173,35 @@
       "sublabel": "un Idear, y lo que elijas después",
       "width": 168,
       "tag": "se reordena libre"
+    },
+    {
+      "id": "taller",
+      "lane": "evento",
+      "col": 3,
+      "type": "external",
+      "label": "Se abre un taller",
+      "sublabel": "el vínculo apunta al MÓDULO activo",
+      "width": 168,
+      "tag": "idear o evolución"
+    },
+    {
+      "id": "mesas",
+      "lane": "evento",
+      "col": 4,
+      "type": "frontend",
+      "label": "Las mesas trabajan",
+      "sublabel": "postulan ideas o proponen versiones",
+      "width": 168
+    },
+    {
+      "id": "vence",
+      "lane": "evento",
+      "col": 5,
+      "type": "backend",
+      "label": "El vínculo se vence",
+      "sublabel": "el flujo avanza y la sala se entera",
+      "width": 168,
+      "tag": "cierre perezoso"
     }
   ],
   "edges": [
@@ -248,6 +292,32 @@
       "label": "mientras queden módulos",
       "role": "return",
       "variant": "dashed"
+    },
+    {
+      "id": "activa-taller",
+      "from": "activa",
+      "to": "taller",
+      "role": "async",
+      "variant": "dashed",
+      "route": "drop"
+    },
+    {
+      "id": "taller-mesas",
+      "from": "taller",
+      "to": "mesas"
+    },
+    {
+      "id": "mesas-vence",
+      "from": "mesas",
+      "to": "vence"
+    },
+    {
+      "id": "avanza-vence",
+      "from": "avanza",
+      "to": "vence",
+      "role": "async",
+      "variant": "dashed",
+      "route": "drop"
     }
   ],
   "cards": [
@@ -257,7 +327,7 @@
       "items": [
         "Exactamente un módulo de Idear: sin él no hay ideas que recorran nada",
         "Un formulario con al menos un campo, o nadie puede postular",
-        "Los otros cuatro tipos se repiten en cualquier orden, o no se usan"
+        "Los otros cinco tipos se repiten en cualquier orden, o no se usan"
       ]
     },
     {
@@ -278,6 +348,18 @@
         "Solo personas · IA asistida · IA automática",
         "En automático la IA no saltea la revisión: la auto-acepta y deja rastro",
         "En asistida la IA espera a que se la pida: una idea, o todas las que falten"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "El taller, que no es una etapa",
+      "items": [
+        "Un evento que abarca N desafíos, no un módulo más del flujo",
+        "Sólo entra un desafío cuyo módulo activo sea idear o evolución",
+        "En idear la mesa postula ideas; en evolución propone versiones",
+        "La mesa no se programa: sus integrantes nacen colaboradores de la idea",
+        "El taller propone; publica quien es autor, ni siquiera quien administra",
+        "Una propuesta se vence con su ronda: no hay estado que alguien tenga que escribir"
       ]
     }
   ]
