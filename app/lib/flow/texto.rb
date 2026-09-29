@@ -12,16 +12,28 @@ module Flow
     # "3 ideas" · "1 idea"
     def contar(cantidad, palabra) = "#{cantidad} #{plural(palabra, cantidad)}"
 
-    # "Faltan 3 ideas" · "Falta 1 idea"
+    # La forma del verbo que concuerda con el número: "quedó" · "quedaron".
     #
-    # `contar` acuerda el sustantivo y con eso no alcanza: la frase que lo
+    # `contar` acuerda el SUSTANTIVO y con eso no alcanza: la frase que lo
     # envuelve trae su propio verbo, y quien la escribe lo deja en plural
     # porque está pensando en el caso de varios. «Faltan 1 idea por testear»
-    # llegó así a la pantalla.
+    # llegó así a la pantalla, y después «1 desafío quedaron afuera» y «avanzan
+    # 1 idea»: tres veces el mismo defecto, escrito inline cada vez.
     #
-    # Cero es plural en español: «Faltan 0 ideas».
+    # Recibe las DOS formas y no deriva ninguna: en español no hay una regla
+    # que las saque —«falta/faltan», «quedó/quedaron», «se sumó/se sumaron»— y
+    # fingirla es lo que dejaba a `faltan` sirviendo para un solo verbo.
+    #
+    # Devuelve sólo el verbo y no la frase entera porque el orden cambia según
+    # la frase: «avanza 1 idea» lo pone antes, «1 desafío quedó afuera»
+    # después.
+    #
+    # Cero es plural en español: «quedaron 0 desafíos».
+    def agree(count, singular, plural_verb) = count == 1 ? singular : plural_verb
+
+    # "Faltan 3 ideas" · "Falta 1 idea"
     def faltan(cantidad, palabra)
-      "#{cantidad == 1 ? 'Falta' : 'Faltan'} #{contar(cantidad, palabra)}"
+      "#{agree(cantidad, 'Falta', 'Faltan')} #{contar(cantidad, palabra)}"
     end
 
     def plural(palabra, cantidad = 2) = palabra.pluralize(cantidad, :es)

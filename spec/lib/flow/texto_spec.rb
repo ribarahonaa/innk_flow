@@ -10,6 +10,27 @@ RSpec.describe Flow::Texto do
   # envuelve trae su propio verbo, y «Faltan 1 idea» se lee mal en la pantalla
   # aunque «1 idea» esté bien. Mismo bug que el de arriba, un nivel más afuera,
   # y descubierto igual: mirando una captura.
+  #
+  # Se escribió inline tres veces —«Faltan 1 idea por testear», «1 desafío
+  # quedaron afuera», «avanzan 1 idea»— antes de ser un método.
+  describe ".agree" do
+    it "elige la forma del verbo que concuerda con el número" do
+      expect(described_class.agree(1, "avanza", "avanzan")).to eq("avanza")
+      expect(described_class.agree(3, "avanza", "avanzan")).to eq("avanzan")
+    end
+
+    # No deriva el plural: en español no hay una regla que saque «quedaron» de
+    # «quedó», y fingirla es lo que dejaba a `faltan` sirviendo para un verbo.
+    it "sirve para cualquier verbo, y para una frase entera" do
+      expect(described_class.agree(1, "quedó", "quedaron")).to eq("quedó")
+      expect(described_class.agree(2, "no se sumó", "no se sumaron")).to eq("no se sumaron")
+    end
+
+    it "trata el cero como plural" do
+      expect(described_class.agree(0, "avanza", "avanzan")).to eq("avanzan")
+    end
+  end
+
   describe ".faltan" do
     it "acuerda el verbo con el número, no sólo el sustantivo" do
       expect(described_class.faltan(1, "idea")).to eq("Falta 1 idea")

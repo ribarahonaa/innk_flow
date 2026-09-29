@@ -21,21 +21,38 @@ module Flow
     #   · con el módulo cerrado no se toca nada — cambiar quién evalúa
     #     reescribiría un resultado.
     #
-    # Corre DESPUÉS de la baja o del cambio de rol, no antes: la elegibilidad
-    # se pregunta contra el estado ya escrito. Y contra el tenant en contexto,
-    # porque `StepAssignment` es `TenantScoped`: la misma persona puede seguir
-    # evaluando en otra empresa.
+    # **Son dos pasos y se llaman por separado a propósito.**
+    #
+    # `unassign!` va DENTRO de la transacción de quien lo llama, junto con la
+    # escritura que dejó huérfanas a las asignaciones. Si se separan, una falla
+    # en el medio deja la membresía borrada y las asignaciones a medio soltar
+    # —y ahí **no queda ningún camino de UI para volver a disparar esto**,
+    # justamente porque la membresía ya no existe—. Juntas, o la baja no pasó y
+    # se vuelve a apretar.
+    #
+    # `recompute!` va AFUERA. Es aritmética derivada y recuperable: si falla,
+    # las entries muestran el número calculado con el fantasma adentro, y el
+    # siguiente cambio de peso, de asignación o de evaluación las recalcula.
+    # Atarla a la transacción haría que una cuenta rota impidiera una baja.
+    #
+    # Contra el tenant en contexto, porque `StepAssignment` es `TenantScoped`:
+    # la misma persona puede seguir evaluando en otra empresa.
     class Release
       def initialize(user_id)
         @user_id = user_id
+        @steps = []
       end
 
-      def call
-        return 0 if @user_id.blank?
+      # Suelta lo que corresponda y se guarda los módulos tocados para el
+      # recompute de después. Devuelve cuántos soltó.
+      def unassign!
+        @steps = @user_id.blank? ? [] : sueltas
+        @steps.size
+      end
 
-        pasos = sueltas
-        pasos.each { |step| recompute!(step) }
-        pasos.size
+      def recompute!
+        @steps.each { |step| step.reload.handler.recompute_entries! }
+        @steps.size
       end
 
       private
@@ -58,14 +75,6 @@ module Flow
 
         # Su nota ya está puesta: la asignación es lo que la respalda.
         !step.assessments.current.where(evaluator_id: @user_id).exists?
-      end
-
-      # Quiénes están asignados decide el mínimo de evaluaciones por idea, así
-      # que el estado de cada entry se calculó con el fantasma adentro. Es la
-      # misma razón por la que tocar un peso recalcula el módulo entero.
-      def recompute!(step)
-        handler = step.reload.handler
-        step.step_entries.includes(:idea).each { |entry| handler.recompute_entry!(entry) }
       end
     end
   end

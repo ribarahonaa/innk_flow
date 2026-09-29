@@ -117,6 +117,21 @@ RSpec.describe "sin membresía en la empresa del tenant", type: :request do
       expect(response).to redirect_to(login_path)
       expect(without_tenant { Session.where(user_id: ex_gestor.id).count }).to be_zero
     end
+
+    # El de arriba sale en el PRIMER request tras la revocación, cuando la
+    # empresa todavía está anotada en la sesión: pega contra la rama de la
+    # membresía. Éste sale con la empresa ya desanotada, que es la otra rama de
+    # `require_company` —y el estado real del `salir()` de `make screens`, que
+    # llega ahí después de que `/challenges` lo expulse—.
+    it "y también con la empresa ya desanotada" do
+      get challenges_path
+      expect(sesion.company_id).to be_nil
+
+      delete logout_path
+
+      expect(response).to redirect_to(login_path)
+      expect(without_tenant { Session.where(user_id: ex_gestor.id).count }).to be_zero
+    end
   end
 
   # Anti-sobrecorrección: la puerta se cierra sólo para quien perdió la

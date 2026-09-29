@@ -78,11 +78,9 @@ class StepAssignmentsController < ApplicationController
   end
 
   # El agregado de cada idea depende de quién evalúa y con qué peso, así que
-  # cualquier cambio acá lo invalida.
-  def recalcular!
-    handler = @step.reload.handler
-    @step.step_entries.includes(:idea).each { |entry| handler.recompute_entry!(entry) }
-  end
+  # cualquier cambio acá lo invalida. El `reload` no es de más: el handler lee
+  # las asignaciones del step, y son las que acaban de cambiar.
+  def recalcular! = @step.reload.handler.recompute_entries!
 
   def peso_dicho(assignment)
     return "#{assignment.user.name} vuelve a pesar como el resto." if assignment.weight.nil?

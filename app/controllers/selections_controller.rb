@@ -50,16 +50,11 @@ class SelectionsController < ApplicationController
   private
 
   # Cuenta lo que AVANZÓ, no lo que llegó en el pedido: con ids inventados el
-  # aviso los contaba igual, porque el `size` era el de los params.
-  #
-  # Y el verbo concuerda. `Flow::Texto.contar` acuerda el sustantivo y con eso
-  # no alcanza: la frase que lo envuelve trae su propio verbo, y quien la
-  # escribe lo deja en plural porque está pensando en el caso de varios —es lo
-  # que documenta `Flow::Texto.faltan` («Faltan 1 idea por testear») y lo que
-  # `WorkshopsController` ya tuvo que corregir dos veces—.
+  # aviso los contaba igual, porque el `size` era el de los params. Y el verbo
+  # concuerda por `Flow::Texto.agree`, que es donde vive esa regla.
   def aviso_del_corte(cuantas)
-    verbo = cuantas == 1 ? "avanza" : "avanzan"
-    "Corte confirmado: #{verbo} #{Flow::Texto.contar(cuantas, "idea")}."
+    "Corte confirmado: #{Flow::Texto.agree(cuantas, "avanza", "avanzan")} " \
+      "#{Flow::Texto.contar(cuantas, "idea")}."
   end
 
   def set_context
