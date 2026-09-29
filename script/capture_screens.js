@@ -275,17 +275,15 @@ async function revisarFormsAnidados(page, name) {
 // con `.idea-layout` y `steps/config/_modulo` con su `form_with`— la vuelven
 // verde sin avisar.
 //
-// De dónde sale el número: contando las tarjetas raíz de cada plantilla que el
-// recorrido fotografía (`.app-main > .card`: sin las de `content_for
-// :referencia`, que van en el aside, ni las que caen adentro de un `form_with`
-// o de un `.idea-layout`). Hoy llegan a dos alrededor de 35 pantallas, y más
-// de un tercio no llega —las seis caras de configuración, los índices, las dos
-// pantallas de error, la ficha de la idea, el login—. El piso queda por debajo
-// de esas 35 a propósito: que una pantalla pierda una tarjeta por un cambio
-// legítimo no tiene que romper la corrida, pero perder la mitad sí. La corrida
-// imprime el número real al terminar, así que ajustarlo no obliga a contar de
-// nuevo a mano.
-const PISO_DE_RITMO = 25;
+// De dónde sale el número: **medido, el 2026-09-29, en 37 de 71 pantallas**.
+// Las que no llegan a dos tarjetas raíz son las seis caras de configuración,
+// los índices, las dos pantallas de error, la ficha de la idea, el login y las
+// de evolución. El piso son esas 37 menos 3, que es el margen
+// para que una captura nueva o una pantalla que cambie de forma no rompa la
+// corrida de casualidad — no para que se puedan perder doce en silencio. La
+// corrida imprime el número real al terminar, así que moverlo no obliga a
+// contar de nuevo a mano.
+const PISO_DE_RITMO = 34;
 let pantallasConRitmo = 0;
 
 // Las tarjetas tenían `margin: 0` y se tocaban: la página era una sola columna
@@ -331,12 +329,14 @@ const RELLENO_DE_CARD = 20;              // `.card { --card-p: 20px }`
 const RELLENO_EN_REFERENCIA = 16;        // `.app-aside .card { --card-p: 16px }`
 
 // Cuántos `card-body` tiene que medir la corrida entera. Mismo motivo que el
-// piso de `[RITMO]`: una guarda que no encuentra qué medir pasa igual. El
-// número es un piso y no el de hoy —la corrida imprime el real—: entre las 71
-// pantallas hay de uno a diez `card-body` por pantalla, y las listas los
-// multiplican, así que 150 sobra por abajo y un renombre de `card-body` o de
-// `.card` lo deja en cero de una.
-const PISO_DE_CARD_BODY = 150;
+// piso de `[RITMO]`: una guarda que no encuentra qué medir pasa igual.
+//
+// **Medido el 2026-09-29: 273 en 71 pantallas**, de los cuales 3 son los
+// `empty-state` que la medición de abajo exceptúa, o sea **270**. El piso son
+// 250: veinte de margen, que es una pantalla de módulo entera y media —las más
+// cargadas dibujan entre ocho y diez—, y sigue muy por encima del cero al que
+// lo lleva un renombre de `card-body` o de `.card`.
+const PISO_DE_CARD_BODY = 250;
 let cardBodiesMedidos = 0;
 
 async function revisarRellenoDeTarjeta(page, name) {
@@ -346,7 +346,22 @@ async function revisarRellenoDeTarjeta(page, name) {
     // `.card > .card-body` y no `.card-body` a secas: es el mismo contrato que
     // ya exige `[PANEL]` (ninguna `card` sin su `card-body` directo adentro).
     // El contenido de un `<template>` queda afuera, como en todas las demás.
-    for (const body of document.querySelectorAll('.card > .card-body')) {
+    //
+    // `.empty-state` es la ÚNICA excepción, y va por selector —angosta, como
+    // las superficies de código de `[MONO]`— porque la hoja le declara el
+    // relleno a propósito: `.empty-state { padding: 44px 20px }`, vocabulario
+    // propio de esta app igual que `.step-card` y `.flow-strip`. Ahí 44/20 es
+    // la regla y no la desviación, y midió 44/20/44/20 en las tres pantallas
+    // vacías del recorrido en la primera corrida de esta guarda.
+    //
+    // Exceptuarla no le saca nada a lo que la guarda contesta —«DaisyUI no
+    // recuperó sus 24px»—: su propia regla le gana a `var(--card-p)`, así que
+    // un `empty-state` mediría 44/20 con el token roto o sano. Lo que NO se
+    // puede hacer es ensanchar la excepción a «si tiene alguna clase propia,
+    // no mido»: eso la dejaría ciega, que es lo que esta tanda vino a
+    // arreglar. Son seis lugares —cinco vistas y el estado vacío del builder
+    // en `pipeline_builder.vue`—, y el recorrido fotografía tres.
+    for (const body of document.querySelectorAll('.card > .card-body:not(.empty-state)')) {
       total++;
       // La referencia es más angosta y la hoja le baja el relleno; el resto de
       // la app —incluido lo que arman las islas y los popups— va con el del
