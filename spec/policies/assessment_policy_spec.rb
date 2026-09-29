@@ -19,11 +19,19 @@ RSpec.describe AssessmentPolicy do
     end
   end
 
+  # El fantasma se arma como se arma de verdad: la asignación nace mientras
+  # Gina acompaña el desafío —ahora el modelo no deja crearla de otra forma— y
+  # sobrevive a que la saquen. `Flow::Assignments::Release` suelta estas
+  # asignaciones desde las dos pantallas que las dejan huérfanas, pero no las
+  # suelta todas a propósito: la de quien ya evaluó y la de un módulo cerrado
+  # se quedan. Ésta es la línea que las sostiene igual.
   let!(:paso) do
     as_company(company) do
       desafio = create(:challenge, name: "Merma")
       p = desafio.steps.create!(kind: "evaluation", position: 1, name: "Técnica")
+      acompana = ChallengeGestor.create!(challenge: desafio, user: gina)
       StepAssignment.create!(challenge_step: p, user: gina, role: "evaluator")
+      acompana.destroy!
       p
     end
   end
@@ -35,8 +43,8 @@ RSpec.describe AssessmentPolicy do
     end
   end
 
-  # Un gestor dado de baja del desafío conserva su asignación: la baja no la
-  # borra. La asignación sola no alcanza.
+  # Un gestor que dejó de acompañar el desafío puede conservar su asignación.
+  # La asignación sola no alcanza.
   it "quien no llega al desafío no evalúa, aunque tenga la asignación" do
     expect(puede_evaluar?).to be(false)
   end

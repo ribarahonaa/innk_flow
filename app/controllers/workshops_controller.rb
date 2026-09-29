@@ -4,7 +4,9 @@ class WorkshopsController < ApplicationController
   before_action :set_workshop, only: %i[show update destroy open close remove_challenge]
 
   def index
-    @workshops = policy_scope(Workshop).order(scheduled_at: :desc, created_at: :desc)
+    # Postgres pone NULL primero en DESC: sin `nulls_last` los talleres sin
+    # fecha quedaban arriba de los programados.
+    @workshops = policy_scope(Workshop).order(Workshop.arel_table[:scheduled_at].desc.nulls_last, created_at: :desc)
   end
 
   def new
@@ -108,16 +110,14 @@ class WorkshopsController < ApplicationController
 
   def workshop_params = params.require(:workshop).permit(:name, :mode, :scheduled_at)
 
-  # `Flow::Texto.contar` acuerda el SUSTANTIVO y con eso no alcanza: la frase
-  # que lo envuelve trae su propio verbo, y quien la escribe lo deja en plural
-  # porque está pensando en el caso de varios. Es el mismo defecto que
-  # documenta `Flow::Texto.faltan` («Faltan 1 idea por testear» llegó así a la
-  # pantalla), acá con «1 desafío quedaron afuera».
+  # El verbo concuerda con el número igual que el sustantivo, y `contar` sólo
+  # acuerda el sustantivo: acá eso daba «1 desafío quedaron afuera». La regla
+  # vive en `Flow::Texto.agree`, que es la misma que usa `faltan`.
   def opened_notice(rejected)
     return "Taller abierto." if rejected.zero?
 
-    verbo = rejected == 1 ? "quedó" : "quedaron"
-    "Taller abierto. #{Flow::Texto.contar(rejected, 'desafío')} #{verbo} afuera."
+    "Taller abierto. #{Flow::Texto.contar(rejected, 'desafío')} " \
+      "#{Flow::Texto.agree(rejected, 'quedó', 'quedaron')} afuera."
   end
 
   def reject_not_draft
@@ -131,7 +131,8 @@ class WorkshopsController < ApplicationController
   def updated_notice(ignored)
     return "Taller actualizado." if ignored.zero?
 
-    frase = ignored == 1 ? "no se sumó: no lo administrás" : "no se sumaron: no los administrás"
+    frase = Flow::Texto.agree(ignored, "no se sumó: no lo administrás",
+                              "no se sumaron: no los administrás")
     "Taller actualizado. #{Flow::Texto.contar(ignored, 'desafío')} #{frase}."
   end
 end

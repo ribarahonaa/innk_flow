@@ -25,7 +25,12 @@ class WorkshopChallenge < ApplicationRecord
 
   # Perezoso a propósito: nada se engancha en `advance!`. El taller se entera
   # de que el desafío avanzó; no interviene.
-  def workable? = status == "open" && challenge_step.present? && challenge_step.active?
+  #
+  # «Activo» es lo que dice el motor: `Flow::Pipeline#active_step` acepta
+  # `active?` y también `activating?`. Con solo `active?`, si algún día se
+  # escribe `activating`, `Open` vincularía un módulo y la sala nacería
+  # invisible. Hoy nada escribe `activating`; el predicado ya no lo asume.
+  def workable? = status == "open" && challenge_step.present? && (challenge_step.active? || challenge_step.activating?)
 
   def kind = challenge_step&.kind
 

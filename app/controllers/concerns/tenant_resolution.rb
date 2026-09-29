@@ -54,10 +54,34 @@ module TenantResolution
     redirect_to login_path, alert: t("auth.sign_in_required")
   end
 
+  # Sin empresa no se navega, y sin MEMBRESÍA en esa empresa tampoco.
+  #
+  # La sesión guarda la empresa elegida y no vuelve a pedir la membresía, así
+  # que a quien se la sacaron le quedaba el tenant puesto: navegaba con todo
+  # montado y lo único que lo frenaba era que cada `Scope` devolviera `none`
+  # —o sea que dependía de que ningún `Scope` futuro se olvidara—.
+  #
+  # El estado inválido no se tolera: se resuelve y se dice por qué. Se le
+  # olvida la empresa —si no, el tenant se vuelve a montar en cada request— y
+  # se lo manda al selector, que es la pantalla que ya existe para esto: quien
+  # perdió UNA de sus membresías elige otra y sigue trabajando, y quien se
+  # quedó sin ninguna encuentra ahí el aviso y la salida. La sesión no se
+  # cierra: esto cierra una empresa, no la puerta de entrada.
   def require_company
-    return if current_company
+    return redirect_to(select_company_path) unless current_company
+    return if current_membership
 
-    redirect_to select_company_path
+    forget_company!
+    redirect_to select_company_path, alert: t("auth.membership_revoked")
+  end
+
+  # Desanota la empresa de la sesión y la saca del request en curso. Las dos
+  # cosas: sin lo primero vuelve en el request siguiente, y sin lo segundo la
+  # pantalla a la que se redirige todavía la tiene en contexto.
+  def forget_company!
+    current_session&.update!(company_id: nil)
+    Current.company = nil
+    @current_membership = nil
   end
 
   def render_not_found

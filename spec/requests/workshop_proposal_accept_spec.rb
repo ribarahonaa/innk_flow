@@ -79,7 +79,64 @@ RSpec.describe "aceptar una propuesta de taller", type: :request do
     expect(proposal_status).to eq("pending")
   end
 
-  it "si la publicación falla, la propuesta no queda aceptada ni la mesa como contribuyente" do
+  # Quien colabora en una idea la ve (IdeaPolicy::Scope), pero aceptar es sólo
+  # de quien es autor: cierra la fila «aceptar» del spec §6.
+  it "sólo el autor acepta: a quien colabora en la idea le da 403, sin publicar nada" do
+    carlos = make_member("carlos@test.dev", :participant)
+    as_company(company) { IdeaContributor.create!(idea: setup[:idea], user: carlos) }
+    sign_in(carlos, company: company)
+
+    # Precondición: la ve. Sin esto el 403 podría ser un 404 disfrazado.
+    get challenge_idea_path(setup[:challenge], setup[:idea])
+    expect(response).to have_http_status(:ok)
+
+    expect { accept }.not_to(change { versions_count })
+    expect(response).to have_http_status(:forbidden)
+    expect(proposal_status).to eq("pending")
+  end
+
+  it "sólo el autor descarta: a quien colabora en la idea le da 403" do
+    carlos = make_member("carlos@test.dev", :participant)
+    as_company(company) { IdeaContributor.create!(idea: setup[:idea], user: carlos) }
+    sign_in(carlos, company: company)
+    reject
+
+    expect(response).to have_http_status(:forbidden)
+    expect(proposal_status).to eq("pending")
+  end
+
+  # Fallo PARCIAL de verdad: la versión ya está escrita, la mesa ya es
+  # contribuyente, y explota recién el último paso (marcar la propuesta). Un
+  # stub de `call` que devuelve un Result fallido no crea nada, así que no
+  # probaba que se revierta lo ya escrito.
+  it "si falla DESPUÉS de publicar, se revierte todo: ni versión, ni contribuyentes, ni propuesta aceptada" do
+    before = versions_count
+    at_failure = nil
+    allow_any_instance_of(WorkshopProposal).to receive(:update!).and_wrap_original do |original, *args|
+      if args.first.is_a?(Hash) && args.first[:status] == "accepted"
+        at_failure = { versions: setup[:idea].versions.count, contributors: setup[:idea].idea_contributors.count }
+        raise ActiveRecord::StatementInvalid, "falla simulada al marcar la propuesta"
+      end
+      original.call(*args)
+    end
+    sign_in(ana, company: company)
+
+    begin
+      accept
+    rescue ActiveRecord::StatementInvalid
+      nil # sin `show_exceptions` la excepción sube; con él, sería un 500
+    end
+
+    # La escritura parcial existió en el momento de la falla...
+    expect(at_failure).to eq(versions: before + 1, contributors: 1)
+    # ...y no sobrevivió.
+    expect(versions_count).to eq(before)
+    expect(as_company(company) { setup[:idea].contributors.count }).to eq(0)
+    expect(as_company(company) { setup[:idea].reload.current_version&.actor_type }).not_to eq("workshop")
+    expect(proposal_status).to eq("pending")
+  end
+
+  it "si la publicación no produce versión, la propuesta queda pendiente con el error a la vista" do
     failure = Flow::Ideas::PublishVersion::Result.new(ok: false, version: nil, errors: ["Payload inválido"])
     allow_any_instance_of(Flow::Ideas::PublishVersion).to receive(:call).and_return(failure)
     sign_in(ana, company: company)

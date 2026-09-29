@@ -7,7 +7,16 @@ RSpec.describe Flow::Reports::Builder do
   around { |example| as_company(company) { example.run } }
 
   let(:author) { without_tenant { create(:user, name: "Ana") } }
-  let(:evaluator) { without_tenant { create(:user, name: "Eva") } }
+  # Con su membresía: una asignación a evaluar sólo existe para quien puede
+  # evaluar en la empresa, y el modelo ahora lo valida. Un usuario suelto era
+  # un estado que la app no produce.
+  let(:evaluator) do
+    without_tenant do
+      u = create(:user, name: "Eva")
+      create(:membership, :evaluator, company: company, user: u)
+      u
+    end
+  end
   let(:challenge) { create(:challenge, name: "Merma") }
 
   let!(:ideation) { seed_form!(challenge.steps.create!(kind: "ideation", position: 1, slug: "ideation", name: "Postulación")) }

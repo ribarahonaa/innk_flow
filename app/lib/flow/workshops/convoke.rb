@@ -18,9 +18,10 @@ module Flow
 
       def call
         # Primero de todo: un `user_id` vacío llega como `nil` desde el
-        # controller (`User.find_by`), y sin esta guarda en modo individual
-        # se intenta nombrar la mesa con `nil.name` — después de haberla
-        # creado. Va ANTES de `convoked?`, que ya rompía con `@user.id`.
+        # controller (`User.find_by`). Sin esta guarda el servicio revienta con
+        # `NoMethodError` en `convoked?`, que lee `@user.id`, antes de crear
+        # nada; y aunque `convoked?` no existiera, en modo individual
+        # `own_group` intentaría nombrar la mesa con `nil.name`.
         return person_required if @user.nil?
 
         # Antes de crear nada: en modo individual, crear la mesa y recién

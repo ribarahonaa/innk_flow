@@ -1,12 +1,25 @@
+-# El selector de empresa. Se llega de dos formas: recién logueado con más de
+-# una, o expulsado de la que tenía puesta porque le sacaron la membresía. En
+-# el segundo caso la lista puede quedar en una o en ninguna, así que el texto
+-# no puede dar por hecho que hay varias — y con ninguna, un título que dice
+-# «elegí» sobre una lista vacía es el control que no responde de siempre.
 .card
   .card-body
-    %h1 Elegí una empresa
-    %p.muted Tu cuenta tiene acceso a más de una.
-    %ul.company-list
-      - @memberships.each do |membership|
-        %li
-          = button_to membership.company.name,
-                      choose_company_path,
-                      params: { company_id: membership.company_id },
-                      class: "btn btn-ghost btn-block"
-          %span.muted= membership.role
+    - if @memberships.empty?
+      %h1 No tenés acceso a ninguna empresa
+      %p.muted
+        Pedile a quien administre una que te sume. Tu sesión sigue abierta: si te suman,
+        volvé a entrar desde acá.
+      = button_to "Cerrar sesión", logout_path, method: :delete, class: "btn btn-ghost"
+    - else
+      %h1 Elegí una empresa
+      %p.muted
+        = @memberships.one? ? "Es la única a la que tenés acceso." : "Tu cuenta tiene acceso a más de una."
+      %ul.company-list
+        - @memberships.each do |membership|
+          %li
+            = button_to membership.company.name,
+                        choose_company_path,
+                        params: { company_id: membership.company_id },
+                        class: "btn btn-ghost btn-block"
+            %span.muted= membership.role

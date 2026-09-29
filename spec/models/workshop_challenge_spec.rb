@@ -16,6 +16,18 @@ RSpec.describe WorkshopChallenge do
                                 challenge_step: step, status: link_status)
   end
 
+  # Se alinea con `Flow::Pipeline#active_step`: activo es `active` o `activating`.
+  describe "#workable?" do
+    { "active" => true, "activating" => true, "pending" => false, "completed" => false }.each do |status, expected|
+      it "con el módulo #{status} es #{expected}" do
+        as_company(company) do
+          link = link_for(workshop_status: "open", kind: "ideation", step_status: status)
+          expect(link.workable?).to be(expected)
+        end
+      end
+    end
+  end
+
   describe "#room_state" do
     # El vínculo de un taller en BORRADOR nace `open` con `challenge_step_id`
     # nulo A PROPÓSITO —lo resuelve `Open`—, así que `workable?` es false igual

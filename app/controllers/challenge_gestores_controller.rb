@@ -37,7 +37,17 @@ class ChallengeGestoresController < ApplicationController
       return volver alert: "No podés dejar de acompañar un desafío vos mismo."
     end
 
-    asignacion.destroy!
+    # Un gestor es elegible para evaluar por esta asignación y no por su rol,
+    # así que sacarlo de acá lo deja tan fantasma como una baja de la empresa.
+    # Qué se suelta y qué no vive una sola vez, en el servicio — y las dos
+    # escrituras van juntas, por la misma razón que en `MembershipsController`.
+    release = Flow::Assignments::Release.new(asignacion.user_id)
+    ActiveRecord::Base.transaction do
+      asignacion.destroy!
+      release.unassign!
+    end
+    release.recompute!
+
     volver notice: "Ya no acompaña este desafío."
   end
 

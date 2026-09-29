@@ -176,5 +176,39 @@ RSpec.describe "sala del taller: evolución", type: :request do
       expect(response.body).not_to include(%(value="#{scene[:beto_borrador].id}"))
       expect(response.body).to include(%(name="payload[#{scene[:field].key}]"))
     end
+
+    # Un campo de archivo no viaja en una propuesta. No es un control fantasma
+    # (no se renderiza), pero uno requerido dejaba de ser proponible sin que la
+    # pantalla lo dijera.
+    it "avisa que los campos de archivo no se proponen desde el taller" do
+      as_company(company) do
+        create(:form_field, challenge_step: scene[:challenge].pipeline.ideation_step,
+                            label: "Plano firmado", field_type: "file", required: true)
+      end
+      sign_in(beto, company: company)
+      get workshop_path(scene[:workshop])
+
+      expect(response.body).to include("El campo de archivo Plano firmado no se propone desde el taller")
+      expect(response.body).not_to include(%(name="files[))
+    end
+
+    it "con dos campos de archivo concuerda toda la frase en plural" do
+      as_company(company) do
+        step = scene[:challenge].pipeline.ideation_step
+        create(:form_field, challenge_step: step, label: "Plano", field_type: "file")
+        create(:form_field, challenge_step: step, label: "Anexo", field_type: "file")
+      end
+      sign_in(beto, company: company)
+      get workshop_path(scene[:workshop])
+
+      expect(response.body).to include("Los campos de archivo Plano y Anexo no se proponen desde el taller, por eso no están en el formulario.")
+    end
+
+    it "sin campos de archivo no muestra ese aviso" do
+      sign_in(beto, company: company)
+      get workshop_path(scene[:workshop])
+
+      expect(response.body).not_to include("no se propone desde el taller")
+    end
   end
 end

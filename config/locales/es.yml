@@ -22,10 +22,12 @@ es:
     sign_in_required: "Iniciá sesión para continuar."
     invalid_credentials: "Correo o contraseña incorrectos."
     signed_out: "Cerraste sesión."
+    membership_revoked: "Ya no tenés acceso a esa empresa."
   activerecord:
     attributes:
       step_assignment:
         weight: "El peso"
+        user: "Esa persona"
     errors:
       messages:
         record_invalid: "La validación falló: %{errors}"

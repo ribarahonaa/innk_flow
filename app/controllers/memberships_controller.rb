@@ -39,7 +39,16 @@ class MembershipsController < ApplicationController
     authorize @membership, :update?
     return redirect_to(members_path, alert: ultimo_admin) if quita_al_ultimo_admin?
 
-    if @membership.update(role: params[:role])
+    release = Flow::Assignments::Release.new(@membership.user_id)
+    guardada = ActiveRecord::Base.transaction do
+      next false unless @membership.update(role: params[:role])
+
+      release.unassign!
+      true
+    end
+    release.recompute!
+
+    if guardada
       redirect_to members_path, notice: "#{@membership.user.name} ahora es #{rol(@membership)}."
     else
       redirect_to members_path, alert: @membership.errors.full_messages.to_sentence
@@ -51,7 +60,27 @@ class MembershipsController < ApplicationController
     return redirect_to(members_path, alert: se_saca_a_si_mismo) if propia?
     return redirect_to(members_path, alert: ultimo_admin) if quita_al_ultimo_admin?
 
-    @membership.destroy!
+    # Dejar de estar —o dejar de tener un rol que evalúe— no puede dejar viva
+    # una asignación a evaluar: `min_assessments_for` cuenta a los asignados,
+    # así que un fantasma deja el módulo esperando una evaluación que nadie
+    # puede escribir. Lo que NO se suelta —quien ya evaluó, un módulo cerrado—
+    # está en `Flow::Assignments::Release`.
+    #
+    # La baja y el soltado van en la MISMA transacción: si se rompiera en el
+    # medio, la membresía ya no existe y con ella se va el único camino de UI
+    # para volver a disparar esto, así que el fantasma queda para siempre.
+    # Juntas, o no pasó nada y se vuelve a apretar.
+    #
+    # El `unassign!` va después del `destroy!` porque la elegibilidad se
+    # pregunta contra lo que quedó. El recompute queda AFUERA: es aritmética
+    # recuperable, y atarla acá haría que una cuenta rota impidiera una baja.
+    release = Flow::Assignments::Release.new(@membership.user_id)
+    ActiveRecord::Base.transaction do
+      @membership.destroy!
+      release.unassign!
+    end
+    release.recompute!
+
     redirect_to members_path, notice: "Ya no forma parte de esta empresa."
   end
 

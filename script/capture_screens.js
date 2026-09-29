@@ -130,6 +130,28 @@ async function revisarPlegableTrasMorph(page, name, selector) {
 // el query string, y una pantalla a la que se llegó por un redirect se releía
 // por la URL vieja.
 async function revisarFormsAnidados(page, name) {
+  // El DOM real, que es lo que la lectura del HTML servido NO puede ver. Las
+  // dos conviven porque miran dos cosas distintas, no porque una repita a la
+  // otra: el parser prohíbe el anidamiento AL PARSEAR —por eso leer lo que
+  // sirve el server alcanza para lo que escribe una vista—, pero
+  // `appendChild` lo permite, así que el DOM puede tener un `form form` que
+  // el documento servido nunca mostró.
+  //
+  // No es hipotético por dónde entraría: la isla `step-settings` renderiza
+  // sus campos ADENTRO del `form_with` de Rails de `steps/config/_modulo`,
+  // por diseño —viajan en el mismo PATCH que el nombre y el modo de IA—, o
+  // sea justo donde un `<form>` emitido por Vue sería un form dentro de otro.
+  // Hoy ningún `.vue` emite uno y esto no puede marcar nada; es latente a
+  // propósito, como la guarda del HTML servido antes del bug del corte.
+  //
+  // `querySelector` no entra en el contenido de un `<template>` —vive en un
+  // fragmento aparte, donde el anidamiento es legal—, así que acá tampoco
+  // cuenta, igual que en la lectura de abajo.
+  if (await page.evaluate(() => document.querySelector('form form') !== null)) {
+    failures++;
+    console.error(`[FORMS] ${name} tiene un formulario dentro de otro en el DOM: lo armó el cliente, así que el HTML servido no lo muestra`);
+  }
+
   // Sin el fragmento: no viaja al servidor, así que la respuesta vuelve con
   // la URL pelada y la comparación de abajo daría un falso negativo. Y pasada
   // por `new URL`, que es lo que normaliza el otro lado de esa comparación:
@@ -183,6 +205,46 @@ async function revisarFormsAnidados(page, name) {
     return;
   }
 
+  // «Este documento es el que se fotografió» y «pedí esta URL y me dieron
+  // algo» no son lo mismo, y hasta acá todo lo de arriba sólo prueba lo
+  // segundo. Hoy coinciden porque toda escritura de la app redirige —es lo
+  // que sostiene el diseño de morph de este repo—, así que `page.url()`
+  // siempre es la URL de un GET. Un 422 renderizado en el lugar rompe esa
+  // coincidencia sin romper nada de lo de arriba: la pantalla mostraría el
+  // documento que devolvió el POST y `page.url()` quedaría en su destino, así
+  // que este re-GET leería OTRO documento y lo aprobaría igual —200, la misma
+  // URL, su `</html>` y sin un form dentro de otro—, mientras el que está en
+  // pantalla no lo mira nadie.
+  //
+  // El título es lo que ata las dos puntas: lo escribe el servidor
+  // (`content_for :title`, en 35 de las 40 plantillas; de las cinco que no lo
+  // ponen, cuatro caen en el mismo «innk flow» del layout, y la quinta
+  // —`reports/pdf`— va por `layouts/pdf.html.haml`, que no emite `<title>`
+  // ninguno: no es una pantalla, así que el recorrido no la abre nunca),
+  // Turbo lo mantiene al día al navegar y al morfear, y ningún `.js` de la app
+  // lo toca. Dos acciones distintas casi nunca titulan igual —y las que sí,
+  // como las dos pantallas de error, ya tienen su propia guarda por estado—,
+  // así que un título que no coincide es el documento equivocado.
+  const tituloServido = (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1];
+  if (tituloServido === undefined) {
+    failures++;
+    console.error(`[FORMS] ${name}: lo que respondió ${url} no tiene <title>, así que no hay con qué atarlo al documento que está en pantalla`);
+    return;
+  }
+  // Decodificado por el navegador y no a mano: el servidor escapa `&`, `<`,
+  // `>` y las comillas, y `document.title` ya viene decodificado. Un desafío
+  // con un `&` en el nombre daría un falso positivo comparando crudo.
+  const titulos = await page.evaluate((servido) => {
+    const caja = document.createElement('textarea');
+    caja.innerHTML = servido;
+    return { servido: caja.value.trim(), enPantalla: document.title.trim() };
+  }, tituloServido);
+  if (titulos.servido !== titulos.enPantalla) {
+    failures++;
+    console.error(`[FORMS] ${name}: releer ${url} devolvió «${titulos.servido}» y en pantalla está «${titulos.enPantalla}»: no es el documento que se fotografió`);
+    return;
+  }
+
   // Los `<template>` se sacan antes de contar: su contenido se parsea en un
   // fragmento aparte, así que ahí el navegador NO aplana un form dentro de
   // otro y el anidamiento es legal. No es hipotético —`shared/_ia_respuesta`
@@ -204,11 +266,35 @@ async function revisarFormsAnidados(page, name) {
   }
 }
 
+// En cuántas pantallas `[RITMO]` tiene que encontrar algo que medir.
+//
+// La guarda compara cada tarjeta contra la anterior, así que con menos de dos
+// no hay par: pasa sin haber medido nada, y nadie lo cuenta. Mientras vivía en
+// `shot()` corría en unas pocas pantallas; mudarla a `capturar()` la hizo
+// correr en las 71 del recorrido, y ese silencio pasó a leerse como cobertura
+// universal — que es peor que antes. Un renombre de `.card`, o un div de
+// layout entre `.app-main` y las tarjetas —que es lo que `ideas/show` ya hace
+// con `.idea-layout` y `steps/config/_modulo` con su `form_with`— la vuelven
+// verde sin avisar.
+//
+// De dónde sale el número: **medido, el 2026-09-29, en 37 de 71 pantallas**.
+// Las que no llegan a dos tarjetas raíz son las seis caras de configuración,
+// los índices, las dos pantallas de error, la ficha de la idea, el login y las
+// de evolución. El piso son esas 37 menos 1: acá el conteo no es de elementos
+// sino una propiedad ESTRUCTURAL por pantalla —«¿tiene dos tarjetas raíz?»—, y
+// eso no lo mueve el seed, así que vale la convención de `PUNTOS_DE_MERMA`:
+// exacto, y se bumpea cuando cambia. Uno de margen tolera una pantalla que
+// oscile; tres eran casi el 10% de la cobertura de esta guarda, o sea
+// tolerancia a lo único que el piso vino a matar. La corrida imprime el número
+// real al terminar, así que moverlo no obliga a contar de nuevo a mano.
+const PISO_DE_RITMO = 36;
+let pantallasConRitmo = 0;
+
 // Las tarjetas tenían `margin: 0` y se tocaban: la página era una sola columna
 // blanca continua partida por hairlines, sin agrupar nada. Se ve midiendo, no
 // mirando —a simple vista el borde doble parece una separación—.
 async function revisarRitmo(page, name) {
-  const pegadas = await page.evaluate(() => {
+  const { pegadas, pares } = await page.evaluate(() => {
     const paneles = [...document.querySelectorAll('.app-main > .card')];
     let juntas = 0;
     for (let i = 1; i < paneles.length; i++) {
@@ -216,12 +302,96 @@ async function revisarRitmo(page, name) {
       const actual = paneles[i].getBoundingClientRect();
       if (actual.top - anterior.bottom < 8) juntas++;
     }
-    return juntas;
+    return { pegadas: juntas, pares: Math.max(paneles.length - 1, 0) };
   });
+
+  if (pares > 0) pantallasConRitmo++;
 
   if (pegadas > 0) {
     failures++;
     console.error(`[RITMO] ${name}: ${pegadas} tarjetas pegadas a la anterior, sin separación`);
+  }
+}
+
+// El relleno de `card-body` contra el que fija la hoja.
+//
+// `[CARD]` medía el ASPECTO de una `card` contra `.panel` —los 20px, los 14px
+// de letra y la sombra— y se retiró con `.panel`, porque sin ella no queda
+// contra qué comparar. No se reemplazó, y `[CLASES]` no cubre el hueco: marca
+// un elemento sólo si no tiene fondo Y no tiene relleno Y no tiene borde, y en
+// una `card` el relleno vive en `card-body` —en la `card` misma siempre es 0—,
+// así que ahí el chequeo se reduce a «tiene fondo o tiene borde». Nada vigila
+// que DaisyUI recupere sus 24px por default.
+//
+// Contra qué se compara, ahora que `.panel` no está: contra lo que declara la
+// hoja, escrito acá a mano. DaisyUI sirve `padding: var(--card-p, 1.5rem)`, o
+// sea que si la regla `.card` de `application.css` se pierde o se renombra el
+// token, el relleno cae solo a 24px sin dejar rastro en el DOM. Leer
+// `--card-p` del elemento no serviría: ahí ya estaría el 1.5rem de DaisyUI y
+// la comparación se cumpliría sola.
+const RELLENO_DE_CARD = 20;              // `.card { --card-p: 20px }`
+const RELLENO_EN_REFERENCIA = 16;        // `.app-aside .card { --card-p: 16px }`
+
+// Cuántos `card-body` tiene que medir la corrida entera. Mismo motivo que el
+// piso de `[RITMO]`: una guarda que no encuentra qué medir pasa igual.
+//
+// **Medido el 2026-09-29: 273 en 71 pantallas**, de los cuales 3 son los
+// `empty-state` que la medición de abajo exceptúa, o sea **270**. El piso son
+// 250: veinte de margen, que es una pantalla de módulo entera y media —las más
+// cargadas dibujan entre ocho y diez—, y sigue muy por encima del cero al que
+// lo lleva un renombre de `card-body` o de `.card`.
+const PISO_DE_CARD_BODY = 250;
+let cardBodiesMedidos = 0;
+
+async function revisarRellenoDeTarjeta(page, name) {
+  const { total, rotos, muestra } = await page.evaluate(({ centro, referencia }) => {
+    const malos = [];
+    let total = 0;
+    // `.card > .card-body` y no `.card-body` a secas: es el mismo contrato que
+    // ya exige `[PANEL]` (ninguna `card` sin su `card-body` directo adentro).
+    // El contenido de un `<template>` queda afuera, como en todas las demás.
+    //
+    // `.empty-state` es la ÚNICA excepción, y va por selector —angosta, como
+    // las superficies de código de `[MONO]`— porque la hoja le declara el
+    // relleno a propósito: `.empty-state { padding: 44px 20px }`, vocabulario
+    // propio de esta app igual que `.step-card` y `.flow-strip`. Ahí 44/20 es
+    // la regla y no la desviación, y midió 44/20/44/20 en las tres pantallas
+    // vacías del recorrido en la primera corrida de esta guarda.
+    //
+    // Exceptuarla no le saca nada a lo que la guarda contesta —«DaisyUI no
+    // recuperó sus 24px»—: su propia regla le gana a `var(--card-p)`, así que
+    // un `empty-state` mediría 44/20 con el token roto o sano. Lo que NO se
+    // puede hacer es ensanchar la excepción a «si tiene alguna clase propia,
+    // no mido»: eso la dejaría ciega, que es lo que esta tanda vino a
+    // arreglar. Son seis lugares —cinco vistas y el estado vacío del builder
+    // en `pipeline_builder.vue`—, y el recorrido fotografía tres.
+    for (const body of document.querySelectorAll('.card > .card-body:not(.empty-state)')) {
+      total++;
+      // La referencia es más angosta y la hoja le baja el relleno; el resto de
+      // la app —incluido lo que arman las islas y los popups— va con el del
+      // centro.
+      const esperado = body.closest('.app-aside') ? referencia : centro;
+      const cs = getComputedStyle(body);
+      const lados = ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft']
+        .map((lado) => Math.round(parseFloat(cs[lado])));
+      if (lados.some((px) => px !== esperado)) {
+        malos.push({ clase: body.parentElement.className, esperado, lados });
+      }
+    }
+    // El conteo va sin truncar y sólo el DETALLE lleva tope. Contar sobre la
+    // lista ya cortada declaraba «4 `card-body`» en una pantalla con treinta
+    // rotos, o sea un número inventado justo en el único lugar donde el
+    // mensaje afirma uno (`[CLASES]` no tiene el problema porque no declara
+    // ninguno).
+    return { total, rotos: malos.length, muestra: malos.slice(0, 4) };
+  }, { centro: RELLENO_DE_CARD, referencia: RELLENO_EN_REFERENCIA });
+
+  cardBodiesMedidos += total;
+
+  if (rotos) {
+    failures++;
+    const detalle = muestra.map((m) => `«${m.clase}» ${m.lados.join('/')}px en vez de ${m.esperado}px`).join(' · ');
+    console.error(`[RELLENO] ${name}: ${rotos} \`card-body\` con otro relleno que el de la hoja · ${detalle}`);
   }
 }
 
@@ -1040,6 +1210,7 @@ async function capturar(page, name) {
   await revisarRitmo(page, name);
   await revisarClasesDescartadas(page, name);
   await revisarCardSinBody(page, name);
+  await revisarRellenoDeTarjeta(page, name);
   await revisarContraste(page, name);
   await revisarPastilla(page, name);
   await revisarMonoEnProsa(page, name);
@@ -2485,17 +2656,13 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // Van últimas de la pasada clara: el recorrido como admin ya terminó, así
   // que cambiar de usuario acá no le saca la sesión a ninguna captura.
   const salir = async () => {
+    // Sin empresa elegida `/challenges` rebota a `/select_company` —es el
+    // estado que deja `18-select-company` con `multi@demo.test`— y desde ahí
+    // se sale igual: `SessionsController#destroy` está en las excepciones de
+    // `require_company`. Antes no lo estaba y el propio `DELETE /logout`
+    // rebotaba al selector, así que había que elegir una empresa cualquiera
+    // para poder salir: el único botón de esa pantalla era el que encerraba.
     await page.goto(`${BASE}/challenges`, { waitUntil: 'networkidle' });
-    // `require_company` es un before_action GLOBAL (`ApplicationController`) y
-    // `SessionsController#destroy` no está en la lista de excepciones: sin
-    // empresa elegida, el propio `DELETE /logout` rebota a `/select_company`
-    // en vez de cerrar la sesión. Pasa con `multi@demo.test` recién entrado
-    // —es el estado que deja `18-select-company`—, así que hay que elegir
-    // cualquiera antes de poder salir.
-    if (new URL(page.url()).pathname === '/select_company') {
-      await page.click('.company-list button, .company-list input[type="submit"]');
-      await page.waitForLoadState('networkidle');
-    }
     await page.click('form[action="/logout"] button, form[action="/logout"] input[type="submit"]');
     await page.waitForURL(/\/login/, { timeout: 10000 });
   };
@@ -2513,11 +2680,13 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   await entrar('multi@demo.test');
   await capturar(page, '18-select-company');
 
-  // Las cinco `.card-body.empty-state` de la app (A1) no las abre ningún otro
-  // paso del recorrido. «Otra Empresa» —la segunda del seed— no tiene ningún
-  // desafío ni ningún set, y es la única puerta alcanzable acá: se elige por
-  // NOMBRE y no por posición, porque el orden de `@memberships` no está
-  // declarado en ningún lado.
+  // Las cinco `.card-body.empty-state` de las VISTAS (A1) no las abre ningún
+  // otro paso del recorrido —la sexta de la app es el estado vacío del
+  // builder, que vive en `pipeline_builder.vue` y sale en
+  // `03b-builder-plantillas`—. «Otra Empresa» —la segunda del seed— no tiene
+  // ningún desafío ni ningún set, y es la única puerta alcanzable acá: se
+  // elige por NOMBRE y no por posición, porque el orden de `@memberships` no
+  // está declarado en ningún lado.
   // `choose_company_path` redirige a `root_path`, que sirve `challenges#index`
   // pero deja la URL en `/` —`root "challenges#index"`—: `waitForURL` a
   // `/challenges` nunca dispara. Se espera el título de la pantalla.
@@ -2609,6 +2778,21 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   await page.emulateMedia({ colorScheme: 'light' });
 
   await browser.close();
+
+  // Los dos pisos van acá porque son de la CORRIDA, no de una pantalla: lo que
+  // vigilan es que la guarda haya tenido algo que medir. Una que mide cero da
+  // verde y es indistinguible de una que funciona, que es el modo de falla que
+  // este script ya pagó dos veces (la pasada oscura del muestrario, y `[MONO]`
+  // después del arreglo).
+  console.log(`[RITMO] ${pantallasConRitmo} de ${shots.length} pantallas tuvieron dos tarjetas que comparar · [RELLENO] ${cardBodiesMedidos} \`card-body\` medidos`);
+  if (pantallasConRitmo < PISO_DE_RITMO) {
+    failures++;
+    console.error(`[RITMO] sólo ${pantallasConRitmo} de ${shots.length} pantallas tuvieron un par de tarjetas que comparar, y el piso es ${PISO_DE_RITMO}: la guarda dejó de ver las tarjetas`);
+  }
+  if (cardBodiesMedidos < PISO_DE_CARD_BODY) {
+    failures++;
+    console.error(`[RELLENO] sólo se midieron ${cardBodiesMedidos} \`card-body\` en ${shots.length} pantallas, y el piso es ${PISO_DE_CARD_BODY}: la guarda dejó de ver las tarjetas`);
+  }
 
   console.log(`\n${shots.length} capturas en ${OUT}`);
   if (failures) {

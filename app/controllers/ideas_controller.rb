@@ -40,7 +40,7 @@ class IdeasController < ApplicationController
     @ideation_step = ideation_step
     @pending_suggestions = AiSuggestion.pending_review.where(idea_id: @idea.id).recent
     # Incluye las vencidas: se muestran como vencidas, no desaparecen.
-    @workshop_proposals = WorkshopProposal.pending_review.where(idea_id: @idea.id)
+    @workshop_proposals = policy_scope(WorkshopProposal).pending_review.where(idea_id: @idea.id)
                                           .includes(:workshop_group, :challenge_step)
     @feedback = FeedbackItem.where(idea_id: @idea.id).chronological.includes(:author, :challenge_step)
     # Cada comentario pertenece a SU ronda de evolución. Mezclarlas en una

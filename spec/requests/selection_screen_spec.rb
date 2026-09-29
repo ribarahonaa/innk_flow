@@ -332,4 +332,76 @@ RSpec.describe "la pantalla de una selección", type: :request do
       expect(response.body).to include("pasa por el mínimo")
     end
   end
+
+  # El aviso del corte contaba sobre los PARAMS, no sobre lo que pasó.
+  #
+  # `decide!` no crea filas de más —itera `step_entries` y pregunta
+  # `include?`—, así que un id inventado no hacía avanzar nada; el mensaje sí
+  # lo contaba. Y el verbo venía fijo en plural, que es el defecto que
+  # documenta `Flow::Texto.faltan` y que este repo ya cometió dos veces en
+  # `WorkshopsController`.
+  describe "el aviso del corte" do
+    before do
+      as_company(company) do
+        handler = paso.handler
+        ideas.each do |i|
+          handler.record_verdict!(idea: i, criterion_key: "claro", passed: true, decided_by: admin)
+        end
+      end
+    end
+
+    def cortar(ids) = patch(challenge_step_selection_path(challenge, paso),
+                            params: { advancing_idea_ids: ids, reason: "Entra lo mejor" })
+
+    # Un borrador es una idea de este desafío y VISIBLE —el filtro de arriba la
+    # deja pasar—, pero nunca entró al módulo: `Cohort` sólo crea entries para
+    # las vivas. Así que es el caso que separa «lo que pedí» de «lo que pasó».
+    it "cuenta lo que avanzó y no los ids que llegaron" do
+      borrador = as_company(company) { create(:idea, challenge: challenge, author: paula) }
+
+      cortar([ideas.first.id, borrador.id, SecureRandom.uuid, "no-es-un-uuid"])
+
+      expect(flash[:notice]).to include("1 idea")
+      expect(flash[:notice]).not_to include("2 idea")
+      expect(as_company(company) { borrador.reload.status }).to eq("draft")
+    end
+
+    # «avanzan 1 idea» es el mismo defecto que «Faltan 1 idea por testear».
+    it "y concuerda el verbo con lo que contó" do
+      cortar([ideas.first.id])
+
+      expect(flash[:notice]).to include("avanza 1 idea")
+    end
+
+    # Anti-sobrecorrección: el singular no se fija a mano.
+    it "sin dejar el verbo clavado en singular" do
+      cortar(ideas.map(&:id))
+
+      expect(flash[:notice]).to include("avanzan 2 ideas")
+    end
+
+    # Las otras dos acciones del mismo controller ya buscaban por
+    # `policy_scope`; ésta pasaba los ids crudos. Hoy `decide!` los ignora por
+    # su cuenta, y por eso el hueco no se ve en pantalla: lo que se cuida acá
+    # es que lo que llega al corte sean ideas visibles de ESTE desafío.
+    it "no le pasa al corte un id que no es una idea visible de este desafío" do
+      ajena = as_company(company) do
+        otro = create(:challenge, name: "Ajeno", ai_default_mode: "human")
+        i = create(:idea, challenge: otro, author: paula, status: "active")
+        Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "De otro" }, author: paula).call
+        i
+      end
+
+      recibidos = nil
+      allow_any_instance_of(Flow::Handlers::Selection)
+        .to receive(:decide!).and_wrap_original do |original, ids, **opciones|
+          recibidos = ids
+          original.call(ids, **opciones)
+        end
+
+      cortar([ideas.first.id, ajena.id, SecureRandom.uuid])
+
+      expect(recibidos).to contain_exactly(ideas.first.id)
+    end
+  end
 end

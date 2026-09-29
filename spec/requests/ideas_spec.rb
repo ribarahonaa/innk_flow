@@ -41,6 +41,19 @@ RSpec.describe "ideas", type: :request do
       expect(response.body).to include("Título", "¿Qué problema resuelve?", "¿Cómo funcionaría?")
     end
 
+    # `ideas/_form_fields` toma un `id_prefix` opcional para la sala del taller.
+    # El camino viejo tiene que seguir emitiendo los ids de siempre, sin prefijo:
+    # se rompe en silencio (nada falla, sólo cambian los `for`).
+    it "conserva los ids payload_<clave> SIN prefijo, y cada label apunta a su campo" do
+      get new_challenge_idea_path(challenge)
+
+      %w[titulo problema solucion].each do |key|
+        expect(response.body).to match(/<label[^>]*for="payload_#{key}"/)
+        expect(response.body).to match(/\bid="payload_#{key}"/)
+      end
+      expect(response.body).not_to match(/id="[^"]+_payload_/)
+    end
+
     it "crea la idea como borrador con su v1" do
       post challenge_ideas_path(challenge), params: {
         payload: { titulo: "Sensores IoT", problema: "No sabemos dónde se pierde", solucion: "Sensores por rack" }

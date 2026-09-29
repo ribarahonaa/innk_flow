@@ -163,6 +163,21 @@ module Flow
         entry
       end
 
+      # Todas las entries del módulo, de una.
+      #
+      # Cambiar quién evalúa —o cuánto pesa— invalida el agregado de TODAS las
+      # ideas: el peso entra en la media ponderada y quiénes están asignados
+      # deciden el mínimo por idea. Sin esto la tabla sigue mostrando el número
+      # calculado antes del cambio.
+      #
+      # Vive acá y no en cada caller: estuvo escrita igual en
+      # `StepAssignmentsController#recalcular!` y en
+      # `Flow::Assignments::Release`, que es exactamente la clase de par que en
+      # este repo ya divergió dos veces con la tabla de alcances de la IA.
+      def recompute_entries!
+        step.step_entries.includes(:idea).each { |entry| recompute_entry!(entry) }
+      end
+
       # En modo automático la IA cubre el mínimo del módulo: si pide 3
       # evaluaciones por idea, hace 3. Cada pasada es una consulta
       # independiente al proveedor —su propio ai_run— así que el promedio y la
@@ -371,7 +386,7 @@ module Flow
       def assign_evaluators!
         return if step.step_assignments.reload.any?
 
-        Membership.where(role: %w[evaluator admin]).find_each do |membership|
+        Membership.where(role: StepAssignment::EVALUATING_ROLES).find_each do |membership|
           StepAssignment.find_or_create_by!(challenge_step_id: step.id, user_id: membership.user_id) do |assignment|
             assignment.role = "evaluator"
           end
