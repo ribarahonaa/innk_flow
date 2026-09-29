@@ -185,6 +185,13 @@ como validación de modelo, y el builder solo la dibuja.
 `activate!` y `complete!` son idempotentes; toda mutación va con
 `challenge.with_lock` + `lock_version` optimista.
 
+**La razón dice el porqué; el nombre del módulo lo pone `activate!`.** Las
+razones de `can_activate?` no se nombran a sí mismas: `Base#activate!` es el
+único lugar donde una negativa se vuelve excepción y arma «‹nombre› no está
+listo para arrancar: ‹razones›». Nombrarse en la razón lo duplicaba, y
+`Evaluation` —cuyos motivos salen de `CriteriaSet#validation_errors` y no
+saben de módulos— no lo decía con dos evaluaciones en el flujo.
+
 **Late binding:** `step.config` guarda la intención, `resolved_config` se
 escribe una sola vez en `activate!` con ids concretos. Leé siempre
 `step.settings` — es el único accesor público y devuelve el resuelto si el

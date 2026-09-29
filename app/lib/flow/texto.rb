@@ -36,6 +36,12 @@ module Flow
       "#{agree(cantidad, 'Falta', 'Faltan')} #{contar(cantidad, palabra)}"
     end
 
+    # OJO: para «N de M cosas <adjetivo>» conviven DOS concordancias, a propósito.
+    # `ideas/show` acuerda el adjetivo con el TOTAL («1 de 3 comentarios
+    # atendidos», con `plural('atendido', total)`); el drawer lo acuerda con la
+    # CUENTA («1 de 3 listo»). Las dos se defienden en español —«uno de tres
+    # atendidos» y «uno de tres, atendido»— y ninguna es LA correcta, así que no
+    # es un bug de una de las dos: no unifiques una a la otra.
     def plural(palabra, cantidad = 2) = palabra.pluralize(cantidad, :es)
 
     # Las iniciales de una persona, largas lo justo para no repetirse dentro

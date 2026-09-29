@@ -118,25 +118,33 @@ Un handler por kind. El Pipeline solo orquesta el orden.
 
 ```ruby
 Flow::Handlers::Base.for(step)
-  #can_activate? -> [bool, razones]
-  #activate!        # idempotente: resolve_config! + Cohort.sync! + efectos
+  #can_activate? -> [bool, razones]  # la razón dice el PORQUÉ; el nombre lo pone activate!
+  #activate!        # idempotente: resolve_config! + Cohort.sync! + on_activate
   #progress      -> Progress(done:, total:, label:)
   #can_complete? -> [bool, razones]
-  #complete!        # idempotente
-  #skip!(reason:)
+  #complete!        # idempotente: on_complete + status completed
+  #skip!(reason:)   # false si ya terminó o el desafío no está en curso
 ```
 
-| Handler | `activate!` | `can_complete?` |
-|---|---|---|
-| `Ideation` | Siembra el formulario por defecto. **Cohorte vacío**: las ideas nacen acá | `min_ideas` postuladas |
-| `Evolution` | `Cohort.sync!`; encola feedback IA si el modo no es `human` | Todas respondieron, o `allow_partial` |
-| `Evaluation` | **Congela los criterios**; asigna evaluadores | `min_assessments` por idea |
-| `Selection` | Resuelve `score_source` a ids | Toda idea decidida, o corte automático |
-| `Reporting` | Genera el tablero; encola narrativa IA | Siempre |
+**Las razones de `can_activate?` no nombran el módulo.** `Base#activate!` es el
+único lugar donde una negativa se vuelve excepción y ahí arma el mensaje
+(«‹nombre› no está listo para arrancar: ‹razones›»). Un handler que se nombre
+en su razón lo duplica, y uno que no lo haga igual sale nombrado: el «cuál» es
+de quien avisa, la razón es sólo el porqué.
 
-Tanto `Ideation` como `Evaluation` **siembran configuración por defecto** si
-nadie la definió (campos de formulario, criterios inline). La maqueta corre de
-punta a punta sin obligar a configurar todo primero.
+| Handler | `activate!` (además de `resolve_config!` y `Cohort.sync!`) | `can_complete?` |
+|---|---|---|
+| `Ideation` | Con `ai_auto` pide ideas generadas a la IA. **No siembra nada**: sin formulario (`can_activate?`) el módulo se niega a arrancar. **Cohorte vacío**: las ideas nacen acá | `min_ideas` postuladas |
+| `Evolution` | Encola feedback IA si el modo no es `human` | Todas respondieron si `require_response`; si no, siempre |
+| `Evaluation` | **Congela los criterios** en `resolved_config` (si el módulo no tiene set, antes le arma uno inline por defecto); asigna evaluadores; con `ai_auto` encola evaluaciones de IA | `min_assessments` por idea |
+| `Selection` | Resuelve `score_source` a ids y congela el corte y los filtros; con `ai_auto` encola los veredictos de IA | Ningún veredicto de filtro sin responder, y —con corte manual— toda idea decidida. Con corte automático, `complete!` aplica la regla |
+| `Reporting` | Genera el tablero; encola narrativa IA si el modo no es `human` | Siempre |
+| `Testing` | Con `ai_auto` encola un testeo de IA por idea; en `ai_assisted` no se dispara solo. Sin precondiciones (`can_activate?` siempre pasa) | Toda idea con un testeo vigente. No elimina a nadie: quien quiera cortar por el resultado pone una selección después |
+
+Sólo `Evaluation` **siembra configuración por defecto** si nadie la definió (un
+set de criterios inline). `Ideation` ya no: el formulario se define antes de
+arrancar, y sin él el módulo no abre. La maqueta corre de punta a punta, pero
+un desafío sin formulario no arranca.
 
 ### Qué se congela al arrancar, y qué no
 
@@ -170,7 +178,9 @@ de ideas), o **(c)** produce un archivo. El resto es síncrono.
 | | |
 |---|---|
 | **Síncrono** | Mutaciones de pipeline · guardar un assessment + recalcular esa entry · una decisión de selección · publicar una versión |
-| **Sidekiq** | `AI::RunJob` (una llamada = un job) · `Reports::GenerateJob` · `Steps::ActivateJob` |
+| **Sidekiq** | `AI::RunJob` (una llamada = un job) · `Reports::GenerateJob` |
+
+`Steps::ActivateJob` existe y respeta el mismo contrato, pero hoy no lo encola nadie: `Pipeline` activa en línea.
 
 Todo job abre con `Flow::Tenant.with(Company.find(company_id))`: el tenant viaja
 en el payload, nunca se asume.
