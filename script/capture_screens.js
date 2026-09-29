@@ -2359,7 +2359,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // Read-only a propósito: no se abre, no se propone ni se acepta nada, así
   // que `make screens` corrido dos veces sin volver a sembrar encuentra el
   // mismo estado.
-  const irAlTaller = async (nombre) => {
+  const goToWorkshop = async (workshopName) => {
     // Desde donde esté la pantalla: el nav está en todas. El listado se
     // espera por su título, no por la red.
     await Promise.all([
@@ -2367,15 +2367,15 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       page.click('.app-nav__link:has-text("Talleres")')
     ]);
     await page.waitForSelector('h1.page-title:has-text("Talleres")', { timeout: 10000 });
-    const enlace = page.locator('table.table a', { hasText: nombre });
-    if (!(await enlace.count())) {
+    const workshopLink = page.locator('table.table a', { hasText: workshopName });
+    if (!(await workshopLink.count())) {
       failures++;
-      console.error(`[LINK] el listado de talleres no tiene «${nombre}»`);
+      console.error(`[LINK] el listado de talleres no tiene «${workshopName}»`);
       return false;
     }
     await Promise.all([
       page.waitForURL(/\/workshops\/[^/]+$/, { timeout: 15000 }),
-      enlace.first().click()
+      workshopLink.first().click()
     ]);
     await page.waitForSelector('h1.page-title', { timeout: 10000 });
     return true;
@@ -2383,7 +2383,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
 
   // 24: el taller en borrador, con el bloque de armado. «Abrir taller» sólo
   // existe en este estado.
-  if (await irAlTaller('Taller de planificación (borrador)')) {
+  if (await goToWorkshop('Taller de planificación (borrador)')) {
     if (!(await page.locator('button:has-text("Abrir taller"), input[value="Abrir taller"]').count())) {
       failures++;
       console.error('[TALLER] el taller en borrador no ofrece «Abrir taller»');
@@ -2398,7 +2398,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // 25, 26 y 28 son la MISMA pantalla —las salas de un taller abierto viven
   // en el mismo `show`—, y cada captura exige lo suyo: si una sala dejara de
   // renderizar, la otra seguiría pasando.
-  if (await irAlTaller('Taller de mejora continua')) {
+  if (await goToWorkshop('Taller de mejora continua')) {
     // 25: la sala de idear ofrece el formulario del módulo de ideación.
     if (!(await page.locator('form[action$="/ideas"] input[value="Crear borrador"]').count())) {
       failures++;
@@ -2412,23 +2412,23 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
 
     // 26: la sala de evolución, un formulario por idea de la mesa (las dos de
     // Paula; la de Pedro es de la otra mesa y no entra).
-    const formulariosDePropuesta = await page.locator('form[action$="/proposals"] input[value="Proponer"]').count();
-    if (formulariosDePropuesta !== 2) {
+    const proposalForms = await page.locator('form[action$="/proposals"] input[value="Proponer"]').count();
+    if (proposalForms !== 2) {
       failures++;
-      console.error(`[TALLER] la sala de evolución ofrece ${formulariosDePropuesta} propuestas y se esperaban 2 (las ideas de la mesa)`);
+      console.error(`[TALLER] la sala de evolución ofrece ${proposalForms} propuestas y se esperaban 2 (las ideas de la mesa)`);
     }
     await capturar(page, '26-taller-sala-evolucion');
 
     // 28: el desafío que avanzó de fase se ve cerrado, y DICE POR QUÉ. El
-    // motivo también aparece en la lista de armado, así que se acota a la
+    // El motivo también aparece en la lista de armado, así que se acota a la
     // tarjeta de la sala.
-    const salaCerrada = page.locator('.card', {
+    const closedRoom = page.locator('.card', {
       has: page.locator('h2.section-title', { hasText: 'Ideas para el manual de seguridad' })
     }).locator('p.muted');
-    const motivo = (await salaCerrada.count()) ? await salaCerrada.first().innerText() : '';
-    if (!/El desafío está en Evaluación, y un taller sólo trabaja sobre idear o evolución/.test(motivo)) {
+    const closedReason = (await closedRoom.count()) ? await closedRoom.first().innerText() : '';
+    if (!/El desafío está en Evaluación, y un taller sólo trabaja sobre idear o evolución/.test(closedReason)) {
       failures++;
-      console.error(`[TALLER] el vínculo cerrado no dice su motivo: «${motivo}»`);
+      console.error(`[TALLER] el vínculo cerrado no dice su motivo: «${closedReason}»`);
     }
     await capturar(page, '28-taller-vinculo-cerrado');
 
@@ -2451,12 +2451,12 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     // Se espera la tarjeta de la propuesta, que sólo existe con la ficha
     // nueva pintada.
     await page.waitForSelector('[id^="workshop_proposal_"]', { timeout: 10000 });
-    const tarjeta = page.locator('[id^="workshop_proposal_"]');
-    if (!/Propuesta de la mesa «Mesa Bodega»/.test(await tarjeta.first().innerText())) {
+    const proposalCard = page.locator('[id^="workshop_proposal_"]');
+    if (!/Propuesta de la mesa «Mesa Bodega»/.test(await proposalCard.first().innerText())) {
       failures++;
       console.error('[TALLER] la ficha no muestra la propuesta de la mesa');
     }
-    if (await tarjeta.locator('button:has-text("Aceptar"), input[value="Aceptar"]').count()) {
+    if (await proposalCard.locator('button:has-text("Aceptar"), input[value="Aceptar"]').count()) {
       failures++;
       console.error('[TALLER] quien no es autor ve «Aceptar» en la propuesta');
     }

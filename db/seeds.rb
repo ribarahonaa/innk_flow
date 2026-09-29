@@ -755,57 +755,57 @@ Flow::Tenant.bypass! do
       idea
     end
 
-    taller_idear, = workshop_challenge.call(
+    ideation_challenge, = workshop_challenge.call(
       "taller-idear", "Ideas para la sala de descanso",
       "La sala de descanso se usa poco y nadie sabe qué le falta. Se trabaja en un taller de una tarde.",
       [["ideation", "Postulación"]]
     )
 
-    taller_evolucion, evolucion_ideacion = workshop_challenge.call(
+    evolution_challenge, evolution_ideation_step = workshop_challenge.call(
       "taller-evolucion", "Ideas para la inducción de nuevos ingresos",
       "Las primeras semanas de quien entra son confusas. Se afinan las ideas ya postuladas en un taller.",
       [["ideation", "Postulación"], ["evolution", "Ronda de feedback"]]
     )
-    ideas_de_taller = [
+    workshop_ideas = [
       [workshop_part1, "Un buddy para la primera semana",
        "Cada persona nueva tiene un compañero asignado que responde sus dudas."],
       [workshop_part1, "Checklist del primer día",
        "Una lista de lo que tiene que estar listo antes de que la persona llegue."],
       [workshop_part2, "Almuerzo de bienvenida",
        "Un almuerzo con el equipo el segundo día."]
-    ].map { |author, title, description| workshop_idea.call(taller_evolucion, evolucion_ideacion, author, title, description) }
-    taller_evolucion.pipeline.advance!  # → Ronda de feedback (activa)
-    ronda_de_taller = taller_evolucion.pipeline.active_step
-    FeedbackItem.create!(challenge_step: ronda_de_taller, idea: ideas_de_taller[0],
-                         idea_version_id: ideas_de_taller[0].current_version_id, author: workshop_admin,
+    ].map { |author, title, description| workshop_idea.call(evolution_challenge, evolution_ideation_step, author, title, description) }
+    evolution_challenge.pipeline.advance!  # → Ronda de feedback (activa)
+    workshop_round = evolution_challenge.pipeline.active_step
+    FeedbackItem.create!(challenge_step: workshop_round, idea: workshop_ideas[0],
+                         idea_version_id: workshop_ideas[0].current_version_id, author: workshop_admin,
                          kind: "suggestion", body: "Definí cuánto tiempo por semana le pide al buddy y qué pasa si no puede.")
 
-    taller_avanzado, avanzado_ideacion = workshop_challenge.call(
+    advanced_challenge, advanced_ideation_step = workshop_challenge.call(
       "taller-avanzado", "Ideas para el manual de seguridad",
       "El manual está desactualizado. Este desafío ya pasó de idear: sirve para ver un vínculo cerrado.",
       [["ideation", "Postulación"], ["evaluation", "Evaluación"]]
     )
-    workshop_idea.call(taller_avanzado, avanzado_ideacion, workshop_part2, "Manual en video",
+    workshop_idea.call(advanced_challenge, advanced_ideation_step, workshop_part2, "Manual en video",
                        "Reemplazar los capítulos más largos por videos de dos minutos.")
-    taller_avanzado.pipeline.advance!  # → Evaluación (idear ya no está activo)
+    advanced_challenge.pipeline.advance!  # → Evaluación (idear ya no está activo)
 
     # El taller ABIERTO: dos mesas, tres desafíos. El del manual queda afuera
     # al abrir y se ve cerrado con su motivo. Admin está en la mesa de Paula
     # para que las dos salas tengan qué mostrar: ninguna se ve sin mesa.
-    taller = Workshop.create!(name: "Taller de mejora continua", mode: "group", created_by: workshop_admin,
+    open_workshop = Workshop.create!(name: "Taller de mejora continua", mode: "group", created_by: workshop_admin,
                               scheduled_at: Time.zone.now.change(hour: 15, min: 0) + 2.days)
-    [taller_idear, taller_evolucion, taller_avanzado].each { |c| taller.workshop_challenges.create!(challenge: c) }
-    mesa_bodega = taller.workshop_groups.create!(name: "Mesa Bodega")
-    mesa_despacho = taller.workshop_groups.create!(name: "Mesa Despacho")
-    [workshop_admin, workshop_part1].each { |u| WorkshopGroupMember.create!(workshop_group: mesa_bodega, user: u) }
-    WorkshopGroupMember.create!(workshop_group: mesa_despacho, user: workshop_part2)
-    apertura = Flow::Workshops::Open.new(taller).call
-    raise "El taller no abrió: #{apertura.errors.to_sentence}" unless apertura.ok?
+    [ideation_challenge, evolution_challenge, advanced_challenge].each { |c| open_workshop.workshop_challenges.create!(challenge: c) }
+    bodega_group = open_workshop.workshop_groups.create!(name: "Mesa Bodega")
+    despacho_group = open_workshop.workshop_groups.create!(name: "Mesa Despacho")
+    [workshop_admin, workshop_part1].each { |u| WorkshopGroupMember.create!(workshop_group: bodega_group, user: u) }
+    WorkshopGroupMember.create!(workshop_group: despacho_group, user: workshop_part2)
+    opening = Flow::Workshops::Open.new(open_workshop).call
+    raise "El taller no abrió: #{opening.errors.to_sentence}" unless opening.ok?
 
     # La propuesta pendiente de la mesa sobre la idea de Paula: es lo que
     # fotografía `27-taller-propuesta-en-la-idea`.
     WorkshopProposal.create!(
-      workshop_group: mesa_bodega, idea: ideas_de_taller[0], challenge_step: ronda_de_taller,
+      workshop_group: bodega_group, idea: workshop_ideas[0], challenge_step: workshop_round,
       status: "pending",
       payload: { "titulo" => "Un buddy para la primera semana",
                  "descripcion" => "Cada persona nueva tiene un compañero asignado, con dos horas por semana " \
@@ -814,10 +814,10 @@ Flow::Tenant.bypass! do
 
     # Un segundo taller en BORRADOR, para `24-taller-armado`: es el único
     # estado en que el bloque de armado ofrece «Abrir taller».
-    borrador_de_taller = Workshop.create!(name: "Taller de planificación (borrador)", mode: "group",
+    draft_workshop = Workshop.create!(name: "Taller de planificación (borrador)", mode: "group",
                                           created_by: workshop_admin)
-    [taller_idear, taller_evolucion].each { |c| borrador_de_taller.workshop_challenges.create!(challenge: c) }
-    borrador_de_taller.workshop_groups.create!(name: "Mesa Norte")
+    [ideation_challenge, evolution_challenge].each { |c| draft_workshop.workshop_challenges.create!(challenge: c) }
+    draft_workshop.workshop_groups.create!(name: "Mesa Norte")
 
     puts "Desafío en curso:  #{challenge.name}"
     puts "  módulos:   #{challenge.steps.count} · activo: #{challenge.pipeline.active_step&.name}"
@@ -835,7 +835,7 @@ Flow::Tenant.bypass! do
          "salteado: #{salteado.steps.reload.find(&:skipped?)&.name || 'NINGUNO'})"
     puts "Desafío con comité abierto: #{abierto.reload.name} " \
          "(módulo activo: #{abierto.pipeline.active_step&.name})"
-    puts "Taller abierto: #{taller.reload.name} (#{taller.workshop_challenges.reload.map(&:status).tally})"
+    puts "Taller abierto: #{open_workshop.reload.name} (#{open_workshop.workshop_challenges.reload.map(&:status).tally})"
   end
 
   puts ""
