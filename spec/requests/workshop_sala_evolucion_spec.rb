@@ -84,6 +84,15 @@ RSpec.describe "sala del taller: evolución", type: :request do
     as_company(company) { expect(WorkshopProposal.order(:created_at).last.payload).to eq({}) }
   end
 
+  it "un payload que no es un hash se rechaza con aviso, sin 500 ni propuesta" do
+    sign_in(beto, company: company)
+
+    expect { propose(scene[:ana_idea], payload: "basura") }
+      .not_to(change { as_company(company) { WorkshopProposal.count } })
+    expect(response).to redirect_to(workshop_path(scene[:workshop]))
+    expect(flash[:alert]).to include("mal formada")
+  end
+
   it "quien administra y no está en ninguna mesa recibe un aviso, no un 404" do
     admin = without_tenant do
       u = create(:user, email: "admin@test.dev")
@@ -113,6 +122,26 @@ RSpec.describe "sala del taller: evolución", type: :request do
   end
 
   describe "la pantalla del taller" do
+    it "precarga cada formulario con el payload de la versión vigente y no repite ids de DOM" do
+      as_company(company) do
+        [ scene[:ana_idea], scene[:dani_idea] ].each do |idea|
+          result = Flow::Ideas::PublishVersion.new(
+            idea, payload: { scene[:field].key => "Texto de #{idea.author.name}" }, author: idea.author,
+                  source_step: scene[:round], change_note: "Inicial"
+          ).call
+          expect(result).to be_ok
+        end
+      end
+      sign_in(beto, company: company)
+      get workshop_path(scene[:workshop])
+
+      expect(response.body).to include(%(value="Texto de #{ana.name}"))
+      expect(response.body).to include(%(value="Texto de #{dani.name}"))
+      ids = response.body.scan(/\bid="([^"]+)"/).flatten
+      expect(ids.select { |i| i.start_with?("idea_") && i.end_with?("payload_#{scene[:field].key}") }.uniq.size).to eq(2)
+      expect(ids.tally.select { |_, n| n > 1 }.keys.grep(/payload_/)).to be_empty
+    end
+
     it "ofrece un formulario por idea de la mesa, y ninguno para la ajena" do
       sign_in(beto, company: company)
       get workshop_path(scene[:workshop])

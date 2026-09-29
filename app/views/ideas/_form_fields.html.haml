@@ -1,21 +1,24 @@
 -# Formulario dinámico: los campos los define el módulo de ideación.
+-# `id_prefix` es opcional: con varios formularios en una pantalla evita ids
+-# de DOM repetidos. Sin él, los ids son los de siempre.
+- id_prefix = local_assigns[:id_prefix].to_s
 - fields.each do |field|
   .field
-    = label_tag "payload_#{field.key}", field.label
+    = label_tag "#{id_prefix}payload_#{field.key}", field.label
     - value = payload[field.key]
     - case field.field_type
     - when "textarea"
-      = text_area_tag "payload[#{field.key}]", value, rows: 4, id: "payload_#{field.key}", required: field.required
+      = text_area_tag "payload[#{field.key}]", value, rows: 4, id: "#{id_prefix}payload_#{field.key}", required: field.required
     - when "rich_text"
-      = text_area_tag "payload[#{field.key}]", value, rows: 8, id: "payload_#{field.key}", required: field.required
+      = text_area_tag "payload[#{field.key}]", value, rows: 8, id: "#{id_prefix}payload_#{field.key}", required: field.required
     - when "number"
-      = number_field_tag "payload[#{field.key}]", value, id: "payload_#{field.key}", required: field.required
+      = number_field_tag "payload[#{field.key}]", value, id: "#{id_prefix}payload_#{field.key}", required: field.required
     - when "date"
-      = date_field_tag "payload[#{field.key}]", value, id: "payload_#{field.key}", required: field.required
+      = date_field_tag "payload[#{field.key}]", value, id: "#{id_prefix}payload_#{field.key}", required: field.required
     - when "select"
-      = select_tag "payload[#{field.key}]", options_for_select(field.options, value), include_blank: true, id: "payload_#{field.key}"
+      = select_tag "payload[#{field.key}]", options_for_select(field.options, value), include_blank: true, id: "#{id_prefix}payload_#{field.key}"
     - when "multi_select"
-      = select_tag "payload[#{field.key}][]", options_for_select(field.options, Array(value)), multiple: true, id: "payload_#{field.key}"
+      = select_tag "payload[#{field.key}][]", options_for_select(field.options, Array(value)), multiple: true, id: "#{id_prefix}payload_#{field.key}"
     - when "file"
       -# El adjunto vigente se arrastra a la versión nueva salvo que se suba
       -# otro: nadie debería tener que volver a subir el mismo archivo para
@@ -26,8 +29,8 @@
           Adjunto actual:
           %strong= current.file.filename.to_s
           = " · se conserva si no subís otro."
-      = file_field_tag "files[#{field.key}]", id: "payload_#{field.key}"
+      = file_field_tag "files[#{field.key}]", id: "#{id_prefix}payload_#{field.key}"
     - else
-      = text_field_tag "payload[#{field.key}]", value, id: "payload_#{field.key}", required: field.required
+      = text_field_tag "payload[#{field.key}]", value, id: "#{id_prefix}payload_#{field.key}", required: field.required
     - if field.hint.present?
       %p.field-hint= field.hint

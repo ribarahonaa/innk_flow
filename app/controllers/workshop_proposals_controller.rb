@@ -9,6 +9,9 @@ class WorkshopProposalsController < ApplicationController
     authorize @workshop, :work?
     return reject_room unless @link.workable? && @link.kind == "evolution"
 
+    payload = payload_params
+    return reject_payload if payload.nil? && params.key?(:payload)
+
     group = group_of(current_user)
     return reject_without_group unless group
 
@@ -21,7 +24,7 @@ class WorkshopProposalsController < ApplicationController
 
     WorkshopProposal.create!(
       workshop_group: group, idea: idea, challenge_step: @link.challenge_step,
-      payload: payload_params, status: "pending"
+      payload: payload || {}, status: "pending"
     )
 
     redirect_to workshop_path(@workshop), notice: "Propuesta enviada a quien es autor."
@@ -44,12 +47,17 @@ class WorkshopProposalsController < ApplicationController
   def payload_params
     step = @link.challenge.pipeline.ideation_step
     keys = step ? step.form_fields.map(&:key) : []
-    params.fetch(:payload, {}).permit!.to_h.slice(*keys)
+    raw = params[:payload]
+    raw.respond_to?(:permit!) ? raw.permit!.to_h.slice(*keys) : nil
   end
 
   def reject_room
     redirect_to workshop_path(@workshop),
                 alert: "Esta sala ya no admite trabajo: el desafío avanzó de fase."
+  end
+
+  def reject_payload
+    redirect_to workshop_path(@workshop), alert: "La propuesta llegó mal formada: probá de nuevo desde el formulario."
   end
 
   def reject_without_group

@@ -20,5 +20,5 @@
           %h3= idea.title
           = form_with url: workshop_sala_proposals_path(workshop, link) do
             = hidden_field_tag :idea_id, idea.id, id: "idea_id_#{idea.id}"
-            = render "ideas/form_fields", fields: fields, payload: idea.payload
+            = render "ideas/form_fields", fields: fields, payload: idea.payload, id_prefix: "idea_#{idea.id}_"
             = submit_tag "Proponer", class: "btn btn-primary"
