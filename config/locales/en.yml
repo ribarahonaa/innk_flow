@@ -13,3 +13,4 @@ en:
     sign_in_required: "Sign in to continue."
     invalid_credentials: "Wrong email or password."
     signed_out: "Signed out."
+    membership_revoked: "You no longer have access to that company."

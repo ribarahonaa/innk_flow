@@ -7,7 +7,11 @@
 # `user` en #create — Identity ya está modelada para eso.
 class SessionsController < ApplicationController
   skip_before_action :require_authentication, only: %i[new create]
-  skip_before_action :require_company, only: %i[new create select_company choose_company]
+  # `destroy` también: sin esto, quien se quedó sin ninguna membresía rebota
+  # contra `require_company` al apretar «Cerrar sesión» y vuelve al selector.
+  # El único botón de esa pantalla no puede ser el que lo deja encerrado.
+  skip_before_action :require_company,
+                     only: %i[new create destroy select_company choose_company]
 
   layout "auth", only: %i[new]
 

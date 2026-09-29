@@ -2656,17 +2656,13 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // Van últimas de la pasada clara: el recorrido como admin ya terminó, así
   // que cambiar de usuario acá no le saca la sesión a ninguna captura.
   const salir = async () => {
+    // Sin empresa elegida `/challenges` rebota a `/select_company` —es el
+    // estado que deja `18-select-company` con `multi@demo.test`— y desde ahí
+    // se sale igual: `SessionsController#destroy` está en las excepciones de
+    // `require_company`. Antes no lo estaba y el propio `DELETE /logout`
+    // rebotaba al selector, así que había que elegir una empresa cualquiera
+    // para poder salir: el único botón de esa pantalla era el que encerraba.
     await page.goto(`${BASE}/challenges`, { waitUntil: 'networkidle' });
-    // `require_company` es un before_action GLOBAL (`ApplicationController`) y
-    // `SessionsController#destroy` no está en la lista de excepciones: sin
-    // empresa elegida, el propio `DELETE /logout` rebota a `/select_company`
-    // en vez de cerrar la sesión. Pasa con `multi@demo.test` recién entrado
-    // —es el estado que deja `18-select-company`—, así que hay que elegir
-    // cualquiera antes de poder salir.
-    if (new URL(page.url()).pathname === '/select_company') {
-      await page.click('.company-list button, .company-list input[type="submit"]');
-      await page.waitForLoadState('networkidle');
-    }
     await page.click('form[action="/logout"] button, form[action="/logout"] input[type="submit"]');
     await page.waitForURL(/\/login/, { timeout: 10000 });
   };
