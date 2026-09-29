@@ -32,10 +32,13 @@
     -# pendientes se quedan sin ejecutar. No hay ruta para reabrir.
     - if policy(@challenge).close?
       - por_correr = @challenge.steps.count(&:pending?)
+      -# Cada frase trae SU verbo, concordado con SU número. Un `agree` sobre
+      -# la cantidad de frases contaba lo que no era: sin módulo en curso y con
+      -# tres pendientes decía «Con eso queda 3 módulos sin ejecutar».
       - detalle = []
-      - detalle << "«#{actual.name}» salteado sin terminar" if actual
-      - detalle << "#{Flow::Texto.contar(por_correr, 'módulo')} sin ejecutar" if por_correr.positive?
-      - que_pasa = detalle.any? ? "Con eso #{Flow::Texto.agree(detalle.size, 'queda', 'quedan')} #{detalle.to_sentence}. " : ""
+      - detalle << "«#{actual.name}» queda salteado sin terminar" if actual
+      - detalle << "#{Flow::Texto.agree(por_correr, 'queda', 'quedan')} #{Flow::Texto.contar(por_correr, 'módulo')} sin ejecutar" if por_correr.positive?
+      - que_pasa = detalle.any? ? "Con eso #{detalle.to_sentence}. " : ""
       = button_to "Cerrar el desafío", close_challenge_path(@challenge), class: "btn btn-ghost",
                   form: { data: { turbo_confirm: "¿Cerrar «#{@challenge.name}»? #{que_pasa}Un desafío cerrado no se reabre." } }
 

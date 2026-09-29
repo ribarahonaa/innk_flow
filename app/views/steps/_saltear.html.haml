@@ -7,9 +7,10 @@
 -# tarjeta más, en la de configuración.
 -#
 -# La guarda es UNA variable y vive en la vista: `puede_saltear?` suma el
--# ESTADO a la policy, que no lo mira (ver el helper). Se pregunta acá y en el
--# resumen del plegable, que es la misma pregunta hecha dos veces y no dos
--# preguntas.
+-# ESTADO —el del módulo y el del desafío— a la policy, que no lo mira (ver el
+-# helper, y `Handlers::Base#skip!`, que es donde la regla vive de verdad). Se
+-# pregunta acá y en el resumen del plegable: es la misma pregunta hecha dos
+-# veces y no dos preguntas.
 - return unless puede_saltear?(step)
 
 -# Una sola lectura de los módulos para las dos frases. `ordered` y no el orden

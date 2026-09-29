@@ -258,6 +258,11 @@ module Flow
     # cortó el cierre del desafío, y el motivo queda escrito en el
     # `skip_reason`. Los pendientes no se tocan: nunca corrieron y su estado ya
     # lo dice.
+    # El ORDEN de estas dos líneas es la única razón por la que el salteo
+    # funciona: `Handlers::Base#skip!` exige el desafío EN CURSO, y acá todavía
+    # lo está porque el `update!` viene después. Moviéndolo arriba, cerrar
+    # dejaría el módulo `active` con el desafío `closed` —la contradicción que
+    # este método vino a sacar— y sin que nada reviente.
     def close!
       challenge.with_lock do
         corriendo = active_step

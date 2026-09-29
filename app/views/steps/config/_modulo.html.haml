@@ -1,8 +1,7 @@
--# El bloque «El módulo» de la cara de configuración: el form de Rails que
--# guarda nombre, modo de IA y los ajustes del kind, todo junto, y al pie el
--# control de saltearlo. La isla `step-settings` renderiza los campos del
--# esquema ADENTRO de este form: no guarda por su cuenta, así que hay un solo
--# botón y un solo endpoint.
+-# El form de Rails que guarda nombre, modo de IA y los ajustes del kind, todo
+-# junto. La isla `step-settings` renderiza los campos del esquema ADENTRO de
+-# este form: no guarda por su cuenta, así que hay un solo botón y un solo
+-# endpoint.
 -#
 -# `ChallengeStepPolicy#show?` es «cualquiera de la empresa»: sin esta guarda,
 -# quien participa o evalúa recibía el form entero —con el botón de guardar—
@@ -35,16 +34,3 @@
 - else
   = render "steps/config_congelada", step: step, nivel: 2
 
--# Saltear un módulo que todavía no arrancó. Va acá —pegado a lo que define al
--# módulo entero, antes de los editores que configuran su interior— y no
--# repetido en cada una de las seis vistas de configuración, por lo mismo que
--# avisa CLAUDE.md sobre `setup_nav`: un render por pantalla se olvida en una y
--# no se nota mirando. `_modulo` lo renderizan los seis kinds, así que una
--# línea alcanza y ninguna se puede quedar sin él.
--#
--# AFUERA del `form_with` de arriba, nunca adentro: `button_to` es un `<form>`
--# y el navegador descarta el interno reasignándole los botones al de afuera
--# —el defecto de los ✓/✗ del corte—. Su guarda es propia (`puede_saltear?`,
--# policy Y estado) y no la de esta pantalla: con el desafío en borrador no se
--# ofrece, porque ahí el salteo se guardaría sin que el flujo se mueva.
-= render "steps/saltear", step: step

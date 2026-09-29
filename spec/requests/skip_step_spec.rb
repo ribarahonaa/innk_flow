@@ -65,21 +65,79 @@ RSpec.describe "saltear un módulo", type: :request do
   end
 
   # Saltear uno PENDIENTE más adelante no tiene nada que abrir, así que
-  # `continue!` se niega. Se avisa en vez de decir sólo «Módulo salteado»: el
-  # salteo se guardó igual, y eso sube el piso de inserción del flujo —los
-  # pendientes anteriores dejan de poder moverse o borrarse—, que es demasiado
-  # para dejarlo sin decir nada.
-  it "saltear uno pendiente no mueve el que está en curso, y lo dice" do
+  # `continue!` se niega — y ESA negativa es el resultado correcto de lo que se
+  # pidió, no una falla: el módulo en curso sigue donde estaba.
+  #
+  # Decía «Módulo salteado, pero el flujo no avanzó» en un `alert` rojo y
+  # mandaba a la ficha del desafío. Desde que la pantalla ofrece «Saltear» —y
+  # el control exige el desafío EN CURSO, o sea con un módulo activo— ése pasó
+  # a ser el 100% del camino: salteaba bien y contestaba en rojo, justo lo que
+  # la confirmación acababa de prometer. La anomalía de verdad es la otra rama
+  # (abajo), donde no queda nadie en curso y el flujo igual no se movió.
+  it "saltear uno pendiente no mueve el que está en curso, y lo dice sin alarmar" do
     challenge = arrancado(%w[ideation evaluation reporting])
     pendiente = as_company(company) { challenge.steps.ordered.last }
 
     post skip_challenge_step_path(challenge, pendiente)
 
-    expect(flash[:alert]).to include("el flujo no avanzó")
+    expect(flash[:alert]).to be_nil
+    expect(flash[:notice]).to include("«Reportería» queda salteado", "el flujo sigue en «Idear»")
+    # Y vuelve a la pantalla del módulo que se acaba de tocar, no a la ficha.
+    expect(response).to redirect_to(challenge_step_path(challenge, pendiente))
     as_company(company) do
       pasos = challenge.steps.ordered.reload
       expect(pasos.first).to be_active
       expect(pasos.last).to be_skipped
+    end
+  end
+
+  # `skip!` no miraba el estado del DESAFÍO, así que sobre un BORRADOR el
+  # salteo se guardaba y `continue!` se negaba: quedaba un módulo `skipped`
+  # que `activate!` no vuelve a tocar nunca —sale por `return step if
+  # step.touched?`—, o sea que `start!` después dejaba el desafío `running`
+  # sin NINGÚN módulo activo. Y salteando «Idear» encima silenciaba el error
+  # de arranque, porque `Pipeline#validate` sólo exige formulario mientras
+  # `ideation.pending?`.
+  #
+  # El control de la pantalla ya no lo ofrecía; esto cierra la ruta.
+  it "no saltea nada en un desafío que todavía no arrancó" do
+    challenge = as_company(company) do
+      c = create(:challenge, name: "Sin arrancar", ai_default_mode: "human")
+      seed_form!(c.steps.create!(kind: "ideation", position: 1))
+      c.steps.create!(kind: "reporting", position: 2)
+      c
+    end
+    paso = as_company(company) { challenge.steps.ordered.first }
+
+    post skip_challenge_step_path(challenge, paso)
+
+    # Ni «ya terminó» ni «ya está salteado»: no hizo ninguna de las dos cosas.
+    expect(flash[:alert]).to include("no está en curso", "desde el builder")
+    expect(flash[:alert]).not_to include("ya terminó")
+    as_company(company) do
+      expect(challenge.steps.ordered.first.reload).to be_pending
+      expect(challenge.reload).to be_draft
+    end
+  end
+
+  # Y el arranque sigue funcionando después: sin la guarda, el salteo de arriba
+  # dejaba el primer módulo intocable y `start!` abría un desafío sin nadie
+  # adentro.
+  it "y por eso el desafío sigue arrancando con su primer módulo" do
+    challenge = as_company(company) do
+      c = create(:challenge, name: "Sin arrancar", ai_default_mode: "human")
+      seed_form!(c.steps.create!(kind: "ideation", position: 1))
+      c.steps.create!(kind: "reporting", position: 2)
+      c
+    end
+    paso = as_company(company) { challenge.steps.ordered.first }
+    post skip_challenge_step_path(challenge, paso)
+
+    post start_challenge_path(challenge)
+
+    as_company(company) do
+      expect(challenge.reload).to be_running
+      expect(challenge.steps.ordered.first.reload).to be_active
     end
   end
 
@@ -314,6 +372,88 @@ RSpec.describe "saltear un módulo", type: :request do
     # curso: sobre un borrador el salteo se guardaría igual, y un módulo
     # `skipped` primero en el flujo deja el desafío arrancando sin nadie
     # activo, porque `activate!` no toca un módulo ya tocado.
+    # ── Los doce renders ──────────────────────────────────────────────────
+    #
+    # El bloque se renderiza en DOCE lugares: los seis `steps/<kind>` (adentro
+    # de los ajustes, con su línea en el resumen) y las seis
+    # `steps/config/<kind>` (suelto, al pie). Con un solo ejemplo por cara,
+    # borrar cualquiera de los otros diez dejaba `make spec` en verde — la
+    # misma ceguera que CLAUDE.md documenta en `df0681d` y `2029528`, donde el
+    # render huérfano de `setup_nav` pasó dos veces sin que nada avisara.
+
+    # Un desafío EN CURSO con `kind` como módulo ACTIVO: es la cara de
+    # ejecución. «Idear» va detrás porque `Pipeline#validate` lo exige, y la
+    # selección necesita además su fuente de puntaje en manual, que es lo
+    # único que la deja arrancar sin una evaluación delante.
+    def con_activo(kind)
+      as_company(company) do
+        challenge = create(:challenge, name: "Con #{kind}", ai_default_mode: "human")
+        config = kind == "selection" ? { "score_source" => { "type" => "manual" } } : {}
+        paso = challenge.steps.create!(kind: kind, position: 1, config: config)
+        seed_form!(challenge.steps.create!(kind: "ideation", position: 2))
+        challenge.pipeline.start!
+        [challenge, paso.reload]
+      end
+    end
+
+    it "la cara de ejecución lo ofrece en los seis kinds, y el plegable lo anuncia" do
+      fallan = ChallengeStep::KINDS.filter_map do |kind|
+        # «Idear» no puede ser el segundo de su propio desafío (es único), y ya
+        # tiene su ejemplo propio arriba, con el texto del aviso.
+        next if kind == "ideation"
+
+        challenge, paso = con_activo(kind)
+        get challenge_step_path(challenge, paso)
+        next if response.ok? && boton(challenge, paso) && resumen_de_los_ajustes.include?("saltear el módulo")
+
+        "#{kind} (#{response.status})"
+      end
+
+      expect(fallan).to be_empty
+    end
+
+    # Un módulo PENDIENTE de cada kind dentro de un desafío EN CURSO: ésa es la
+    # cara de configuración. Son DOS desafíos porque `ideation` es único por
+    # desafío, así que el kind que arranca en uno tiene que ser el que falta
+    # del otro.
+    def pendientes_de_cada_kind
+      as_company(company) do
+        uno = create(:challenge, name: "Los cinco", ai_default_mode: "human")
+        uno.steps.create!(kind: "evolution", position: 1)
+        seed_form!(uno.steps.create!(kind: "ideation", position: 2))
+        %w[evaluation selection reporting testing].each_with_index do |kind, i|
+          uno.steps.create!(kind: kind, position: i + 3)
+        end
+        uno.pipeline.start!
+
+        otro = create(:challenge, name: "El que falta", ai_default_mode: "human")
+        seed_form!(otro.steps.create!(kind: "ideation", position: 1))
+        otro.steps.create!(kind: "evolution", position: 2)
+        otro.pipeline.start!
+
+        pasos = uno.steps.reload.reject(&:evolution?).map { |paso| [uno, paso] }
+        pasos << [otro, otro.steps.reload.find(&:evolution?)]
+        pasos.index_by { |_challenge, paso| paso.kind }
+      end
+    end
+
+    it "la cara de configuración lo ofrece en los seis kinds" do
+      pendientes = pendientes_de_cada_kind
+      # Que estén los seis: si uno se cayera del armado, el barrido pasaría
+      # sin mirarlo.
+      expect(pendientes.keys).to match_array(ChallengeStep::KINDS)
+
+      fallan = pendientes.filter_map do |kind, (challenge, paso)|
+        expect(paso).to be_pending
+        get challenge_step_path(challenge, paso)
+        next if response.ok? && boton(challenge, paso)
+
+        "#{kind} (#{response.status})"
+      end
+
+      expect(fallan).to be_empty
+    end
+
     it "no aparece en un desafío en borrador" do
       challenge = as_company(company) do
         c = create(:challenge, name: "Sin arrancar", ai_default_mode: "human")

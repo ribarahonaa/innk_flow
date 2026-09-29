@@ -255,8 +255,30 @@ RSpec.describe "desafíos", type: :request do
       form = boton_de_cerrar(challenge)
       expect(form).not_to be_nil
       expect(form.text).to include("Cerrar el desafío")
-      expect(form["data-turbo-confirm"]).to include("«Reporte de cierre» salteado sin terminar",
-                                                    "1 módulo sin ejecutar", "no se reabre")
+      expect(form["data-turbo-confirm"]).to include("«Reporte de cierre» queda salteado sin terminar",
+                                                    "queda 1 módulo sin ejecutar", "no se reabre")
+    end
+
+    # Cada frase del aviso concuerda con SU número, no con la cantidad de
+    # frases: `agree(detalle.size, …)` decía «Con eso queda 3 módulos sin
+    # ejecutar» en cuanto faltaba el módulo en curso, que es el defecto que
+    # `Flow::Texto.agree` existe para evitar.
+    it "y el verbo concuerda con los módulos, no con la cantidad de frases" do
+      sign_in(owner, company: company)
+      challenge = as_company(company) do
+        c = create(:challenge, :running, name: "Merma")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1, name: "Postulación", status: "skipped"))
+        %w[evolution evaluation reporting].each_with_index do |kind, i|
+          c.steps.create!(kind: kind, position: i + 2)
+        end
+        c
+      end
+
+      get challenge_path(challenge)
+
+      aviso = boton_de_cerrar(challenge)["data-turbo-confirm"]
+      expect(aviso).to include("Con eso quedan 3 módulos sin ejecutar.")
+      expect(aviso).not_to include("queda 3")
     end
 
     it "quien participa no lo ve" do

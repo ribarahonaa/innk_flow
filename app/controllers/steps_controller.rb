@@ -110,15 +110,12 @@ class StepsController < ApplicationController
 
   def skip
     authorize @step, :skip?
-    # `skip!` se niega sobre un módulo que ya terminó, y la respuesta es suya:
-    # preguntarlo acá sería una segunda copia del predicado.
+    # `skip!` se niega sobre un módulo que ya terminó o fuera del flujo en
+    # curso, y la respuesta es suya: preguntarlo acá sería una segunda copia
+    # del predicado.
     unless @step.handler.skip!(reason: params[:reason])
-      # Dos motivos y dos mensajes: uno salteado no «terminó», se salteó, y
-      # decirle lo mismo a los dos deja a quien lo pide sin saber cuál de las
-      # dos cosas pasó.
-      ya = @step.skipped? ? "ya está salteado" : "ya terminó"
       return redirect_to challenge_step_path(@step.challenge, @step),
-                         alert: "«#{@step.name}» #{ya}: no se saltea."
+                         alert: motivo_para_no_saltear
     end
 
     # Saltear deja el módulo `skipped`, o sea sin ninguno en curso, y `continue!`
@@ -131,17 +128,52 @@ class StepsController < ApplicationController
     # alguno en curso —salteando uno PENDIENTE más adelante no hay nada que
     # abrir—.
     seguir = @step.challenge.pipeline.continue!
-    # Si `continue!` se niega, el salteo ya se guardó pero el flujo no se movió,
-    # y decir sólo «Módulo salteado» taparía el motivo. Se niega cuando quedó
-    # otro módulo en curso —salteando uno pendiente más adelante, donde no hay
-    # nada que abrir— y cuando el desafío no está en curso.
     return redirect_to(challenge_path(@step.challenge), notice: "Módulo salteado.") if seguir.ok?
 
+    # `continue!` se niega por dos motivos distintos y SÓLO UNO es una
+    # anomalía. Salteando uno PENDIENTE más adelante no hay nada que abrir: el
+    # módulo en curso sigue donde estaba, y eso es el resultado correcto de lo
+    # que se pidió, no una falla.
+    #
+    # Distinguirlos no es prolijidad: desde que la pantalla ofrece «Saltear»
+    # —y el control exige el desafío EN CURSO, o sea con un módulo activo— ése
+    # es el 100% del camino nuevo. Salteaba bien y contestaba «el flujo no
+    # avanzó» en rojo, contradiciendo la confirmación recién aceptada («el
+    # flujo lo pasa de largo cuando llegue») y sacando de la pantalla del
+    # módulo que se acababa de tocar.
+    activo = @step.challenge.pipeline.active_step
+    if activo
+      return redirect_to challenge_step_path(@step.challenge, @step),
+                         notice: "«#{@step.name}» queda salteado; el flujo sigue en «#{activo.name}»."
+    end
+
+    # Lo que queda sí es anómalo: el salteo se guardó, no quedó nadie en curso
+    # y aun así el flujo no se movió. Hoy eso es el módulo siguiente que no
+    # pudo arrancar (`StepNotReady`, que `continue!` rescata) o una carrera
+    # —alguien cerró el desafío entre el salteo y esta línea—, porque «el
+    # desafío no está en curso» a secas ya lo ataja `skip!`. Decir sólo
+    # «Módulo salteado» taparía el motivo, que es lo único que explica por qué
+    # el flujo quedó trabado.
     redirect_to challenge_path(@step.challenge),
                 alert: "Módulo salteado, pero el flujo no avanzó: #{seguir.error_sentence}"
   end
 
   private
+
+  # Por qué `Handlers::Base#skip!` dijo que no. Son TRES motivos distintos y el
+  # aviso los distingue: uno salteado no «terminó», se salteó, y un módulo de
+  # un desafío que no está corriendo no hizo ninguna de las dos cosas. Decirle
+  # lo mismo a los tres deja a quien lo pide sin saber cuál pasó.
+  #
+  # El tercero lo ve sólo quien llega por la ruta: el control de la pantalla
+  # (`steps/_saltear`) pregunta por los dos estados antes de dibujarse.
+  def motivo_para_no_saltear
+    return "«#{@step.name}» ya está salteado: no se saltea." if @step.skipped?
+    return "«#{@step.name}» ya terminó: no se saltea." if @step.completed?
+
+    "«#{@challenge.name}» no está en curso: un módulo se saltea con el flujo corriendo; " \
+      "en borrador se saca desde el builder."
+  end
 
   # Gente con rol gestor en la empresa que todavía no acompaña este desafío.
   #

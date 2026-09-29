@@ -66,10 +66,19 @@ RSpec.describe "pedirle a la IA que testee", type: :request do
   # con el desafío ya `closed`, y esa contradicción se veía en tres lugares de
   # la misma pantalla, así que ahora saltea lo que estaba corriendo. La guarda
   # no depende de eso.
+  #
+  # El desafío se pasa a `running` a mano antes de cerrarlo porque `paso`
+  # activa el módulo con `activate!` y lo deja en BORRADOR, que es un estado
+  # que ninguna pantalla produce: `ChallengePolicy#close?` pide `running?`.
+  # Desde que `Handlers::Base#skip!` también lo pide, cerrar un borrador ya no
+  # saltea nada —y la aserción de abajo lo cantó—.
   it "con el desafío cerrado no se le ofrece ni a quien administra" do
     sign_in(admin, company: company)
     modulo = paso
-    as_company(company) { challenge.pipeline.close! }
+    as_company(company) do
+      challenge.update!(status: "running", started_at: Time.current)
+      challenge.pipeline.close!
+    end
 
     expect(as_company(company) { modulo.reload.skipped? }).to be(true)
 
