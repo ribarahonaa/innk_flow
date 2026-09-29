@@ -56,6 +56,93 @@ RSpec.describe WorkshopPolicy do
     end
   end
 
+  # Ítem 2 de los minors: el spec §6 promete «crear» al gestor, y con
+  # `manager?` puro y `administers_any?` exigiendo un desafío ya vinculado, no
+  # podía ni empezar. Se abre por AUTORÍA, no por rol: los dos sentidos.
+  describe "el gestor y el taller que crea" do
+    let(:other_gestor) { member(:gestor) }
+
+    it "un gestor crea; quien participa, no" do
+      expect(WorkshopPolicy.new(challenge_gestor, Workshop).create?).to be(true)
+      expect(WorkshopPolicy.new(participant, Workshop).create?).to be(false)
+      expect(WorkshopPolicy.new(nil, Workshop).create?).to be(false)
+    end
+
+    it "administra, ve y trabaja el taller que creó aunque todavía no tenga desafíos" do
+      as_company(company) do
+        workshop = create(:workshop, created_by: challenge_gestor.user)
+        policy = WorkshopPolicy.new(challenge_gestor, workshop)
+
+        expect(policy.show?).to be(true)
+        expect(policy.update?).to be(true)
+        expect(policy.work?).to be(true)
+      end
+    end
+
+    it "suma al taller que creó sus desafíos y sólo los suyos" do
+      as_company(company) do
+        own_challenge = create(:challenge)
+        other_challenge = create(:challenge)
+        ChallengeGestor.create!(challenge: own_challenge, user: challenge_gestor.user)
+        policy = WorkshopPolicy.new(challenge_gestor, create(:workshop, created_by: challenge_gestor.user))
+
+        expect(policy.add_challenge?(own_challenge)).to be(true)
+        expect(policy.add_challenge?(other_challenge)).to be(false)
+      end
+    end
+
+    # El lado que importa: abrir de más no rompe ningún otro test.
+    it "NO administra ni ve el taller de otra persona que no toca sus desafíos" do
+      as_company(company) do
+        workshop = create(:workshop, created_by: other_gestor.user)
+        policy = WorkshopPolicy.new(challenge_gestor, workshop)
+
+        expect(policy.show?).to be(false)
+        expect(policy.update?).to be(false)
+        expect(policy.work?).to be(false)
+      end
+    end
+
+    it "un taller sin autor (creado por quien ya no está) no se abre a ningún gestor" do
+      as_company(company) do
+        workshop = create(:workshop, created_by: nil)
+
+        expect(WorkshopPolicy.new(challenge_gestor, workshop).update?).to be(false)
+      end
+    end
+
+    it "quien creó un taller siendo gestor y ya no lo es deja de administrarlo" do
+      as_company(company) do
+        workshop = create(:workshop, created_by: participant.user)
+
+        expect(WorkshopPolicy.new(participant, workshop).update?).to be(false)
+      end
+    end
+  end
+
+  # Ítem 3: `administers_any?` se pregunta tres veces por render y cargaba los
+  # vínculos sin precargar, con un `exists?` por vínculo para el gestor.
+  it "responder update? y work? cuesta una sola consulta de asignaciones, sin importar cuántos vínculos" do
+    as_company(company) do
+      workshop = create(:workshop)
+      3.times do
+        challenge = create(:challenge)
+        create(:workshop_challenge, workshop: workshop, challenge: challenge)
+        ChallengeGestor.create!(challenge: challenge, user: challenge_gestor.user)
+      end
+      policy = WorkshopPolicy.new(challenge_gestor, workshop)
+
+      queries = []
+      counter = ->(*, payload) { queries << payload[:sql] if payload[:sql].include?("challenge_gestores") }
+      ActiveSupport::Notifications.subscribed(counter, "sql.active_record") do
+        3.times { policy.update? }
+        policy.work?
+      end
+
+      expect(queries.size).to eq(1)
+    end
+  end
+
   # Review Focus 4: el gestor sólo suma los desafíos que le asignaron.
   it "el gestor suma al taller sólo sus desafíos" do
     as_company(company) do

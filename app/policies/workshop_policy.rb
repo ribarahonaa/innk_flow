@@ -18,17 +18,24 @@ class WorkshopPolicy < ApplicationPolicy
 
       return own unless membership.gestor?
 
-      # El gestor además ve los talleres que tocan sus desafíos: los lleva.
+      # El gestor además ve los talleres que tocan sus desafíos —los lleva— y
+      # los que creó él: uno recién creado todavía no tiene desafíos, y sin
+      # esto el redirect del `create` caería en un 404.
       assigned_challenge_ids = ChallengeGestor.where(user_id: membership.user_id).select(:challenge_id)
       managed_workshop_ids = WorkshopChallenge.where(challenge_id: assigned_challenge_ids).select(:workshop_id)
 
-      own.or(scope.where(id: managed_workshop_ids))
+      own.or(scope.where(id: managed_workshop_ids)).or(scope.where(created_by_id: membership.user_id))
     end
   end
 
   def show? = Scope.new(membership, Workshop).resolve.exists?(id: record.id)
 
-  def create? = membership.present? && membership.manages_challenges?
+  # Crear no pregunta por ningún desafío —el taller todavía no tiene—, así que
+  # al gestor lo acota `administers_any?`: administra el que él creó
+  # (`created_by`), la misma idea que el auto-asignado de
+  # `ChallengesController#create`. Un taller ajeno sin desafíos suyos sigue
+  # cerrado para él.
+  def create? = manager? || (membership.present? && membership.gestor?)
   def update? = administers_any?
   def destroy? = update?
   def manage_groups? = update?
@@ -50,10 +57,26 @@ class WorkshopPolicy < ApplicationPolicy
 
   private
 
+  # Se pregunta tres veces por render de `show` (el controller y dos veces la
+  # vista): se resuelve una vez. Para el gestor es UNA consulta —los desafíos
+  # vinculados contra sus asignaciones— y no un `exists?` por vínculo; para
+  # los demás roles no hay consulta, porque `administers?` sólo abre por
+  # `manager?` o por gestor.
   def administers_any?
+    return @administers_any if defined?(@administers_any)
+
+    @administers_any = resolve_administers_any
+  end
+
+  def resolve_administers_any
     return false if membership.nil?
     return true if manager?
+    return false unless membership.gestor?
+    return true if record.created_by_id == membership.user_id
 
-    record.workshop_challenges.any? { |wc| administers?(wc.challenge) }
+    ChallengeGestor.exists?(
+      user_id: membership.user_id,
+      challenge_id: record.workshop_challenges.select(:challenge_id)
+    )
   end
 end
