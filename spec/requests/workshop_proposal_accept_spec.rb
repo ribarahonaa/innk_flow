@@ -160,7 +160,10 @@ RSpec.describe "aceptar una propuesta de taller", type: :request do
       expect(response.body).to include(reject_idea_workshop_proposal_path(setup[:idea], setup[:proposal]))
     end
 
-    it "muestra la propuesta vencida sin botones" do
+    # Descartar una vencida es una capacidad que el controller SIEMPRE tuvo, y
+    # ninguna pantalla la ofrecía: la propuesta quedaba en la ficha para
+    # siempre, con un aviso y ningún control.
+    it "la propuesta vencida no se acepta pero sí se descarta" do
       as_company(company) { setup[:round].update!(status: "completed") }
       sign_in(ana, company: company)
       get challenge_idea_path(setup[:challenge], setup[:idea])
@@ -168,6 +171,15 @@ RSpec.describe "aceptar una propuesta de taller", type: :request do
       expect(response.body).to include("Mejor así")
       expect(response.body).to include("venció")
       expect(response.body).not_to include(accept_idea_workshop_proposal_path(setup[:idea], setup[:proposal]))
+      expect(response.body).to include(reject_idea_workshop_proposal_path(setup[:idea], setup[:proposal]))
+    end
+
+    it "una propuesta ya resuelta no se lista" do
+      as_company(company) { setup[:proposal].update!(status: "rejected") }
+      sign_in(ana, company: company)
+      get challenge_idea_path(setup[:challenge], setup[:idea])
+
+      expect(response.body).not_to include("workshop_proposal_#{setup[:proposal].id}")
     end
 
     it "no ofrece botones a quien administra, que ve la propuesta" do
@@ -176,6 +188,7 @@ RSpec.describe "aceptar una propuesta de taller", type: :request do
 
       expect(response.body).to include("Mejor así")
       expect(response.body).not_to include(accept_idea_workshop_proposal_path(setup[:idea], setup[:proposal]))
+      expect(response.body).not_to include(reject_idea_workshop_proposal_path(setup[:idea], setup[:proposal]))
     end
   end
 end
