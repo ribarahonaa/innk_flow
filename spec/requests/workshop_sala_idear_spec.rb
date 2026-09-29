@@ -70,12 +70,43 @@ RSpec.describe "sala del taller: idear", type: :request do
     expect(response).to have_http_status(:not_found)
   end
 
-  it "no deja crear si el vínculo dejó de ser trabajable" do
-    as_company(company) { setup[:step].update!(status: "completed") }
-    sign_in(ana, company: company)
+  # `reject_room` tiene UN solo alert, así que el mensaje no dice por qué se
+  # rechazó: una aserción sobre el texto sola no discrimina causas. Lo que sí
+  # discrimina es cambiar UNA causa por ejemplo y comparar con la línea de base
+  # (el ejemplo «quien participa y está en la mesa sigue creando»): con todo
+  # igual y sólo esa causa cambiada, no se crea nada. Son tres causas de
+  # `workable? && kind == "ideation"`; se cubre cada una.
+  describe "no deja crear si la sala no es trabajable" do
+    def rejected_room!
+      expect { post_draft }.not_to(change { as_company(company) { Idea.count } })
+      expect(response).to redirect_to(workshop_path(setup[:workshop]))
+      expect(flash[:alert]).to eq("Esta sala ya no admite trabajo: el desafío avanzó de fase.")
+    end
 
-    expect { post_draft }.not_to(change { as_company(company) { Idea.count } })
-    expect(flash[:alert]).to include("avanzó de fase")
+    it "porque el módulo dejó de estar activo" do
+      as_company(company) { setup[:step].update!(status: "completed") }
+      sign_in(ana, company: company)
+
+      rejected_room!
+    end
+
+    it "porque el vínculo ya se cerró" do
+      as_company(company) { setup[:link].update!(status: "closed", closed_at: Time.current, closed_reason: "x") }
+      sign_in(ana, company: company)
+
+      rejected_room!
+    end
+
+    it "porque la sala es de evolución, no de idear" do
+      as_company(company) do
+        round = create(:challenge_step, challenge: setup[:challenge], kind: "evolution", status: "active")
+        setup[:step].update!(status: "completed")
+        setup[:link].update!(challenge_step: round)
+      end
+      sign_in(ana, company: company)
+
+      rejected_room!
+    end
   end
 
   it "quien no fue convocado al taller ni lo ve: 404, no 403" do
@@ -181,6 +212,8 @@ RSpec.describe "sala del taller: idear", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).not_to include(%(name="payload[#{setup[:field].key}]"))
       expect(response.body).not_to include("Crear borrador")
+      # Y no queda una sala vacía sin explicación: el aviso ocupa su lugar.
+      expect(response.body).to include("Podés acompañar a la mesa, pero no proponer ideas propias: es conflicto de interés.")
     end
   end
 
@@ -199,6 +232,9 @@ RSpec.describe "sala del taller: idear", type: :request do
     it "ofrece a quien está en la mesa el formulario del módulo, diciendo con quién se comparte" do
       sign_in(ana, company: company)
       get workshop_path(setup[:workshop])
+
+      # El submit va en `.form-actions`, igual que en `ideas/new`.
+      expect(response.body).to match(/class="form-actions">\s*<input[^>]*value="Crear borrador"/)
 
       expect(response.body).to include(%(name="payload[#{setup[:field].key}]"))
       expect(response.body).to include("Resumen")
