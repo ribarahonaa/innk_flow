@@ -26,7 +26,7 @@
           "pipeline",
           "postgres"
         ],
-        "note": "Las cuatro capas de tenencia, de la autorización a la restriccion en Postgres."
+        "note": "Las cuatro capas de tenencia, de la autorización a la restricción en Postgres."
       },
       {
         "id": "trabajo-asincronico",
@@ -45,12 +45,22 @@
         "label": "La capa de IA",
         "focus": [
           "rails",
-          "redis",
-          "sidekiq",
           "runner",
-          "proveedor"
+          "proveedor",
+          "postgres"
         ],
         "note": "Dos proveedores, no uno: el de chat no sabe hacer vectores."
+      },
+      {
+        "id": "el-taller",
+        "label": "El taller",
+        "focus": [
+          "rails",
+          "taller",
+          "pipeline",
+          "postgres"
+        ],
+        "note": "Un evento aditivo sobre la fase en curso: se vincula al módulo activo y el flujo lo vence."
       }
     ]
   },
@@ -98,7 +108,7 @@
         200,
         66
       ],
-      "tag": "404, nunca 403"
+      "tag": "lo que no se ve, 404"
     },
     {
       "id": "rails",
@@ -118,7 +128,7 @@
       "id": "pipeline",
       "type": "backend",
       "label": "Flow::Pipeline",
-      "sublabel": "motor + 5 handlers",
+      "sublabel": "motor + 6 handlers",
       "pos": [
         680,
         330
@@ -128,6 +138,21 @@
         66
       ],
       "tag": "insertion floor"
+    },
+    {
+      "id": "taller",
+      "type": "backend",
+      "label": "Flow::Workshops",
+      "sublabel": "sala, mesas y propuestas",
+      "pos": [
+        680,
+        150
+      ],
+      "size": [
+        200,
+        66
+      ],
+      "tag": "evento, no un kind"
     },
     {
       "id": "postgres",
@@ -142,7 +167,7 @@
         200,
         66
       ],
-      "tag": "49 FKs compuestas · pgvector"
+      "tag": "62 FKs compuestas · pgvector"
     },
     {
       "id": "redis",
@@ -210,6 +235,7 @@
         "rails",
         "pundit",
         "pipeline",
+        "taller",
         "postgres",
         "redis",
         "sidekiq",
@@ -254,7 +280,26 @@
       "from": "rails",
       "to": "pipeline",
       "label": "with_lock + lock_version",
-      "variant": "emphasis"
+      "variant": "emphasis",
+      "labelDy": 22
+    },
+    {
+      "id": "rails-taller",
+      "from": "rails",
+      "to": "taller",
+      "label": "la sala, una cara por vínculo",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "taller-pipeline",
+      "from": "taller",
+      "to": "pipeline",
+      "label": "lee el módulo activo",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
     },
     {
       "id": "pipeline-postgres",
@@ -321,11 +366,11 @@
       "title": "Aislamiento en cuatro capas",
       "items": [
         "Sin tenant las queries revientan, no devuelven todo",
-        "Los controllers responden 404, nunca 403",
+        "Lo que no se ve da 404; el 403 queda para lo que se ve y no se puede",
         "Un gestor solo ve los desafíos que se le asignan",
         "Quien participa solo ve las ideas en las que participa",
         "Postgres rechaza atar una fila de una empresa a otra",
-        "Toda llamada a la IA deja su rastro en ai_runs"
+        "Un taller se ve si se está en una mesa: participar de un desafío no alcanza"
       ]
     },
     {
@@ -338,6 +383,18 @@
         "Toda llamada deja su rastro en ai_runs, con fixtures también",
         "Quién puede pedirle algo depende de sobre qué actúa",
         "La respuesta se morfea sobre la pantalla: no recarga ni pierde el scroll"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "El taller",
+      "items": [
+        "Un evento sobre la fase en curso, no un kind: el motor del flujo no se toca",
+        "El vínculo apunta al MÓDULO activo, no a la fase ni al desafío",
+        "Sólo se abre contra idear o evolución, y la fase se verifica al abrir",
+        "El cierre es perezoso: nada se engancha en advance!, la sala se entera",
+        "La mesa no se programa: sus integrantes nacen colaboradores de la idea",
+        "El taller propone; publica quien es autor, ni siquiera quien administra"
       ]
     }
   ]
