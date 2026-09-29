@@ -1,4 +1,4 @@
-\restrict 1H7SebmvAfraWiz3hOb4kZrDd8kNYXw4jhdjdKPyNbquEE4a2RdM8pXZ96dNhBo
+\restrict i3oFAt1nQxaBwhrNbFPFBIL9rkqHybhStyffdBhlYmSjYD7SNzXPMFXjofcGPfr
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -736,7 +736,8 @@ CREATE TABLE public.workshop_group_members (
     workshop_group_id uuid NOT NULL,
     user_id uuid NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    workshop_id uuid NOT NULL
 );
 
 
@@ -2085,6 +2086,20 @@ CREATE UNIQUE INDEX index_users_on_lower_email ON public.users USING btree (lowe
 
 
 --
+-- Name: index_workshop_challenges_on_challenge_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_challenges_on_challenge_id ON public.workshop_challenges USING btree (challenge_id);
+
+
+--
+-- Name: index_workshop_challenges_on_challenge_step_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_challenges_on_challenge_step_id ON public.workshop_challenges USING btree (challenge_step_id);
+
+
+--
 -- Name: index_workshop_challenges_on_company_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2120,6 +2135,13 @@ CREATE UNIQUE INDEX index_workshop_group_members_on_workshop_group_id_and_user_i
 
 
 --
+-- Name: index_workshop_group_members_on_workshop_id_and_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_workshop_group_members_on_workshop_id_and_user_id ON public.workshop_group_members USING btree (workshop_id, user_id);
+
+
+--
 -- Name: index_workshop_groups_on_company_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2131,6 +2153,13 @@ CREATE INDEX index_workshop_groups_on_company_id ON public.workshop_groups USING
 --
 
 CREATE INDEX index_workshop_groups_on_workshop_id ON public.workshop_groups USING btree (workshop_id);
+
+
+--
+-- Name: index_workshop_proposals_on_challenge_step_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_proposals_on_challenge_step_id ON public.workshop_proposals USING btree (challenge_step_id);
 
 
 --
@@ -2152,6 +2181,13 @@ CREATE INDEX index_workshop_proposals_on_idea_id ON public.workshop_proposals US
 --
 
 CREATE INDEX index_workshop_proposals_on_reviewed_by_id ON public.workshop_proposals USING btree (reviewed_by_id);
+
+
+--
+-- Name: index_workshop_proposals_on_workshop_group_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_proposals_on_workshop_group_id ON public.workshop_proposals USING btree (workshop_group_id);
 
 
 --
@@ -3041,6 +3077,14 @@ ALTER TABLE ONLY public.workshop_group_members
 
 
 --
+-- Name: workshop_group_members workshop_group_members_workshop_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_group_members
+    ADD CONSTRAINT workshop_group_members_workshop_id_same_company FOREIGN KEY (workshop_id, company_id) REFERENCES public.workshops(id, company_id) ON DELETE CASCADE;
+
+
+--
 -- Name: workshop_groups workshop_groups_workshop_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3076,11 +3120,12 @@ ALTER TABLE ONLY public.workshop_proposals
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 1H7SebmvAfraWiz3hOb4kZrDd8kNYXw4jhdjdKPyNbquEE4a2RdM8pXZ96dNhBo
+\unrestrict i3oFAt1nQxaBwhrNbFPFBIL9rkqHybhStyffdBhlYmSjYD7SNzXPMFXjofcGPfr
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260929120000'),
 ('20260928140000'),
 ('20260928130000'),
 ('20260928120000'),
