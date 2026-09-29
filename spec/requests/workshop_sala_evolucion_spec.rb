@@ -37,7 +37,10 @@ RSpec.describe "sala del taller: evolución", type: :request do
       IdeaContributor.create!(idea: dani_idea, user: beto)
       { challenge: challenge, round: round, field: field, workshop: workshop, link: link, group: group,
         ana_idea: ana_idea, dani_idea: dani_idea,
-        carla_idea: create(:idea, challenge: challenge, author: carla, status: "active") }
+        carla_idea: create(:idea, challenge: challenge, author: carla, status: "active"),
+        # De la mesa, pero muertas o sin postular: no se trabajan.
+        ana_eliminada: create(:idea, challenge: challenge, author: ana, status: "eliminated"),
+        beto_borrador: create(:idea, challenge: challenge, author: beto, status: "draft") }
     end
   end
 
@@ -73,6 +76,26 @@ RSpec.describe "sala del taller: evolución", type: :request do
     sign_in(beto, company: company)
 
     expect { propose(scene[:carla_idea]) }
+      .not_to(change { as_company(company) { WorkshopProposal.count } })
+    expect(response).to have_http_status(:not_found)
+  end
+
+  # Proponer sobre una idea que no pasó un corte es un control que no lleva a
+  # ninguna parte, y la sala no daba ni un indicio de que estaba muerta.
+  it "no deja proponer sobre una idea eliminada de la propia mesa" do
+    sign_in(beto, company: company)
+
+    expect { propose(scene[:ana_eliminada]) }
+      .not_to(change { as_company(company) { WorkshopProposal.count } })
+    expect(response).to have_http_status(:not_found)
+  end
+
+  # Un borrador que un integrante creó FUERA del taller y nunca postuló lo veía
+  # sólo él. La mesa no lo hereda: la ronda de evolución trabaja lo postulado.
+  it "no deja proponer sobre el borrador que un compañero de mesa nunca postuló" do
+    sign_in(ana, company: company)
+
+    expect { propose(scene[:beto_borrador]) }
       .not_to(change { as_company(company) { WorkshopProposal.count } })
     expect(response).to have_http_status(:not_found)
   end
@@ -149,6 +172,8 @@ RSpec.describe "sala del taller: evolución", type: :request do
       expect(response.body).to include(%(value="#{scene[:ana_idea].id}"))
       expect(response.body).to include(%(value="#{scene[:dani_idea].id}"))
       expect(response.body).not_to include(%(value="#{scene[:carla_idea].id}"))
+      expect(response.body).not_to include(%(value="#{scene[:ana_eliminada].id}"))
+      expect(response.body).not_to include(%(value="#{scene[:beto_borrador].id}"))
       expect(response.body).to include(%(name="payload[#{scene[:field].key}]"))
     end
   end

@@ -15,9 +15,17 @@ class WorkshopGroup < ApplicationRecord
   # las que colabora ALGUNO de sus integrantes, y nada más. Es la unión sobre
   # la mesa, no lo que ve cada persona por separado: «traé tu idea y la
   # mejoramos entre todos».
+  #
+  # `alive` y no `challenge.ideas` pelado, por dos razones distintas. Una
+  # `eliminated` o `withdrawn` no se trabaja: proponer sobre algo que no pasó
+  # un corte es ofrecer un control que no lleva a ninguna parte, y la sala no
+  # daba ni un indicio de que estaba muerta. Y un `draft` que un integrante
+  # creó FUERA del taller y nunca postuló pasaba a ser legible —título y
+  # payload completo de su versión vigente— por toda su mesa: antes lo veía
+  # sólo él. La ronda de evolución trabaja lo postulado.
   def workable_ideas(challenge)
     member_ids = workshop_group_members.select(:user_id)
-    ideas = challenge.ideas
+    ideas = challenge.ideas.alive
     ideas.where(author_id: member_ids)
          .or(ideas.where(id: IdeaContributor.where(user_id: member_ids).select(:idea_id)))
   end
