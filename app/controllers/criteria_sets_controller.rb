@@ -2,7 +2,7 @@
 
 # Mantenedor de criterios de la empresa.
 class CriteriaSetsController < ApplicationController
-  before_action :set_criteria_set, only: %i[show edit destroy promote]
+  before_action :set_criteria_set, only: %i[show edit promote]
 
   def index
     @sets = policy_scope(CriteriaSet).library.current.includes(:criteria).order(:name)
@@ -24,18 +24,6 @@ class CriteriaSetsController < ApplicationController
   def edit
     authorize @set
     @props = CriteriaSetPresenter.new(@set, membership: current_membership).as_json
-  end
-
-  # El modelo se niega si algún módulo lo usa; acá se lee esa respuesta en vez
-  # de repetir el predicado.
-  def destroy
-    authorize @set
-    if @set.destroy
-      redirect_to criteria_sets_path, notice: "Set eliminado."
-    else
-      redirect_to criteria_sets_path,
-                  alert: "«#{@set.name}» lo usa algún módulo: no se puede eliminar."
-    end
   end
 
   def promote

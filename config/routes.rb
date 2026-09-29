@@ -120,7 +120,12 @@ Rails.application.routes.draw do
   # Mantenedor de criterios de la empresa.
   # Se escribe SOLO por la API que usa el editor: un set con nested attributes
   # por un lado y una isla por el otro serían dos caminos y una laguna.
-  resources :criteria_sets, only: %i[index new show edit destroy] do
+  #
+  # Sin `destroy` A PROPÓSITO: la interfaz nunca ofreció borrar un set, y una
+  # ruta sin pantalla es una capacidad del dominio sin interfaz (mismo criterio
+  # con el que se borró `Tasks::EvaluateIdea#editable?`). Si hace falta, se
+  # vuelve a agregar; el modelo ya se niega a borrar un set que usa un módulo.
+  resources :criteria_sets, only: %i[index new show edit] do
     member { post :promote }
   end
 
