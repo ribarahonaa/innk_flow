@@ -18,13 +18,20 @@
 
 - if can_work
   - @links.each do |link|
-    - if link.closed?
-      -# Cerrada NO es desaparecida: la sala dice por qué.
+    -# Un `case` con rama por defecto y NO una cadena de `elsif`: el vínculo
+    -# que avanzó —`open` con su módulo ya terminado— no caía en ninguna rama
+    -# y la sala salía en blanco, sin un solo mensaje. Con `else`, el estado
+    -# que alguien agregue mañana se ve en vez de tragarse la pantalla.
+    - case link.room_state
+    - when :ideation
+      = render "workshops/sala_idear", workshop: @workshop, link: link, group: @my_group
+    - when :evolution
+      = render "workshops/sala_evolucion", workshop: @workshop, link: link, group: @my_group
+    - else
+      -# Cerrada NO es desaparecida: la sala dice por qué. El motivo lo
+      -# materializó `MaterializeClosures` antes de renderizar; el texto suelto
+      -# cubre el vínculo que todavía no pasó por ahí.
       .card
         .card-body
           %h2.section-title= link.challenge.name
-          %p.muted= link.closed_reason
-    - elsif link.kind == "ideation" && link.workable?
-      = render "workshops/sala_idear", workshop: @workshop, link: link, group: @my_group
-    - elsif link.kind == "evolution" && link.workable?
-      = render "workshops/sala_evolucion", workshop: @workshop, link: link, group: @my_group
+          %p.muted= link.closed_reason.presence || "Esta sala ya no admite trabajo: el desafío avanzó de fase."

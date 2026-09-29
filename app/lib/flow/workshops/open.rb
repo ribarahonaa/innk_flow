@@ -29,7 +29,7 @@ module Flow
             if step && WorkshopChallenge::WORKABLE_KINDS.include?(step.kind)
               link.update!(challenge_step: step, status: "open")
             else
-              link.update!(status: "closed", closed_at: Time.current, closed_reason: reason_for(step))
+              link.update!(status: "closed", closed_at: Time.current, closed_reason: self.class.reason_for(step))
               rejected << link
             end
           end
@@ -52,14 +52,18 @@ module Flow
         Result.new(ok: true, rejected: rejected, errors: [])
       end
 
-      private
-
-      def reason_for(step)
+      # Por qué un taller no puede trabajar contra el módulo que hoy corre en
+      # ese desafío. Público y de clase porque lo reusa el cierre perezoso de
+      # la sala (`MaterializeClosures`): dos textos para lo mismo divergen, y
+      # el día que difieran uno estaría mintiendo.
+      def self.reason_for(step)
         return "El desafío no tiene ningún módulo en curso." if step.nil?
 
         "El desafío está en #{I18n.t("flow.kinds.#{step.kind}")}, " \
           "y un taller sólo trabaja sobre idear o evolución."
       end
+
+      private
 
       def no_workable_challenges = "Ningún desafío del taller está en idear ni en evolución."
     end

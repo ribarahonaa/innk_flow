@@ -28,6 +28,10 @@ class WorkshopsController < ApplicationController
 
   def show
     authorize @workshop, :show?
+    # El cierre del vínculo es perezoso: nada se engancha en `advance!`, y
+    # entrar a la sala es lo que hace que el taller se entere de que el desafío
+    # avanzó. Va ANTES de leer `@links`, para que la pantalla vea lo cerrado.
+    Flow::Workshops::MaterializeClosures.new(@workshop).call
     @links = @workshop.workshop_challenges.includes(:challenge, :challenge_step)
     @groups = @workshop.workshop_groups.includes(:members)
     @my_group = @workshop.workshop_groups.joins(:workshop_group_members)

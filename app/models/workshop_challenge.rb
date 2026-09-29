@@ -28,4 +28,23 @@ class WorkshopChallenge < ApplicationRecord
   def workable? = status == "open" && challenge_step.present? && challenge_step.active?
 
   def kind = challenge_step&.kind
+
+  # Qué cara toca dibujar en la sala, en UN solo valor.
+  #
+  # Existe porque la pantalla resolvía esto con una cadena de `elsif` SIN
+  # rama por defecto, y el vínculo que avanzó —`open` con su módulo ya
+  # `completed`, el estado en que queda TODO vínculo tras un `advance!`— no
+  # caía en ninguna: la sala se renderizaba vacía, sin un solo mensaje. Con un
+  # valor cerrado y un `case` con `else`, el silencio es imposible: un estado
+  # nuevo cae en la rama por defecto y se ve.
+  #
+  # :stale es el vínculo que todavía no pasó por `MaterializeClosures`. En la
+  # pantalla no debería verse —el controller materializa antes de renderizar—,
+  # pero tiene nombre para que no vuelva a ser un hueco.
+  def room_state
+    return :closed if closed?
+    return :stale unless workable?
+
+    WORKABLE_KINDS.include?(kind) ? kind.to_sym : :stale
+  end
 end

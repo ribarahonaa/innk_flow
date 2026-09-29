@@ -105,6 +105,29 @@ RSpec.describe "sala del taller: idear", type: :request do
       expect(response.body).to include(beto.name)
     end
 
+    # El cierre del vínculo es PEREZOSO: nada se engancha en `advance!`. Hasta
+    # que alguien entra a la sala, el vínculo sigue `open` con su módulo ya
+    # terminado — que es el estado en que queda TODO vínculo tras un avance—.
+    # Sin materializarlo, la sala no entraba en ninguna rama y salía EN BLANCO.
+    it "materializa el cierre cuando el desafío avanzó, y dice a qué avanzó" do
+      as_company(company) do
+        setup[:step].update!(status: "completed")
+        create(:challenge_step, challenge: setup[:challenge], kind: "evolution", status: "active")
+      end
+      sign_in(ana, company: company)
+      get workshop_path(setup[:workshop])
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("Evolución")
+
+      as_company(company) do
+        link = setup[:link].reload
+        expect(link).to be_closed
+        expect(link.closed_at).to be_present
+        expect(link.closed_reason).to include("Evolución")
+      end
+    end
+
     it "muestra la sala cerrada con su motivo en vez de hacerla desaparecer" do
       as_company(company) do
         setup[:link].update!(status: "closed", closed_reason: "El desafío avanzó de fase.", closed_at: Time.current)
