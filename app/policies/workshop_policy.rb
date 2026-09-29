@@ -19,12 +19,15 @@ class WorkshopPolicy < ApplicationPolicy
       return own unless membership.gestor?
 
       # El gestor además ve los talleres que tocan sus desafíos —los lleva— y
-      # los que creó él: uno recién creado todavía no tiene desafíos, y sin
-      # esto el redirect del `create` caería en un 404.
+      # los que creó él SÓLO mientras no tienen desafíos: uno recién creado
+      # todavía no tiene ninguno, y sin esto el redirect del `create` caería en
+      # un 404. En cuanto tiene desafíos, la visibilidad los sigue (igual que
+      # `administers_any?`): si le revocan la asignación, 404 y no 403.
       assigned_challenge_ids = ChallengeGestor.where(user_id: membership.user_id).select(:challenge_id)
       managed_workshop_ids = WorkshopChallenge.where(challenge_id: assigned_challenge_ids).select(:workshop_id)
 
-      own.or(scope.where(id: managed_workshop_ids)).or(scope.where(created_by_id: membership.user_id))
+      own.or(scope.where(id: managed_workshop_ids)).or(scope.where(created_by_id: membership.user_id)
+                                     .where.not(id: WorkshopChallenge.select(:workshop_id)))
     end
   end
 

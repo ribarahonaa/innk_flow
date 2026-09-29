@@ -119,6 +119,30 @@ RSpec.describe WorkshopPolicy do
       end
     end
 
+    describe "el Scope y la autoría" do
+      it "lista el taller que creó mientras no tiene desafíos" do
+        as_company(company) do
+          workshop = create(:workshop, created_by: challenge_gestor.user)
+
+          expect(WorkshopPolicy::Scope.new(challenge_gestor, Workshop).resolve).to include(workshop)
+        end
+      end
+
+      it "no lo lista si tiene desafíos y perdió la asignación: 404, no 403" do
+        as_company(company) do
+          challenge = create(:challenge)
+          assignment = ChallengeGestor.create!(challenge: challenge, user: challenge_gestor.user)
+          workshop = create(:workshop, created_by: challenge_gestor.user)
+          create(:workshop_challenge, workshop: workshop, challenge: challenge)
+          expect(WorkshopPolicy::Scope.new(challenge_gestor, Workshop).resolve).to include(workshop)
+
+          assignment.destroy!
+          expect(WorkshopPolicy::Scope.new(challenge_gestor, Workshop).resolve).not_to include(workshop)
+          expect(WorkshopPolicy.new(challenge_gestor, workshop).show?).to be(false)
+        end
+      end
+    end
+
     it "un taller sin autor (creado por quien ya no está) no se abre a ningún gestor" do
       as_company(company) do
         workshop = create(:workshop, created_by: nil)
