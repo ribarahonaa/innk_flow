@@ -2353,15 +2353,20 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   //
   // Los tres desafíos son PROPIOS del recorrido (`taller-idear`,
   // `taller-evolucion`, `taller-avanzado`) y los dos talleres también: ninguno
-  // se usa a mano, como manda CLAUDE.md. Sólo la pantalla del listado se
-  // alcanza por URL, porque el nav de arriba no tiene un link a «Talleres»; de
-  // ahí en más todo va por link.
+  // se usa a mano, como manda CLAUDE.md. Se entra por el link «Talleres» del
+  // nav y de ahí todo va por link.
   //
   // Read-only a propósito: no se abre, no se propone ni se acepta nada, así
   // que `make screens` corrido dos veces sin volver a sembrar encuentra el
   // mismo estado.
   const irAlTaller = async (nombre) => {
-    await page.goto(`${BASE}/workshops`, { waitUntil: 'networkidle' });
+    // Desde donde esté la pantalla: el nav está en todas. El listado se
+    // espera por su título, no por la red.
+    await Promise.all([
+      page.waitForURL(/\/workshops$/, { timeout: 15000 }),
+      page.click('.app-nav__link:has-text("Talleres")')
+    ]);
+    await page.waitForSelector('h1.page-title:has-text("Talleres")', { timeout: 10000 });
     const enlace = page.locator('table.table a', { hasText: nombre });
     if (!(await enlace.count())) {
       failures++;
