@@ -137,7 +137,7 @@ de quien avisa, la razón es sólo el porqué.
 | `Ideation` | Con `ai_auto` pide ideas generadas a la IA. **No siembra nada**: sin formulario (`can_activate?`) el módulo se niega a arrancar. **Cohorte vacío**: las ideas nacen acá | `min_ideas` postuladas |
 | `Evolution` | Encola feedback IA si el modo no es `human` | Todas respondieron si `require_response`; si no, siempre |
 | `Evaluation` | **Congela los criterios** en `resolved_config` (si el módulo no tiene set, antes le arma uno inline por defecto); asigna evaluadores; con `ai_auto` encola evaluaciones de IA | `min_assessments` por idea |
-| `Selection` | Resuelve `score_source` a ids y congela el corte y los filtros; con `ai_auto` encola los veredictos de IA | Ningún veredicto de filtro sin responder, y —con corte manual— toda idea decidida. Con corte automático, `complete!` aplica la regla |
+| `Selection` | Resuelve `score_source` a ids y congela el corte y los filtros; con `ai_auto` encola los veredictos de IA | Ningún veredicto de filtro sin responder, y —con corte manual— toda idea decidida. Con corte automático, `complete!` aplica la regla **si nadie decidió a mano** (`on_complete` corta con `return if decisions_by_idea.any?`) |
 | `Reporting` | Genera el tablero; encola narrativa IA si el modo no es `human` | Siempre |
 | `Testing` | Con `ai_auto` encola un testeo de IA por idea; en `ai_assisted` no se dispara solo. Sin precondiciones (`can_activate?` siempre pasa) | Toda idea con un testeo vigente. No elimina a nadie: quien quiera cortar por el resultado pone una selección después |
 

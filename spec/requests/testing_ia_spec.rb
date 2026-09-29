@@ -54,18 +54,15 @@ RSpec.describe "pedirle a la IA que testee", type: :request do
     expect(response.body).to include("test_idea")
   end
 
-  # Ofrecerlo con `advance?` (que es `administers?` a secas, la misma que
-  # autoriza el link «Testear») en vez de la policy que en verdad autoriza el
-  # pedido —`ChallengePolicy#update_pipeline?`, vía `AiSuggestionPolicy#request?`—
-  # deja el botón ofrecido después de que el desafío cierra. Lo que da los
-  # dientes es el DESAFÍO cerrado y no el estado del módulo: `advance?` no mira
-  # `closed?` y `update_pipeline?` sí, así que con la vista vieja el botón
-  # aparecía igual y apretarlo rebotaba con 403.
+  # La pantalla de un desafío que ya cerró, por el camino real: `close!` saltea
+  # el módulo que estaba corriendo, así que lo que se mira es un módulo
+  # `skipped`.
   #
-  # El escenario cambió y vale decir cómo: `close!` dejaba el módulo `active?`
-  # con el desafío ya `closed`, y esa contradicción se veía en tres lugares de
-  # la misma pantalla, así que ahora saltea lo que estaba corriendo. La guarda
-  # no depende de eso.
+  # Lo que este ejemplo NO prueba, y hay que decirlo: la guarda del botón es
+  # `puede_pedir_ia && @step.active? && …`, y con el módulo salteado el
+  # `@step.active?` ya lo oculta por su cuenta. Sacar `!closed?` de
+  # `update_pipeline?` lo dejaría en verde. Lo que aísla esa mitad es el
+  # ejemplo de abajo.
   #
   # El desafío se pasa a `running` a mano antes de cerrarlo porque `paso`
   # activa el módulo con `activate!` y lo deja en BORRADOR, que es un estado
@@ -84,6 +81,37 @@ RSpec.describe "pedirle a la IA que testee", type: :request do
 
     get challenge_step_path(challenge, modulo)
 
+    expect(response.body).not_to include("test_idea")
+  end
+
+  # El ejemplo que SÍ discrimina `update_pipeline?`.
+  #
+  # Ofrecer el botón con `advance?` (que es `administers?` a secas, la misma
+  # que autoriza el link «Testear») en vez de la policy que autoriza el pedido
+  # —`update_pipeline?`, vía `AiSuggestionPolicy#request?`— lo deja ofrecido
+  # con el desafío cerrado, y apretarlo rebota con 403. Para aislar eso hay que
+  # separar las dos condiciones de la misma línea: módulo ACTIVO y desafío
+  # `closed`.
+  #
+  # Es la contradicción que `close!` vino a sacar, así que hoy se llega
+  # escribiendo el estado a mano. La guarda existe igual, y no es de más: su
+  # trabajo es preguntar la MISMA policy que autoriza al controller —también
+  # excluye `archived?`, que nada más en esta pantalla mira— y no depender de
+  # que `close!` siga salteando lo que estaba corriendo.
+  #
+  # «Testear» es el control positivo, y sin él el ejemplo pasaría igual si la
+  # fila entera dejara de renderizarse: ese link cuelga de `advance?`, que NO
+  # mira `closed?`, así que tiene que seguir ahí.
+  it "y con el módulo activo adentro de un desafío cerrado tampoco, aunque «Testear» siga" do
+    sign_in(admin, company: company)
+    modulo = paso
+    as_company(company) { challenge.update!(status: "closed", closed_at: Time.current) }
+
+    expect(as_company(company) { modulo.reload }).to be_active
+
+    get challenge_step_path(challenge, modulo)
+
+    expect(response.body).to match(%r{href="[^"]*/step_tests/new})
     expect(response.body).not_to include("test_idea")
   end
 

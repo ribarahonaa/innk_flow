@@ -368,10 +368,6 @@ RSpec.describe "saltear un módulo", type: :request do
       expect(profundidad_maxima_de_forms(response.body)).to eq(1)
     end
 
-    # `skip!` no mira el estado del DESAFÍO y `continue!` se niega fuera de
-    # curso: sobre un borrador el salteo se guardaría igual, y un módulo
-    # `skipped` primero en el flujo deja el desafío arrancando sin nadie
-    # activo, porque `activate!` no toca un módulo ya tocado.
     # ── Los doce renders ──────────────────────────────────────────────────
     #
     # El bloque se renderiza en DOCE lugares: los seis `steps/<kind>` (adentro
@@ -454,6 +450,13 @@ RSpec.describe "saltear un módulo", type: :request do
       expect(fallan).to be_empty
     end
 
+    # La otra mitad del estado: fuera del flujo en curso no se saltea. La regla
+    # es de `Handlers::Base#skip!`, que la pide desde la revisión de esta misma
+    # rama —antes NO miraba el estado del desafío y el salteo de un borrador se
+    # guardaba igual, dejando un módulo `skipped` que `activate!` no vuelve a
+    # tocar—; acá lo que se prueba es que el control no lo OFRECE, que es la
+    # mitad de la vista. Lo que pasa por la ruta lo prueba «no saltea nada en
+    # un desafío que todavía no arrancó», más arriba.
     it "no aparece en un desafío en borrador" do
       challenge = as_company(company) do
         c = create(:challenge, name: "Sin arrancar", ai_default_mode: "human")
