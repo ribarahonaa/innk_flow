@@ -8,6 +8,8 @@ class WorkshopConvocationsController < ApplicationController
 
   def create
     authorize @workshop, :manage_groups?
+    return reject_closed if @workshop.closed?
+
     user = User.find_by(id: params[:user_id])
     group = @workshop.workshop_groups.find_by(id: params[:workshop_group_id])
     result = Flow::Workshops::Convoke.new(@workshop, user, group: group).call
@@ -21,6 +23,8 @@ class WorkshopConvocationsController < ApplicationController
 
   def destroy
     authorize @workshop, :manage_groups?
+    return reject_closed if @workshop.closed?
+
     WorkshopGroupMember.joins(:workshop_group)
                         .where(workshop_groups: { workshop_id: @workshop.id }, user_id: params[:user_id])
                         .destroy_all
@@ -32,4 +36,13 @@ class WorkshopConvocationsController < ApplicationController
   # `policy_scope(...).find_by!` y no `Workshop.find_by!`: así lo que no se ve
   # da 404 y no 403, que sería un oráculo de existencia.
   def set_workshop = @workshop = policy_scope(Workshop).find_by!(id: params[:id])
+
+  # Convocar y desconvocar quedan VIVOS con el taller ABIERTO, y es
+  # DELIBERADO: llegó alguien tarde a la sesión y hay que moverlo de mesa, que
+  # es el caso real de un taller. Lo que se cierra es el taller CERRADO:
+  # desconvocar de un taller cerrado no arregla nada y le saca a alguien la
+  # mesa con la que sus borradores quedaron compartidos.
+  def reject_closed
+    redirect_to workshop_path(@workshop), alert: "Este taller ya cerró: las mesas no se tocan."
+  end
 end

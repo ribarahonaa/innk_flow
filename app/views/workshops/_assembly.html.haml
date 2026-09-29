@@ -8,7 +8,13 @@
 -# Las mesas —crearlas y convocar gente— viven en su propio partial
 -# (`workshops/groups`), rendereado más abajo: sigue detrás de este mismo
 -# `can_assemble`, así que tampoco vuelve a preguntar el permiso.
-- available_challenges = policy_scope(Challenge).where.not(id: links.map(&:challenge_id))
+-# Sumar y sacar desafíos es del taller en BORRADOR, y nada más: abierto, el
+-# vínculo ya resolvió su módulo (`Flow::Workshops::Open`), así que uno sumado
+-# después nacería con `challenge_step_id` en nil —sin cara que dibujar y sin
+-# motivo que mostrar— y uno sacado se llevaría trabajo puesto. Es una variable
+-# calculada UNA vez, y el controller pregunta lo mismo.
+- can_link = workshop.draft?
+- available_challenges = can_link ? policy_scope(Challenge).where.not(id: links.map(&:challenge_id)) : Challenge.none
 
 .card
   .card-body
@@ -19,12 +25,18 @@
     - if links.empty?
       %p.muted Todavía no sumaste ningún desafío.
     - else
+      -# La lista va FUERA del formulario de sumar: un `button_to` es un
+      -# `<form>`, y uno dentro de otro es HTML inválido —el navegador descarta
+      -# el interno y sus botones pasan a enviar el externo—.
       %ul.field-list
         - links.each do |link|
           %li.field-list__item
             = link_to link.challenge.name, challenge_path(link.challenge)
             - if link.closed?
               %span.field-list__type= link.closed_reason
+            - if can_link
+              = button_to "Sacar", remove_challenge_workshop_path(workshop), method: :delete,
+                          params: { workshop_challenge_id: link.id }, class: "btn btn-ghost btn-sm"
 
     - if available_challenges.any?
       = form_with url: workshop_path(workshop), method: :patch, class: "radio-cards" do
@@ -34,8 +46,10 @@
             %span.radio-card__body
               %strong= challenge.name
         = submit_tag "Sumar al taller", class: "btn btn-ghost btn-sm"
-    - else
+    - elsif can_link
       %p.field-hint No hay más desafíos para sumar.
+    - else
+      %p.field-hint Los desafíos se suman y se sacan mientras el taller es un borrador.
 
 = render "workshops/groups", workshop: workshop, groups: groups
 

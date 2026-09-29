@@ -89,6 +89,10 @@ Rails.application.routes.draw do
       # que no existe.
       post   :convoke, to: "workshop_convocations#create"
       delete :dismiss, to: "workshop_convocations#destroy"
+      # Sacar un desafío del taller. El ciclo de vida lo pone junto a sumarlo,
+      # o sea en borrador. El id del vínculo viaja como parámetro: no hay un
+      # controller de vínculos, la baja es del taller.
+      delete :remove_challenge
     end
     resources :workshop_groups, only: %i[create destroy], path: "mesas"
     # La sala de UN desafío dentro del taller. El id es el del VÍNCULO, no el

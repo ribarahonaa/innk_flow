@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class WorkshopsController < ApplicationController
-  before_action :set_workshop, only: %i[show update destroy open close]
+  before_action :set_workshop, only: %i[show update destroy open close remove_challenge]
 
   def index
     @workshops = policy_scope(Workshop).order(scheduled_at: :desc, created_at: :desc)
@@ -43,9 +43,7 @@ class WorkshopsController < ApplicationController
     result = Flow::Workshops::Open.new(@workshop).call
 
     if result.ok?
-      notice_message = "Taller abierto."
-      notice_message += " #{Flow::Texto.contar(result.rejected.size, 'desafío')} quedaron afuera." if result.rejected.any?
-      redirect_to workshop_path(@workshop), notice: notice_message
+      redirect_to workshop_path(@workshop), notice: opened_notice(result.rejected.size)
     else
       redirect_to workshop_path(@workshop), alert: result.errors.to_sentence
     end
@@ -53,20 +51,47 @@ class WorkshopsController < ApplicationController
 
   def close
     authorize @workshop, :update?
-    Flow::Workshops::Close.new(@workshop).call
-    redirect_to workshop_path(@workshop), notice: "Taller cerrado."
+    result = Flow::Workshops::Close.new(@workshop).call
+
+    if result.ok?
+      redirect_to workshop_path(@workshop), notice: "Taller cerrado."
+    else
+      redirect_to workshop_path(@workshop), alert: result.errors.to_sentence
+    end
   end
 
   def update
     authorize @workshop, :update?
+    # Sumar y sacar desafíos es de un taller en BORRADOR. Con el taller ya
+    # abierto el vínculo nace con `challenge_step_id` en nil —`Open` ya corrió
+    # y es el único que lo resuelve—, así que su `kind` queda en nil, no se
+    # dibuja en ninguna cara de la sala y aparece en el armado sin motivo:
+    # basura invisible.
+    return reject_not_draft unless @workshop.draft?
+
     # Sumar un desafío se pregunta por el DESAFÍO, no por el taller.
+    ignored = 0
     Array(params[:challenge_ids]).each do |id|
       challenge = policy_scope(Challenge).find_by(id: id)
-      next if challenge.nil? || !policy(@workshop).add_challenge?(challenge)
+      if challenge.nil? || !policy(@workshop).add_challenge?(challenge)
+        ignored += 1
+        next
+      end
 
       @workshop.workshop_challenges.find_or_create_by!(challenge: challenge)
     end
-    redirect_to workshop_path(@workshop), notice: "Taller actualizado."
+    redirect_to workshop_path(@workshop), notice: updated_notice(ignored)
+  end
+
+  # Sacar un desafío del taller. Sólo en borrador: una vez abierto el vínculo
+  # ya resolvió su módulo y puede tener trabajo colgando, y el ciclo de vida
+  # del taller pone «sumar y sacar desafíos» en `draft` y en ningún otro lado.
+  def remove_challenge
+    authorize @workshop, :update?
+    return reject_not_draft unless @workshop.draft?
+
+    @workshop.workshop_challenges.find_by!(id: params[:workshop_challenge_id]).destroy!
+    redirect_to workshop_path(@workshop), notice: "Desafío sacado del taller."
   end
 
   def destroy
@@ -82,4 +107,31 @@ class WorkshopsController < ApplicationController
   def set_workshop = @workshop = policy_scope(Workshop).find_by!(id: params[:id])
 
   def workshop_params = params.require(:workshop).permit(:name, :mode, :scheduled_at)
+
+  # `Flow::Texto.contar` acuerda el SUSTANTIVO y con eso no alcanza: la frase
+  # que lo envuelve trae su propio verbo, y quien la escribe lo deja en plural
+  # porque está pensando en el caso de varios. Es el mismo defecto que
+  # documenta `Flow::Texto.faltan` («Faltan 1 idea por testear» llegó así a la
+  # pantalla), acá con «1 desafío quedaron afuera».
+  def opened_notice(rejected)
+    return "Taller abierto." if rejected.zero?
+
+    verbo = rejected == 1 ? "quedó" : "quedaron"
+    "Taller abierto. #{Flow::Texto.contar(rejected, 'desafío')} #{verbo} afuera."
+  end
+
+  def reject_not_draft
+    redirect_to workshop_path(@workshop),
+                alert: "Los desafíos del taller se suman y se sacan mientras es un borrador."
+  end
+
+  # Un acuse de éxito por algo que no pasó es el mismo control fantasma que
+  # esta rama persigue: un desafío que el gestor no administra se saltaba en
+  # silencio y la pantalla decía «Taller actualizado.» igual.
+  def updated_notice(ignored)
+    return "Taller actualizado." if ignored.zero?
+
+    frase = ignored == 1 ? "no se sumó: no lo administrás" : "no se sumaron: no los administrás"
+    "Taller actualizado. #{Flow::Texto.contar(ignored, 'desafío')} #{frase}."
+  end
 end
