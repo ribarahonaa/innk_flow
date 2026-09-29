@@ -726,7 +726,9 @@ Flow::Tenant.bypass! do
     #
     # Los talleres se borran ANTES que los desafíos: las FK en cascada dejan
     # limpio el resto, y así el seed sigue siendo idempotente.
-    Workshop.where(name: ["Taller de mejora continua", "Taller de planificación (borrador)"]).destroy_all
+    # Acotado a la empresa: el seed corre bajo `bypass!` y un `where` por nombre
+    # solo borraría los talleres homónimos de TODAS las empresas.
+    Workshop.where(company: demo, name: ["Taller de mejora continua", "Taller de planificación (borrador)"]).destroy_all
     %w[taller-idear taller-evolucion taller-avanzado].each { |slug| Challenge.where(slug: slug).destroy_all }
 
     workshop_admin = User.find_by!(email: "admin@demo.test")

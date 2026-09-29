@@ -3,7 +3,9 @@
 -# detrás de `can_work`. Los formularios son hermanos, nunca anidados.
 - ideation = link.challenge.pipeline.ideation_step
 -# Un archivo no viaja en una propuesta: sólo campos de valor.
-- fields = ideation ? ideation.form_fields.ordered.reject { |field| field.field_type == "file" } : []
+- all_fields = ideation ? ideation.form_fields.ordered.to_a : []
+- fields = all_fields.reject { |field| field.field_type == "file" }
+- file_fields = all_fields.select { |field| field.field_type == "file" }
 - ideas = group ? group.workable_ideas(link.challenge).includes(:current_version).to_a : []
 
 .card
@@ -15,6 +17,11 @@
       %p.muted Ninguna persona de tu mesa tiene ideas en este desafío todavía.
     - else
       %p.muted Proponé cambios sobre las ideas de tu mesa: quien es autor decide si los acepta.
+      -# Sin este aviso, un campo de archivo —sobre todo uno requerido— dejaba
+      -# de ser proponible sin que la pantalla dijera por qué no está.
+      - if file_fields.any?
+        .alert.alert-soft.alert-warning
+          %div= "#{file_fields.size == 1 ? 'El campo de archivo' : 'Los campos de archivo'} #{file_fields.map(&:label).to_sentence} no se propone desde el taller, por eso no está en el formulario."
       - ideas.each do |idea|
         %div
           %h3= idea.title

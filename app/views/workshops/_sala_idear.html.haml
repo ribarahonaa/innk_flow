@@ -26,4 +26,5 @@
         -# del primero.
         = render "ideas/form_fields", fields: link.challenge_step.form_fields, payload: {},
                                       id_prefix: "sala_#{link.id}_"
-        = submit_tag "Crear borrador", class: "btn btn-primary"
+        .form-actions
+          = submit_tag "Crear borrador", class: "btn btn-primary"
