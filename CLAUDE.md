@@ -84,7 +84,9 @@ aparece un `card` sin `card-body` (`[PANEL]`): las tarjetas de la app son
 `card` + `card-body` en todas partes, y un `card` sin su `card-body` es un
 error de maquetado. O si un `card-body` no tiene el relleno que fija la hoja
 (`[RELLENO]`): DaisyUI sirve `padding: var(--card-p, 1.5rem)`, así que perder
-la regla `.card` le devuelve sus 24px por default sin dejar rastro en el DOM.
+la regla `.card` le devuelve sus 24px por default sin dejar rastro en el DOM;
+los `empty-state` se exceptúan por selector, porque ahí los 44px/20px los
+declara la hoja.
 **Dos de las guardas cuentan cuánto midieron y fallan si midieron de menos**
 —en cuántas pantallas `[RITMO]` encontró dos tarjetas que comparar, y cuántos
 `card-body` vio `[RELLENO]` en toda la corrida—, porque una guarda que mide
@@ -961,20 +963,25 @@ maquetado, no una tarjeta sin migrar. Y si aparece un `.panel` reintroducido
 —sin ninguna regla detrás, así que queda sin fondo, sin relleno y sin
 borde— lo caza `[CLASES]`.
 
-**`[CARD]` se retiró, y `[RELLENO]` ocupa su lugar por otro camino.** `[CARD]`
-medía el ASPECTO de una `card` contra `.panel` —los 20px de `--card-p`, los
-14px de `--card-fs` y la sombra— y se borró con ella, porque sin `.panel` no
-quedaba contra qué comparar. `[CLASES]` no cubre ese hueco: marca un elemento
-sólo si no tiene fondo Y no tiene relleno Y no tiene borde, y en una `card` el
-relleno vive en `card-body` —en la `card` misma siempre es 0—, así que ahí el
-chequeo se reduce a «tiene fondo o tiene borde».
-`[RELLENO]` no compara contra otra clase: compara contra los números que
-declara la hoja, escritos a mano en el script (20px, y 16px adentro de
-`.app-aside`). Tiene que ser a mano — DaisyUI sirve
+**`[CARD]` se retiró, y `[RELLENO]` ocupa UNA TERCERA PARTE de su lugar.**
+`[CARD]` medía el ASPECTO de una `card` contra `.panel` —los 20px de
+`--card-p`, los 14px de `--card-fs` y la sombra— y se borró con ella, porque
+sin `.panel` no quedaba contra qué comparar. `[CLASES]` no cubre ese hueco:
+marca un elemento sólo si no tiene fondo Y no tiene relleno Y no tiene borde, y
+en una `card` el relleno vive en `card-body` —en la `card` misma siempre es 0—,
+así que ahí el chequeo se reduce a «tiene fondo o tiene borde».
+`[RELLENO]` mide **sólo el relleno**, y no contra otra clase: contra los
+números que declara la hoja, escritos a mano en el script (20px, y 16px adentro
+de `.app-aside`), con `.card-body.empty-state` exceptuada por selector porque
+ahí la hoja declara 44px/20px a propósito. Tiene que ser a mano — DaisyUI sirve
 `padding: var(--card-p, 1.5rem)`, así que si la regla `.card` se pierde el
 relleno cae solo a 24px y leer `--card-p` del elemento devolvería ese mismo
 1.5rem: la comparación se cumpliría sola. Si la hoja cambia esos números, el
 script cambia con ella.
+**Lo que sigue sin vigilancia son los otros dos tercios: `--card-fs` y la
+sombra.** No los mira nadie más —`[CLASES]` mira fondo, relleno y borde;
+`[CONTRASTE]`, color—, así que una `card` puede perder la letra de 14px o la
+sombra y las 71 capturas seguir en verde. Que nadie lo dé por cubierto.
 
 **Dos grillas con el mismo aspecto y mecánica distinta.** En
 `challenges/index` las tarjetas son `.challenge-card`, que declara

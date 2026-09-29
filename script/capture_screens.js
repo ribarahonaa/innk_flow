@@ -217,12 +217,14 @@ async function revisarFormsAnidados(page, name) {
   // pantalla no lo mira nadie.
   //
   // El título es lo que ata las dos puntas: lo escribe el servidor
-  // (`content_for :title`, en 35 de las 40 plantillas; las cinco que no lo
-  // ponen caen todas en el mismo «innk flow» del layout), Turbo lo mantiene al
-  // día al navegar y al morfear, y ningún `.js` de la app lo toca. Dos
-  // acciones distintas casi nunca titulan igual —y las que sí, como las dos
-  // pantallas de error, ya tienen su propia guarda por estado—, así que un
-  // título que no coincide es el documento equivocado.
+  // (`content_for :title`, en 35 de las 40 plantillas; de las cinco que no lo
+  // ponen, cuatro caen en el mismo «innk flow» del layout, y la quinta
+  // —`reports/pdf`— va por `layouts/pdf.html.haml`, que no emite `<title>`
+  // ninguno: no es una pantalla, así que el recorrido no la abre nunca),
+  // Turbo lo mantiene al día al navegar y al morfear, y ningún `.js` de la app
+  // lo toca. Dos acciones distintas casi nunca titulan igual —y las que sí,
+  // como las dos pantallas de error, ya tienen su propia guarda por estado—,
+  // así que un título que no coincide es el documento equivocado.
   const tituloServido = (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1];
   if (tituloServido === undefined) {
     failures++;
@@ -278,12 +280,14 @@ async function revisarFormsAnidados(page, name) {
 // De dónde sale el número: **medido, el 2026-09-29, en 37 de 71 pantallas**.
 // Las que no llegan a dos tarjetas raíz son las seis caras de configuración,
 // los índices, las dos pantallas de error, la ficha de la idea, el login y las
-// de evolución. El piso son esas 37 menos 3, que es el margen
-// para que una captura nueva o una pantalla que cambie de forma no rompa la
-// corrida de casualidad — no para que se puedan perder doce en silencio. La
-// corrida imprime el número real al terminar, así que moverlo no obliga a
-// contar de nuevo a mano.
-const PISO_DE_RITMO = 34;
+// de evolución. El piso son esas 37 menos 1: acá el conteo no es de elementos
+// sino una propiedad ESTRUCTURAL por pantalla —«¿tiene dos tarjetas raíz?»—, y
+// eso no lo mueve el seed, así que vale la convención de `PUNTOS_DE_MERMA`:
+// exacto, y se bumpea cuando cambia. Uno de margen tolera una pantalla que
+// oscile; tres eran casi el 10% de la cobertura de esta guarda, o sea
+// tolerancia a lo único que el piso vino a matar. La corrida imprime el número
+// real al terminar, así que moverlo no obliga a contar de nuevo a mano.
+const PISO_DE_RITMO = 36;
 let pantallasConRitmo = 0;
 
 // Las tarjetas tenían `margin: 0` y se tocaban: la página era una sola columna
@@ -340,7 +344,7 @@ const PISO_DE_CARD_BODY = 250;
 let cardBodiesMedidos = 0;
 
 async function revisarRellenoDeTarjeta(page, name) {
-  const { total, malos } = await page.evaluate(({ centro, referencia }) => {
+  const { total, rotos, muestra } = await page.evaluate(({ centro, referencia }) => {
     const malos = [];
     let total = 0;
     // `.card > .card-body` y no `.card-body` a secas: es el mismo contrato que
@@ -374,15 +378,20 @@ async function revisarRellenoDeTarjeta(page, name) {
         malos.push({ clase: body.parentElement.className, esperado, lados });
       }
     }
-    return { total, malos: malos.slice(0, 4) };
+    // El conteo va sin truncar y sólo el DETALLE lleva tope. Contar sobre la
+    // lista ya cortada declaraba «4 `card-body`» en una pantalla con treinta
+    // rotos, o sea un número inventado justo en el único lugar donde el
+    // mensaje afirma uno (`[CLASES]` no tiene el problema porque no declara
+    // ninguno).
+    return { total, rotos: malos.length, muestra: malos.slice(0, 4) };
   }, { centro: RELLENO_DE_CARD, referencia: RELLENO_EN_REFERENCIA });
 
   cardBodiesMedidos += total;
 
-  if (malos.length) {
+  if (rotos) {
     failures++;
-    const detalle = malos.map((m) => `«${m.clase}» ${m.lados.join('/')}px en vez de ${m.esperado}px`).join(' · ');
-    console.error(`[RELLENO] ${name}: ${malos.length} \`card-body\` con otro relleno que el de la hoja · ${detalle}`);
+    const detalle = muestra.map((m) => `«${m.clase}» ${m.lados.join('/')}px en vez de ${m.esperado}px`).join(' · ');
+    console.error(`[RELLENO] ${name}: ${rotos} \`card-body\` con otro relleno que el de la hoja · ${detalle}`);
   }
 }
 
@@ -2675,11 +2684,13 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   await entrar('multi@demo.test');
   await capturar(page, '18-select-company');
 
-  // Las cinco `.card-body.empty-state` de la app (A1) no las abre ningún otro
-  // paso del recorrido. «Otra Empresa» —la segunda del seed— no tiene ningún
-  // desafío ni ningún set, y es la única puerta alcanzable acá: se elige por
-  // NOMBRE y no por posición, porque el orden de `@memberships` no está
-  // declarado en ningún lado.
+  // Las cinco `.card-body.empty-state` de las VISTAS (A1) no las abre ningún
+  // otro paso del recorrido —la sexta de la app es el estado vacío del
+  // builder, que vive en `pipeline_builder.vue` y sale en
+  // `03b-builder-plantillas`—. «Otra Empresa» —la segunda del seed— no tiene
+  // ningún desafío ni ningún set, y es la única puerta alcanzable acá: se
+  // elige por NOMBRE y no por posición, porque el orden de `@memberships` no
+  // está declarado en ningún lado.
   // `choose_company_path` redirige a `root_path`, que sirve `challenges#index`
   // pero deja la URL en `/` —`root "challenges#index"`—: `waitForURL` a
   // `/challenges` nunca dispara. Se espera el título de la pantalla.
