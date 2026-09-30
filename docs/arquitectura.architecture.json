@@ -167,7 +167,7 @@
         200,
         66
       ],
-      "tag": "62 FKs compuestas · pgvector"
+      "tag": "63 FKs compuestas · pgvector"
     },
     {
       "id": "redis",
@@ -382,6 +382,7 @@
         "Si los vectores fallan, la comparación la hace el modelo",
         "Toda llamada deja su rastro en ai_runs, con fixtures también",
         "Quién puede pedirle algo depende de sobre qué actúa",
+        "Dónde se revisa lo que propone lo declara la tarea, no su objetivo",
         "La respuesta se morfea sobre la pantalla: no recarga ni pierde el scroll"
       ]
     },

@@ -327,7 +327,8 @@
       "items": [
         "Exactamente un módulo de Idear: sin él no hay ideas que recorran nada",
         "Un formulario con al menos un campo, o nadie puede postular",
-        "Los otros cinco tipos se repiten en cualquier orden, o no se usan"
+        "Los otros cinco tipos se repiten en cualquier orden, o no se usan",
+        "Una selección tiene que poder decidir: filtros propios, el puntaje de una evaluación previa, o un corte manual"
       ]
     },
     {

@@ -1220,3 +1220,23 @@ Trampa: el ancho del lienzo está acotado por la legibilidad a 1440px. Sumar un
 componente a la derecha hace fallar `composition/desktop-readability` aunque el
 resto valide — es preferible ponerlo en una tarjeta antes que achicarle el texto
 a todos los nodos.
+
+**`deliver` NO prueba que el diagrama entre en una pantalla.** Sus nueve checks
+son estáticos: validan la composición del JSON, no el HTML en un navegador. Eso
+lo mide `visual-check`, y por default se SALTEA —«Chrome or Chromium is
+unavailable»— así que sale con `ok: false`, `status: "skipped"` y es fácil leerlo
+como aprobado. Hay chromium en esta máquina, el que usa `make screens`:
+
+```bash
+export ARCHIFY_CHROME=~/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome
+node ~/.claude/skills/archify/bin/archify.mjs visual-check docs/arquitectura.html --json
+```
+
+**Corrido con eso, los dos diagramas FALLAN el contenido vertical, y venían
+fallando.** Medido el 2026-09-30 sobre el HTML de `master`, sin cambios encima:
+arquitectura 1339px de alto en un viewport de 900, proceso 1688px. `overflowX` es
+false en los dos: el desborde es sólo a lo alto. No lo arregló nadie porque nadie
+lo había medido — `deliver` daba verde y `visual-check` se salteaba en silencio.
+Arreglarlo es redistribuir el Y y subir el `viewBox`, o sacar contenido, y es
+decisión de diseño: el skill prohíbe explícitamente taparlo con `overflow:
+hidden` o con letra más chica.
