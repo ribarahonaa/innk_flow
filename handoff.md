@@ -2,9 +2,16 @@
 
 ## Objetivo
 
-Cerrar el **tramo P4** del listado de pendientes, que era lo último que quedaba
-abierto. Se cerró entero —**28 de 28**— y con eso el listado completo: P0, P1,
-P2, P3 y P4. Al final se actualizaron los dos diagramas y los tres artefactos.
+Dos mitades.
+
+**La primera:** cerrar el **tramo P4** del listado de pendientes, que era lo
+último que quedaba abierto. Se cerró entero —**28 de 28**— y con eso el listado
+completo: P0, P1, P2, P3 y P4. Después se actualizaron los dos diagramas y los
+tres artefactos.
+
+**La segunda:** diseñar la **asignación automática de mesas en el taller**. Está
+el spec y está el plan, los dos commiteados; **no se implementó nada**. Mañana se
+arranca por ahí —es el punto 1 de los próximos pasos—.
 
 ## Estado actual
 
@@ -16,6 +23,10 @@ P2, P3 y P4. Al final se actualizaron los dos diagramas y los tres artefactos.
   con `master` sola.
 - **Diez tandas mergeadas**, cada una con su rama borrada. 21 commits, 77
   archivos, +3093/−181.
+- **El trabajo de mañana está escrito**, sin una línea de código:
+  `docs/superpowers/specs/2026-09-30-asignacion-de-mesas-design.md` (el diseño
+  acordado) y `docs/superpowers/plans/2026-09-30-asignacion-de-mesas.md` (seis
+  tareas, con el código de cada paso).
 - El listado, al día: https://claude.ai/artifact/C2i3g3ZRz1gUeMuX3bEXrq
   (encabezado y los 28 tildes puestos). Los diagramas también, republicados:
   https://claude.ai/artifact/86a1MJf9xuRBmmGpDHmczw ·
@@ -60,6 +71,35 @@ pantalla de evolución quedó medida y el seed hace ruido cuando el flujo no ava
 
 **2c · El último.** Las islas no necesitaban nada; la hoja tenía siete reglas sin
 un solo uso.
+
+## El diseño de las mesas, en seis líneas
+
+El detalle está en el spec; esto es para arrancar sin releerlo entero.
+
+1. **El pool son los participantes** de los desafíos vinculados (rol
+   `participant`), y la **asistencia persistida** lo acota a quienes fueron.
+2. **En evolución el pool es más angosto:** sólo quienes trabajan en las ideas
+   del módulo.
+3. **Un taller es de una sola fase.** Mixto **no abre**, y el error nombra qué
+   desafío está en cuál.
+4. **En idear** las mesas se arman por cabeza; **en evolución**, por quién
+   trabaja con quién.
+5. **El tamaño manda:** un racimo que no entra se parte por la idea de **menor
+   solape**, y la gente compartida se queda —una persona se sienta en una mesa
+   sola, así que desprender su idea no puede llevársela—.
+6. **No rearma si ya hay propuestas**, porque `workshop_proposals.workshop_group_id`
+   es `ON DELETE CASCADE` y se llevaría las aceptadas, que son la procedencia de
+   versiones publicadas.
+
+Y tres cosas que el spec resolvió porque se podían leer de dos formas: el reparto
+**no evicta a nadie** (quien ya está sentado entra aunque su rol no esté en el
+pool), **borra sólo las mesas que quedan vacías**, y **la asistencia vale en las
+dos fases**.
+
+Un detalle que va a parecer un capricho y no lo es: la columna se llama
+`attended` y **no `present`**, porque una columna `present` genera `present?` y
+choca con `Object#present?` de ActiveSupport — el choque no da error, devuelve
+otra cosa.
 
 ## Archivos y cambios
 
@@ -108,6 +148,27 @@ propio detector.
 
 **Lección: medir la ficha antes de ejecutarla.** Cuatro de 28 no decían lo que
 pasaba, y las cuatro se descubrieron midiendo, no leyendo.
+
+### Escribir el spec y el plan encontró lo que la conversación no
+
+Las dos auto-revisiones que la skill exige no fueron trámite.
+
+Al releer el **spec** aparecieron tres cosas que el diseño acordado se podía leer
+de dos formas: a quién puede evictar el reparto, qué pasa con las mesas que
+sobran, y si la asistencia vale en evolución. Ninguna había salido en la
+conversación, y las tres se habrían decidido solas en la implementación.
+
+Al releer el **plan** apareció un bug del plan mismo: `people_of(idea)` no
+descontaba a los ausentes, así que **la asistencia no se aplicaba en evolución**
+—justo lo que el spec acababa de resolver— y un participante marcado ausente
+volvía a entrar por `participant_ids`. Más un spec que usaba una columna que
+`WorkshopProposal` no tiene, y un paso del seed que decía «mover lo que
+corresponda», que es exactamente lo que un plan no puede decir: al escribir el
+edit exacto salió que **la mesa con la propuesta tiene que mudarse de taller** o
+se caen dos capturas.
+
+**Lección: el documento encuentra cosas que la charla no.** Escribirlo no es
+formalizar lo acordado; es la primera vez que el diseño se lee entero.
 
 ### `git checkout <archivo>` me borró el arreglo, no la mutación
 
@@ -190,29 +251,50 @@ primero y CERO al segundo.
 
 ## Próximos pasos
 
-1. **El desborde vertical de los dos diagramas.** Es redistribuir el Y y subir el
+1. **Arrancar el plan de asignación de mesas.** El spec y el plan están escritos
+   y aprobados; lo único que falta decidir es **cómo ejecutarlo**: por subagentes
+   (un subagente por tarea y un revisor fresco antes de la siguiente) o nativo
+   (todo en la sesión, con una revisión de rama al final).
+
+   **Recomendado: por subagentes**, y la razón es concreta: las tareas se
+   encadenan por interfaces que una sola persona inventó —`Seating` produce
+   `tables`/`splits` y `AssignGroups` los consume, `Workshop#phase` lo consume el
+   servicio— y un error de nombre o de tipo entre dos tareas es justo lo que un
+   revisor fresco caza y el que las escribió no. Además la Task 2 toca el seed y
+   las capturas, donde un descuido deja el recorrido roto para todo lo que sigue.
+
+   **Lo que el plan va a costar, para que no aparezca al final:** el taller
+   sembrado deja de poder abrirse —«Taller de mejora continua» tiene `ideation` y
+   `evolution` abiertos— así que hay que partirlo en dos, mudar la mesa que tiene
+   la propuesta al taller que se queda con evolución, partir también el taller en
+   borrador, y hacer que el recorrido de capturas visite los dos talleres:
+   `25-taller-sala-idear`, `26-taller-sala-evolucion` y
+   `28-taller-vinculo-cerrado` salen hoy del MISMO taller. El plan tiene el edit
+   exacto.
+
+2. **El desborde vertical de los dos diagramas.** Es redistribuir el Y y subir el
    `viewBox`, o sacar contenido; el skill prohíbe taparlo con `overflow: hidden`
    o con letra más chica. Decisión de diseño, con los números y el comando en
    `CLAUDE.md`.
-2. **`make screens` no ve violaciones de CSP.** Sólo escucha `pageerror`. Con el
+3. **`make screens` no ve violaciones de CSP.** Sólo escucha `pageerror`. Con el
    CSP activo desde esta sesión, es un punto ciego NUEVO: si alguien agrega un
    script inline sin nonce, el recorrido da verde y la pantalla no funciona.
    Escuchar `console` con filtro de CSP sería el arreglo.
-3. **El nodo salteado del mapa del flujo mide menos de 3:1.** 1,96 en claro y
+4. **El nodo salteado del mapa del flujo mide menos de 3:1.** 1,96 en claro y
    2,42 en oscuro, y el punteado es su único portador VISUAL de estado —comparte
    `badge-soft` con el pendiente—. Hay `title` con el estado, así que hay
    alternativa textual; si se lo trata como información, el piso que le
    corresponde es 3:1 (WCAG 1.4.11) y no el 1,5 de la pastilla punteada.
-4. **El flake horario preexistente** de `spec/requests/selection_screen_spec.rb:138`:
+5. **El flake horario preexistente** de `spec/requests/selection_screen_spec.rb:138`:
    `Selection#decide!` escribe `decided_at: Time.current` por fila y la vista
    agrupa con `.change(sec: 0)`.
-5. **Los dos artefactos de diagramas avisan que su botón de exportar no funciona**
+6. **Los dos artefactos de diagramas avisan que su botón de exportar no funciona**
    en el visor de artefactos («the artifact viewer never grants pages download
    permission»). Es del visor que genera archify, no del contenido; los HTML en
    `docs/` sí exportan.
-6. **Hay actualización de la skill `archify`**: instalada 2.17.0-dev.1, última
+7. **Hay actualización de la skill `archify`**: instalada 2.17.0-dev.1, última
    3.0.1. No se tocó nada.
-7. Lo que sigue anotado y fuera de alcance de handoffs anteriores:
+8. Lo que sigue anotado y fuera de alcance de handoffs anteriores:
    `challenge_gestores` huérfano re-otorgando acceso, el redirect por membresía
    alcanzando a la API y a los turbo-frames, y la falta de spec del rollback de
    `Flow::Assignments::Release`.
