@@ -17,7 +17,7 @@ class StepsController < ApplicationController
     # todavía pendiente) — sus briefs dicen explícitamente "ya está/ya
     # calcula... antes del render, así que sirven a las dos ramas". Quedan
     # afuera del `if` a propósito, para no obligarlas a moverlos de vuelta.
-    @pending_suggestions = AiSuggestion.pending_review.where(challenge_step_id: @step.id).recent
+    @pending_suggestions = AiSuggestion.pending_review.para_revisar_en(@step).recent
     @assignable = @step.evaluation? ? assignable_users : []
     # Un gestor acompaña la evolución: se lo asigna donde eso pasa.
     @gestor_candidates = @step.evolution? ? gestor_candidates : []

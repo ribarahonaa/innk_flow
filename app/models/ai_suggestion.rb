@@ -22,6 +22,22 @@ class AiSuggestion < ApplicationRecord
   scope :pending_review, -> { where(status: "pending") }
   scope :recent, -> { order(created_at: :desc) }
 
+  # Lo que hay para revisar en la pantalla de un módulo, que son DOS cosas y no
+  # una: lo que apunta al módulo, y lo que se pidió DESDE el módulo sobre una
+  # idea. Filtrar sólo por `challenge_step_id` dejaba las tres tareas del
+  # segundo grupo sin aparecer nunca en el panel que las pidió.
+  #
+  # Se filtra por `ai_runs.purpose` y no por el objetivo porque el objetivo no
+  # sabe desde dónde se pidió: eso lo declara la tarea.
+  scope :para_revisar_en, lambda { |step|
+    desde_el_modulo = joins(:ai_run).where(
+      ai_runs: { challenge_step_id: step.id,
+                 purpose: Flow::AI::Tasks::Base.purposes_revisados_en_el_modulo }
+    )
+
+    where(challenge_step_id: step.id).or(where(id: desde_el_modulo.select(:id)))
+  }
+
   STATUSES.each { |s| define_method("#{s}?") { status == s } }
 
   delegate :purpose, :mode, to: :ai_run
@@ -37,6 +53,22 @@ class AiSuggestion < ApplicationRecord
   # no trae desafío, y un `nil` acá dejaría la propuesta invisible hasta para
   # quien administra. Hoy ninguna tarea apunta a un set.
   def desafio = challenge || challenge_step&.challenge || idea&.challenge || ai_run&.challenge
+
+  # La pantalla del módulo donde se revisa esta propuesta, o `nil` si se revisa
+  # donde vive su objetivo —el caso de casi todas—.
+  #
+  # Quién pregunta: el panel del módulo, para mostrarla, y el redirect de
+  # aceptar, para volver ahí. Los dos derivan de `Tasks::Base.revisa_en`, que
+  # es donde está escrita la regla; acá sólo se resuelve a qué módulo.
+  #
+  # El paso sale del objetivo o del run, igual que en `AiSuggestionPolicy#paso`:
+  # las tres tareas que llegan hasta acá apuntan a la idea, así que el módulo lo
+  # tiene el run.
+  def paso_de_revision
+    return nil unless Flow::AI::Tasks::Base.revision_de(purpose) == :modulo
+
+    challenge_step || ai_run&.challenge_step
+  end
 
   def resolved? = !pending?
 

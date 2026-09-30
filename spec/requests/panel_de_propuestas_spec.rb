@@ -136,4 +136,69 @@ RSpec.describe "el panel de propuestas de la IA", type: :request do
       expect(response.body).not_to include(aplicar(coautoria))
     end
   end
+
+  # Lo que se pide desde la pantalla de un módulo tiene que aparecer AHÍ.
+  #
+  # Una propuesta guarda UN objetivo —el CHECK de Postgres deja exactamente
+  # uno— y de esa única columna salían DOS respuestas: sobre qué actúa, y
+  # desde qué pantalla se pidió. Para casi todas coinciden. Para las que se
+  # piden desde un módulo SOBRE una idea, no: el objetivo es la idea, así que
+  # el panel del módulo —que filtra por `challenge_step_id`— no las mostraba
+  # nunca, y aceptarlas devolvía a la ficha de la idea aunque el comentario de
+  # `path_for` prometa «vuelve a donde se pidió la propuesta».
+  #
+  # Son tres: `test_idea`, `decide_verdicts` y `suggest_feedback`.
+  describe "una propuesta pedida desde la pantalla de un módulo" do
+    let!(:testeo) do
+      as_company(company) do
+        paso = challenge.steps.create!(kind: "testing", position: 3, name: "Prueba de factibilidad")
+        Flow::Handlers::Base.for(paso).activate!
+        paso.reload
+      end
+    end
+
+    let!(:testeo_propuesto) do
+      pendiente(Flow::AI::Tasks::TestIdea.new(challenge: challenge, step: testeo, idea: propia),
+                step: testeo, idea: propia)
+    end
+
+    it "aparece en el panel del módulo que la pidió" do
+      sign_in(admin, company: company)
+      get challenge_step_path(challenge, testeo)
+
+      expect(response.body).to include(aplicar(testeo_propuesto))
+    end
+
+    it "aceptarla vuelve a la pantalla del módulo y no a la ficha de la idea" do
+      sign_in(admin, company: company)
+      post aplicar(testeo_propuesto)
+
+      expect(response).to redirect_to(challenge_step_path(challenge, testeo))
+    end
+  end
+
+  # La tercera no estaba anotada en ninguna parte: se encontró tirando del
+  # mismo hilo. Va con su propio ejemplo porque el defecto era el mismo pero la
+  # pantalla es otra, y una sola de las tres en verde no dice nada de las otras
+  # dos.
+  describe "el feedback que la IA sugiere, pedido desde la ronda de evolución" do
+    let!(:ronda) do
+      as_company(company) do
+        challenge.pipeline.advance!
+        challenge.steps.reload.find(&:evolution?)
+      end
+    end
+
+    let!(:feedback_propuesto) do
+      pendiente(Flow::AI::Tasks::SuggestFeedback.new(challenge: challenge, step: ronda, idea: propia),
+                step: ronda, idea: propia)
+    end
+
+    it "aparece en el panel de la pantalla de la ronda" do
+      sign_in(admin, company: company)
+      get challenge_step_path(challenge, ronda)
+
+      expect(response.body).to include(aplicar(feedback_propuesto))
+    end
+  end
 end

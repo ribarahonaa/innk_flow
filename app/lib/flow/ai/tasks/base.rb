@@ -29,6 +29,44 @@ module Flow
             klass.respond_to?(:actua_sobre) ? klass.actua_sobre : :challenge
           end
 
+          # ¿DÓNDE se revisa lo que propone?
+          #
+          # Una propuesta guarda UN objetivo —el CHECK de Postgres deja
+          # exactamente uno— y de esa única columna salían dos respuestas: sobre
+          # qué actúa, y desde qué pantalla se pidió. Para casi todas coinciden.
+          # Para las que se piden desde la pantalla de un módulo SOBRE una idea,
+          # no: el objetivo es la idea y la pantalla es el módulo, así que el
+          # panel del módulo no las mostraba NUNCA —filtra por
+          # `challenge_step_id`— y aceptarlas devolvía a la ficha de la idea.
+          #
+          # No se deduce, y las dos formas de deducirlo casi alcanzan, que es lo
+          # que las hace tentadoras:
+          #
+          #   · `actua_sobre` acierta en cinco de seis y falla justo en
+          #     `detect_duplicates`, que actúa sobre el pool y se LEE en la
+          #     ficha de la idea.
+          #   · el paso del run lo tienen también `coauthor_field` y
+          #     `detect_duplicates`, que se piden desde la ficha de la idea
+          #     mandando el módulo de ideación. Ahí el paso es CONTEXTO —de
+          #     dónde salen el campo y el pool—, no origen.
+          #
+          # Así que se declara. `:objetivo` es donde vive lo que la propuesta
+          # apunta —el default, y lo que hacían todas— y `:modulo`, la pantalla
+          # del módulo que la pidió.
+          def revisa_en = :objetivo
+
+          def revision_de(purpose)
+            klass = "Flow::AI::Tasks::#{purpose.to_s.camelize}".safe_constantize
+            klass.respond_to?(:revisa_en) ? klass.revisa_en : :objetivo
+          end
+
+          # La lista, y no la pregunta, porque quien la consume es una consulta:
+          # el panel del módulo filtra por `ai_runs.purpose`. Sale de
+          # `AiRun::PURPOSES`, que es la lista canónica.
+          def purposes_revisados_en_el_modulo
+            AiRun::PURPOSES.select { |purpose| revision_de(purpose) == :modulo }
+          end
+
           # `#informativa?` por propósito, para quien tiene el propósito y no
           # la tarea: el modelo —de ahí sale que la tarjeta ofrezca un solo
           # «Listo»— y el controller, que si no anuncia que aplicó algo que el

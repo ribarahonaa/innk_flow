@@ -13,6 +13,10 @@ module Flow
       # Se responden todos los filtros de veredicto de una idea en UNA consulta
       # —son la misma lectura del mismo texto— y queda un `ai_run` por idea.
       class DecideVerdicts < Base
+        # Se pide desde la pantalla de la selección, y su objetivo es la
+        # idea sobre la que responde los filtros.
+        def self.revisa_en = :modulo
+
         def messages
           [
             { role: "system", content: <<~TXT.squish },
