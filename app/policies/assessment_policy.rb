@@ -21,10 +21,10 @@ class AssessmentPolicy < ApplicationPolicy
     record.challenge_step.step_assignments.exists?(user_id: membership.user_id)
   end
 
-  def update?
-    return false if record.nil?
-    return true if administers?(record.challenge_step&.challenge)
-
-    record.evaluator_id == membership.user_id && !record.submitted?
-  end
+  # No hay `update?` propio. `resources :assessments, only: %i[new create]`: una
+  # evaluación no se edita, se vuelve a evaluar. El que había —«quien administra,
+  # o quien la escribió mientras no la haya enviado»— no tenía ruta, ni llamador,
+  # ni cobertura, y era MÁS permisivo que el default heredado (`manager?`): un
+  # permiso abierto esperando a que alguien le cableara una ruta. Abrir uno de
+  # más no rompe ningún test, que es por qué esto se borra en vez de dejarse.
 end

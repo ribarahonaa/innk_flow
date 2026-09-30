@@ -37,6 +37,37 @@ RSpec.describe "saltear un módulo", type: :request do
 
   before { sign_in(admin, company: company) }
 
+  # Saltear un módulo ACTIVO le deja sus `step_entries` como estaban: `skip!`
+  # sólo escribe el estado del módulo. Y `skipped` cuenta como tocado
+  # (`TOUCHED_STATUSES`), así que el módulo sigue apareciendo en «Cómo le fue»
+  # de cada idea — diciendo «Pendiente» sobre algo que no va a correr nunca.
+  #
+  # El label ya existía y no lo usaba nadie: `flow.entry_statuses.skipped` estaba
+  # fichado como clave huérfana del locale. No sobraba la clave; faltaba el
+  # cableado.
+  it "una idea de un módulo salteado dice «Salteado» y no «Pendiente»" do
+    challenge = arrancado(%w[ideation evaluation reporting])
+    idea = as_company(company) do
+      i = create(:idea, challenge: challenge, author: admin, status: "active")
+      Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "Sensores" }, author: admin).call
+      i.update!(submitted_at: Time.current)
+      i
+    end
+    as_company(company) { challenge.pipeline.advance! }
+    evaluacion = as_company(company) { challenge.steps.ordered.reload.second }
+
+    post skip_challenge_step_path(challenge, evaluacion)
+    get challenge_idea_path(challenge, idea)
+
+    # Apretado al markup de la FILA a propósito: el nombre del módulo también
+    # sale en el mapa del flujo de la izquierda, donde «Salteado» sí aparece, así
+    # que un match suelto sobre el body pasa sin haber mirado «Cómo le fue». La
+    # primera versión de este ejemplo daba verde por eso.
+    etiqueta = response.body[%r{result__step">#{Regexp.escape(evaluacion.name)}</span>\s*<span[^>]*>\s*([^<]+?)\s*<}m, 1]
+
+    expect(etiqueta).to eq("Salteado")
+  end
+
   it "abre el siguiente módulo en vez de dejar el flujo trabado" do
     challenge = arrancado(%w[ideation evaluation reporting])
     activo = as_company(company) { challenge.steps.ordered.first }

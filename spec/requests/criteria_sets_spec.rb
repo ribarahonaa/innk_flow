@@ -43,6 +43,37 @@ RSpec.describe "sets de criterios", type: :request do
       active: true }.merge(overrides)
   end
 
+  # El breadcrumb de editar un set volvía SIEMPRE al índice de la biblioteca, que
+  # lista `.library.current`: para un set `inline` es una lista donde su set no
+  # está y no puede estar. Y editar uno inline se ofrece de verdad —
+  # `steps/_como_se_decide` linkea «Editar el set» para cualquiera que se pueda
+  # editar, no sólo los de biblioteca—.
+  describe "de dónde dice que viene el set" do
+    before { sign_in(owner, company: company) }
+
+    def breadcrumb = response.body[%r{<p class="breadcrumb">\s*<a href="([^"]+)"}m, 1]
+
+    it "uno de biblioteca vuelve al índice" do
+      set = as_company(company) { CriteriaSet.create!(name: "Vara común", scope: "library") }
+
+      get edit_criteria_set_path(set)
+
+      expect(breadcrumb).to eq(criteria_sets_path)
+    end
+
+    it "uno inline vuelve a su módulo, no a una lista que no lo tiene" do
+      challenge, paso, set = as_company(company) do
+        c = create(:challenge, name: "Merma")
+        p = c.steps.create!(kind: "evaluation", position: 1)
+        [c, p, CriteriaSet.create!(name: "Criterios de «#{p.name}»", scope: "inline", owner_step: p)]
+      end
+
+      get edit_criteria_set_path(set)
+
+      expect(breadcrumb).to eq(challenge_step_path(challenge, paso))
+    end
+  end
+
   describe "la pantalla" do
     before { sign_in(owner, company: company) }
 
