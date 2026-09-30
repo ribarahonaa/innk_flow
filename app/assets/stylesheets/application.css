@@ -967,11 +967,16 @@ input:focus, textarea:focus, select:focus {
    puesto encima (arriba, en la regla `.card`). Ver el comentario del
    @plugin, más arriba todavía.
 
-   `btn-link` tampoco: el de DaisyUI es una variante de botón con la altura de
-   `btn`, y el de acá es una acción en medio de una frase, sin padding ni
-   borde. Esa sí gana por no estar en ninguna capa —el CSS sin capa le gana a
-   `@layer`— y lo único que DaisyUI le agrega es un `background-image: none`
-   que no cambia nada. Se migra en el plan 2, pantalla por pantalla. */
+   `btn-link` YA NO COLISIONA, porque la de esta app se borró. El de DaisyUI es
+   una variante de botón con la altura de `btn`, y el de acá era una acción en
+   medio de una frase, sin padding ni borde; ganaba por no estar en ninguna capa
+   —el CSS sin capa le gana a `@layer`—. El comentario decía «se migra en el plan
+   2, pantalla por pantalla» y al medirlo no quedaba NINGUNA pantalla: cero usos
+   en vistas, islas y helpers. La migración se había completado por abandono y la
+   regla seguía ahí, así que lo único que conservaba era la trampa —quien
+   escribiera `btn btn-link` esperando el botón-enlace de DaisyUI se llevaba la
+   acción sin relleno de esta app—. Hoy `btn-link` es el de DaisyUI, sin más.
+   Lo cuida `spec/lint/reglas_sin_elemento_spec.rb`. */
 
 /* El `btn--ghost` de esta app no era un botón fantasma: era el secundario
    —superficie blanca, borde gris—, y son 58 usos. El `btn-ghost` de DaisyUI
@@ -1691,16 +1696,7 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
   border-radius: var(--radius);
   background: var(--bg);
 }
-.criterion-row__main { display: grid; grid-template-columns: 2fr 1fr 90px 1fr; gap: 10px; }
-.criterion-row__main .field { margin: 0; }
-.criterion-row__config { margin-top: 10px; }
-.criterion-row__actions { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; }
-.inline-label { display: inline; margin: 0 12px 0 2px; text-transform: none; letter-spacing: 0; font-weight: 400; }
 .code-input { font-family: ui-monospace, monospace; font-size: 11.5px; }
-
-@media (max-width: 860px) {
-  .criterion-row__main { grid-template-columns: 1fr; }
-}
 
 /* ── Tabla de ranking con línea de corte ────────────────────────────────── */
 .ranking-table__check { width: 60px; text-align: center; }
@@ -1859,17 +1855,6 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
 
 .section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .section-head .section-title { margin-bottom: 10px; }
-
-/* ── Origen de un criterio ──────────────────────────────────────────────── */
-.criterion-row__main { grid-template-columns: 1.6fr 1fr 80px 1.3fr 1.2fr; }
-.criterion-row__jsons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.checks-help { margin: 6px 0 18px; font-size: 12px; }
-.checks-help summary { cursor: pointer; color: var(--muted); margin-bottom: 8px; }
-
-@media (max-width: 1100px) {
-  .criterion-row__main { grid-template-columns: 1fr 1fr; }
-  .criterion-row__jsons { grid-template-columns: 1fr; }
-}
 
 /* ── Filtros de selección ───────────────────────────────────────────────── */
 .gate-cell { text-align: center; white-space: nowrap; }
@@ -2741,17 +2726,6 @@ dialog.modal[data-ia="espera"] .modal-box { transition: none; }
 .member__name { flex: 1; min-width: 0; font-weight: 600; }
 .member__form { display: flex; }
 .member__role select { width: auto; padding: 5px 9px; font-size: 12.5px; }
-
-/* Una acción que va en medio de una frase, no un botón aparte. */
-.btn-link {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--accent);
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
-}
 
 /* Un veredicto que respondió la IA se lee distinto que uno que miró alguien. */
 .gate--by-ai { border: 1px dashed currentColor; }
