@@ -1198,8 +1198,13 @@ async function medirMonoEnProsa(page) {
       // fallándolo: el cambio sólo puede reportar de más, nunca de menos. Lo
       // que habilita es un falso positivo posible —dos identificadores
       // separados por un hijo sin texto, «v3» + ícono + «v4», leen como prosa—.
-      // Hoy da cero en las 66 pantallas; cuando aparezca, la respuesta es darle
+      // Hoy da cero en todo el recorrido; cuando aparezca, la respuesta es darle
       // a cada identificador su propio elemento mono, no aflojar el join.
+      //
+      // SIN el número de pantallas a propósito: decía «las 66» y hoy son 71, que
+      // es el mismo desfasaje que `capturar()` explica para su propio
+      // comentario, el README y CLAUDE.md. Lo que el recorrido midió lo imprime
+      // la corrida.
       const propio = [...el.childNodes]
         .filter((n) => n.nodeType === 3)
         .map((n) => n.textContent)
@@ -1286,6 +1291,45 @@ async function revisarMonoEnProsa(page, name) {
 // Sin números a propósito: este comentario, `README.md` y `CLAUDE.md` los
 // tenían, y los tres se desactualizaron cada vez que se sumó una captura. El
 // número real lo imprime la corrida al terminar.
+// El nombre del criterio en el desglose de una evaluación alinea la columna de
+// puntajes con un `min-width: 110px`. Es `min-width` y no `width`, así que un
+// nombre que no entre ESTIRA el span y corre el puntaje a la derecha: la columna
+// deja de estar alineada y no se nota mirando, porque sigue habiendo un puntaje
+// por fila y cada uno se ve bien por su cuenta.
+//
+// Con las claves de criterio no podía pasar —eran más cortas—; el riesgo nació
+// cuando la fila pasó a mostrar el NOMBRE. Estaba anotado al lado de la regla en
+// la hoja y medido a mano una sola vez, que es la forma de anotación que este
+// repo ya vio envejecer varias veces.
+//
+// El arreglo, el día que falle, está escrito en la hoja: `flex: 0 0 110px` o una
+// grilla de dos columnas en el `li`. NO subir el `min-width`, que sólo corre el
+// problema al nombre siguiente.
+const ANCHO_DEL_CRITERIO = 110;
+// Hoy se miden 168 en seis pantallas. El piso va abajo con margen por lo mismo
+// que el de la pastilla: el total depende de qué alcanzó a pintarse.
+const PISO_DE_CRITERIOS = 140;
+let criteriosMedidos = 0;
+
+async function revisarAnchoDeCriterio(page, name) {
+  const pasados = await page.evaluate((tope) => {
+    const medidos = [...document.querySelectorAll('.assessment-detail__criterion')];
+    return {
+      total: medidos.length,
+      largos: medidos
+        .filter((el) => el.getBoundingClientRect().width > tope + 0.5)
+        .map((el) => `«${el.textContent.trim()}» ${el.getBoundingClientRect().width.toFixed(0)}px`)
+        .slice(0, 4)
+    };
+  }, ANCHO_DEL_CRITERIO);
+
+  criteriosMedidos += pasados.total;
+  if (pasados.largos.length) {
+    failures++;
+    console.error(`[CRITERIO] ${name}: nombres que no entran en ${ANCHO_DEL_CRITERIO}px y desalinean la columna de puntajes: ${pasados.largos.join(' · ')}`);
+  }
+}
+
 async function capturar(page, name) {
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
   await revisarTexto(page, name);
@@ -1301,6 +1345,7 @@ async function capturar(page, name) {
   await revisarContraste(name, pastillas);
   await revisarPastilla(name, pastillas);
   await revisarMonoEnProsa(page, name);
+  await revisarAnchoDeCriterio(page, name);
   shots.push(name);
 }
 
@@ -2871,10 +2916,14 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // verde y es indistinguible de una que funciona, que es el modo de falla que
   // este script ya pagó dos veces (la pasada oscura del muestrario, y `[MONO]`
   // después del arreglo).
-  console.log(`[RITMO] ${pantallasConRitmo} de ${shots.length} pantallas tuvieron dos tarjetas que comparar · [RELLENO] ${cardBodiesMedidos} \`card-body\` medidos · [PASTILLA] ${pastillasMedidas} chips y avisos medidos`);
+  console.log(`[RITMO] ${pantallasConRitmo} de ${shots.length} pantallas tuvieron dos tarjetas que comparar · [RELLENO] ${cardBodiesMedidos} \`card-body\` medidos · [PASTILLA] ${pastillasMedidas} chips y avisos medidos · [CRITERIO] ${criteriosMedidos} nombres medidos`);
   if (pantallasConRitmo < PISO_DE_RITMO) {
     failures++;
     console.error(`[RITMO] sólo ${pantallasConRitmo} de ${shots.length} pantallas tuvieron un par de tarjetas que comparar, y el piso es ${PISO_DE_RITMO}: la guarda dejó de ver las tarjetas`);
+  }
+  if (criteriosMedidos < PISO_DE_CRITERIOS) {
+    failures++;
+    console.error(`[CRITERIO] sólo se midieron ${criteriosMedidos} nombres de criterio en ${shots.length} pantallas, y el piso es ${PISO_DE_CRITERIOS}: la guarda dejó de ver el desglose`);
   }
   if (pastillasMedidas < PISO_DE_PASTILLAS) {
     failures++;

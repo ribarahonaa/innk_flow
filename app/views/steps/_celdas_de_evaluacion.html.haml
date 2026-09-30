@@ -5,8 +5,18 @@
 %span.fila-de-idea__idea
   = link_to entry.idea.title, challenge_idea_path(challenge, entry.idea), class: "table-link"
   %span.muted= " · #{entry.idea.author.name}"
-%span.muted
-  = "#{result['assessments_count'] || 0} / #{handler.min_assessments_for(entry.idea)}"
+-# «3 / 2» es un estado normal y se leía como un error de cuenta: el mínimo BAJA
+-# por idea cuando su autor está entre quienes evalúan (`min_assessments_for`), y
+-# además nada impide que evalúe más gente que el mínimo. Con la celda sin
+-# encabezado que la explique, una fracción con el numerador más grande parece un
+-# bug. Estaba vivo en el seed: `09-3-step-evaluación-técnica` mostraba «3 / 2».
+-#
+-# Mientras falta, la fracción dice qué falta. Cumplido el mínimo, el número que
+-# importa es cuántas opiniones hay, y el mínimo pasa al `title`.
+- hechas_n = result["assessments_count"] || 0
+- minimo = handler.min_assessments_for(entry.idea)
+%span.muted{ title: "#{Flow::Texto.contar(hechas_n, 'evaluación')} · mínimo #{minimo}" }
+  = hechas_n >= minimo ? hechas_n.to_s : "#{hechas_n} / #{minimo}"
   - if evaluaciones.any?
     %span.evaluators
       - evaluaciones.each do |assessment|

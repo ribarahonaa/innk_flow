@@ -132,6 +132,56 @@ RSpec.describe "reglas de quien evalúa", type: :request do
     expect(response.body).to include("ElE", "EmE")
   end
 
+  # «3 / 2» es un estado NORMAL y se leía como un error de cuenta: el mínimo baja
+  # por idea cuando su autora está entre quienes evalúan, y encima nada impide
+  # que evalúe más gente que el mínimo. La celda no tiene encabezado que la
+  # explique, así que una fracción con el numerador más grande parece un bug.
+  # Estaba vivo en el seed (`09-3-step-evaluación-técnica` mostraba «3 / 2»).
+  describe "la celda de evaluaciones de una idea" do
+    def evaluar(idea, quien, nota)
+      step.assessments.create!(idea: idea, idea_version_id: idea.current_version_id,
+                               evaluator: quien, actor_type: "human",
+                               status: "submitted", submitted_at: Time.current,
+                               normalized_score: nota)
+    end
+
+    # Anclado a la FILA de esa idea: un `.muted` con `title` suelto sobre el body
+    # agarra el primero de la pantalla, que es el aviso de «Faltan evaluaciones».
+    # La primera versión de esto comparaba contra ese aviso.
+    def celda_de(idea)
+      sign_in(admin, company: company)
+      get challenge_step_path(challenge, step)
+      desde = response.body.index(challenge_idea_path(challenge, idea))
+      return nil if desde.nil?
+
+      # Indiferente al orden de atributos —HAML no garantiza que `class` venga
+      # antes que `title`— y cortando en el primer `<` y no en `</span>`: la
+      # celda ENVUELVE los chips de quienes evaluaron, así que exigir el cierre
+      # saltaba al chip siguiente y comparaba contra unas iniciales.
+      response.body[desde..][%r{<span[^>]*\btitle="[^"]*"[^>]*>\s*([^<]+?)\s*<}m, 1]
+    end
+
+    # La idea de Elena tiene mínimo 2 —su autora evalúa en este módulo— y acá
+    # llegan tres evaluaciones, que es lo que produce el «3 / 2».
+    it "cumplido el mínimo muestra cuántas hay, sin la fracción" do
+      as_company(company) do
+        [[admin, 0.7], [emilio, 0.6], [paula, 0.5]].each { |quien, nota| evaluar(propia, quien, nota) }
+        step.handler.recompute_entry!(step.step_entries.find_by!(idea_id: propia.id))
+      end
+
+      expect(celda_de(propia)).to eq("3")
+    end
+
+    it "y mientras falta, la fracción dice qué falta" do
+      as_company(company) do
+        evaluar(propia, admin, 0.7)
+        step.handler.recompute_entry!(step.step_entries.find_by!(idea_id: propia.id))
+      end
+
+      expect(celda_de(propia)).to eq("1 / 2")
+    end
+  end
+
   describe "evaluación a ciegas" do
     before do
       as_company(company) do
