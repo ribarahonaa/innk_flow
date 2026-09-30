@@ -180,7 +180,11 @@ de ideas), o **(c)** produce un archivo. El resto es síncrono.
 | **Síncrono** | Mutaciones de pipeline · guardar un assessment + recalcular esa entry · una decisión de selección · publicar una versión |
 | **Sidekiq** | `AI::RunJob` (una llamada = un job) · `Reports::GenerateJob` |
 
-`Steps::ActivateJob` existe y respeta el mismo contrato, pero hoy no lo encola nadie: `Pipeline` activa en línea.
+Activar NO tiene job: `Pipeline` lo hace en línea (`start!` y `open_next_or_close!`
+llaman a `Handlers::Base#activate!` directo). Hubo un `Steps::ActivateJob` que no
+encolaba nadie y se borró: activar es O(cantidad de ideas) y puede disparar una
+llamada a la IA por idea, así que el día que haga falta sacarlo del request el job
+se escribe con ese problema delante, no antes.
 
 Todo job abre con `Flow::Tenant.with(Company.find(company_id))`: el tenant viaja
 en el payload, nunca se asume.

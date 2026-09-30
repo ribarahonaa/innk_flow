@@ -49,10 +49,11 @@ module Flow
         # Sus razones dicen el PORQUÉ; el «cuál» es de quien avisa.
         #
         # Y va en el MENSAJE y no en un atributo de la excepción: el único
-        # consumidor real es `Pipeline#not_ready_failure`, que sólo necesita el
-        # texto, y quien la deje escapar a un log —`Flow::Steps::ActivateJob`,
-        # hoy SIN NINGÚN ENCOLADOR, o una llamada directa— no tiene ahí a nadie
-        # que arme una frase mejor.
+        # consumidor es `Pipeline#not_ready_failure`, que sólo necesita el texto.
+        # Fuera de `Pipeline` —que rescata en `start!` y en `advance!`— a
+        # `activate!` sólo lo llaman los specs, así que hoy no hay nadie que la
+        # deje escapar a un log; el día que lo haya, no va a tener ahí a nadie
+        # que arme una frase mejor que ésta.
         raise Flow::Errors::StepNotReady, "«#{step.name}» no está listo para arrancar: #{reasons.join('. ')}" unless ready
 
         step.transaction do
