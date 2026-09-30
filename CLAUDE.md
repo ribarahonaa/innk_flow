@@ -883,10 +883,30 @@ junta en la misma pantalla, y `.panel` → `card` + `card-body` **ahí**. El pla
 **2b-bis** se llevó el resto: las 23 vistas HAML que quedaban y el markup de
 tarjeta de las dos islas Vue (`pipeline_builder`, `criteria_editor`) —cuatro
 lugares que el spec del 2b no había contado—, y con eso **`.panel` no existe
-más**: la regla se borró de la hoja. Lo que sigue siendo 2c es el resto de las
-islas: su comportamiento, el CSS muerto del editor de criterios y
-`.btn-link`. `.step-card`, `.flow-strip` y `.empty-state` siguen siendo clases
-propias a propósito: son vocabulario de esta app.
+más**: la regla se borró de la hoja.
+
+El plan **2c cerró, y más chico de lo que estaba fichado.** Decía «el resto de
+las islas: su comportamiento, el CSS muerto del editor de criterios y
+`.btn-link`», y medido: **las islas no necesitaban nada**. Ya usan `btn`,
+`btn-ghost`, `btn-primary`, `alert`, `alert-soft`, `card` y `card-body` de
+DaisyUI, y lo que les queda propio —`criterion-edit__*`, `criteria-edit-list`,
+`builder__*`, `code-input`, `levels`, `weight-meter`— es vocabulario de esta app,
+que es justo lo que la regla de las tres capas dice que tiene que seguir siendo
+propio. Lo que sí había era **CSS muerto**: de 402 clases declaradas, 7 sin un
+solo uso —los cuatro `criterion-row__*` del markup anterior del editor,
+`checks-help`, `inline-label` y `btn-link`—, y se borraron.
+
+**Y el hueco de fondo, que es lo que queda de esa tanda:** `[CLASES]` en
+`make screens` caza un ELEMENTO que se quedó sin regla, y nada cazaba lo
+contrario —una REGLA que se quedó sin elemento—, que es por lo que se juntaron
+siete en silencio. Ahora lo cuida
+`spec/lint/reglas_sin_elemento_spec.rb`, con dos excepciones declaradas y con
+autotest del detector: el primero que se escribió reportó 267 de 402 «sin uso»
+porque HAML escribe `.x` y no `class="x"`, y un detector mal acotado reporta cero
+y da verde.
+
+`.step-card`, `.flow-strip` y `.empty-state` siguen siendo clases propias a
+propósito: son vocabulario de esta app.
 
 #### Lo que más fácil se rompe
 
