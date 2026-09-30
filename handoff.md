@@ -2,302 +2,244 @@
 
 ## Objetivo
 
-Tres cosas, las tres terminadas y **mergeadas y pusheadas a `master`**:
-
-1. Cerrar el **módulo de taller** (tareas 7 a 10 del plan, revisión final de rama
-   y su ola de arreglos).
-2. Cerrar el **residual y los minors** que esa revisión dejó anotados.
-3. Cerrar el **tramo P1** del listado de pendientes.
+Cerrar el **tramo P4** del listado de pendientes, que era lo último que quedaba
+abierto. Se cerró entero —**28 de 28**— y con eso el listado completo: P0, P1,
+P2, P3 y P4. Al final se actualizaron los dos diagramas y los tres artefactos.
 
 ## Estado actual
 
-- **`master` está en `15cd01e`, pusheado.** `make spec` **1358/0** sobre el
-  resultado mergeado (venía de 1169 antes del taller); `make screens`
-  **71 capturas / 0 errores**.
-- Las ramas `modulo-de-taller` y `taller-pendientes` se mergearon y se borraron.
-  **`origin/modulo-de-taller` sigue viva en GitHub** apuntando a `d3bc6b8`, que
-  hoy es ancestro de `master`: borrarla es una decisión pendiente.
-- El listado de pendientes: **P0, P1, P2 y P3 cerrados**. Queda P4.
-  https://claude.ai/artifact/C2i3g3ZRz1gUeMuX3bEXrq
-  (los checks del artefacto **no** están tildados para lo de esta sesión —
-  hay que tildar `card-relleno`, `asignar-rol`, `asignar-baja`,
-  `sesion-sin-membresia`, `selections-scope`, `selections-notice`,
-  `ritmo-piso`, `forms-dom` y `forms-422`.)
+- **`master` está en `d7d6ae5`, pusheado.** `make spec` **1418/0** (venía de
+  1358); `make screens` **71 capturas / 0 errores**, ahora con cuatro contadores
+  de piso en la línea final.
+- **Diez tandas mergeadas**, cada una con su rama borrada. 21 commits, 77
+  archivos, +3093/−181.
+- El listado, al día: https://claude.ai/artifact/C2i3g3ZRz1gUeMuX3bEXrq
+  (encabezado y los 28 tildes puestos). Los diagramas también, republicados:
+  https://claude.ai/artifact/86a1MJf9xuRBmmGpDHmczw ·
+  https://claude.ai/artifact/QrNVi9xvzRgaZ5UsibSueB
 
 ### Lo que se cerró, en una línea cada uno
 
-**El taller.** Las diez tareas del plan, con revisión por tarea y cuatro fix
-rounds. Después, una revisión de rama entera que encontró 1 Critical y
-8 Important, su ola de doce arreglos, y el arreglo de la regresión que esa ola
-introdujo.
+**A · El panel que no mostraba lo que pidió.** `ai_suggestions` guarda UN
+objetivo y de esa columna salían DOS respuestas —sobre qué actúa, y desde qué
+pantalla se pidió—. Tres tareas quedaban invisibles en el panel que las pedía, y
+`path_for` hacía lo contrario de su propio comentario. La regla pasó a
+declararse (`Tasks::Base.revisa_en`).
 
-**El residual del taller.** El gestor convocado a una mesa ya no firma ideas
-propias: `IdeaPolicy#create?` se pregunta en el controller **y** en la vista.
+**B · Lo que se caía al default en silencio.** Un `accepts` desconocido en
+`testing_passed` caía en la rama MÁS PERMISIVA; ahora todo `select` se valida
+contra el esquema, con un hook en vez de un `super`. Un set `inline` sin módulo
+dejó de ser representable.
 
-**Los quince minors diferidos.** Entre ellos, abrirle a un gestor la creación
-de un taller —que el spec §6 ya prometía y el permiso no daba— acotada a
-«administra el que creó **mientras no tiene desafíos**», con el `Scope`
-siguiendo la misma regla para que dé 404 y no 403.
+**C · Lo que no llama nadie.** Se borraron `AssessmentPolicy#update?`, una
+variable muerta y `Flow::Steps::ActivateJob` con sus tres referencias y su cola.
+`criteria_sets#show` se queda, documentada. Y `flow.entry_statuses.skipped` no
+sobraba: faltaba el cableado.
 
-**P1, guardas ciegas.** `[RITMO]` y `[RELLENO]` cuentan cuánto midieron y
-fallan bajo un piso; `[FORMS]` mira el DOM real y comprueba que el documento
-que relee es el que se fotografió; y nada vigilaba el relleno por default de
-`card` desde que `[CARD]` se retiró con `.panel`.
+**D · Tests que daban verde sin poder fallar.** La tabla de puertas del gestor
+pasó de tres sujetos a cinco, «Ver el set» ganó su par de polaridad, y el orden
+del historial de testeos se pide en vez de heredarse de una coincidencia.
 
-**P1, permisos.** Quien pierde la membresía deja de navegar con el tenant
-puesto y se resuelve en el selector; asignar a evaluar valida el rol del lado
-del servidor y la baja **suelta** las asignaciones; y el corte filtra los ids
-por `policy_scope` y cuenta sobre lo que de verdad avanzó.
+**E · Las guardas de la pastilla.** Una sola medición por pantalla para las dos
+guardas, piso de cuánto midió, y un borde punteado que dejó de acreditarse como
+uno sólido.
 
-**P2, los controles.** Saltear un módulo y cerrar un desafío existían con ruta,
-policy y cobertura y **ninguna vista las ofrecía**. Se ofrecen las dos, con
-guarda de policy **y de estado** —`skip?` dice que sí también sobre un módulo
-cerrado— y confirmación que dice qué pasa: saltear un pendiente **sube el piso
-de inserción**. De paso, saltear un pendiente dejó de contestar en rojo una
-operación que salió bien (era el 100% del camino nuevo), y `skip!` dejó de
-aceptar un desafío en **borrador**, donde dejaba el flujo corriendo sin nadie
-activo y **silenciaba el error de arranque de Idear**.
+**F · Lo medido y anotado.** El «3 / 2» estaba vivo en el seed; el `min-width`
+del desglose pasó de anotado a medido en cada corrida.
 
-**P2, lo demás.** Se sacó `DELETE /criteria_sets/:id`, con el comentario del
-precedente y el camino de vuelta. **`docs/pipeline.md` tenía DIEZ afirmaciones
-falsas o viejas**, no las dos anotadas: la tabla de handlers sin `Testing`,
-cuatro filas desactualizadas, el contrato de `skip!`, y `Flow::Steps::ActivateJob`
-como job vivo que **nadie encola**. Las diez corregidas y verificadas contra el
-código. La regla del nombre quedó escrita en `CLAUDE.md`, y las dos
-concordancias de plural que conviven a propósito quedaron explicadas.
+**G · Esquema y fondo.** La guarda de FK ausente encontró
+`ai_suggestions.criteria_set_id` en su primera corrida, y la migración la agrega.
+El CSP se habilitó acotado.
 
+**H · El backlog largo.** `Pipeline#validate` dejó de reimplementar la regla de
+la selección, guardar una evaluación resuelve el snapshot de una sola vez, la
+pantalla de evolución quedó medida y el seed hace ruido cuando el flujo no avanza.
 
-**P3, los once visuales.** Ninguno se había arreglado solo. Entraron al sistema
-visual el campo de archivo y el rol del selector de empresa; el popup de espera
-oscurece la pantalla; el Brief perdió 72px de nada que eran **dos párrafos
-vacíos de un `<p>` dentro de otro**; el histograma tiene proporciones que no
-mienten (medido 1:2); y el relleno de `.alert` **no era un selector**: eran DOS
-filtros —`revisarPastilla` y uno del muestrario que decía que `.alert` quedaba
-afuera a propósito— más el arreglo de la hoja.
-
-**Y un hallazgo que no estaba en el listado:** el tope de la franja de
-referencia (`max-height: 320px`) era **incompatible con su propia guarda**. 320
-permite un título en 470px y `[REFERENCIA]` corta en 450, así que estaba
-condenada a fallar en cuanto cualquier tarjeta de referencia creciera. El tope
-ahora sale de la cuenta, escrita en el comentario, y **ataja antes que la
-guarda**.
-
-**Los diagramas.** `docs/arquitectura.html` y `docs/proceso.html` regenerados
-con el taller —como **evento**, no como etapa— y con cinco afirmaciones viejas
-corregidas, entre ellas un «404, nunca 403» que `CLAUDE.md` ya había desmentido.
-Publicados: https://claude.ai/artifact/86a1MJf9xuRBmmGpDHmczw ·
-https://claude.ai/artifact/QrNVi9xvzRgaZ5UsibSueB
-
+**2c · El último.** Las islas no necesitaban nada; la hoja tenía siete reglas sin
+un solo uso.
 
 ## Archivos y cambios
 
-Cinco tandas mergeadas a `master`, de `74d95b4` a `c7a60ed`. Dónde vive cada
-cosa:
-
-- **El taller** (57 archivos): cinco modelos en `app/models/workshop*.rb`
-  —`workshop_challenge.rb` tiene `room_state`, que decide la cara de la sala;
-  `workshop_group.rb` tiene `workable_ideas`, la unión por mesa—; cuatro
-  servicios en `app/lib/flow/workshops/`; `workshop_policy.rb` y
-  `workshop_proposal_policy.rb`; seis controllers; las vistas de
-  `app/views/workshops/`; tres migraciones.
-- **Permisos y sesión:** `app/lib/flow/assignments/release.rb` (suelta las
-  asignaciones al dar de baja), `concerns/tenant_resolution.rb` (el filtro que
-  pide la membresía y desanota la empresa), `step_assignment.rb`
-  (`eligible_user_ids`), `selections_controller.rb`.
-- **Los controles nuevos:** `app/views/steps/_saltear.html.haml` servido en las
-  doce caras, `ApplicationHelper#puede_saltear?`, y el `button_to` de cerrar en
-  `challenges/show.html.haml`.
-- **Las guardas del recorrido:** todo en `script/capture_screens.js`
-  —`PISO_DE_RITMO`, `PISO_DE_CARD_BODY`, el `form form` sobre el DOM, la
-  identidad del documento, `[PASTILLA]` extendida a `.alert`—.
-- **La hoja:** `app/assets/stylesheets/application.css`, sobre todo el tope de
-  la franja de referencia, `.alert-soft`, `.challenge-brief` y el campo de
-  archivo.
-- **Docs:** `docs/pipeline.md` (diez correcciones), `CLAUDE.md` (la regla del
-  nombre, `[RELLENO]` y su alcance), los dos `.json` de los diagramas.
+- **Guardas nuevas, que es lo que más rinde de la sesión:**
+  `spec/lint/propuesta_visible_donde_se_pidio_spec.rb` (una propuesta se revisa
+  donde se pidió), `spec/lint/reglas_sin_elemento_spec.rb` (la mitad que le
+  faltaba a `[CLASES]`), el ejemplo de FK ausente en `spec/tenancy/schema_spec.rb`,
+  `spec/requests/evaluacion_una_consulta_de_criterios_spec.rb` (cuenta consultas),
+  `spec/models/criteria_set_spec.rb`, y en `script/capture_screens.js` los pisos
+  de `[PASTILLA]` y `[CRITERIO]` más la regla del borde punteado.
+- **Declaraciones nuevas en el dominio:** `Tasks::Base.revisa_en`,
+  `Criterion.indexed_from`, `Checks::Base#own_config_errors` (hook),
+  `StepTest.vigente_primero`, `ApplicationHelper#origen_del_set`.
+- **Esquema:** `db/migrate/20260930120000_add_missing_fk_on_ai_suggestions.rb` y
+  `db/structure.sql`.
+- **Seguridad:** `config/initializers/content_security_policy.rb`, que estaba
+  comentado entero.
+- **Docs:** `CLAUDE.md` (2c cerrado, el chequeo de navegador de los diagramas),
+  los dos `.json` de los diagramas y sus HTML.
 
 **Dos specs que vale conocer antes de tocar nada:**
-`spec/requests/workshop_sala_idear_spec.rb` tiene el test más valioso del
-taller —beto (misma mesa) recibe 200 y carla (afuera) 404 **sobre la misma
-idea**, así que se cae si alguien toca `IdeaPolicy::Scope` o deja de sembrar
-contribuyentes—; y `spec/policies/gestor_administra_spec.rb` existe porque
-**abrir un permiso de más no rompe ningún test**, y cerrarlo de más tampoco.
+`spec/lint/reglas_sin_elemento_spec.rb` y
+`spec/lint/propuesta_visible_donde_se_pidio_spec.rb` son las dos que existen
+porque el defecto que cuidan **no rompía ningún test**, y las dos prueban su
+propio detector.
 
 ## Intentos fallidos
 
-### El plan se contradecía a sí mismo, una vez más y en grande
+### Tres de las 28 fichas eran distintas de lo escrito, y una era falsa
 
-El brief de la Task 8 **esperaba en su test** que beto propusiera sobre la idea
-de ana (misma mesa) y pasara, y **en su código** buscaba con
-`policy_scope(Idea)`, que para quien participa devuelve sólo lo propio o lo que
-colabora — o sea que su primer ejemplo daba 404 con su propio controller. Se
-falló a favor del spec §3.5 («alguno de sus miembros»), implementado como
-método de `WorkshopGroup` para no chocar con la guarda de lint que marca todo
-`Idea`/`.ideas` fuera de un `policy_scope` en un controller.
+- **`t-rescate` no existía.** «`AiRequestsController` sólo rescata
+  `ArgumentError`, así que un POST fabricado sale 500 con traza»: el rescue
+  angosto es cierto, la conclusión no. Se probaron los cuatro caminos —propósito
+  desconocido, contexto faltante, un id que no es UUID, y sin `step_id` en una
+  tarea que pide módulo activo— y dan flash, flash, 404 y 403. Lo que cubre todo
+  lo de adentro es el `rescue StandardError` de `Flow::AI::Runner#call`, que la
+  ficha no miró.
+- **`p-skipped` era lo contrario de su ficha.** Estaba como «clave huérfana del
+  locale» y no sobraba la clave: faltaba el cableado, y era un bug visible —una
+  idea de un módulo salteado decía «Pendiente» para siempre—.
+- **`l-show` tampoco era huérfana.** Ninguna vista linkea `criteria_sets#show`,
+  pero es la ruta con la que `gestor_spec` prueba que la fuga de lectura que
+  cerró `CriteriaSetPolicy::Scope` sigue cerrada.
+- **`l-2c` era mucho más chico.** Medido, las islas ya usan los componentes de
+  DaisyUI y lo propio que les queda es vocabulario de esta app.
 
-**Lección: cuando el test y el código de un brief se contradicen, el test suele
-tener razón, porque describe la intención.**
+**Lección: medir la ficha antes de ejecutarla.** Cuatro de 28 no decían lo que
+pasaba, y las cuatro se descubrieron midiendo, no leyendo.
 
-### El controller de la Task 9 reventaba tal como estaba escrito
+### `git checkout <archivo>` me borró el arreglo, no la mutación
 
-No llamaba `authorize` ni una vez, y `ApplicationController` corre
-`verify_pundit_usage` **sin `only:`**: las dos acciones levantaban
-`Pundit::AuthorizationNotPerformedError`. Hubo que escribir
-`WorkshopProposalPolicy`. `policy_scope` satisface `verify_policy_scoped`, que
-no es lo que pide una acción que no es `index`.
+Probando la guarda de la tanda A: muté `revisa_en` en `suggest_feedback.rb` y
+restauré con `git checkout`. En una rama sin commit eso restaura del ÍNDICE, o
+sea de antes del arreglo. Las dos mutaciones siguientes corrieron sobre un árbol
+ya roto y la evidencia quedó contaminada. **Lo delató el propio lint spec**, que
+seguía pidiendo la declaración que ya no estaba. Está en memoria: el backup va
+con `cp` al scratchpad.
 
-### El módulo era inalcanzable desde la app, y casi se embarca así
+### Un piso que yo mismo calibré demasiado ajustado, y falló horas después
 
-`workshops_path` no aparecía en ninguna vista fuera de `workshops/` mismo: se
-llegaba sólo escribiendo la URL. Ninguna de las diez tareas declaraba el link
-del nav. Lo reportó el implementador de la Task 10 **como preocupación menor**,
-al explicar por qué su captura entraba con un `goto`.
+`PISO_DE_PASTILLAS` se puso en 700 un día que medía 758-810. En la tanda H la
+misma corrida **sobre el mismo commit** daba 634 y fallaba. Lo que cambió fue la
+BASE de desarrollo, no el código: se comprobó guardando los cambios en curso y
+corriendo `master` limpio, que midió 634 igual. El recorrido camina datos
+sembrados y los chips de estado salen de las ideas y módulos que haya. Quedaron
+en 300 y 100 —`[CRITERIO]` tenía el mismo defecto—, con la diferencia con
+`[RELLENO]` explicada: ése sí puede ir pegado porque los `card-body` son
+estructura.
 
-**Lección: cuando un subagente justifica un atajo, mirá lo que la justificación
-está admitiendo.**
+### Un contrato que ningún test podía hacer cumplir
 
-### Mi propia ola de arreglos introdujo una regresión, y `make screens` la dejó pasar en verde
+En la tanda B escribí `config_errors` como `super + propios` con el comentario
+«quien sobreescriba tiene que llamar a `super`». Después vi que **ningún test
+puede cazar ese olvido**: los tres checks con errores propios no tienen ningún
+`select` con opciones declaradas, así que perder la parte genérica no cambia nada
+observable. Pasó a ser un hook (`own_config_errors`). Un hook no se puede
+olvidar, que es mejor que una guarda para el mismo modo de falla.
 
-El `case` con rama por defecto que arregló el Critical mandaba al `else` los
-vínculos de un taller en **borrador** —que nacen con `status: open` y
-`challenge_step_id` nulo a propósito—, así que un borrador recién armado
-anunciaba «el desafío avanzó de fase», **que es falso**. El implementador había
-protegido ese mismo estado del lado de la **escritura** (guarda `open?` en
-`MaterializeClosures`, que él mismo cazó leyendo el seed) y lo dejó abierto del
-lado de la **lectura**.
+### Dos tests míos que no podían fallar por lo que decían probar
 
-Peor: pega justo en la pantalla de `24-taller-armado`, y **`make screens` dio
-71/0 igual**, porque las guardas `[TALLER]` de esa captura sólo buscaban «Abrir
-taller» y «Mesas».
+- El de `p-skipped` matcheaba el nombre del módulo y «Salteado» sueltos sobre el
+  body, y el nombre también sale en el mapa del flujo de la izquierda, donde
+  «Salteado» sí está. Daba verde sin haber mirado «Cómo le fue».
+- El del «3 / 2» me llevó **tres** intentos: un `.muted` con `title` suelto
+  agarra el aviso de «Faltan evaluaciones», y anclarlo a la fila pero exigiendo
+  `</span>` saltaba al chip de iniciales, porque la celda ENVUELVE a los chips.
 
-Se arregló con un estado `:unopened` propio, **y con la guarda que faltaba**:
-la captura ahora cuenta los títulos de sala del borrador. Y se la vio fallar:
-borrando a mano la rama `- when :unopened`, la corrida imprime
-`[TALLER] el taller en borrador dibuja 2 sala(s): todavía no se abrió` y sale
-con error.
+Los dos se arreglaron apretando el matcher al markup, y los dos fallos fueron
+visibles (`got: "Faltan evaluaciones…"`, `got: "Usuario3"`), que es lo que los
+hizo detectables.
 
-**Lección, la misma de siempre en este repo: una guarda que nadie vio fallar no
-es una guarda.** Y la variante nueva: **arreglar el lado de la escritura de un
-estado no arregla el lado de la lectura.**
+### Mi refactor rompió 17 ejemplos que mi propia guarda no cubría
 
-### Una guarda que nadie vio fallar no es una guarda
+`Criterion.indexed_from` en `EvaluateIdea` referenciaba `snapshot`, que ahí es
+una LOCAL de `apply!` y no un método. Lo cazó **la suite existente**, no el spec
+de conteo de consultas que acababa de escribir —ése cubre el camino del
+controller—. Lección: una guarda nueva no cubre lo que uno cree que cubre;
+mirar qué camino ejercita de verdad.
 
-Se probó **seis veces** en esta sesión, rompiendo a mano y corriendo: mutar,
-correr, restaurar. Encontró cosas cada vez. Las dos que más valen:
+### El detector de CSS muerto reportó 267 de 402
 
-- La ola de arreglos de la revisión final del taller **introdujo una regresión
-  que `make screens` dejó pasar en verde**, porque la guarda de esa captura
-  sólo miraba dos textos.
-- `[RITMO]` pasaba en un tercio de las pantallas **sin comparar nada**, y
-  mudarla a `capturar()` hizo que ese silencio se leyera como cobertura.
+Incluyendo `app-main` y `card-body`. HAML no escribe `class="x"` sino `.x`, y el
+regex sólo miraba el atributo. Un detector roto reporta de más y se nota; uno mal
+ACOTADO reporta cero y da verde, que no se nota. Por eso el spec prueba su propio
+detector, con un ejemplo dedicado a la taquigrafía de HAML.
 
-Los scripts de mutación quedaron en el scratchpad, no en el repo: son tres
-líneas de `sed` con `git checkout` detrás.
+### El CSP con el nonce que sugiere Rails bloqueaba el único script inline
 
-### Un tope que hace imposible que su propia guarda pase
+El archivo comentado que trae Rails propone
+`config.content_security_policy_nonce_generator = ->(request) { request.session.id.to_s }`.
+Con eso el nonce sale **vacío** —medido: el header decía `'nonce-'` y el tag
+`nonce=""`— y un nonce vacío no matchea: el navegador bloquea el script inline,
+que es el del polling de reportes. **`make screens` dio verde igual**, y por dos
+razones que valen juntas: sólo escucha `pageerror` y una violación de CSP es un
+error de CONSOLA; y ese script sólo se renderiza con un reporte PENDIENTE, que el
+recorrido no produce. Lo cazó un spec que compara el nonce del tag contra el del
+header. El generador pasó a ser aleatorio por pedido.
 
-`max-height: 320px` en la franja de referencia permitía un título en 470px, y
-`[REFERENCIA]` corta en 450: **estaba condenada a fallar** en cuanto cualquier
-tarjeta de referencia creciera. Nadie lo había notado porque el margen real era
-de 3px. La lección: cuando una guarda mide una suma, el tope de cada sumando
-tiene que salir de la misma cuenta — y la cuenta va escrita al lado.
+### `deliver` no prueba que un diagrama entre en una pantalla
 
-### Arreglar una cosa rompe otra, en silencio
-
-Pasó dos veces seguidas y las dos las cazó la revisión, no la suite:
-
-- Sacarle al Brief los 72px muertos le sacó **la medida de prosa**, porque
-  ponerle clase al párrafo lo saca de `.app-main > .card p:not([class])`.
-  Quedó una línea de 1032px, y **ninguna guarda mide ancho de línea**.
-- Ofrecer el control de saltear hizo que el camino más común terminara en un
-  `alert` rojo sobre una operación que **salía bien**.
-
-### Los comentarios mienten antes que el código
-
-Tres apariciones en una sesión: uno decía que `skip!` no mira el estado del
-desafío (dejó de ser cierto en el mismo fix que lo dejó huérfano), otro que
-ninguna pantalla oscura tiene avisos (`99-oscuro-idear` tiene uno), y otro que
-`EmbedVersionJob` lo cubre Sidekiq por reintento (es un **no-op silencioso**:
-`find_by` da `nil` y `EmbedVersion#call` devuelve `false`).
-
-**Y los docs mienten más:** `docs/pipeline.md` tenía **diez** afirmaciones
-falsas o viejas, no las dos que el listado anotaba.
-
-### Un test que no puede fallar por lo que dice probar
-
-Cuatro veces en esta sesión. La más instructiva: el ejemplo del desafío cerrado
-en `testing_ia_spec` estaba tapado por `@step.active?`, así que sacar la guarda
-que decía probar **no lo ponía en rojo**. Se verifica de una sola forma:
-revertir la guarda y mirar el test.
-
-### Filtrar la salida de `make screens` puede tapar el error
-
-Corrí con `| tail -6` y reporté «falló» sin poder decir por qué: la línea de
-`[REFERENCIA]` había quedado fuera del recorte. Guardá la salida entera a un
-archivo y filtrá después.
-
-### Una premisa que estaba escrita en el ledger y era falsa
-
-Se venía anotando que `EmbedVersionJob` encolado dentro de una transacción
-externa «lo cubre Sidekiq por reintento». **No.** Si el job corre antes del
-commit, `IdeaVersion.find_by(id:)` da `nil` y `EmbedVersion#call` hace
-`return false` — **éxito silencioso**, sin excepción y sin reintento. La
-versión queda sin vector y nadie se entera. Ya está arreglado (el
-`perform_later` sale después del commit), pero la lección es que una mitigación
-anotada y nunca verificada es peor que ninguna.
+Sus nueve checks son estáticos. Eso lo mide `visual-check`, que **por default se
+saltea** —«Chrome or Chromium is unavailable»— y sale con `ok: false` y
+`status: "skipped"`, facilísimo de leer como aprobado. Apuntándolo al chromium
+que ya usa `make screens`, los dos diagramas **fallan el contenido vertical**, y
+venían fallando: sobre el HTML de `master` sin nada encima, arquitectura da
+1339px de alto en un viewport de 900 y proceso 1688px. Mis cambios suman 6px al
+primero y CERO al segundo.
 
 ## Próximos pasos
 
-1. **Tildar en el artefacto lo que se cerró**, que hoy queda desfasado del repo:
-   `card-relleno`, `asignar-rol`, `asignar-baja`, `sesion-sin-membresia`,
-   `selections-scope`, `selections-notice`, `ritmo-piso`, `forms-dom` y
-   `forms-422`. El encabezado del artefacto también sigue diciendo
-   `master 74d95b4 · 1169 ejemplos · 66 capturas`.
-2. **Decidir qué hacer con `origin/modulo-de-taller`**, viva en GitHub
-   apuntando a `d3bc6b8` (ya ancestro de `master`).
-3. **Lo que quedó anotado y NO se cerró**, todo fuera de alcance por decisión:
-   - **`challenge_gestores` huérfano re-otorga acceso solo.** La fila sobrevive
-     a la baja, y en cuanto esa persona reaparece con rol `gestor` recupera
-     todos los desafíos cuya fila quedó. No es fuga hoy —sin membresía el
-     filtro nuevo no la deja entrar— pero es un permiso que se restaura desde
-     dato viejo. Otra tabla, otra decisión.
-   - **El redirect por membresía alcanza a la API y a los turbo-frames**: una
-     isla de alguien con la membresía revocada recibe 302 a HTML en vez de
-     JSON, y un frame pinta «Content missing». Es la misma forma que ya tenía
-     el caso «sin empresa», así que no es regresión, pero nadie lo cubre.
-   - **No hay spec del rollback de `Flow::Assignments::Release`** ni del 500
-     con la baja ya hecha si el recompute falla. Sostenido por lectura.
-   - **`--card-fs` y la sombra de `card` siguen sin guarda.** `[RELLENO]` cubre
-     **una** de las tres cosas que medía `[CARD]`; está dicho en `CLAUDE.md`
-     para que nadie lo dé por cubierto.
-   - El resto de los minors del tramo P4 del artefacto, intactos.
-4. **Un flake horario preexistente, encontrado de paso y sin arreglar:**
-   `Selection#decide!` escribe `decided_at: Time.current` **por fila** y la
-   vista agrupa con `.change(sec: 0)`. Dos filas a los dos lados de un cambio
-   de minuto parten la tanda y el registro dice «1 idea» dos veces
-   (`spec/requests/selection_screen_spec.rb:138`). Apareció una vez en una
-   corrida y después verde en cinco.
-5. **Seguir por P4**, el último tramo: los cuatro del módulo de testing, los
-   cinco del rol gestor, los cinco de la pastilla, el terreno ya medido, los
-   dos puntos ciegos de `[FORMS]` y el backlog largo. Todo triageado y sin
-   urgencia.
-   https://claude.ai/artifact/C2i3g3ZRz1gUeMuX3bEXrq
+1. **El desborde vertical de los dos diagramas.** Es redistribuir el Y y subir el
+   `viewBox`, o sacar contenido; el skill prohíbe taparlo con `overflow: hidden`
+   o con letra más chica. Decisión de diseño, con los números y el comando en
+   `CLAUDE.md`.
+2. **`make screens` no ve violaciones de CSP.** Sólo escucha `pageerror`. Con el
+   CSP activo desde esta sesión, es un punto ciego NUEVO: si alguien agrega un
+   script inline sin nonce, el recorrido da verde y la pantalla no funciona.
+   Escuchar `console` con filtro de CSP sería el arreglo.
+3. **El nodo salteado del mapa del flujo mide menos de 3:1.** 1,96 en claro y
+   2,42 en oscuro, y el punteado es su único portador VISUAL de estado —comparte
+   `badge-soft` con el pendiente—. Hay `title` con el estado, así que hay
+   alternativa textual; si se lo trata como información, el piso que le
+   corresponde es 3:1 (WCAG 1.4.11) y no el 1,5 de la pastilla punteada.
+4. **Decidir qué hacer con `origin/modulo-de-taller`**, viva en GitHub apuntando
+   a `d3bc6b8`, ya ancestro de `master`. Viene de dos handoffs.
+5. **El flake horario preexistente** de `spec/requests/selection_screen_spec.rb:138`:
+   `Selection#decide!` escribe `decided_at: Time.current` por fila y la vista
+   agrupa con `.change(sec: 0)`.
+6. **Los dos artefactos de diagramas avisan que su botón de exportar no funciona**
+   en el visor de artefactos («the artifact viewer never grants pages download
+   permission»). Es del visor que genera archify, no del contenido; los HTML en
+   `docs/` sí exportan.
+7. **Hay actualización de la skill `archify`**: instalada 2.17.0-dev.1, última
+   3.0.1. No se tocó nada.
+8. Lo que sigue anotado y fuera de alcance de handoffs anteriores:
+   `challenge_gestores` huérfano re-otorgando acceso, el redirect por membresía
+   alcanzando a la API y a los turbo-frames, y la falta de spec del rollback de
+   `Flow::Assignments::Release`.
 
 ## Cosas del entorno
 
 - **En desarrollo `FLOW_AI_PROVIDER=anthropic`: un pedido a la IA cuesta plata
-  real.** Ningún subagente abre la app ni corre `make screens`; eso lo hace
-  quien controla. Los implementadores corren `make spec*`, `make seed` y
-  migraciones, nada más.
+  real.** Ningún subagente abre la app ni corre `make screens`.
+- **Probar una guarda es romperla a mano y correrla**, y el backup va con `cp` al
+  scratchpad: **`git checkout <archivo>` en una rama sin commit restaura del
+  índice, o sea deshace el ARREGLO y no la mutación.** Pasó, y contaminó dos
+  mutaciones antes de notarse.
+- **La base de desarrollo tiene datos hechos a mano que no están en el seed**
+  (`optimizacion-de-la-experiencia-de-onboarding`). No se resetea. Y resembrar
+  MUEVE los conteos del recorrido: por eso los pisos de `[PASTILLA]` y
+  `[CRITERIO]` son flojos a propósito.
+- **`visual-check` de archify necesita que se le diga dónde está Chrome:**
+  `export ARCHIFY_CHROME=~/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome`.
+  Sin eso se saltea y sale `ok: false` con `status: "skipped"`.
+- **Republicar un artefacto que esta conversación no publicó lleva tres intentos:**
+  el primero se rechaza y guarda la versión viva, hay que leerla con la
+  herramienta de lectura (no alcanza `diff` en disco), y el tercero pasa. Conviene
+  comparar en disco antes, para no traer 800 KB a contexto.
 - **El remote está por SSH y acá no hay clave.** Todo push va con la URL HTTPS
-  explícita, y después el ref de seguimiento se mueve a mano.
+  explícita y después el ref de seguimiento se mueve a mano.
 - **Las ramas van en el directorio del proyecto, sin worktree**: Docker está
   atado a él.
 - El harness sigue inyectando `Co-Authored-By` por system-reminder; hay que
-  cortarla a mano. En los 43 commits de las dos ramas no quedó ninguna.
-- `make screens` tarda ~2 minutos y `make spec` ~1:45. Las dos corren bien en
+  cortarla a mano. En los 21 commits de esta sesión no quedó ninguna.
+- `make screens` tarda ~2 minutos y `make spec` ~2. Las dos corren bien en
   background.
-- **Probar una guarda de `make screens` es romperla a mano y correrla.** Se
-  hizo seis veces en esta sesión y encontró cosas: mutar, correr, restaurar.
-  Los scripts de mutación quedaron en el scratchpad de la sesión, no en el
-  repo — son tres líneas de `sed` con `git checkout` detrás.
