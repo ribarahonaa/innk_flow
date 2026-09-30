@@ -490,7 +490,20 @@ async function revisarClasesDescartadas(page, name) {
     // fondo, sin relleno y sin borde, que es exactamente lo que esto atrapa.
     // `.flow-drawer__punto` está por otro motivo, con CSS propio y escrito a
     // mano: lo que esto atrapa no es sólo una clase que Tailwind no vio, es
-    // cualquier elemento que se quedó sin la regla que lo pintaba. El punto
+    // cualquier elemento que se quedó sin la regla que lo pintaba.
+    //
+    // LO QUE NO PUEDE VER, y conviene saberlo antes de confiarle un chip: un
+    // `badge-soft` NUNCA cae acá. La hoja le deriva relleno y borde de
+    // `currentColor` con alfa, y `currentColor` siempre resuelve a algún color
+    // —al heredado, si hace falta—, así que `sinFondo` no es cierto jamás para
+    // un chip suave por roto que esté el token que debería pintarlo. El chequeo
+    // es de tres condiciones Y, y la primera no se cumple nunca.
+    //
+    // No se puede arreglar midiendo: del estilo computado no se saca de dónde
+    // salió un color. A los chips suaves los cubre `[PASTILLA]`, que no pregunta
+    // si hay fondo sino si ese fondo SE DISTINGUE de la superficie de atrás, y
+    // ahí un currentColor de más no ayuda a pasar. Que nadie dé por cubierto un
+    // chip suave porque `[CLASES]` está verde. El punto
     // del drawer entró acá cuando dejó de ser un `badge` vaciado —antes lo
     // cubría `[class*="badge"]`— y su fondo es un `color-mix()` sobre
     // `--punto`: si ese token se rompe o se renombra, el `color-mix()` queda
@@ -623,6 +636,12 @@ async function medirContraste(page, selector) {
           clase: el.className,
           texto: el.textContent.trim().slice(0, 40),
           ratio: contraste(texto, fondo),
+          estiloDeBorde: parseFloat(cs.borderTopWidth) > 0 ? cs.borderTopStyle : 'none',
+          // Las dos mitades por separado: `[PASTILLA]` se queda con la más
+          // fuerte, pero saber CUÁL de las dos define la pastilla es lo que
+          // permite descontar un borde que no cubre todo el perímetro.
+          pastillaDeFondo: contraste(fondo, superficie),
+          pastillaDeBorde: contraste(borde, superficie),
           // Lo más FUERTE de los dos: cualquiera que llegue al piso deja la
           // pastilla definida.
           pastilla: Math.max(contraste(fondo, superficie), contraste(borde, superficie))
@@ -729,8 +748,8 @@ async function probarMedidorDePastilla(page) {
 // texto con el color PURO del tema, y los colores que la hoja usaba para el
 // texto de un chip (`--ok`, `--warn`, `--danger`) están oscurecidos justamente
 // porque puros no llegaban. Esto dice cuál hay que ajustar, en cada pantalla.
-async function revisarContraste(page, name) {
-  const bajos = (await medirContraste(page, '.badge, .alert')).filter((m) => m.ratio < 4.5);
+async function revisarContraste(name, medidos) {
+  const bajos = medidos.filter((m) => m.ratio < 4.5);
   const unicos = [...new Map(bajos.map((m) => [m.clase, m])).values()].slice(0, 6);
   if (unicos.length) {
     failures++;
@@ -788,8 +807,50 @@ async function revisarContraste(page, name) {
 //     del mapa del flujo es el caso vivo.
 const PISO_DE_PASTILLA = 1.25;
 
-async function revisarPastilla(page, name) {
-  const bajos = (await medirContraste(page, '.badge, .alert')).filter((m) => m.pastilla < PISO_DE_PASTILLA);
+// Un borde PUNTEADO dibuja más o menos la mitad del perímetro, y hasta acá se
+// acreditaba igual que uno sólido: el chip llegaba al piso por un borde que en
+// pantalla está la mitad del tiempo ausente. El caso vivo es el nodo salteado
+// del mapa del flujo, que comparte `badge-soft` con el pendiente —mismo fondo,
+// mismo texto— y se distingue SÓLO por el punteado.
+//
+// Medido: su fondo da 1,081 en claro y 1,092 en oscuro, o sea POR DEBAJO del
+// piso normal; lo que lo hacía pasar era el borde, con 1,957 y 2,422. Así que
+// no es una hipótesis: hoy hay exactamente un chip cuya pastilla la sostiene un
+// borde a medio dibujar.
+//
+// El piso más alto sale de la misma cuenta que el otro, no de elegir un número:
+// 1,25 está a 0,25 de 1,0 —el punto donde no hay pastilla— y un borde que cubre
+// la mitad tiene que llegar al doble de esa distancia. De ahí 1,50. Los 1,957 y
+// 2,422 de hoy lo pasan con margen, y se cae si el punteado se afloja.
+//
+// Se aplica SÓLO cuando el borde es lo que sostiene la pastilla: si el fondo ya
+// llega solo, el punteado es decoración y el piso normal alcanza.
+const PISO_DE_PASTILLA_PUNTEADA = 1.5;
+
+function pisoDePastillaDe(m) {
+  const punteado = m.estiloDeBorde === 'dashed' || m.estiloDeBorde === 'dotted';
+  return punteado && m.pastillaDeBorde > m.pastillaDeFondo
+    ? PISO_DE_PASTILLA_PUNTEADA
+    : PISO_DE_PASTILLA;
+}
+
+// Cuántos chips y avisos midió la corrida entera. Una pantalla sin ningún
+// `.badge` ni `.alert` mide cero y pasa, y con 71 pantallas ese silencio se lee
+// como cobertura: si los chips dejaran de llamarse `badge` —que es lo que pasó
+// cuando `.status-chip` pasó a `badge`— esta guarda quedaría verde sin medir
+// NADA. Es el mismo motivo por el que `[RITMO]` y `[RELLENO]` cuentan.
+//
+// El piso tiene margen ancho a propósito: tres corridas seguidas midieron 758,
+// 762 y 778, así que el total NO es estable —depende de qué alcanzó a pintarse—
+// y un piso pegado al número de hoy sería un falso rojo cada tanto. 700 está
+// abajo del mínimo observado con holgura y sigue siendo un orden de magnitud
+// distinto de cero, que es lo que esto tiene que distinguir.
+const PISO_DE_PASTILLAS = 700;
+let pastillasMedidas = 0;
+
+async function revisarPastilla(name, medidos) {
+  pastillasMedidas += medidos.length;
+  const bajos = medidos.filter((m) => m.pastilla < pisoDePastillaDe(m));
   const unicos = [...new Map(bajos.map((m) => [m.clase, m])).values()].slice(0, 6);
   if (unicos.length) {
     failures++;
@@ -1049,7 +1110,7 @@ async function revisarMuestrario(page, tema) {
   // adentro: toda clase de chip empieza con `badge ` —hay un spec de Ruby que
   // lo exige— y las tres variantes de aviso, con `alert `.
   const sinPastilla = medidos.filter(
-    (m) => /^(badge|alert) /.test(m.clase) && m.pastilla < PISO_DE_PASTILLA
+    (m) => /^(badge|alert) /.test(m.clase) && m.pastilla < pisoDePastillaDe(m)
   );
   if (sinPastilla.length) {
     failures++;
@@ -1233,8 +1294,12 @@ async function capturar(page, name) {
   await revisarClasesDescartadas(page, name);
   await revisarCardSinBody(page, name);
   await revisarRellenoDeTarjeta(page, name);
-  await revisarContraste(page, name);
-  await revisarPastilla(page, name);
+  // UNA sola medición para las dos guardas: `medirContraste` recorre el DOM y
+  // compone la cadena de fondos de cada elemento, y se estaba haciendo dos veces
+  // por pantalla sobre el mismo selector.
+  const pastillas = await medirContraste(page, '.badge, .alert');
+  await revisarContraste(name, pastillas);
+  await revisarPastilla(name, pastillas);
   await revisarMonoEnProsa(page, name);
   shots.push(name);
 }
@@ -2806,10 +2871,14 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // verde y es indistinguible de una que funciona, que es el modo de falla que
   // este script ya pagó dos veces (la pasada oscura del muestrario, y `[MONO]`
   // después del arreglo).
-  console.log(`[RITMO] ${pantallasConRitmo} de ${shots.length} pantallas tuvieron dos tarjetas que comparar · [RELLENO] ${cardBodiesMedidos} \`card-body\` medidos`);
+  console.log(`[RITMO] ${pantallasConRitmo} de ${shots.length} pantallas tuvieron dos tarjetas que comparar · [RELLENO] ${cardBodiesMedidos} \`card-body\` medidos · [PASTILLA] ${pastillasMedidas} chips y avisos medidos`);
   if (pantallasConRitmo < PISO_DE_RITMO) {
     failures++;
     console.error(`[RITMO] sólo ${pantallasConRitmo} de ${shots.length} pantallas tuvieron un par de tarjetas que comparar, y el piso es ${PISO_DE_RITMO}: la guarda dejó de ver las tarjetas`);
+  }
+  if (pastillasMedidas < PISO_DE_PASTILLAS) {
+    failures++;
+    console.error(`[PASTILLA] sólo se midieron ${pastillasMedidas} chips y avisos en ${shots.length} pantallas, y el piso es ${PISO_DE_PASTILLAS}: la guarda dejó de ver los chips`);
   }
   if (cardBodiesMedidos < PISO_DE_CARD_BODY) {
     failures++;
