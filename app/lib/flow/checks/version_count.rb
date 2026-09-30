@@ -14,7 +14,7 @@ module Flow
 
       def description = "tiene al menos #{Flow::Texto.contar(minimum, "versión")}"
 
-      def config_errors
+      def own_config_errors
         return ["el mínimo debe ser al menos 1"] if minimum < 1
 
         []

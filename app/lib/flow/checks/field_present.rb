@@ -19,7 +19,7 @@ module Flow
         "«#{field_label}» tiene al menos #{min_length} caracteres"
       end
 
-      def config_errors
+      def own_config_errors
         return ["falta indicar qué campo se verifica"] if field_key.blank?
 
         []

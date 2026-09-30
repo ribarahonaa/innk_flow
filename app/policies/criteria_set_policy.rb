@@ -28,6 +28,10 @@ class CriteriaSetPolicy < ApplicationPolicy
   # Un set `library` se comparte entre TODOS los desafíos de la empresa,
   # incluidos los que el gestor no ve, así que sigue siendo de quien administra
   # la empresa.
+  #
+  # El `&.` no cubre un set inline sin módulo: eso ya no existe. `CriteriaSet`
+  # valida `owner_step` cuando el scope es `inline`, y la FK lo borra con su
+  # módulo. Queda por los no guardados, que es lo único que puede llegar en nil.
   def update?
     return manager? if record.library?
 

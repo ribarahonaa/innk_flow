@@ -47,6 +47,41 @@ RSpec.describe "pedirle a la IA que testee", type: :request do
     end
   end
 
+  # Los dos ejemplos que siguen nacieron de una afirmación FALSA que estaba
+  # anotada en el backlog: «AiRequestsController sólo rescata ArgumentError, así
+  # que un POST fabricado sale 500 con traza». El rescue angosto es cierto; la
+  # conclusión no. Quedan como regresión de lo que sí ataja cada cosa, porque la
+  # próxima persona que lea ese rescue va a pensar lo mismo.
+  #
+  # Acá falta el CONTEXTO que la tarea necesita: el propósito existe, el módulo
+  # está activo y quien pide tiene permiso. Lo ataja el `rescue StandardError` de
+  # `Flow::AI::Runner#call`, que marca el run como fallido y devuelve el error en
+  # el Result — no el rescue del controller.
+  it "un pedido sin la idea avisa en vez de reventar" do
+    sign_in(admin, company: company)
+    modulo = paso
+
+    post challenge_ai_requests_path(challenge, purpose: "test_idea", step_id: modulo.id)
+
+    expect(response).to have_http_status(:redirect)
+    expect(flash[:ia]["tipo"]).to eq("error")
+  end
+
+  # Y el otro candidato a 500, que tampoco lo es: un id que no es un UUID. Ocurre
+  # en `build_context`, o sea ANTES del rescue del Runner, así que si algo iba a
+  # reventar era esto. Rails lo castea y la búsqueda no encuentra nada, con lo
+  # que sale por `RecordNotFound`. Da 404, que además es lo correcto: un 403
+  # confirmaría que el id existe.
+  it "un id que no es un UUID da 404 y no 500" do
+    sign_in(admin, company: company)
+    modulo = paso
+
+    post challenge_ai_requests_path(challenge, purpose: "test_idea",
+                                    step_id: modulo.id, idea_id: "no-soy-un-uuid")
+
+    expect(response).to have_http_status(:not_found)
+  end
+
   it "quien administra ve el botón en la fila de la idea" do
     sign_in(admin, company: company)
     get challenge_step_path(challenge, paso)

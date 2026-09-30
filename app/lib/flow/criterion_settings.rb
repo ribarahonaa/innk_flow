@@ -154,6 +154,20 @@ module Flow
     class << self
       def check_params(type) = CHECKS.dig(type.to_s, :params) || []
 
+      # Las opciones que declara cada `select` del check, por clave. Es lo único
+      # contra lo que se puede validar sin repetir la lista en otro lado: el
+      # esquema es fuente única y la UI ya renderiza desde acá.
+      #
+      # Los `select` con `source:` quedan AFUERA a propósito: sus opciones son
+      # los campos del formulario del módulo y no viven en el esquema.
+      def check_options(type)
+        check_params(type).each_with_object({}) do |param, acc|
+          next unless param[:type] == "select" && param[:options].present?
+
+          acc[param[:key]] = param[:options].map { |option| option[:value] }
+        end
+      end
+
       # La escala efectiva de un origen: la fórmula tiene la suya, el resto usa
       # la que eligió. Es la misma regla que `align_scale_with_source`, de este
       # lado para que el editor muestre los campos correctos.

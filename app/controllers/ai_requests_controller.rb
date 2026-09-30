@@ -28,6 +28,19 @@ class AiRequestsController < ApplicationController
 
     flash[:ia] = flash_de_ia(result)
     redirect_back fallback_location: challenge_path(@challenge)
+  # Angosto A PROPÓSITO, y alcanza: lo único que llega hasta acá es el
+  # `ArgumentError` de `Tasks::Base.for` por un propósito que no existe. Todo lo
+  # que reviente DENTRO de la tarea —contexto faltante, un `nil` en `messages`,
+  # el proveedor caído— lo toma el `rescue StandardError` de
+  # `Flow::AI::Runner#call`, que lo convierte en un Result fallido; un id que no
+  # es UUID sale por `RecordNotFound` con 404; y un pedido sin módulo a una tarea
+  # que lo necesita se cae antes, en `step_ready?`, con 403.
+  #
+  # Se anotó en el backlog que este rescue angosto dejaba salir un 500 con traza
+  # ante un POST fabricado. Se probaron los cuatro caminos y ninguno lo hace
+  # (`spec/requests/testing_ia_spec.rb`). Ensancharlo acá no arreglaría nada y
+  # taparía el día que una tarea pida contexto en su `initialize`, que es la
+  # misma advertencia que ya está escrita en `Tasks::Base.informativa?`.
   rescue ArgumentError => e
     flash[:ia] = { "tipo" => "error", "mensaje" => e.message, "sugerencia_id" => nil }
     redirect_back fallback_location: challenge_path(@challenge)
