@@ -985,4 +985,66 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
       expect(tarjeta.css(".card, .panel")).to be_empty
     end
   end
+
+  # Las consultas de esta pantalla estaban fichadas como pendiente sin que nadie
+  # las hubiera medido. Medidas con CINCO ideas: `feedback_items` 1,
+  # `idea_versions` 2, `step_entries` 1. Ninguna crece con las filas, así que no
+  # había N+1 que arreglar: el handler ya memoiza `feedback_index` y
+  # `versions_from_step` como un group-by de una sola consulta cada uno.
+  #
+  # Lo que faltaba era que eso se SOSTENGA, y hay que ser preciso con qué
+  # sostiene, porque la primera versión de este comentario afirmaba de más.
+  #
+  # Lo que SÍ caza: que alguien lea el feedback o las versiones POR IDEA, con el
+  # id de la idea en el WHERE. Probado mutando `feedback_for` a un
+  # `FeedbackItem.where(..., idea_id: idea_id)` por fila: el ejemplo se cae.
+  #
+  # Lo que NO caza, y no es culpa del tope: que a `feedback_index` le saquen el
+  # `||=`. Sin el memo repite el SQL IDÉNTICO —mismo `challenge_step_id`— y la
+  # caché de consultas de Rails lo sirve sin ir a la base, así que
+  # `consultas_a` no lo ve; su propio comentario lo dice. Se mutó y el ejemplo
+  # quedó verde. Los memos siguen valiendo por el trabajo en Ruby que ahorran,
+  # no porque esto los cuide.
+  #
+  # El tope no depende de cuántas ideas haya, que es lo único que distingue un
+  # N+1 de «hace varias consultas».
+  #
+  # Describe propio y no un ejemplo más: las `step_entries` se arman al ACTIVAR
+  # (`Flow::Cohort.sync!`), así que las cinco ideas tienen que estar postuladas
+  # ANTES del `advance!` del `before` de afuera — una idea que llega después no
+  # tiene fila en ninguna parte y la pantalla no la muestra.
+  describe "las consultas con varias ideas" do
+    let!(:challenge) do
+      as_company(company) do
+        c = create(:challenge, name: "Merma", ai_default_mode: "human")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
+        c.steps.create!(kind: "evolution", position: 2, name: "Ronda")
+        c
+      end
+    end
+
+    before do
+      %w[Sensores Camaras Turnos Pesaje Balanza].each do |titulo|
+        postular!(challenge, author: paula, titulo: titulo)
+      end
+      as_company(company) do
+        challenge.pipeline.start!
+        challenge.pipeline.advance!
+      end
+    end
+
+    it "no lee el feedback ni las versiones una vez por idea" do
+      sign_in(admin, company: company)
+
+      feedback = consultas_a("feedback_items") { get challenge_step_path(challenge, paso("evolution")) }
+      versiones = consultas_a("idea_versions") { get challenge_step_path(challenge, paso("evolution")) }
+
+      # Ata los topes a que la pantalla haya DIBUJADO las cinco filas: con el
+      # listado vacío las consultas desaparecen y los números quedan verdes
+      # sobre una pantalla que no muestra nada.
+      expect(response.body).to include("Sensores", "Camaras", "Turnos", "Pesaje", "Balanza")
+      expect(feedback.size).to be <= 1, feedback.join("\n")
+      expect(versiones.size).to be <= 2, versiones.join("\n")
+    end
+  end
 end

@@ -840,12 +840,22 @@ function pisoDePastillaDe(m) {
 // cuando `.status-chip` pasó a `badge`— esta guarda quedaría verde sin medir
 // NADA. Es el mismo motivo por el que `[RITMO]` y `[RELLENO]` cuentan.
 //
-// El piso tiene margen ancho a propósito: tres corridas seguidas midieron 758,
-// 762 y 778, así que el total NO es estable —depende de qué alcanzó a pintarse—
-// y un piso pegado al número de hoy sería un falso rojo cada tanto. 700 está
-// abajo del mínimo observado con holgura y sigue siendo un orden de magnitud
-// distinto de cero, que es lo que esto tiene que distinguir.
-const PISO_DE_PASTILLAS = 700;
+// El piso es FLOJO a propósito, y la primera versión de esto no lo era: se puso
+// en 700 contra un día que medía 758-810, y unas horas después la misma corrida
+// sobre el mismo commit daba 634 y fallaba. Lo que cambió fue la BASE de
+// desarrollo —el recorrido camina datos sembrados, y los chips de estado salen
+// de las ideas y los módulos que haya—, no el código: se comprobó corriendo
+// `master` limpio, sin los cambios en curso, y midió 634 igual.
+//
+// O sea que un piso ajustado al número de ayer es un falso rojo esperando a la
+// próxima resembrada. Y no hace falta: lo que esto tiene que distinguir es
+// «midió algo» de «midió NADA», que es el caso real —si los chips dejaran de
+// llamarse `badge`, como pasó cuando `.status-chip` pasó a `badge`, la guarda
+// quedaría verde sin medir nada—. Para eso alcanza un orden de magnitud.
+//
+// A diferencia de `[RELLENO]`, que puede ir pegado (270 medidos, piso 250)
+// porque los `card-body` son ESTRUCTURA y no dependen de los datos.
+const PISO_DE_PASTILLAS = 300;
 let pastillasMedidas = 0;
 
 async function revisarPastilla(name, medidos) {
@@ -1306,9 +1316,11 @@ async function revisarMonoEnProsa(page, name) {
 // grilla de dos columnas en el `li`. NO subir el `min-width`, que sólo corre el
 // problema al nombre siguiente.
 const ANCHO_DEL_CRITERIO = 110;
-// Hoy se miden 168 en seis pantallas. El piso va abajo con margen por lo mismo
-// que el de la pastilla: el total depende de qué alcanzó a pintarse.
-const PISO_DE_CRITERIOS = 140;
+// Flojo por el mismo motivo que `PISO_DE_PASTILLAS`, y con la misma historia
+// detrás: el número sale de los criterios SEMBRADOS, así que se mueve con la base
+// de desarrollo y no con el código. Se miden ~195; el piso sólo tiene que
+// distinguir «midió algo» de «midió nada».
+const PISO_DE_CRITERIOS = 100;
 let criteriosMedidos = 0;
 
 async function revisarAnchoDeCriterio(page, name) {

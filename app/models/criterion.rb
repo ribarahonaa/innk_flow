@@ -7,6 +7,23 @@ class Criterion < ApplicationRecord
   # antes de cargar config/initializers/inflections.rb busca "criterions".
   self.table_name = "criteria"
 
+  # Los criterios de un snapshot congelado, por id y en UNA consulta.
+  #
+  # Los cinco caminos que resuelven un snapshot lo hacían con un
+  # `find_by(id:)` por criterio: guardar una evaluación de cinco criterios
+  # pedía diez veces a `criteria` —medido— para traer cinco filas que se piden
+  # juntas. Y los ids son los mismos para todas las ideas del módulo.
+  #
+  # Devuelve las claves en STRING porque el snapshot guarda los ids
+  # serializados y `criterion.id` es un uuid: comparar sin normalizar deja el
+  # hash sin matchear y los puntajes sin resolver, en silencio.
+  def self.indexed_from(snapshot)
+    ids = Array(snapshot).filter_map { |config| config["id"] }.uniq
+    return {} if ids.empty?
+
+    where(id: ids).index_by { |criterion| criterion.id.to_s }
+  end
+
   # Dos ejes independientes.
   #
   #   SOURCES     quién produce el valor

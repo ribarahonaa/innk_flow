@@ -24,6 +24,22 @@ Flow::Tenant.bypass! do
   demo = Company.find_or_create_by!(slug: "demo") { |c| c.name = "Empresa Demo" }
   otra = Company.find_or_create_by!(slug: "otra") { |c| c.name = "Otra Empresa" }
 
+  # `Pipeline#start!` y `#advance!` devuelven un Result y NO levantan. El seed los
+  # llamaba y descartaba lo que devolvían, así que un flujo mal armado terminaba
+  # con el seed «exitoso», el desafío en borrador y las capturas apuntando a
+  # pantallas que no existen. Silencioso es peor que roto: cuesta más caro
+  # encontrarlo desde el otro lado.
+  #
+  # Va como helper y no como `raise` en cada llamada porque son veinte, y
+  # diecinueve con la guarda y una sin ella es exactamente el agujero que esto
+  # cierra.
+  def move!(pipeline, step)
+    result = pipeline.public_send(step)
+    return result if result.ok?
+
+    raise "seeds: `#{step}` no avanzó el flujo — #{result.error_sentence}"
+  end
+
   def upsert_user!(email:, name:, password: Flow::Demo::PASSWORD)
     user = User.find_or_initialize_by(email: email)
     user.name = name
@@ -173,7 +189,7 @@ Flow::Tenant.bypass! do
                                    required: type != "file", position: index, config: config)
     end
 
-    pipeline.start!
+    move!(pipeline, :start!)
     ideation.reload
 
     semillas = [
@@ -231,7 +247,7 @@ Flow::Tenant.bypass! do
     ChallengeGestor.find_or_create_by!(challenge: challenge,
                                        user: User.find_by!(email: "guia@demo.test"))
 
-    pipeline.advance!  # → Ronda de feedback
+    move!(pipeline, :advance!)  # → Ronda de feedback
     evolution = pipeline.active_step
 
     # Feedback humano sobre las dos primeras, que después lo atienden.
@@ -267,7 +283,7 @@ Flow::Tenant.bypass! do
       evolution.handler.record_response!(idea, version)
     end
 
-    pipeline.advance!  # → Evaluación técnica
+    move!(pipeline, :advance!)  # → Evaluación técnica
 
     # ── Helper para evaluar un módulo completo ──
     evaluar = lambda do |step, jueces, base_por_idea|
@@ -300,7 +316,7 @@ Flow::Tenant.bypass! do
     end
 
     evaluar.call(pipeline.active_step, evaluadores, [[9, 8, 3], [8, 7, 4], [6, 6, 5], [4, 5, 7], [7, 8, 2]])
-    pipeline.advance!  # → Corte a top 3
+    move!(pipeline, :advance!)  # → Corte a top 3
 
     corte = pipeline.active_step
 
@@ -336,7 +352,7 @@ Flow::Tenant.bypass! do
       decided_by: admin,
       reason: "El comité priorizó lo que se puede pilotear este trimestre"
     )
-    pipeline.advance!  # → Evaluación de comité
+    move!(pipeline, :advance!)  # → Evaluación de comité
 
     comite = pipeline.active_step
 
@@ -347,14 +363,14 @@ Flow::Tenant.bypass! do
                   &.update!(weight: 2)
 
     evaluar.call(comite, evaluadores, [[9, 8, 4], [7, 8, 3], [6, 7, 5]])
-    pipeline.advance!  # → Finalistas
+    move!(pipeline, :advance!)  # → Finalistas
 
     finalistas = pipeline.active_step
     finalistas.handler.decide!(
       finalistas.handler.ranking.select(&:above_cut?).map { |row| row.idea.id },
       decided_by: admin, reason: "Las dos que entran al presupuesto del trimestre"
     )
-    pipeline.advance!  # → Reporte de cierre
+    move!(pipeline, :advance!)  # → Reporte de cierre
 
     reporte = pipeline.active_step
     Flow::AI::Runner.call(
@@ -470,7 +486,7 @@ Flow::Tenant.bypass! do
       recorrido_ideacion.form_fields.create!(key: key, label: label, field_type: type, hint: hint,
                                              required: true, position: index, config: config)
     end
-    recorrido.pipeline.start!
+    move!(recorrido.pipeline, :start!)
     recorrido_ideacion.reload
 
     [
@@ -510,7 +526,7 @@ Flow::Tenant.bypass! do
     salteado_ideacion = salteado.pipeline.ideation_step
     salteado_ideacion.form_fields.create!(key: "titulo", label: "Título", field_type: "text", required: true,
                                           position: 0, config: { "is_title" => true })
-    salteado.pipeline.start!
+    move!(salteado.pipeline, :start!)
     salteado.steps.reload.find(&:evolution?).handler.skip!(reason: "Sin gestores disponibles este mes")
 
     # Un módulo de evaluación TODAVÍA activo, con una idea real que evaluar:
@@ -536,7 +552,7 @@ Flow::Tenant.bypass! do
     abierto_ideacion = abierto.pipeline.ideation_step
     abierto_ideacion.form_fields.create!(key: "titulo", label: "Título", field_type: "text", required: true,
                                          position: 0, config: { "is_title" => true })
-    abierto.pipeline.start!
+    move!(abierto.pipeline, :start!)
     idea_abierta = Idea.create!(challenge: abierto, author: User.find_by!(email: "part2@demo.test"),
                                 status: "draft", origin: "human")
     Flow::Ideas::PublishVersion.new(
@@ -545,7 +561,7 @@ Flow::Tenant.bypass! do
       change_note: "Creación de la idea"
     ).call
     idea_abierta.update!(submitted_at: Time.current)
-    abierto.pipeline.advance!  # → Evaluación de comité (activo, con la idea adentro)
+    move!(abierto.pipeline, :advance!)  # → Evaluación de comité (activo, con la idea adentro)
 
     # Un desafío con el módulo de TESTING activo, una idea ya testeada y otra
     # sin testear: es la única forma de que la captura muestre las dos filas
@@ -577,7 +593,7 @@ Flow::Tenant.bypass! do
     testeo_ideacion.form_fields.create!(key: "titulo", label: "Título", field_type: "text",
                                         required: true, position: 0,
                                         config: { "is_title" => true })
-    testeo.pipeline.start!
+    move!(testeo.pipeline, :start!)
 
     ideas_a_probar = ["Bicis eléctricas con caja térmica",
                       "Tercerizar el último kilómetro a un courier local"].map do |titulo|
@@ -591,7 +607,7 @@ Flow::Tenant.bypass! do
       idea
     end
 
-    testeo.pipeline.advance!  # → Prueba de factibilidad (activo, con las dos ideas)
+    move!(testeo.pipeline, :advance!)  # → Prueba de factibilidad (activo, con las dos ideas)
 
     # La primera queda testeada; la segunda sin testear.
     testeo.pipeline.active_step.handler.testear!(
@@ -657,7 +673,7 @@ Flow::Tenant.bypass! do
     set_de_filtro.refresh_status!
     filtro_seleccion.update!(criteria_set_id: set_de_filtro.id)
 
-    filtro.pipeline.start!
+    move!(filtro.pipeline, :start!)
 
     ideas_del_filtro = [
       ["Tablet para pedir desde la mesa", "factible"],
@@ -673,7 +689,7 @@ Flow::Tenant.bypass! do
       idea
     end
 
-    filtro.pipeline.advance!  # → Prueba de factibilidad
+    move!(filtro.pipeline, :advance!)  # → Prueba de factibilidad
     paso_de_prueba = filtro.pipeline.active_step
 
     paso_de_prueba.handler.testear!(
@@ -696,7 +712,7 @@ Flow::Tenant.bypass! do
       tested_by: User.find_by!(email: "admin@demo.test")
     )
 
-    filtro.pipeline.advance!  # → Corte por factibilidad (activo, con el filtro ya respondido)
+    move!(filtro.pipeline, :advance!)  # → Corte por factibilidad (activo, con el filtro ya respondido)
 
     # Un desafío SIN módulos, para la captura del selector de plantillas.
     # Antes el script de capturas creaba uno en cada corrida y no lo borraba:
@@ -743,7 +759,7 @@ Flow::Tenant.bypass! do
                                position: 0, config: { "is_title" => true })
       step.form_fields.create!(key: "descripcion", label: "Descripción", field_type: "textarea",
                                required: false, position: 1, config: {})
-      created.pipeline.start!
+      move!(created.pipeline, :start!)
       [created, step]
     end
 
@@ -776,7 +792,7 @@ Flow::Tenant.bypass! do
       [workshop_part2, "Almuerzo de bienvenida",
        "Un almuerzo con el equipo el segundo día."]
     ].map { |author, title, description| workshop_idea.call(evolution_challenge, evolution_ideation_step, author, title, description) }
-    evolution_challenge.pipeline.advance!  # → Ronda de feedback (activa)
+    move!(evolution_challenge.pipeline, :advance!)  # → Ronda de feedback (activa)
     workshop_round = evolution_challenge.pipeline.active_step
     FeedbackItem.create!(challenge_step: workshop_round, idea: workshop_ideas[0],
                          idea_version_id: workshop_ideas[0].current_version_id, author: workshop_admin,
@@ -789,7 +805,7 @@ Flow::Tenant.bypass! do
     )
     workshop_idea.call(advanced_challenge, advanced_ideation_step, workshop_part2, "Manual en video",
                        "Reemplazar los capítulos más largos por videos de dos minutos.")
-    advanced_challenge.pipeline.advance!  # → Evaluación (idear ya no está activo)
+    move!(advanced_challenge.pipeline, :advance!)  # → Evaluación (idear ya no está activo)
 
     # El taller ABIERTO: dos mesas, tres desafíos. El del manual queda afuera
     # al abrir y se ve cerrado con su motivo. Admin está en la mesa de Paula
