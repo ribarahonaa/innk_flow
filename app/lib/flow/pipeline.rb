@@ -168,10 +168,23 @@ module Flow
       errors << "El desafío no tiene ningún módulo." if list.empty?
       errors << "Falta el módulo «Idear»: sin él no hay ideas que recorran el flujo." if list.none?(&:ideation?)
 
+      # Se le PREGUNTA al handler en vez de reimplementar la regla acá. Estuvo
+      # escrita en los dos lados y divergieron en una rama:
+      # `Selection#can_activate?` deja arrancar una selección que trae sus
+      # PROPIOS criterios —son filtros, no calificaciones— y esto no la
+      # contemplaba, así que el desafío no arrancaba aunque el módulo pudiera
+      # activarse. El workaround quedó escrito en `db/seeds.rb`, que le pone
+      # `score_source: "manual"` a un corte que sólo filtra nada más que para
+      # pasar por acá.
+      #
+      # El texto SÍ es propio, y eso no es una copia: acá es un ítem de checklist
+      # del flujo y en `Base#activate!` es una excepción. Lo que no puede estar
+      # duplicado es la CONDICIÓN, que es la que divergió.
       list.select(&:selection?).each do |step|
-        next if resolvable_score_source?(step, list)
+        ready, reasons = Flow::Handlers::Base.for(step).can_activate?
+        next if ready
 
-        errors << "«#{step.name}» no tiene ninguna evaluación previa de la cual tomar puntaje."
+        errors << "«#{step.name}» #{reasons.join('. ')}."
       end
 
       if (ideation = list.find(&:ideation?)) && ideation.pending? && ideation.form_fields.empty?
@@ -324,14 +337,6 @@ module Flow
 
       challenge.update!(status: "closed", closed_at: Time.current)
       success(nil)
-    end
-
-    def resolvable_score_source?(step, list)
-      source = step.settings.dig("score_source", "type")
-      return true if source == "manual"
-
-      index = list.index(step) || list.size
-      list.first(index).any?(&:evaluation?)
     end
 
     # `after` puede ser :end (al final), nil (al principio) o un step.

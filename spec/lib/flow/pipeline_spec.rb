@@ -225,9 +225,34 @@ RSpec.describe Flow::Pipeline do
       expect(described_class.new(challenge).validate.errors.join).to match(/Falta el módulo/)
     end
 
-    it "exige que una selección tenga una evaluación previa resoluble" do
+    # El texto cambió al preguntarle al handler, y para mejor: ahora nombra las
+    # DOS salidas que tiene una selección —criterios propios o una evaluación
+    # previa— en vez de sólo la segunda.
+    it "exige que una selección tenga criterios propios o una evaluación previa" do
       challenge = build_pipeline(%w[ideation selection], challenge_status: "draft")
-      expect(described_class.new(challenge).validate.errors.join).to match(/no tiene ninguna evaluación previa/)
+      expect(described_class.new(challenge).validate.errors.join)
+        .to match(/no tiene criterios propios ni una evaluación previa/)
+    end
+
+    # `validate` reimplementaba la regla en vez de preguntarla, y las dos copias
+    # divergieron en UNA rama: `Selection#can_activate?` deja arrancar una
+    # selección que trae sus PROPIOS criterios —son filtros, no calificaciones—
+    # y `validate` no contemplaba ese caso, así que el desafío no arrancaba
+    # aunque el módulo pudiera activarse.
+    #
+    # El workaround está escrito en el repo, que es la mejor prueba de que la
+    # divergencia era real: `db/seeds.rb` le pone `score_source: "manual"` a un
+    # corte que sólo filtra, con el comentario diciendo que sin eso `validate` lo
+    # rechaza, y los specs de una selección sólo-filtro usan el mismo truco.
+    it "acepta una selección con criterios propios y sin evaluación previa" do
+      challenge = build_pipeline(%w[ideation selection], challenge_status: "draft")
+      seleccion = challenge.steps.reload.find(&:selection?)
+      set = CriteriaSet.create!(name: "Filtros", scope: "inline", owner_step: seleccion)
+      set.criteria.create!(name: "¿Está clara?", key: "clara", weight: 1,
+                           source: "manual", scale_type: "boolean")
+      seleccion.update!(criteria_set: set)
+
+      expect(described_class.new(challenge.reload).validate).to be_valid
     end
 
     it "acepta un pipeline coherente" do

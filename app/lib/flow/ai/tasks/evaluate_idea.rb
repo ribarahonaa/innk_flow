@@ -118,7 +118,7 @@ module Flow
             config = snapshot.find { |c| c["key"] == row["criterion_key"] }
             next if config.nil?
 
-            criterion = Criterion.find_by(id: config["id"])
+            criterion = criterios[config["id"].to_s]
             numeric, normalized = criterion ? criterion.score(row["value"].to_s) : [nil, nil]
 
             score = assessment.assessment_scores.find_or_initialize_by(criterion_key: config["key"])
@@ -161,13 +161,19 @@ module Flow
         # da una lectura ligeramente distinta.
         def pass = context.fetch(:pass, 1).to_i
 
+        # Una sola vez: lo piden `apply!` —que llama a este snapshot `snapshot`, en
+        # una local— y `criteria_prompt`, vía `answerable_criteria`. Los dos salen
+        # de la misma lista: `Evaluation#criteria_snapshot` ES
+        # `settings["criteria"]`, así que un memo alcanza para los dos.
+        def criterios = @criterios ||= Criterion.indexed_from(step.settings["criteria"] || [])
+
         def answerable_criteria
           (step.settings["criteria"] || []).select { |c| %w[manual ai].include?(c["source"]) }
         end
 
         def criteria_prompt
           answerable_criteria.map do |config|
-            criterion = Criterion.find_by(id: config["id"])
+            criterion = criterios[config["id"].to_s]
             options = criterion&.scale&.options
             escala = if options.present?
                        "opciones: #{options.map { |o| o.is_a?(Array) ? o.last : o }.join(', ')}"

@@ -40,12 +40,16 @@ module Flow
 
       private
 
+      # Una sola vez por evaluación: `compute_automatic!` y `write_derived!`
+      # recorren el mismo snapshot.
+      def criterios = @criterios ||= Criterion.indexed_from(@snapshot)
+
       # Los criterios automáticos no los completa nadie: se verifican contra la
       # idea al guardar la evaluación. Un check que pasa vale 1, uno que no, 0,
       # y pesa igual que cualquier otro criterio del set.
       def compute_automatic!(scores)
         @snapshot.select { |config| config["source"] == "automatic" }.each do |config|
-          criterion = Criterion.find_by(id: config["id"])
+          criterion = criterios[config["id"].to_s]
           next if criterion.nil?
 
           result = criterion.verify(assessment.idea)
@@ -128,7 +132,7 @@ module Flow
       end
 
       def write_derived!(config, bindings, scores)
-        criterion = Criterion.find_by(id: config["id"])
+        criterion = criterios[config["id"].to_s]
         scale = criterion&.scale
 
         upsert_score(config, scores) do |score|

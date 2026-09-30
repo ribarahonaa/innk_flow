@@ -90,8 +90,10 @@ class AssessmentsController < ApplicationController
     submitted = params.fetch(:scores, {}).permit!.to_h
     comments = params.fetch(:comments, {}).permit!.to_h
 
+    criterios = Criterion.indexed_from(handler.scored_criteria)
+
     handler.scored_criteria.each do |config|
-      criterion = Criterion.find_by(id: config["id"])
+      criterion = criterios[config["id"].to_s]
       raw = submitted[config["key"]]
       numeric, normalized = criterion ? criterion.score(raw) : [nil, nil]
 
