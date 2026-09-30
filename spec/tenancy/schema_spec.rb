@@ -60,8 +60,8 @@ RSpec.describe "esquema: aislamiento por empresa en la base" do
     }
   end
 
-  it "toda FK entre dos tablas de dominio incluye company_id (es compuesta)" do
-    foreign_keys = sql(<<~SQL)
+  let(:foreign_keys) do
+    sql(<<~SQL)
       SELECT con.conname                AS name,
              src.relname                AS from_table,
              tgt.relname                AS to_table,
@@ -75,7 +75,9 @@ RSpec.describe "esquema: aislamiento por empresa en la base" do
       JOIN pg_namespace n ON n.oid = src.relnamespace
       WHERE con.contype = 'f' AND n.nspname = 'public'
     SQL
+  end
 
+  it "toda FK entre dos tablas de dominio incluye company_id (es compuesta)" do
     simple = foreign_keys.select do |fk|
       next false unless tenant_tables.include?(fk["from_table"])
       next false unless tenant_tables.include?(fk["to_table"])
@@ -88,6 +90,76 @@ RSpec.describe "esquema: aislamiento por empresa en la base" do
       "FKs simples entre tablas de dominio (deberían ser compuestas):\n" +
         simple.map { |fk| "  - #{fk['from_table']}.#{fk['from_columns']} -> #{fk['to_table']}" }.join("\n") +
         "\n\nUsá `add_tenant_fk` en la migración."
+    }
+  end
+
+  # Las cuatro guardas de arriba miran FKs que EXISTEN: si hay una, revisan que
+  # sea compuesta y que su `SET NULL` esté acotado. Ninguna puede ver una que
+  # FALTA, y ése es un agujero distinto y peor: una columna que apunta a otra
+  # tabla de dominio sin FK queda afuera de la garantía entera —Postgres deja
+  # atar una fila de la empresa A a un padre de la B— y nada la delata. Las tres
+  # de arriba pasan igual, porque lo que no existe no incumple nada.
+  #
+  # El caso que lo destapó: `ai_suggestions.criteria_set_id` era la única de sus
+  # cuatro columnas de destino sin FK, aunque el CHECK `single_target_check` la
+  # nombra junto a las otras tres.
+  #
+  # La detección va por CONVENCIÓN, que es lo único que se puede leer del
+  # catálogo: una columna `<x>_id` cuya `<x>` en plural es otra tabla de dominio
+  # tiene que ser parte de una FK hacia esa tabla.
+  #
+  # LO QUE NO VE, y conviene saberlo antes de confiarle una columna: un nombre
+  # ALIAS no entra por la convención. `challenge_steps.source_step_id`,
+  # `criteria_sets.owner_step_id` y `assessments.evaluator_id` apuntan a
+  # `challenge_steps` y a `users` con otro nombre, así que esta guarda no las
+  # mira. Hoy las tres tienen su FK, y que sea COMPUESTA lo cuida el ejemplo de
+  # arriba; que EXISTA, no lo cuida nadie. Para cubrirlas habría que escribir la
+  # lista a mano, que es la clase de lista que este repo ya vio envejecer.
+  it "toda columna que apunta a otra tabla de dominio tiene su FK" do
+    columnas = sql(<<~SQL)
+      SELECT c.relname AS table_name, a.attname AS column_name
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      JOIN pg_attribute a ON a.attrelid = c.oid
+      WHERE c.relkind = 'r' AND n.nspname = 'public'
+        AND a.attnum > 0 AND NOT a.attisdropped
+        AND a.attname LIKE '%\\_id'
+      ORDER BY 1, 2
+    SQL
+
+    candidatas = columnas.filter_map do |col|
+      tabla = col["table_name"]
+      columna = col["column_name"]
+      next if columna == "company_id"
+      next unless tenant_tables.include?(tabla)
+
+      destino = columna.delete_suffix("_id").pluralize
+      next unless tenant_tables.include?(destino)
+
+      { tabla: tabla, columna: columna, destino: destino }
+    end
+
+    # El piso, por lo mismo que el del ejemplo de `SET NULL`: si la consulta o la
+    # convención se rompen, `candidatas` queda vacía, `sin_fk` también y el
+    # ejemplo pasa sin haber mirado NADA. Las cuatro columnas de destino de
+    # `ai_suggestions` tienen que estar entre lo medido — son el caso que hizo
+    # falta esta guarda.
+    medidas = candidatas.map { |c| "#{c[:tabla]}.#{c[:columna]}" }
+    expect(medidas).to include("ai_suggestions.criteria_set_id", "ai_suggestions.idea_id",
+                               "ai_suggestions.challenge_id", "ai_suggestions.challenge_step_id")
+    expect(candidatas.size).to be >= 20
+
+    sin_fk = candidatas.reject do |c|
+      foreign_keys.any? do |fk|
+        fk["from_table"] == c[:tabla] && fk["to_table"] == c[:destino] &&
+          fk["from_columns"].include?(c[:columna])
+      end
+    end
+
+    expect(sin_fk).to be_empty, lambda {
+      "Columnas que apuntan a otra tabla de dominio SIN foreign key:\n" +
+        sin_fk.map { |c| "  - #{c[:tabla]}.#{c[:columna]} -> #{c[:destino]}" }.join("\n") +
+        "\n\nUsá `add_tenant_fk` en la migración (lib/flow/migration_helpers.rb)."
     }
   end
 

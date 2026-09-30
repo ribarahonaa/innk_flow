@@ -1,4 +1,4 @@
-\restrict i3oFAt1nQxaBwhrNbFPFBIL9rkqHybhStyffdBhlYmSjYD7SNzXPMFXjofcGPfr
+\restrict b20yM4l2VW9TcMT4ELDpmNh1ZIBQCzTZpg7hviY68CnLm0N0nPUhII7UFTAMQAA
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -2253,6 +2253,14 @@ ALTER TABLE ONLY public.ai_suggestions
 
 
 --
+-- Name: ai_suggestions ai_suggestions_criteria_set_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ai_suggestions
+    ADD CONSTRAINT ai_suggestions_criteria_set_id_same_company FOREIGN KEY (criteria_set_id, company_id) REFERENCES public.criteria_sets(id, company_id) ON DELETE CASCADE;
+
+
+--
 -- Name: ai_suggestions ai_suggestions_idea_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3120,11 +3128,12 @@ ALTER TABLE ONLY public.workshop_proposals
 -- PostgreSQL database dump complete
 --
 
-\unrestrict i3oFAt1nQxaBwhrNbFPFBIL9rkqHybhStyffdBhlYmSjYD7SNzXPMFXjofcGPfr
+\unrestrict b20yM4l2VW9TcMT4ELDpmNh1ZIBQCzTZpg7hviY68CnLm0N0nPUhII7UFTAMQAA
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260930120000'),
 ('20260929120000'),
 ('20260928140000'),
 ('20260928130000'),
