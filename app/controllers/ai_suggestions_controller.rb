@@ -82,6 +82,13 @@ class AiSuggestionsController < ApplicationController
     by_purpose = PATHS_BY_PURPOSE[suggestion.purpose]
     return by_purpose.call(suggestion, routes) if by_purpose
 
+    # «Donde se pidió» y «donde vive el objetivo» no son lo mismo para las tres
+    # tareas que se piden desde la pantalla de un módulo SOBRE una idea: su
+    # objetivo es la idea, así que esta línea las mandaba a la ficha de la idea
+    # y el comentario de arriba era falso justo para ellas.
+    paso = suggestion.paso_de_revision
+    return challenge_step_path(paso.challenge, paso) if paso
+
     target = suggestion.idea || suggestion.challenge_step || suggestion.challenge
     case target
     when Idea then challenge_idea_path(target.challenge, target)

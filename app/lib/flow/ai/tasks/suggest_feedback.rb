@@ -7,6 +7,10 @@ module Flow
       class SuggestFeedback < Base
         def self.actua_sobre = :feedback
 
+        # Se pide desde la pantalla de la ronda de evolución, que es donde
+        # está el tablero de comentarios, y su objetivo es la idea.
+        def self.revisa_en = :modulo
+
         def messages
           [
             { role: "system", content: <<~TXT.squish },

@@ -20,6 +20,11 @@ module Flow
         # «factible».
         def self.actua_sobre = :challenge
 
+        # Se pide desde la pantalla del módulo de testing, fila por fila, y
+        # su objetivo es la idea: sin esto el panel de esa pantalla no podía
+        # mostrarla nunca.
+        def self.revisa_en = :modulo
+
         def messages
           [
             { role: "system", content: <<~TXT.squish },
