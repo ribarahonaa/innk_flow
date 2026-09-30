@@ -523,6 +523,32 @@ RSpec.describe "la pantalla del módulo en tres zonas", type: :request do
         end
       end
 
+      # El script inline del polling de reportes pide
+      # `nonce: content_security_policy_nonce`, y ese nonce fue DECORATIVO todo el
+      # tiempo que `config/initializers/content_security_policy.rb` estuvo
+      # comentado entero: sin CSP declarado, `content_security_policy_nonce`
+      # devuelve nil y el atributo ni sale. Ahora hay CSP con `script-src 'self'`,
+      # así que un nonce que no coincida con el del header hace que el navegador
+      # BLOQUEE el script y el polling deje de refrescar solo.
+      #
+      # `make screens` no puede verlo, y por dos razones que conviene tener
+      # juntas: sólo escucha `pageerror`, y una violación de CSP es un error de
+      # CONSOLA y no una excepción; y encima este script sólo se renderiza con un
+      # reporte PENDIENTE, que el recorrido no produce.
+      it "el script inline del polling trae el nonce que el CSP declara" do
+        as_company(company) do
+          Report.create!(challenge_step: paso("reporting"),
+                         kind: "funnel", format: "dashboard", status: "pending")
+        end
+        sign_in(admin, company: company)
+        get challenge_step_path(challenge, paso("reporting"))
+
+        nonce = response.body[/<script[^>]*\bnonce="([^"]+)"/, 1]
+
+        expect(nonce).to be_present
+        expect(response.headers["Content-Security-Policy"]).to include("'nonce-#{nonce}'")
+      end
+
       it "quien administra: configuración y descargas a la derecha, el reporte al centro" do
         sign_in(admin, company: company)
         get challenge_step_path(challenge, paso("reporting"))

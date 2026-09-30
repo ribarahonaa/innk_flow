@@ -66,6 +66,37 @@ RSpec.describe "bajar archivos", type: :request do
       expect(response.body).to eq("costeo del piloto: 4.2M CLP\n")
     end
 
+    # La SEGUNDA capa de `send_attached_file`, que no tenía guarda: el tipo con el
+    # que se sirve. `disposition: "attachment"` ya hace que el navegador baje en
+    # vez de renderizar —eso lo cuida el ejemplo de arriba— y `content_type_for_
+    # serving` fuerza octet-stream para html, svg y compañía, que es lo que
+    # importa el día que alguien quiera previsualizar algo inline.
+    #
+    # Importa porque el archivo lo sube CUALQUIERA que postula: un .html servido
+    # como text/html en el mismo origen corre con la sesión de quien lo abra. Es
+    # el riesgo por el que estaba fichada la falta de CSP, y las dos capas de acá
+    # lo cierran mejor que un CSP —que además no restringe `style-src` ni
+    # `default-src`, así que no es la red de esto—.
+    it "un .html se sirve como octet-stream, no como html" do
+      idea = as_company(company) do
+        i = create(:idea, challenge: challenge, author: autora)
+        Flow::Ideas::PublishVersion.new(i, payload: { "titulo" => "Sensores" }, author: autora).call
+        i
+      end
+      sign_in(autora, company: company)
+      patch challenge_idea_path(challenge, idea),
+            params: { payload: { titulo: "Sensores" },
+                      files: { costeo: Rack::Test::UploadedFile.new(
+                        Rails.root.join("spec/fixtures/trampa.html"), "text/html"
+                      ) } }
+      recargada = as_company(company) { Idea.find(idea.id) }
+
+      get challenge_idea_attachment_path(challenge, recargada, adjunto_de(recargada))
+
+      expect(response.headers["Content-Type"]).to include("application/octet-stream")
+      expect(response.headers["Content-Type"]).not_to include("text/html")
+    end
+
     it "lo baja quien administra" do
       sign_in(owner, company: company)
       get challenge_idea_attachment_path(challenge, propia, adjunto_de(propia))
