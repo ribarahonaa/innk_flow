@@ -113,7 +113,23 @@ class IdeasController < ApplicationController
                 step.handler.score_visible_for?(@idea, user: current_user,
                                                        manager: policy(@challenge).update_pipeline?)
 
-      { step: step, entry: entry, score: (entry.result["score"] if visible) }
+      # Qué dice la columna «Cómo le fue». Casi siempre es el estado de la fila,
+      # pero un módulo SALTEADO cuenta como tocado (`TOUCHED_STATUSES`), así que
+      # entra en esta lista con sus `step_entries` intactas: `skip!` sólo escribe
+      # el estado del módulo. La fila quedaba diciendo «Pendiente» sobre un
+      # módulo que no va a correr nunca.
+      #
+      # Se corrige lo que se MUESTRA y no el dato: la entrada efectivamente
+      # quedó sin resolver, y `resolve!` sigue siendo su único escritor. Lo que
+      # cambia es la respuesta a «cómo le fue a esta idea acá», que es
+      # «Salteado» y no «Pendiente». El label ya existía en el locale
+      # (`flow.entry_statuses.skipped`) sin que lo usara nadie.
+      #
+      # `chip_de_resultado` no tiene clave `skipped` y cae al chip neutro, que
+      # es lo que corresponde y está documentado en el helper.
+      estado = step.skipped? ? "skipped" : entry.status
+
+      { step: step, entry: entry, estado: estado, score: (entry.result["score"] if visible) }
     end
   end
 

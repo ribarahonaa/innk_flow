@@ -76,6 +76,22 @@ module ApplicationHelper
   #
   # UNA definición, consultada dos veces por pantalla —el resumen del plegable
   # y el bloque—: escrita en cada vista, las dos mitades divergen.
+  # De dónde viene un set de criterios, para el breadcrumb.
+  #
+  # Uno de biblioteca viene del índice. Uno `inline` es de UN módulo, y el índice
+  # lista `.library.current`: volver ahí dejaba a quien lo estaba editando en una
+  # lista donde su set no está ni puede estar. Y editar uno inline se ofrece de
+  # verdad —`steps/_como_se_decide` linkea «Editar el set» para cualquiera que se
+  # pueda editar, no sólo los de biblioteca—.
+  #
+  # UNA definición porque la misma línea está en `edit` y en `show`.
+  def origen_del_set(set)
+    return link_to("Criterios", criteria_sets_path) if set.library? || set.owner_step.nil?
+
+    paso = set.owner_step
+    link_to(paso.name, challenge_step_path(paso.challenge, paso))
+  end
+
   def puede_saltear?(step)
     policy(step).skip? && step.challenge.running? && !step.completed? && !step.skipped?
   end

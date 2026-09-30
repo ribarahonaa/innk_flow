@@ -1,7 +1,7 @@
 - content_for :title, "Editar set"
 .page-head
   %div
-    %p.breadcrumb= link_to "Criterios", criteria_sets_path
+    %p.breadcrumb= origen_del_set(@set)
     %h1.page-title= @set.name
     %p.muted Con qué se puntúa o se filtra una idea.
 

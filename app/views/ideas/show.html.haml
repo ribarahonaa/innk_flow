@@ -73,7 +73,10 @@
               - entry = resultado[:entry]
               %li.result
                 %span.result__step= resultado[:step].name
-                %span{ class: chip_de_resultado(entry.status) }= t("flow.entry_statuses.#{entry.status}", default: entry.status.humanize)
+                -# `resultado[:estado]` y no `entry.status`: un módulo salteado
+                -# deja sus filas en «pending» y la columna decía eso.
+                - estado = resultado[:estado]
+                %span{ class: chip_de_resultado(estado) }= t("flow.entry_statuses.#{estado}", default: estado.humanize)
                 - if resultado[:score]
                   %span.result__score= "#{(resultado[:score].to_f * 100).round}%"
 
