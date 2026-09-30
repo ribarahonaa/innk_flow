@@ -36,6 +36,17 @@ class CriteriaSet < ApplicationRecord
 
   validates :name, presence: true
   validates :scope, inclusion: { in: SCOPES }
+  # `inline` significa «de ESTE módulo»: sin módulo no significa nada. El estado
+  # era representable —`optional: true` arriba y nada que mirara el scope— y
+  # dejaba a `CriteriaSetPolicy#update?` decidiendo por `administers?(nil)`, una
+  # rama que nadie escribió a propósito: la pasa quien administra la empresa por
+  # el `manager?` que corta antes, y no la pasa ningún gestor.
+  #
+  # Ningún camino vivo la producía: los seis lugares que crean un set inline
+  # pasan `owner_step_id` en la misma llamada, y la FK es ON DELETE CASCADE, así
+  # que borrar el módulo se lleva el set en vez de dejarlo huérfano. Esto cierra
+  # la puerta antes de que alguien la abra, no arregla datos.
+  validates :owner_step, presence: true, if: :inline?
   validates :status, inclusion: { in: STATUSES }
 
   accepts_nested_attributes_for :criteria, allow_destroy: true

@@ -136,6 +136,60 @@ RSpec.describe Flow::Checks do
     end
   end
 
+  # El esquema declara con qué opciones se configura cada check
+  # (`CriterionSettings::CHECKS`), y un `select` con opciones declaradas sólo
+  # admite esas. Nada lo validaba, y el daño no era un error: era el SILENCIO.
+  # `TestingPassed` leía `accepts` con
+  # `ACEPTA.fetch(valor, ACEPTA.fetch("factible_o_con_reservas"))`, así que un
+  # valor desconocido caía en la rama MÁS PERMISIVA: el filtro aceptaba «factible
+  # con reservas» donde alguien había configurado «sólo factible», y la tarjeta
+  # «Cómo se decide» lo anunciaba con el texto de la permisiva. No hay forma de
+  # darse cuenta mirando la pantalla.
+  describe "un valor que el esquema no declara" do
+    it "no deja guardar el criterio, y dice qué opciones hay" do
+      criterion = set.criteria.new(name: "X", key: "x", weight: 1, source: "automatic",
+                                   source_config: { "check" => "testing_passed",
+                                                    "accepts" => "lo_que_sea" })
+
+      expect(criterion).not_to be_valid
+      expect(criterion.errors[:source_config].join).to include("accepts", "lo_que_sea",
+                                                               "solo_factible")
+    end
+
+    # El segundo `select` del mismo check, para que la validación recorra todos
+    # los params y no sólo el primero.
+    it "vale para cualquier select del check, no sólo el primero" do
+      criterion = set.criteria.new(name: "X", key: "x", weight: 1, source: "automatic",
+                                   source_config: { "check" => "testing_passed",
+                                                    "sin_testeo" => "quizas" })
+
+      expect(criterion).not_to be_valid
+      expect(criterion.errors[:source_config].join).to include("sin_testeo", "quizas")
+    end
+
+    # Un hueco NO es un valor inválido: es el default del esquema. Es la regla de
+    # `config` de todo el repo, y confundirlas acá dejaría sin guardar todo
+    # criterio que no escriba cada clave —o sea, los que vienen del seed—.
+    it "pero un hueco sigue significando el default del esquema" do
+      criterion = check("testing_passed")
+
+      expect(criterion).to be_valid
+      expect(criterion.check.description).to include("con reservas o sin ellas")
+    end
+
+    # La validación genérica vive en `Checks::Base`, y tres checks sobreescriben
+    # `config_errors`. Si alguno se olvida del `super`, pierde la genérica sin
+    # que nada avise; este ejemplo mira la otra mitad —que no se pierda la
+    # propia— y el de arriba, aplicado a un check que sobreescribe, la primera.
+    it "y el check con su propio error de configuración lo conserva" do
+      criterion = set.criteria.new(name: "X", key: "x", weight: 1, source: "automatic",
+                                   source_config: { "check" => "field_present" })
+
+      expect(criterion).not_to be_valid
+      expect(criterion.errors[:source_config].join).to match(/falta indicar qué campo/)
+    end
+  end
+
   describe "un check desconocido" do
     it "no deja guardar el criterio" do
       criterion = set.criteria.new(name: "X", key: "x", weight: 1,
