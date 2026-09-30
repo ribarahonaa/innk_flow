@@ -22,9 +22,11 @@ module Flow
 
       def vigente_para(idea_id) = vigentes[idea_id]
 
-      # Del más nuevo al más viejo, el vigente primero.
+      # Del más nuevo al más viejo, el vigente primero. Las dos cosas las pide el
+      # orden y no una coincidencia del único escritor: ver `StepTest.vigente_primero`.
       def historial_de(idea_id)
-        StepTest.where(challenge_step_id: step.id, idea_id: idea_id).recientes.to_a
+        StepTest.where(challenge_step_id: step.id, idea_id: idea_id)
+                .vigente_primero.recientes.to_a
       end
 
       def sin_testear

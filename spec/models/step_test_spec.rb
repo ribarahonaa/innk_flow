@@ -20,6 +20,21 @@ RSpec.describe StepTest do
                               verdict: "factible", tested_at: Time.current }.merge(atributos))
   end
 
+  # `Testing#historial_de` afirma «del más nuevo al más viejo, el vigente
+  # primero», y lo segundo lo daba una COINCIDENCIA y no el orden: `testear!`
+  # supersede el anterior y crea el nuevo con un `Time.current` posterior, así
+  # que el vigente siempre terminaba con el máximo `tested_at`. Eso es una
+  # propiedad del único escritor, no del `order`. Un segundo escritor que traiga
+  # su propio `tested_at` —un backfill, una importación, un veredicto fechado por
+  # el modelo— dejaba el historial mostrando como actual uno ya superado, con la
+  # línea de arriba mintiendo y nada en rojo.
+  it "pone el vigente primero aunque un superado tenga fecha posterior" do
+    testear(tested_at: Time.current, superseded_at: Time.current)
+    vigente = testear(tested_at: 2.hours.ago)
+
+    expect(described_class.vigente_primero.recientes.first).to eq(vigente)
+  end
+
   it "acepta los tres veredictos" do
     %w[factible con_reservas no_factible].each do |veredicto|
       expect { testear(verdict: veredicto) }.not_to raise_error

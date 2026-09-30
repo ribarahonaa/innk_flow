@@ -5,8 +5,16 @@ require "rails_helper"
 # El reparto de permisos del gestor, entero y en un solo lugar.
 #
 # Existe porque abrir un permiso de más NO rompe ningún test: simplemente deja
-# pasar. Por eso la tabla pregunta siempre por tres sujetos, y el que caza el
-# error es el gestor NO asignado: para él toda puerta tiene que dar `false`.
+# pasar. Por eso la tabla pregunta siempre por los MISMOS CINCO sujetos, y los
+# que cazan el error son los tres a los que toda puerta tiene que negarse.
+#
+# El gestor no asignado, solo, no alcanza. Las doce puertas de la tabla reducen a
+# `administers?`, que es `manager? || (gestor? && le asignaron ESE desafío)`. Una
+# escrita como `manager? || evaluator?` le sigue dando `false` al gestor ajeno
+# —no es manager ni evaluador— y la fila pasaba entera con la puerta abierta para
+# quien evalúa. Lo mismo con `membership.present? && !gestor?`, que abre para
+# quien participa. Por eso hay columna de participant y de evaluator: son los dos
+# roles que no administran NADA de esto.
 RSpec.describe "qué administra el gestor" do
   let!(:company) { without_tenant { create(:company, slug: "acme") } }
 
@@ -21,6 +29,8 @@ RSpec.describe "qué administra el gestor" do
   let!(:admin) { usuario(:admin, "admin@test.dev") }
   let!(:asignada) { usuario(:gestor, "asignada@test.dev") }
   let!(:ajena) { usuario(:gestor, "ajena@test.dev") }
+  let!(:participa) { usuario(:participant, "participa@test.dev") }
+  let!(:evalua) { usuario(:evaluator, "evalua@test.dev") }
 
   def desafio_con(*rasgos)
     as_company(company) do
@@ -80,6 +90,17 @@ RSpec.describe "qué administra el gestor" do
 
         it "se la niega al gestor al que no se lo asignaron" do
           expect(responde?(ajena, clase, puerta)).to be(false)
+        end
+
+        # Estas dos no son redundantes con la de arriba: el gestor ajeno falla
+        # por no tener la asignación, y estos dos por no administrar nada. Una
+        # puerta escrita con un `|| evaluator?` de más las necesita para caerse.
+        it "se la niega a quien participa" do
+          expect(responde?(participa, clase, puerta)).to be(false)
+        end
+
+        it "se la niega a quien evalúa" do
+          expect(responde?(evalua, clase, puerta)).to be(false)
         end
       end
     end
@@ -269,7 +290,6 @@ RSpec.describe "qué administra el gestor" do
     end
 
     it "y no quien participa" do
-      participa = usuario(:participant, "participa@test.dev")
       expect(crea?(participa)).to be(false)
     end
   end
