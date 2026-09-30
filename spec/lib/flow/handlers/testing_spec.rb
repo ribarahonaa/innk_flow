@@ -73,6 +73,22 @@ RSpec.describe Flow::Handlers::Testing do
       expect(handler.historial_de(ideas[0].id).map(&:verdict)).to eq(%w[factible no_factible])
       expect(StepTest.where(idea_id: ideas[0].id).count).to eq(2)
     end
+
+    # Lo que el ejemplo de arriba NO prueba: ahí el vigente ya tiene el
+    # `tested_at` más nuevo porque se lo pone `testear!`, así que el orden sale
+    # bien con o sin `vigente_primero` y sacárselo al handler no pone nada en
+    # rojo. Acá se le atrasa la fecha al vigente a mano —lo que haría cualquier
+    # segundo escritor: un backfill, una importación, un veredicto fechado por el
+    # modelo— y el orden sólo puede salir bien si el historial pregunta por el
+    # vigente y no sólo por la fecha.
+    it "el vigente va primero aunque su fecha quede más vieja que la del superado" do
+      handler = armar
+      testear(handler, ideas[0], "no_factible")
+      testear(handler, ideas[0], "factible")
+      handler.vigente_para(ideas[0].id).update_column(:tested_at, 2.hours.ago)
+
+      expect(handler.historial_de(ideas[0].id).map(&:verdict)).to eq(%w[factible no_factible])
+    end
   end
 
   describe "#progress y #can_complete?" do

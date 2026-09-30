@@ -619,5 +619,65 @@ RSpec.describe "el rol gestor", type: :request do
       expect(response.body).to include("Editar el set")
     end
   end
+
+  # El MISMO hallazgo, en el otro partial, y éste no tenía ni un ejemplo.
+  # «Editar el set» vive en `steps/_como_se_decide` (lo usa selección) y tiene
+  # las dos polaridades arriba; «Ver el set» vive en
+  # `steps/_referencia_evaluacion` (lo usa evaluación) y no tenía ninguna. Son
+  # dos guardas distintas sobre el mismo permiso: sacarle la de acá no ponía
+  # nada en rojo.
+  #
+  # Ojo que no son idénticas: la de allá es `criteria_set && edit?` y la de acá
+  # suma `&.library?`, así que acá el link sólo aparece para un set de
+  # biblioteca. Con uno `inline` no hay link que ofrecer en la referencia.
+  describe "el link a un set de biblioteca, desde el módulo de evaluación" do
+    let!(:genericos) do
+      as_company(demo) do
+        set = CriteriaSet.create!(name: "Genéricos de la casa", scope: "library")
+        set.criteria.create!(name: "Impacto", key: "impacto", weight: 1, source: "manual",
+                             scale_type: "numeric",
+                             scale_config: { "min" => 1, "max" => 10, "step" => 1,
+                                             "direction" => "higher_better" })
+        set.refresh_status!
+        set
+      end
+    end
+
+    let!(:con_evaluacion) do
+      as_company(demo) do
+        c = create(:challenge, name: "Con evaluación")
+        seed_form!(c.steps.create!(kind: "ideation", position: 1))
+        c.steps.create!(kind: "evaluation", position: 2, name: "Técnica", criteria_set: genericos)
+        c
+      end
+    end
+
+    def paso_de_evaluacion = as_company(demo) { con_evaluacion.steps.reload.find(&:evaluation?) }
+
+    before do
+      idea_en(con_evaluacion, demo)
+      as_company(demo) do
+        con_evaluacion.pipeline.start!
+        con_evaluacion.pipeline.advance!
+        ChallengeGestor.create!(challenge: con_evaluacion, user: gina)
+      end
+    end
+
+    it "la gestora asignada no lo ve: un set de biblioteca lo edita quien administra la empresa" do
+      sign_in(gina, company: demo)
+      get challenge_step_path(con_evaluacion, paso_de_evaluacion)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("Criterios")
+      expect(response.body).not_to include("Ver el set")
+    end
+
+    it "quien administra sí lo ve" do
+      sign_in(admin, company: demo)
+      get challenge_step_path(con_evaluacion, paso_de_evaluacion)
+
+      expect(response.body).to include("Ver el set")
+    end
+  end
 end
 

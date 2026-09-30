@@ -19,7 +19,25 @@ class StepTest < ApplicationRecord
   validates :verdict, inclusion: { in: VERDICTS }
 
   scope :vigentes, -> { where(superseded_at: nil) }
-  scope :recientes, -> { order(tested_at: :desc) }
+  # Sin `created_at` dos filas con el mismo `tested_at` salen en el orden que
+  # quiera Postgres. Mismo desempate que `Criterion.ordered`. Ojo: esto NO tiene
+  # test propio, y a propósito — un ejemplo sobre el empate pasa o falla según
+  # cómo ordene Postgres dos filas iguales, así que daría verde por suerte, que
+  # es justo lo que no queremos de un test.
+  scope :recientes, -> { order(tested_at: :desc, created_at: :desc) }
+
+  # El vigente antes que los superados, pase lo que pase con las fechas.
+  #
+  # `Testing#historial_de` promete «el vigente primero» y lo daba `recientes` por
+  # COINCIDENCIA: `testear!` supersede el anterior y crea el nuevo con un
+  # `Time.current` posterior, así que el vigente siempre tenía el máximo
+  # `tested_at`. Eso es una propiedad del único escritor, no del orden, y un
+  # segundo escritor con su propio `tested_at` —un backfill, una importación, un
+  # veredicto fechado por el modelo— mostraba como actual uno ya superado.
+  #
+  # Va aparte de `recientes` porque «recientes» significa por recencia: meterle
+  # el vigente adelante lo volvería mentiroso para cualquier otro llamador.
+  scope :vigente_primero, -> { order(Arel.sql("superseded_at IS NULL DESC")) }
 
   def by_ai? = actor_type == "ai"
   def tested_by_name = by_ai? ? "IA" : (tested_by&.name || "—")
