@@ -11,6 +11,9 @@ P2, P3 y P4. Al final se actualizaron los dos diagramas y los tres artefactos.
 - **`master` está en `d7d6ae5`, pusheado.** `make spec` **1418/0** (venía de
   1358); `make screens` **71 capturas / 0 errores**, ahora con cuatro contadores
   de piso en la línea final.
+- **`origin/modulo-de-taller` se borró**, después de verificar que `d3bc6b8` era
+  ancestro de `master` y que no tenía ningún commit exclusivo. El remote queda
+  con `master` sola.
 - **Diez tandas mergeadas**, cada una con su rama borrada. 21 commits, 77
   archivos, +3093/−181.
 - El listado, al día: https://claude.ai/artifact/C2i3g3ZRz1gUeMuX3bEXrq
@@ -200,18 +203,16 @@ primero y CERO al segundo.
    `badge-soft` con el pendiente—. Hay `title` con el estado, así que hay
    alternativa textual; si se lo trata como información, el piso que le
    corresponde es 3:1 (WCAG 1.4.11) y no el 1,5 de la pastilla punteada.
-4. **Decidir qué hacer con `origin/modulo-de-taller`**, viva en GitHub apuntando
-   a `d3bc6b8`, ya ancestro de `master`. Viene de dos handoffs.
-5. **El flake horario preexistente** de `spec/requests/selection_screen_spec.rb:138`:
+4. **El flake horario preexistente** de `spec/requests/selection_screen_spec.rb:138`:
    `Selection#decide!` escribe `decided_at: Time.current` por fila y la vista
    agrupa con `.change(sec: 0)`.
-6. **Los dos artefactos de diagramas avisan que su botón de exportar no funciona**
+5. **Los dos artefactos de diagramas avisan que su botón de exportar no funciona**
    en el visor de artefactos («the artifact viewer never grants pages download
    permission»). Es del visor que genera archify, no del contenido; los HTML en
    `docs/` sí exportan.
-7. **Hay actualización de la skill `archify`**: instalada 2.17.0-dev.1, última
+6. **Hay actualización de la skill `archify`**: instalada 2.17.0-dev.1, última
    3.0.1. No se tocó nada.
-8. Lo que sigue anotado y fuera de alcance de handoffs anteriores:
+7. Lo que sigue anotado y fuera de alcance de handoffs anteriores:
    `challenge_gestores` huérfano re-otorgando acceso, el redirect por membresía
    alcanzando a la API y a los turbo-frames, y la falta de spec del rollback de
    `Flow::Assignments::Release`.
