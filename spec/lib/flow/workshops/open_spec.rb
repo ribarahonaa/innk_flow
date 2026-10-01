@@ -99,4 +99,39 @@ RSpec.describe Flow::Workshops::Open do
       expect(second_link.closed_at).to be_nil
     end
   end
+
+  # Un taller es de UNA fase. Se verifica acá y no en `WorkshopChallenge`
+  # porque en borrador `challenge_step` es nil: la fase todavía no existe.
+  describe "fase mixta" do
+    it "no abre, y nada cambia" do
+      as_company(company) do
+        en_idear, = challenge_with("ideation")
+        en_evolucion, = challenge_with("evolution")
+        workshop = create(:workshop)
+        create(:workshop_challenge, workshop: workshop, challenge: en_idear)
+        create(:workshop_challenge, workshop: workshop, challenge: en_evolucion)
+
+        result = described_class.new(workshop).call
+
+        expect(result).not_to be_ok
+        expect(workshop.reload).to be_draft
+        expect(workshop.workshop_challenges.reload.map(&:status).uniq).to eq(["open"])
+        expect(workshop.workshop_challenges.map(&:challenge_step_id).compact).to be_empty
+      end
+    end
+
+    it "y el error nombra qué desafío está en cuál fase" do
+      as_company(company) do
+        en_idear, = challenge_with("ideation")
+        en_evolucion, = challenge_with("evolution")
+        workshop = create(:workshop)
+        create(:workshop_challenge, workshop: workshop, challenge: en_idear)
+        create(:workshop_challenge, workshop: workshop, challenge: en_evolucion)
+
+        result = described_class.new(workshop).call
+
+        expect(result.errors.join).to include(en_idear.name, en_evolucion.name, "Idear", "Evolución")
+      end
+    end
+  end
 end

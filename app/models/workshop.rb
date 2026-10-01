@@ -23,4 +23,9 @@ class Workshop < ApplicationRecord
   STATUSES.each { |s| define_method("#{s}?") { status == s } }
 
   def individual? = mode == "individual"
+
+  # La fase del taller: el `kind` de sus vínculos abiertos, homogéneo por la
+  # regla de `Flow::Workshops::Open`. Se DERIVA y no se guarda: una columna
+  # sería la segunda fuente que el día que difiera de los vínculos miente.
+  def phase = workshop_challenges.select(&:open?).map(&:kind).compact.uniq.first
 end
