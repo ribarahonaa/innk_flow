@@ -3,6 +3,7 @@
 class ApplicationController < ActionController::Base
   include Pundit::Authorization
   include TenantResolution
+  include Authentication
 
   before_action :require_authentication
   before_action :require_company
@@ -44,8 +45,9 @@ class ApplicationController < ActionController::Base
     action_name == "index" ? verify_policy_scoped : verify_authorized
   end
 
-  # La sesión no tiene qué autorizar: todavía no hay membresía con la cual.
+  # Ninguno de los dos tiene qué autorizar: en el login todavía no hay membresía
+  # con la cual, y en el check-in por link la autorización ES el token.
   def skip_pundit?
-    is_a?(SessionsController)
+    is_a?(SessionsController) || is_a?(WorkshopCheckinsController)
   end
 end
