@@ -81,7 +81,7 @@ module Flow
         # después por clave. El orden de `clusters` ya entrega las claves
         # ordenadas, así que este último desempate no se puede observar desde
         # afuera: está para que `fit` no dependa de una invariante que se
-        # establece en otro método.
+        # establece en otro método. Ningún test lo cubre.
         suelta = keys.min_by { |k| [solape(k, keys - [k]), @groups[k].size, k.to_s] }
         resto = keys - [suelta]
         compartida = @groups[suelta] & personas(resto)

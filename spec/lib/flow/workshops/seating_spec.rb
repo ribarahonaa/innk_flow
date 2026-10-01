@@ -42,7 +42,10 @@ RSpec.describe Flow::Workshops::Seating do
     end
 
     it "no arma una mesa vacía cuando la idea desprendida no tiene gente propia" do
-      # Review Focus 4: la gente de i2 está toda en i1.
+      # La gente de i2 está toda en i1. Esto fija que la idea desprendida sin
+      # gente propia igual deja su aviso y no arma una mesa para nadie; no
+      # prueba el `return [] if gente.empty?` de `fit_exclusiva`, que es defensa
+      # sin camino que la alcance (`pack` absorbe un bloque vacío).
       result = repartir({ "i1" => %w[a b c], "i2" => %w[a b] }, 2)
 
       expect(result.tables).to all(be_present)
@@ -62,7 +65,11 @@ RSpec.describe Flow::Workshops::Seating do
 
   describe "un grupo sin nadie" do
     it "no arma mesa ni aparece entre lo partido" do
-      # En evolución, una idea cuya única persona está ausente llega así.
+      # En evolución, una idea cuya única persona está ausente llega así. Solo
+      # sola se nota: con otro grupo al lado `pack` absorbe el bloque vacío en
+      # su mesa y el resultado sale igual con o sin el rechazo.
+      expect(repartir({ "i2" => [] }, 2).tables).to eq([])
+
       result = repartir({ "i1" => %w[a], "i2" => [] }, 2)
 
       expect(result.tables).to eq([%w[a]])
@@ -81,7 +88,6 @@ RSpec.describe Flow::Workshops::Seating do
   end
 
   describe "el tamaño" do
-    # Review Focus 3.
     it "menor que 1 se trata como 1" do
       expect(repartir({ "i1" => %w[a b] }, 0).tables).to eq([%w[a], %w[b]])
     end
