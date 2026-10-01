@@ -90,11 +90,17 @@ module Flow
       # extra: si alguien no vino, su idea pierde a esa persona y eso CAMBIA los
       # racimos. Ignorarlo dejaría mesas armadas alrededor de gente que no está.
       #
-      # Sólo se descuenta a quien está marcado ausente: la asistencia existe
-      # para quien está sentado, y a quien nunca se convocó se lo presume
-      # presente.
+      # Cómo se lee «no vino» depende del modo. Con la presencia PRESUMIDA se
+      # descuenta sólo a quien está marcado ausente, porque a quien nunca se
+      # convocó se lo presume presente. Con la presencia REGISTRADA no alcanza:
+      # `absent_ids` sólo conoce a quien TIENE asiento, así que el autor que
+      # nunca escaneó no aparecería ahí y el reparto armaría su mesa igual,
+      # alrededor de alguien que no está en la sala.
       def people_of(idea)
-        ([idea.author_id] + IdeaContributor.where(idea_id: idea.id).pluck(:user_id)) - absent_ids
+        gente = [idea.author_id] + IdeaContributor.where(idea_id: idea.id).pluck(:user_id)
+        return gente & seated_present_ids if @workshop.registered_attendance?
+
+        gente - absent_ids
       end
 
       def absent_ids
@@ -114,10 +120,11 @@ module Flow
         Membership.where(company_id: @workshop.company_id, role: "participant").pluck(:user_id)
       end
 
+      # Memoizado: `people_of` lo pregunta una vez por idea.
       def seated_present_ids
-        WorkshopGroupMember.presentes.joins(:workshop_group)
-                            .where(workshop_groups: { workshop_id: @workshop.id })
-                            .pluck(:user_id)
+        @seated_present_ids ||= WorkshopGroupMember.presentes.joins(:workshop_group)
+                                                   .where(workshop_groups: { workshop_id: @workshop.id })
+                                                   .pluck(:user_id)
       end
 
       # Sienta a cada mesa. Mueve a los presentes, crea las mesas que falten y

@@ -331,6 +331,24 @@ RSpec.describe Flow::Workshops::AssignGroups do
       expect(result.tables.flatten).to contain_exactly(paula.id)
     end
 
+    # En evolución `absent_ids` no alcanza: el autor que nunca escaneó no tiene
+    # asiento, así que no figura como ausente y su idea armaba la mesa igual.
+    it "en evolución, la idea de quien no escaneó no arma mesa" do
+      taller = as_company(company) { open_workshop(["evolution"], registered: true) }
+      mesa = as_company(company) { create(:workshop_group, workshop: taller) }
+      as_company(company) do
+        step = step_of(taller)
+        idea_in(step, paula)
+        idea_in(step, pedro)
+        WorkshopGroupMember.create!(workshop_group: mesa, user_id: paula.id, attended: true)
+      end
+
+      result = as_company(company) { described_class.new(taller, size: 4).call }
+
+      expect(result).to be_ok
+      expect(result.tables.flatten).to contain_exactly(paula.id)
+    end
+
     # La de llegada es la PRIMERA mesa creada, así que `seat!` la reusaría como
     # «Mesa 1» conservando `arrival: true` y el nombre, y la sala de la mesa 1
     # quedaría muda para siempre.
@@ -344,6 +362,7 @@ RSpec.describe Flow::Workshops::AssignGroups do
       as_company(company) { described_class.new(taller, size: 4).call }
 
       mesas = as_company(company) { taller.workshop_groups.reload.to_a }
+      expect(mesas.map(&:id)).not_to include(llegada.id)
       expect(mesas.map(&:arrival)).to all(be(false))
       expect(mesas.map(&:name)).to contain_exactly("Mesa 1")
     end
