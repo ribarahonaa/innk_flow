@@ -42,8 +42,16 @@ class WorkshopGroupsController < ApplicationController
            "#{Flow::Texto.contar(result.tables.flatten.size, 'persona')}."
     return base if result.splits.empty?
 
-    "#{base} #{Flow::Texto.contar(result.splits.size, 'grupo')} " \
-      "#{Flow::Texto.agree(result.splits.size, 'quedó', 'quedaron')} partido por el tamaño de mesa."
+    # El caso extremo tiene aviso propio: una idea más grande que la mesa se
+    # parte POR DENTRO, y eso no es mover un grupo a otra mesa —es separar a
+    # gente que trabaja en lo mismo—. Quien lee tiene que enterarse.
+    if result.splits.any?(&:inside)
+      return "#{base} El tamaño de mesa obligó a separar a personas de una misma idea."
+    end
+
+    n = result.splits.size
+    "#{base} #{Flow::Texto.contar(n, 'grupo')} #{Flow::Texto.agree(n, 'quedó', 'quedaron')} " \
+      "#{Flow::Texto.plural('partido', n)} por el tamaño de mesa."
   end
 
   # `policy_scope(...).find_by!` y no `Workshop.find_by!`: así lo que no se ve

@@ -96,7 +96,12 @@ module Flow
                                            .pluck(:user_id)
       end
 
-      def open_step_ids = @workshop.workshop_challenges.select(&:open?).map(&:challenge_step_id).compact
+      # `workable?` y no `open?`: tras un `advance!` el vínculo sigue `open` con
+      # su módulo ya `completed` hasta que alguien carga la sala y corre
+      # `MaterializeClosures`, que busca justo `open? && !workable?` para dar con
+      # esos vínculos vencidos. Acá no se materializa, así que `open?` a secas
+      # rearmaría las mesas alrededor de una ronda que ya terminó.
+      def open_step_ids = @workshop.workshop_challenges.select(&:workable?).map(&:challenge_step_id).compact
 
       def participant_ids
         Membership.where(company_id: @workshop.company_id, role: "participant").pluck(:user_id)
@@ -114,6 +119,13 @@ module Flow
       # vacía y no se borra. Por eso una mesa reusada puede quedar con MÁS gente
       # que `size`: la suya más un ausente que conservó el asiento. Es a
       # propósito: el tamaño habla de quien está presente.
+      #
+      # La segunda cláusula del barrido (`workshop_proposals.empty?`) es LA
+      # CARRERA y no cinturón y tirantes: el guarda de propuestas corrió FUERA
+      # del lock, contra un escritor (`WorkshopProposalsController#create`) que
+      # no toma ninguno. Si una propuesta entra a mitad del reparto y deja a su
+      # mesa vacía, borrarla se llevaría la propuesta por el CASCADE. Una mesa
+      # que sobrevive sólo por eso es un sobrante inocuo; perder la propuesta no.
       def seat!(tables)
         existentes = @workshop.workshop_groups.order(:created_at).to_a
 
@@ -125,7 +137,9 @@ module Flow
           user_ids.each { |id| WorkshopGroupMember.create!(workshop_group: mesa, user_id: id) }
         end
 
-        @workshop.workshop_groups.reload.each { |mesa| mesa.destroy! if mesa.workshop_group_members.empty? }
+        @workshop.workshop_groups.reload.each do |mesa|
+          mesa.destroy! if mesa.workshop_group_members.empty? && mesa.workshop_proposals.empty?
+        end
       end
 
       def failure(message) = Result.new(ok: false, tables: [], splits: [], errors: [message])

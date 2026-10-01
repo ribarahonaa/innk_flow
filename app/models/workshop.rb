@@ -24,8 +24,19 @@ class Workshop < ApplicationRecord
 
   def individual? = mode == "individual"
 
-  # La fase del taller: el `kind` de sus vínculos abiertos, homogéneo por la
+  # La fase del taller: el `kind` de sus vínculos VIVOS, homogéneo por la
   # regla de `Flow::Workshops::Open`. Se DERIVA y no se guarda: una columna
   # sería la segunda fuente que el día que difiera de los vínculos miente.
-  def phase = workshop_challenges.select(&:open?).map(&:kind).compact.uniq.first
+  #
+  # `workable?` y no `open?`: tras un `advance!` el vínculo sigue `open` con su
+  # módulo `completed` hasta que `MaterializeClosures` corre —que busca justo
+  # `open? && !workable?`—, y esa fase ya no está en curso.
+  #
+  # Si los vínculos vivos no coinciden devuelve nil en vez de elegir uno: la
+  # homogeneidad sólo vale desde la regla de `Open`, y un taller abierto antes
+  # de ella con vínculos mezclados no debe recibir una fase adivinada.
+  def phase
+    kinds = workshop_challenges.select(&:workable?).map(&:kind).compact.uniq
+    kinds.size == 1 ? kinds.first : nil
+  end
 end

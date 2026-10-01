@@ -270,5 +270,44 @@ RSpec.describe Flow::Workshops::AssignGroups do
         expect(WorkshopGroupMember.find_by!(user_id: ana.id).workshop_group_id).to eq(m2.id)
       end
     end
+
+    # Con propuestas el servicio ni arranca, así que se anula ese guarda: lo
+    # que se fija es la condición del barrido, que cubre la propuesta que entra
+    # DESPUÉS del guarda (el escritor no toma el lock).
+    it "no borra una mesa que queda vacía pero tiene una propuesta, ni la propuesta" do
+      m1, m2 = mesas(2)
+      proposal = as_company(company) do
+        [paula, pedro].each { |u| create(:membership, company: company, user: u, role: "participant") }
+        seat(taller, paula, m1)
+        step = step_of(taller)
+        idea = create(:idea, challenge: step.challenge, status: "active")
+        WorkshopProposal.create!(workshop_group: m2, idea: idea, challenge_step: step,
+                                 status: "pending", payload: { "titulo" => "x" })
+      end
+      allow_any_instance_of(described_class).to receive(:proposals?).and_return(false)
+
+      result = as_company(company) { described_class.new(taller, size: 4).call }
+
+      expect(result).to be_ok
+      as_company(company) do
+        expect(WorkshopGroup.exists?(m2.id)).to be(true)
+        expect(WorkshopProposal.exists?(proposal.id)).to be(true)
+      end
+    end
+  end
+
+  describe "un vínculo cuyo módulo ya terminó" do
+    it "no cuenta como fase: no se rearman mesas alrededor de una ronda cerrada" do
+      taller = as_company(company) { open_workshop(["ideation"]) }
+      as_company(company) do
+        create(:membership, company: company, user: paula, role: "participant")
+        step_of(taller).update_columns(status: "completed")
+      end
+
+      result = as_company(company) { described_class.new(taller.reload, size: 3).call }
+
+      expect(result).not_to be_ok
+      expect(result.errors.join).to include("ya se cerraron")
+    end
   end
 end

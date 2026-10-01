@@ -42,10 +42,17 @@ RSpec.describe "armar las mesas", type: :request do
       expect(offered?(taller)).to be(true)
     end
 
-    it "no lo ve quien no administra" do
+    # Paula tiene que estar sentada: sin asiento `policy_scope` le da 404 y la
+    # página de error no trae el control igual, con o sin guarda en la vista.
+    it "no lo ve quien no administra, aunque vea el taller" do
+      as_company(company) do
+        mesa = create(:workshop_group, workshop: taller)
+        Flow::Workshops::Convoke.new(taller, User.find(paula.id), group: mesa).call
+      end
       sign_in(paula, company: company)
       get workshop_path(taller)
 
+      expect(response).to have_http_status(:ok)
       expect(response.body).not_to include(assign_workshop_workshop_groups_path(taller))
     end
 
@@ -108,6 +115,48 @@ RSpec.describe "armar las mesas", type: :request do
       post assign_workshop_workshop_groups_path(borrador), params: { size: 2 }
 
       expect(flash[:alert]).to include("abierto")
+    end
+  end
+
+  describe "el aviso de los cortes" do
+    # Una cadena de ideas que se pasan gente: con mesa de 2 hay que desprender.
+    def evolution_chain(*people_per_idea)
+      users = as_company(company) { Array.new(people_per_idea.flatten.max + 1) { create(:user) } }
+      workshop = workshop_with(kind: "evolution")
+      as_company(company) do
+        step = workshop.workshop_challenges.first.challenge_step
+        people_per_idea.each do |ids|
+          idea = create(:idea, challenge: step.challenge, author: users[ids.first], status: "active")
+          StepEntry.create!(challenge_step: step, idea: idea)
+          ids.drop(1).each { |i| IdeaContributor.create!(idea: idea, user: users[i]) }
+        end
+      end
+      workshop
+    end
+
+    it "con dos cortes concuerda en plural: «2 grupos quedaron partidos»" do
+      workshop = evolution_chain([0, 1], [1, 2], [2, 3], [3, 4])
+      sign_in(admin, company: company)
+      post assign_workshop_workshop_groups_path(workshop), params: { size: 2 }
+
+      expect(flash[:notice]).to match(/\b[2-9] grupos quedaron partidos por el tamaño de mesa/)
+    end
+
+    it "con un corte concuerda en singular: «1 grupo quedó partido»" do
+      workshop = evolution_chain([0, 1], [1, 2])
+      sign_in(admin, company: company)
+      post assign_workshop_workshop_groups_path(workshop), params: { size: 2 }
+
+      expect(flash[:notice]).to include("1 grupo quedó partido por el tamaño de mesa")
+    end
+
+    it "una idea más grande que la mesa tiene su propio aviso" do
+      workshop = evolution_chain([0, 1, 2])
+      sign_in(admin, company: company)
+      post assign_workshop_workshop_groups_path(workshop), params: { size: 2 }
+
+      expect(flash[:notice]).to include("separar a personas de una misma idea")
+      expect(flash[:notice]).not_to include("quedó partido")
     end
   end
 end
