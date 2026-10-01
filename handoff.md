@@ -17,12 +17,13 @@ salieron de una revisión, no de la implementación.
 
 ## Estado actual
 
-- **`master` está en `af825a3`** — el merge `--no-ff` es `415a7b9`, con la
-  convención «Merge: …» del repo, y encima va este handoff. **Nada de esta sesión
-  está pusheado:** `origin/master` sigue en `a5f55b9`, el punto donde arrancó.
-  (No pongo el número de commits a propósito — cada arreglo del handoff lo
-  desactualiza, incluido el que corrige el número. `git rev-list --count
-  origin/master..master` lo dice sin mentir.)
+- **El merge está en `415a7b9`** (`--no-ff`, con la convención «Merge: …» del
+  repo), y encima de él van los commits de este handoff. **Nada de esta sesión
+  está pusheado:** `origin/master` sigue en `a5f55b9`, el punto donde arrancó —
+  ése es el único SHA de acá que no se mueve. Ni la cabeza de `master` ni el
+  conteo de commits los escribo: los dos nombran algo anterior al commit que
+  estás leyendo, y cada arreglo del handoff los desactualiza de nuevo.
+  `git log --oneline a5f55b9..master` los dice sin mentir.
 - `make spec` **1468/0** —corrida sobre el árbol mergeado, no sólo sobre la
   rama— contra los 1418 de antes. `make screens` **71 capturas / 0 errores**.
   `make seed` abre los dos talleres.
