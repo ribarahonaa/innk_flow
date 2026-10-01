@@ -35,8 +35,9 @@ RSpec.describe Flow::Workshops::CheckIn do
 
     expect(result).to be_ok
     expect(result.member.attended).to be(true)
-    expect(result.member.workshop_group.arrival).to be(true)
-    expect(result.member.workshop_group.name).to eq(described_class::ARRIVAL_NAME)
+    grupo = as_company(company) { result.member.workshop_group }
+    expect(grupo.arrival).to be(true)
+    expect(grupo.name).to eq(described_class::ARRIVAL_NAME)
   end
 
   it "la mesa de llegada es la misma para todos" do
@@ -50,9 +51,13 @@ RSpec.describe Flow::Workshops::CheckIn do
 
   it "es idempotente: escanear dos veces no duplica el asiento" do
     taller = workshop
-    call(taller, paula)
+    primero = call(taller, paula)
 
-    expect { call(taller, paula) }.not_to raise_error
+    segundo = nil
+    expect { segundo = call(taller, paula) }.not_to raise_error
+    expect(segundo).to be_ok
+    expect(segundo.member.attended).to be(true)
+    expect(segundo.member.id).to eq(primero.member.id)
     asientos = as_company(company) do
       WorkshopGroupMember.joins(:workshop_group)
                          .where(workshop_groups: { workshop_id: taller.id }, user_id: paula.id).count
@@ -81,10 +86,11 @@ RSpec.describe Flow::Workshops::CheckIn do
     result = call(taller, paula)
 
     expect(result).to be_ok
-    expect(result.member.workshop_group.arrival).to be(false)
+    grupo = as_company(company) { result.member.workshop_group }
+    expect(grupo.arrival).to be(false)
     # Contra el nombre REAL de la persona y no contra un literal: el literal
     # ataría el test a lo que la factory genera hoy.
-    expect(result.member.workshop_group.name).to eq(without_tenant { User.find(paula.id).name })
+    expect(grupo.name).to eq(without_tenant { User.find(paula.id).name })
   end
 
   it "rechaza un taller que no está abierto" do
@@ -101,9 +107,9 @@ RSpec.describe Flow::Workshops::CheckIn do
     expect(result.errors.to_sentence).to match(/no toma asistencia/i)
   end
 
-  # Review Focus 2: dos escaneos en el mismo segundo. El índice UNIQUE parcial
-  # es lo que `find_or_create_by!` no puede garantizar, y sin el rescate la
-  # segunda persona —que está entrando— se come un 500.
+  # Dos escaneos en el mismo segundo. El índice UNIQUE parcial es lo que
+  # `find_or_create_by!` no puede garantizar, y sin el rescate la segunda
+  # persona —que está entrando— se come un 500.
   it "sobrevive a que otro escaneo cree la mesa de llegada en el medio" do
     taller = workshop
     llamadas = 0
@@ -120,6 +126,30 @@ RSpec.describe Flow::Workshops::CheckIn do
     result = call(taller, paula)
 
     expect(result).to be_ok
-    expect(result.member.workshop_group.arrival).to be(true)
+    expect(as_company(company) { result.member.workshop_group.arrival }).to be(true)
+  end
+
+  # El doble toque en un teléfono: otro escaneo de la MISMA persona la sienta
+  # entre el `seat_of` y el `Convoke`. Quien ya quedó adentro no puede leer un
+  # error, así que el resultado tiene que ser ok con el asiento presente.
+  it "si otro escaneo de la misma persona la sentó en el medio, es éxito" do
+    taller = workshop
+    mesa = as_company(company) { create(:workshop_group, workshop: taller, name: "Mesa 3") }
+    primera = true
+    allow_any_instance_of(Flow::Workshops::Convoke).to receive(:call).and_wrap_original do |original, *args|
+      if primera
+        primera = false
+        as_company(company) do
+          WorkshopGroupMember.create!(workshop_group: mesa, user_id: paula.id, attended: false)
+        end
+      end
+      original.call(*args)
+    end
+
+    result = call(taller, paula)
+
+    expect(result).to be_ok
+    expect(result.member.attended).to be(true)
+    expect(result.member.workshop_group_id).to eq(mesa.id)
   end
 end

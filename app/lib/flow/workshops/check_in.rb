@@ -29,18 +29,30 @@ module Flow
         return failure("Este taller no toma asistencia por link.") unless @workshop.registered_attendance?
 
         seated = seat_of(@user)
-        if seated
-          seated.update!(attended: true)
-          return Result.new(ok: true, member: seated, errors: [])
-        end
+        return present!(seated) if seated
 
         result = Convoke.new(@workshop, @user, group: landing, attended: true).call
         return Result.new(ok: true, member: result.member, errors: []) if result.ok?
+
+        # `Convoke` pudo fallar porque OTRO escaneo de la misma persona ganó la
+        # carrera: los dos pasaron por `seat_of` en nil y el UNIQUE
+        # (workshop_id, user_id) frenó al segundo. Para el check-in eso es éxito
+        # —la persona está sentada— así que se resuelve por el mismo camino
+        # idempotente de arriba. Propagar el fallo le diría «no entraste» a
+        # alguien que entró, y el doble toque en un teléfono es lo más común que
+        # le pasa a un QR.
+        seated = seat_of(@user)
+        return present!(seated) if seated
 
         Result.new(ok: false, member: nil, errors: result.errors)
       end
 
       private
+
+      def present!(member)
+        member.update!(attended: true)
+        Result.new(ok: true, member: member, errors: [])
+      end
 
       def seat_of(user)
         WorkshopGroupMember.joins(:workshop_group)
