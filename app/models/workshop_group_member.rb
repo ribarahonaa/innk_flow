@@ -10,6 +10,11 @@ class WorkshopGroupMember < ApplicationRecord
   belongs_to :workshop
   belongs_to :user
 
+  # Quiénes vinieron. Lo consume el reparto automático
+  # (`Flow::Workshops::AssignGroups`): rearmar mueve sólo a los presentes, y un
+  # ausente conserva su asiento en vez de desaparecer.
+  scope :presentes, -> { where(attended: true) }
+
   # `workshop_id` está desnormalizado para poder escribir el UNIQUE
   # (workshop_id, user_id) que respalda «una persona, una mesa por taller»: la
   # columna no vive en esta tabla y en Postgres no hay otra forma de decirlo.

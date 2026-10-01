@@ -7,6 +7,7 @@ class WorkshopGroup < ApplicationRecord
 
   belongs_to :workshop
   has_many :workshop_group_members, dependent: :destroy
+  has_many :workshop_proposals, dependent: :destroy
   has_many :members, through: :workshop_group_members, source: :user
 
   validates :name, presence: true

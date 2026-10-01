@@ -94,7 +94,9 @@ Rails.application.routes.draw do
       # controller de vínculos, la baja es del taller.
       delete :remove_challenge
     end
-    resources :workshop_groups, only: %i[create destroy], path: "mesas"
+    resources :workshop_groups, only: %i[create destroy], path: "mesas" do
+      post :assign, on: :collection
+    end
     # La sala de UN desafío dentro del taller. El id es el del VÍNCULO, no el
     # del desafío: el vínculo es el que sabe contra qué módulo se trabaja.
     resources :workshop_challenges, only: [], path: "salas", as: :sala do

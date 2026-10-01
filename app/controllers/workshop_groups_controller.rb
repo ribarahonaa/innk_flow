@@ -21,7 +21,38 @@ class WorkshopGroupsController < ApplicationController
     redirect_to workshop_path(@workshop), notice: "Mesa eliminada."
   end
 
+  def assign
+    authorize @workshop, :manage_groups?
+    result = Flow::Workshops::AssignGroups.new(@workshop, size: params[:size]).call
+
+    if result.ok?
+      redirect_to workshop_path(@workshop), notice: assigned_notice(result)
+    else
+      redirect_to workshop_path(@workshop), alert: result.errors.to_sentence
+    end
+  end
+
   private
+
+  # Qué hizo, y qué partió. Los cortes se cuentan aparte de las mesas: son la
+  # única parte del resultado que no respeta «no partir grupos», así que
+  # esconderlos en el mismo número sería no decirlo.
+  def assigned_notice(result)
+    base = "#{Flow::Texto.contar(result.tables.size, 'mesa')} con " \
+           "#{Flow::Texto.contar(result.tables.flatten.size, 'persona')}."
+    return base if result.splits.empty?
+
+    # El caso extremo tiene aviso propio: una idea más grande que la mesa se
+    # parte POR DENTRO, y eso no es mover un grupo a otra mesa —es separar a
+    # gente que trabaja en lo mismo—. Quien lee tiene que enterarse.
+    if result.splits.any?(&:inside)
+      return "#{base} El tamaño de mesa obligó a separar a personas de una misma idea."
+    end
+
+    n = result.splits.size
+    "#{base} #{Flow::Texto.contar(n, 'grupo')} #{Flow::Texto.agree(n, 'quedó', 'quedaron')} " \
+      "#{Flow::Texto.plural('partido', n)} por el tamaño de mesa."
+  end
 
   # `policy_scope(...).find_by!` y no `Workshop.find_by!`: así lo que no se ve
   # da 404 y no 403, que sería un oráculo de existencia.

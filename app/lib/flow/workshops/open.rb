@@ -23,10 +23,25 @@ module Flow
         rejected = []
 
         @workshop.with_lock do
-          @workshop.workshop_challenges.includes(:challenge).each do |link|
-            step = link.challenge.pipeline.active_step
+          resueltos = @workshop.workshop_challenges.includes(:challenge).map do |link|
+            [link, link.challenge.pipeline.active_step]
+          end
 
-            if step && WorkshopChallenge::WORKABLE_KINDS.include?(step.kind)
+          # La fase se verifica ACÁ y sobre TODO junto, que es lo que ningún
+          # otro lugar puede hacer: en borrador `challenge_step` es nil, así que
+          # una validación de modelo no tiene fase con la que comparar.
+          #
+          # Va antes de escribir nada: rechazar después de cerrar vínculos
+          # dejaría el taller a medio abrir hasta que el rollback lo deshaga, y
+          # el motivo del rechazo se leería sobre un estado que ya no existe.
+          trabajables = resueltos.select { |_, step| step && WorkshopChallenge::WORKABLE_KINDS.include?(step.kind) }
+          if trabajables.map { |_, step| step.kind }.uniq.size > 1
+            @error = mixed_phases(trabajables)
+            raise ActiveRecord::Rollback
+          end
+
+          resueltos.each do |link, step|
+            if trabajables.any? { |l, _| l.id == link.id }
               link.update!(challenge_step: step, status: "open")
             else
               link.update!(status: "closed", closed_at: Time.current, closed_reason: self.class.reason_for(step))
@@ -47,7 +62,7 @@ module Flow
         # Acá el rollback ya deshizo los `update!` a "closed": informar esos
         # vínculos como rechazados sería mentir sobre lo que quedó en la
         # base. El motivo de la falla ya viaja en `errors`.
-        return Result.new(ok: false, rejected: [], errors: [no_workable_challenges]) unless @workshop.reload.open?
+        return Result.new(ok: false, rejected: [], errors: [@error || no_workable_challenges]) unless @workshop.reload.open?
 
         Result.new(ok: true, rejected: rejected, errors: [])
       end
@@ -66,6 +81,16 @@ module Flow
       private
 
       def no_workable_challenges = "Ningún desafío del taller está en idear ni en evolución."
+
+      # Nombra qué desafío está en cuál fase: «el taller mezcla fases» sin los
+      # nombres deja a quien lo lee abriendo los desafíos de a uno.
+      def mixed_phases(trabajables)
+        por_fase = trabajables.group_by { |_, step| step.kind }
+        detalle = por_fase.map do |kind, pares|
+          "#{I18n.t("flow.kinds.#{kind}")}: #{pares.map { |link, _| "«#{link.challenge.name}»" }.to_sentence}"
+        end
+        "Un taller trabaja sobre una sola fase, y este mezcla dos. #{detalle.join(' · ')}."
+      end
     end
   end
 end

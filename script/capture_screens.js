@@ -2667,8 +2667,10 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // ── El taller ────────────────────────────────────────────────────────────
   //
   // Los tres desafíos son PROPIOS del recorrido (`taller-idear`,
-  // `taller-evolucion`, `taller-avanzado`) y los dos talleres también: ninguno
-  // se usa a mano, como manda CLAUDE.md. Se entra por el link «Talleres» del
+  // `taller-evolucion`, `taller-avanzado`) y los tres talleres también —el
+  // borrador, el de idear y el de evolución—: ninguno se usa a mano, como
+  // manda CLAUDE.md. Un taller trabaja sobre una sola fase, así que idear y
+  // evolución viven en talleres distintos. Se entra por el link «Talleres» del
   // nav y de ahí todo va por link.
   //
   // Read-only a propósito: no se abre, no se propone ni se acepta nada, así
@@ -2727,9 +2729,9 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     await capturar(page, '24-taller-armado');
   }
 
-  // 25, 26 y 28 son la MISMA pantalla —las salas de un taller abierto viven
-  // en el mismo `show`—, y cada captura exige lo suyo: si una sala dejara de
-  // renderizar, la otra seguiría pasando.
+  // 25 y 28 son la MISMA pantalla —el taller de idear—, y cada captura exige
+  // lo suyo: si una sala dejara de renderizar, la otra seguiría pasando. 26 y
+  // 27 salen del taller de evolución, más abajo.
   if (await goToWorkshop('Taller de mejora continua')) {
     // 25: la sala de idear ofrece el formulario del módulo de ideación.
     if (!(await page.locator('form[action$="/ideas"] input[value="Crear borrador"]').count())) {
@@ -2741,15 +2743,6 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       console.error('[TALLER] la sala de idear no dice con quién se comparte el borrador');
     }
     await capturar(page, '25-taller-sala-idear');
-
-    // 26: la sala de evolución, un formulario por idea de la mesa (las dos de
-    // Paula; la de Pedro es de la otra mesa y no entra).
-    const proposalForms = await page.locator('form[action$="/proposals"] input[value="Proponer"]').count();
-    if (proposalForms !== 2) {
-      failures++;
-      console.error(`[TALLER] la sala de evolución ofrece ${proposalForms} propuestas y se esperaban 2 (las ideas de la mesa)`);
-    }
-    await capturar(page, '26-taller-sala-evolucion');
 
     // 28: el desafío que avanzó de fase se ve cerrado, y DICE POR QUÉ. El
     // motivo también aparece en la lista de armado, así que se acota a la
@@ -2763,6 +2756,19 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       console.error(`[TALLER] el vínculo cerrado no dice su motivo: «${closedReason}»`);
     }
     await capturar(page, '28-taller-vinculo-cerrado');
+  }
+
+  // El taller de evolución: 26 y 27 salen de acá, no del de idear. La mesa es
+  // la suya —se llama igual y lleva a la misma gente a propósito—.
+  if (await goToWorkshop('Taller de evolución')) {
+    // 26: la sala de evolución, un formulario por idea de la mesa (las dos de
+    // Paula; la de Pedro no entra: su autor no está en esta mesa).
+    const proposalForms = await page.locator('form[action$="/proposals"] input[value="Proponer"]').count();
+    if (proposalForms !== 2) {
+      failures++;
+      console.error(`[TALLER] la sala de evolución ofrece ${proposalForms} propuestas y se esperaban 2 (las ideas de la mesa)`);
+    }
+    await capturar(page, '26-taller-sala-evolucion');
 
     // 27: la propuesta de la mesa, en la ficha de la idea. Por link: taller →
     // desafío → «Ideas» → la idea. La ficha la ve quien administra, que no es

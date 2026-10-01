@@ -59,4 +59,29 @@ RSpec.describe WorkshopGroupMember do
       expect(dos.map(&:workshop_id).uniq.size).to eq(2)
     end
   end
+
+  # `attended` y NO `present`: una columna `present` genera `present?`, que
+  # choca con `Object#present?` de ActiveSupport. El choque no da error —
+  # devuelve otra cosa—, que es la peor forma de romperse.
+  describe "la asistencia" do
+    it "nace presente, sin que nadie lo diga" do
+      as_company(company) do
+        member = create(:workshop_group_member, workshop_group: create(:workshop_group, workshop: create(:workshop)))
+
+        expect(member.reload.attended).to be(true)
+      end
+    end
+
+    it "y el scope deja sólo a los presentes" do
+      as_company(company) do
+        group = create(:workshop_group, workshop: create(:workshop))
+        presente = create(:workshop_group_member, workshop_group: group, user: without_tenant { create(:user) })
+        ausente = create(:workshop_group_member, workshop_group: group, user: without_tenant { create(:user) })
+        ausente.update!(attended: false)
+
+        expect(WorkshopGroupMember.presentes).to include(presente)
+        expect(WorkshopGroupMember.presentes).not_to include(ausente)
+      end
+    end
+  end
 end

@@ -28,6 +28,21 @@
         Mesas
         %span.muted= " · #{Flow::Texto.contar(groups.size, 'mesa')}"
 
+    -# Más angosto que el `can_edit` de alrededor a propósito: ese vive con el
+    -# taller en borrador, y el reparto necesita la fase (que en borrador no
+    -# existe) y ninguna propuesta hecha. Ofrecerlo con la condición ancha
+    -# sería un control que rebota.
+    -# En modo individual no va: ahí una mesa es una persona por diseño.
+    -# Abierto no alcanza: `MaterializeClosures` cierra los vínculos vencidos y
+    -# no el taller, así que puede estar abierto y sin fase.
+    - puede_repartir = can_edit && workshop.open? && workshop.phase.present? && !workshop.individual? && groups.none? { |g| g.workshop_proposals.exists? }
+    - if puede_repartir
+      = form_with url: assign_workshop_workshop_groups_path(workshop), method: :post, class: "assignment-add" do |f|
+        %div
+          = f.label :size, "Personas por mesa"
+          = f.number_field :size, value: 4, min: 1, max: 20
+          = f.submit "Armar mesas", class: "btn btn-primary btn-sm"
+
     - if groups.empty?
       %p.muted Todavía no hay mesas armadas.
     - else
