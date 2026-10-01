@@ -1,4 +1,4 @@
-\restrict b20yM4l2VW9TcMT4ELDpmNh1ZIBQCzTZpg7hviY68CnLm0N0nPUhII7UFTAMQAA
+\restrict psVR7VjsVuHqr3iL7igOLY2CnZyfLy4evcHdK1OiifEmqEKhbBc32j0Sgadvojn
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -737,7 +737,8 @@ CREATE TABLE public.workshop_group_members (
     user_id uuid NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    workshop_id uuid NOT NULL
+    workshop_id uuid NOT NULL,
+    attended boolean DEFAULT true NOT NULL
 );
 
 
@@ -3128,11 +3129,12 @@ ALTER TABLE ONLY public.workshop_proposals
 -- PostgreSQL database dump complete
 --
 
-\unrestrict b20yM4l2VW9TcMT4ELDpmNh1ZIBQCzTZpg7hviY68CnLm0N0nPUhII7UFTAMQAA
+\unrestrict psVR7VjsVuHqr3iL7igOLY2CnZyfLy4evcHdK1OiifEmqEKhbBc32j0Sgadvojn
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260930140000'),
 ('20260930120000'),
 ('20260929120000'),
 ('20260928140000'),
