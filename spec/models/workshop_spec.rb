@@ -87,6 +87,9 @@ RSpec.describe Workshop do
 
       taller.regenerate_checkin_token
 
+      # Contra la fila releída: lo que importa es que el token nuevo se
+      # PERSISTIÓ y que el modo en la base sigue siendo el mismo.
+      taller.reload
       expect(taller.checkin_token).not_to eq(anterior)
       expect(taller).to be_registered_attendance
     end
@@ -126,6 +129,19 @@ RSpec.describe Workshop do
       expect {
         as_company(company) { create(:workshop_group, :arrival, workshop: taller, name: "Otra") }
       }.to raise_error(ActiveRecord::RecordNotUnique)
+    end
+
+    # Lo que distingue el índice PARCIAL del total: en un taller conviven las
+    # mesas normales con la de llegada. Sin el `where: "arrival"` el UNIQUE
+    # sobre `workshop_id` dejaría una sola mesa por taller, o sea rompería el
+    # reparto entero.
+    it "convive con las mesas normales del mismo taller" do
+      taller = as_company(company) { create(:workshop) }
+      as_company(company) { create(:workshop_group, workshop: taller, name: "Mesa 1") }
+
+      expect {
+        as_company(company) { create(:workshop_group, :arrival, workshop: taller) }
+      }.not_to raise_error
     end
 
     it "no impide una llegada en otro taller" do
