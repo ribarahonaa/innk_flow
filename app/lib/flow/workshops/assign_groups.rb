@@ -18,17 +18,31 @@ module Flow
         # En borrador los vínculos no tienen módulo, así que no hay fase con la
         # que elegir el criterio.
         return failure("El taller tiene que estar abierto para armar las mesas.") unless @workshop.open?
+        # El reparto por mesas no tiene sentido en modo individual: juntaría las
+        # mesas de una persona, y una mesa reusada conservaría el nombre de quien
+        # `Convoke#own_group` le puso.
+        return failure("Un taller individual no se reparte en mesas.") if @workshop.individual?
+        # Un taller abierto puede no tener fase: `MaterializeClosures` cierra los
+        # vínculos vencidos de a uno y NO cierra el taller, así que «abierto con
+        # todo cerrado» es un estado que la app produce sola. Sin fase no hay
+        # criterio, y caer al `else` repartiría por cabeza a TODOS los
+        # `participant` de la empresa, que nadie convocó.
+        fase = @workshop.phase
+        return failure("Los vínculos de este taller ya se cerraron: no hay fase sobre la que repartir.") if fase.nil?
         # Rearmar mueve gente entre mesas y borra las que queden vacías, y
         # `workshop_proposals.workshop_group_id` es ON DELETE CASCADE: una mesa
         # con propuestas se llevaría las aceptadas, que son la procedencia de
         # versiones ya publicadas. Con trabajo hecho, se mueve a mano.
         return failure("Ya hay propuestas en este taller: las mesas se mueven a mano.") if proposals?
 
-        grupos = @workshop.phase == "evolution" ? groups_by_idea : groups_by_person
-        return failure("No hay a quién sentar.") if grupos.empty?
+        grupos = fase == "evolution" ? groups_by_idea : groups_by_person
+        # `all?(&:empty?)` y no `empty?`: en evolución un hash con ideas pero
+        # todas sin gente presente no es «hay a quién sentar». `Seating` las
+        # descarta y devolveríamos cero mesas con ok? true.
+        return failure("No hay a quién sentar.") if grupos.values.all?(&:empty?)
 
         seating = Seating.new(groups: grupos, size: @size).call
-        @workshop.transaction { seat!(seating.tables) }
+        @workshop.with_lock { seat!(seating.tables) }
 
         Result.new(ok: true, tables: seating.tables, splits: seating.splits, errors: [])
       end
@@ -97,7 +111,9 @@ module Flow
       # Sienta a cada mesa. Mueve a los presentes, crea las mesas que falten y
       # borra SÓLO las que quedan vacías —seguro porque el guarda de propuestas
       # ya corrió—. Un ausente conserva su asiento, así que su mesa no queda
-      # vacía y no se borra.
+      # vacía y no se borra. Por eso una mesa reusada puede quedar con MÁS gente
+      # que `size`: la suya más un ausente que conservó el asiento. Es a
+      # propósito: el tamaño habla de quien está presente.
       def seat!(tables)
         existentes = @workshop.workshop_groups.order(:created_at).to_a
 

@@ -66,6 +66,31 @@ RSpec.describe Flow::Workshops::AssignGroups do
       expect(result).not_to be_ok
       expect(result.errors.join).to include("a quién sentar")
     end
+
+    # El estado lo produce la app sola: `MaterializeClosures` no cierra el taller.
+    it "no reparte un taller abierto con todos los vínculos cerrados, ni convoca a la empresa" do
+      cerrado = as_company(company) do
+        create(:workshop, status: "open").tap do |w|
+          create(:workshop_challenge, workshop: w, status: "closed")
+        end
+      end
+      as_company(company) { create(:membership, company: company, user: paula, role: "participant") }
+
+      result = as_company(company) { described_class.new(cerrado, size: 3).call }
+
+      expect(result).not_to be_ok
+      expect(result.errors.join).to include("vínculos")
+      expect(as_company(company) { WorkshopGroupMember.count }).to eq(0)
+    end
+
+    it "no reparte un taller individual" do
+      individual = as_company(company) { create(:workshop, status: "open", mode: "individual") }
+
+      result = as_company(company) { described_class.new(individual, size: 3).call }
+
+      expect(result).not_to be_ok
+      expect(result.errors.join).to include("individual")
+    end
   end
 
   describe "en evolución" do
@@ -87,7 +112,25 @@ RSpec.describe Flow::Workshops::AssignGroups do
         idea.update!(status: "draft")
       end
 
-      expect(as_company(company) { described_class.new(taller, size: 4).call }).not_to be_ok
+      result = as_company(company) { described_class.new(taller, size: 4).call }
+
+      expect(result).not_to be_ok
+      expect(result.errors.join).to include("a quién sentar")
+    end
+
+    it "con toda la gente de las ideas ausente no devuelve ok con cero mesas" do
+      as_company(company) do
+        idea_in(step_of(taller), paula)
+        idea_in(step_of(taller), pedro)
+        seat(taller, paula, mesa)
+        seat(taller, pedro, mesa)
+        WorkshopGroupMember.update_all(attended: false)
+      end
+
+      result = as_company(company) { described_class.new(taller, size: 4).call }
+
+      expect(result).not_to be_ok
+      expect(result.errors.join).to include("a quién sentar")
     end
 
     # Review Focus 1.
@@ -191,6 +234,41 @@ RSpec.describe Flow::Workshops::AssignGroups do
 
       expect(result.tables.flatten).to contain_exactly(paula.id, pedro.id)
       expect(as_company(company) { WorkshopGroupMember.pluck(:user_id) }).to contain_exactly(paula.id, pedro.id)
+    end
+  end
+
+  describe "las mesas que quedan" do
+    let(:taller) { as_company(company) { open_workshop(["ideation"]) } }
+
+    def mesas(n) = as_company(company) { Array.new(n) { create(:workshop_group, workshop: taller) } }
+
+    it "borra las que quedan vacías" do
+      m1, = mesas(3)
+      as_company(company) do
+        [paula, pedro].each { |u| create(:membership, company: company, user: u, role: "participant") }
+        seat(taller, paula, m1)
+      end
+
+      result = as_company(company) { described_class.new(taller, size: 4).call }
+
+      expect(result).to be_ok
+      expect(as_company(company) { taller.workshop_groups.count }).to eq(1)
+    end
+
+    it "no borra la que sólo tiene a un ausente: conserva su asiento" do
+      _m1, m2 = mesas(2)
+      as_company(company) do
+        create(:membership, company: company, user: paula, role: "participant")
+        seat(taller, ana, m2)
+        WorkshopGroupMember.find_by!(user_id: ana.id).update!(attended: false)
+      end
+
+      as_company(company) { described_class.new(taller, size: 4).call }
+
+      as_company(company) do
+        expect(WorkshopGroup.exists?(m2.id)).to be(true)
+        expect(WorkshopGroupMember.find_by!(user_id: ana.id).workshop_group_id).to eq(m2.id)
+      end
     end
   end
 end

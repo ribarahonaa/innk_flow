@@ -31,5 +31,15 @@ RSpec.describe Workshop do
         expect(workshop.phase).to eq("evolution")
       end
     end
+
+    # Con un solo vínculo no hay orden de filas que valga: fija `select(&:open?)`.
+    it "con todos los vínculos cerrados es nil" do
+      as_company(company) do
+        workshop = create(:workshop, status: "open")
+        link(workshop, kind: "ideation", status: "closed")
+
+        expect(workshop.phase).to be_nil
+      end
+    end
   end
 end
