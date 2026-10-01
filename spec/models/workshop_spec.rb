@@ -61,4 +61,81 @@ RSpec.describe Workshop do
       end
     end
   end
+
+  describe "el modo de asistencia" do
+    it "nace presumido y con token" do
+      taller = as_company(company) { create(:workshop) }
+
+      expect(taller.attendance_mode).to eq("presumed")
+      expect(taller).to be_presumed_attendance
+      expect(taller.checkin_token).to be_present
+    end
+
+    it "rechaza un modo que no existe" do
+      taller = as_company(company) { build(:workshop, attendance_mode: "qr") }
+
+      expect(taller).not_to be_valid
+      expect(taller.errors[:attendance_mode]).to be_present
+    end
+
+    # El token es UNA de las dos cosas que el link necesita; la otra es el modo.
+    # Separarlas es lo que deja rotar el token sin devolver la asistencia a
+    # presumida en medio de la sesión.
+    it "rota el token sin tocar el modo" do
+      taller = as_company(company) { create(:workshop, :registered) }
+      anterior = taller.checkin_token
+
+      taller.regenerate_checkin_token
+
+      expect(taller.checkin_token).not_to eq(anterior)
+      expect(taller).to be_registered_attendance
+    end
+  end
+
+  describe "#checkin_state" do
+    it "es :off con el modo presumido, aunque esté abierto" do
+      taller = as_company(company) { create(:workshop, status: "open") }
+
+      expect(taller.checkin_state).to eq(:off)
+      expect(taller).not_to be_checkin_open
+    end
+
+    it "distingue borrador de cerrado, para poder decir cuál es" do
+      borrador = as_company(company) { create(:workshop, :registered, status: "draft") }
+      cerrado  = as_company(company) { create(:workshop, :registered, status: "closed") }
+
+      expect(borrador.checkin_state).to eq(:draft)
+      expect(cerrado.checkin_state).to eq(:closed)
+    end
+
+    it "es :open con el modo puesto y el taller abierto" do
+      taller = as_company(company) { create(:workshop, :registered, status: "open") }
+
+      expect(taller.checkin_state).to eq(:open)
+      expect(taller).to be_checkin_open
+    end
+  end
+
+  describe "la mesa de llegada" do
+    # La unicidad la tiene que dar la BASE: dos escaneos en el mismo segundo
+    # atraviesan cualquier `find_or_create_by`.
+    it "es una sola por taller" do
+      taller = as_company(company) { create(:workshop) }
+      as_company(company) { create(:workshop_group, :arrival, workshop: taller) }
+
+      expect {
+        as_company(company) { create(:workshop_group, :arrival, workshop: taller, name: "Otra") }
+      }.to raise_error(ActiveRecord::RecordNotUnique)
+    end
+
+    it "no impide una llegada en otro taller" do
+      uno = as_company(company) { create(:workshop) }
+      otro = as_company(company) { create(:workshop) }
+      as_company(company) { create(:workshop_group, :arrival, workshop: uno) }
+
+      expect {
+        as_company(company) { create(:workshop_group, :arrival, workshop: otro) }
+      }.not_to raise_error
+    end
+  end
 end
