@@ -17,8 +17,9 @@ salieron de una revisión, no de la implementación.
 
 ## Estado actual
 
-- **`master` está en `415a7b9`** (merge `--no-ff`, con la convención «Merge: …»
-  del repo). **11 commits adelante de `origin/master` y sin pushear.**
+- **`master` está en `af825a3`** — el merge `--no-ff` es `415a7b9`, con la
+  convención «Merge: …» del repo, y encima va este handoff. **12 commits adelante
+  de `origin/master` y sin pushear.**
 - `make spec` **1468/0** —corrida sobre el árbol mergeado, no sólo sobre la
   rama— contra los 1418 de antes. `make screens` **71 capturas / 0 errores**.
   `make seed` abre los dos talleres.
@@ -29,8 +30,15 @@ salieron de una revisión, no de la implementación.
 
 ### Lo que el plan no decía, y hubo que decidir
 
-31 rulings, todos en el ledger de la sesión con su costo declarado. Los cinco que
-cambian cómo se lee el código:
+Fueron 31 decisiones, cada una anotada con qué costaba si me equivocaba. **Ese
+ledger vivía en `.superpowers/sdd/` y se borró con el workspace al cerrar la
+rama**, así que lo que sobrevive es lo que está escrito acá: los cinco que
+cambian cómo se lee el código (abajo), los tres residuales parqueados y los
+cuatro diferidos (en «Próximos pasos»). El resto eran decisiones de proceso
+—qué modelo para cada tarea, qué mutación pedir, qué minor meter en qué ronda—
+cuyo resultado ya está en el código y en los diez mensajes de commit.
+
+Los cinco que cambian cómo se lee el código:
 
 1. **El reparto del seed que proponía el plan rompía `25-taller-sala-idear`.**
    Mandaba a admin al taller de evolución, y el texto «El borrador se comparte
@@ -161,7 +169,7 @@ restaura del índice, o sea deshace el ARREGLO y no la mutación.
 
 ## Próximos pasos
 
-1. **Pushear `master`.** Son 11 commits y el remote es SSH sin clave acá: va con
+1. **Pushear `master`.** Son 12 commits y el remote es SSH sin clave acá: va con
    la URL HTTPS explícita y después el ref de seguimiento se mueve a mano.
 2. **El escritor de `attended`.** Decisión tomada en esta sesión: se difiere. La
    asistencia está código-completa —la columna, el scope, el descuento en las dos
@@ -206,7 +214,11 @@ restaura del índice, o sea deshace el ARREGLO y no la mutación.
   desde la sesión principal, cuatro veces, y es lo que midió que el cambio a
   `workable?` no rompiera los vínculos sembrados en vez de asumirlo.
 - **Probar una guarda es romperla a mano y correrla**, con el backup por `cp` al
-  scratchpad. Nunca `git checkout <archivo>`.
+  scratchpad. Nunca `git checkout <archivo>`. Y correrla **no alcanza**: quedó en
+  memoria (`mutacion-verde-no-prueba-nada`) que de cada test hay que preguntar
+  qué tendría que romperse para que se ponga rojo, porque una mutación puede dar
+  verde por culpa del test y no del código. Las cinco de esta sesión son el
+  ejemplo.
 - **`visual-check` de archify necesita que se le diga dónde está Chrome:**
   `export ARCHIFY_CHROME=~/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome`.
   Sin eso se saltea y sale `ok: false` con `status: "skipped"`, que se lee igual
