@@ -391,9 +391,22 @@ sembrar un desafío más.
 Dos capturas:
 
 - **`29-taller-checkin`**: el bloque de armado con el QR, como admin.
-- **`30-checkin-publico`**: la pantalla pública en un `browser.newContext()`
-  **sin cookies** —si no, la sesión de admin hace que la pantalla ni muestre el
-  formulario— y el registro completo.
+- **`30-checkin-publico`**: la pantalla pública sin sesión, y el registro
+  completo.
+
+**Sin sesión es `salir()`, NO un `browser.newContext()`.** El recorrido ya tiene
+ese helper y lo usa para las tres capturas que piden otra sesión. Un contexto
+nuevo traería una `page` nueva **sin los listeners de `pageerror` y de
+`response`**, que se registran una sola vez sobre la `page` del recorrido: la
+captura quedaría ciega justo a lo que `make screens` existe para cazar —un error
+de JS y cualquier HTTP >= 400—, y daría verde igual. Es la misma clase de guarda
+que mide cero y no se distingue de una que funciona.
+
+El link se **lee de la pantalla de admin** (la captura 29), que es para lo que el
+diseño lo pone en texto debajo del QR: el token es aleatorio por siembra, así que
+no se puede escribir en el script. Y ahí el `goto` es correcto —no hay link que
+seguir, y la pantalla pública no monta ninguna isla ni carga el bundle de JS, que
+es lo que la regla de «navegá por link» protege—.
 
 La captura del registro usa un email **fijo**, `llegada@taller.example`, y es
 idempotente por diseño: la primera corrida crea la cuenta, las siguientes
