@@ -10,10 +10,14 @@ module Flow
         def ok? = ok
       end
 
-      def initialize(workshop, user, group: nil)
+      def initialize(workshop, user, group: nil, attended: nil)
         @workshop = workshop
         @user = user
         @group = group
+        # Un taller con la presencia REGISTRADA convoca AUSENTE: está invitado,
+        # no llegó. El `nil` es lo que deja al escaneo decir `true` sin que este
+        # servicio pregunte por el modo en dos lugares.
+        @attended = attended.nil? ? workshop.presumed_attendance? : attended
       end
 
       def call
@@ -32,7 +36,7 @@ module Flow
         group ||= @workshop.individual? ? own_group : nil
         return group_required if group.nil?
 
-        member = WorkshopGroupMember.new(workshop_group: group, user: @user)
+        member = WorkshopGroupMember.new(workshop_group: group, user: @user, attended: @attended)
         return Result.new(ok: true, member: member, errors: []) if member.save
 
         Result.new(ok: false, member: nil, errors: member.errors.full_messages)
