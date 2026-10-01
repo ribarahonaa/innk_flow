@@ -417,6 +417,91 @@ ahora.
   quedó abierto en una ronda vieja bloqueaba a la idea para siempre, porque
   nadie vuelve a cerrar comentarios de una conversación que ya terminó.
 
+### El taller
+
+Un taller es un **evento que abarca N desafíos**, no un módulo más del flujo.
+El motor tiene un módulo activo por construcción (`Flow::Pipeline#active_step`)
+y el taller se monta encima de la fase que cada desafío ya está corriendo: no
+lo hace avanzar ni lo traba —nada se engancha en `advance!`—. Lo que ata el
+taller al desafío es el MÓDULO (`workshop_challenges.challenge_step_id`),
+resuelto al abrir con el mismo late binding del pipeline.
+
+**Un taller trabaja sobre una sola fase.** Se verifica en
+`Flow::Workshops::Open` y no como validación de modelo: en borrador el vínculo
+todavía no tiene `challenge_step`, así que la fase no existe y no hay con qué
+comparar. La verificación cuenta los `kind` distintos entre los vínculos que
+van a quedar abiertos y, si hay dos, **nombra qué desafío está en cuál fase**
+—«el taller mezcla fases» sin los nombres deja a quien lo lee abriendo los
+desafíos de a uno—. Y va **antes de escribir nada**: rechazar después de cerrar
+vínculos dejaría el taller a medio abrir hasta que el rollback lo deshaga, y el
+motivo se leería sobre un estado que ya no existe.
+
+**`Workshop#phase` se deriva de los vínculos abiertos, no se guarda.** Una
+columna sería la segunda fuente que el día que difiera de los vínculos miente.
+
+**Y un taller abierto puede no tener NINGUNA fase: ahí está la trampa.**
+`Flow::Workshops::MaterializeClosures` cierra los vínculos vencidos de a uno y
+**nunca** cierra el taller —`Close` sí cierra los dos—, así que «abierto con
+todos sus vínculos cerrados» es un estado que la app produce sola.
+`Flow::Workshops::AssignGroups` lo rechaza con su propio mensaje y
+`puede_repartir` pregunta lo mismo. Sin esa guarda el ternario caía en la rama
+de idear y `participant_ids` sentaba a **todos los `participant` de la
+empresa**, a ninguno de los cuales convocó nadie.
+
+**Idear no es otro algoritmo: es el mismo con grupos de una persona.**
+`AssignGroups` arma la entrada según la fase —en evolución un grupo por idea
+con su gente, en idear uno por persona— y `Flow::Workshops::Seating` hace el
+reparto sin tocar la base: recibe grupos indivisibles y un tamaño, y devuelve
+mesas más lo que tuvo que desprender. «Indivisibles» tiene una excepción, y es
+la única: un grupo más grande que el tamaño no tiene frontera por donde
+cortar, así que se parte su gente y el aviso sale con `inside: true`.
+
+**La columna se llama `attended` y no `present`.** En Rails una columna
+`present` genera `present?`, que choca con `Object#present?` de ActiveSupport,
+y el choque no revienta: devuelve otra cosa, que es la peor forma de romperse.
+El default es `true` porque el primer reparto sienta al pool completo y marcar
+ausentes es la excepción. Cuelga de la membresía de la mesa y no de un padrón
+aparte: estar convocado ES estar en una mesa, y dos fuentes para «quién está en
+este taller» divergen.
+
+**Pero marcar a alguien ausente todavía no se puede desde la app.** Ninguna
+ruta, ningún controller y ninguna vista escriben `attended`: hoy sólo cambia
+desde una consola o un spec, y el código de la app únicamente lo lee
+(`WorkshopGroupMember.presentes` y los `absent_ids` de `AssignGroups`). Es una
+capacidad del dominio sin interfaz, igual que el payload editable de
+`Tasks::EvaluateIdea`. O sea que las reglas de la ausencia que siguen son el
+contrato que el reparto respeta, no un control que alguien pueda apretar.
+
+**El reparto se niega a correr en cuanto hay propuestas.** Rearmar borra las
+mesas que queden vacías, y eso se llevaría las propuestas aceptadas, que son la
+procedencia de versiones ya publicadas. El borrado que lo haría va por Rails
+—`WorkshopGroup` declara `has_many :workshop_proposals, dependent: :destroy` y
+`AssignGroups` llama `mesa.destroy!`—, y debajo está el piso:
+`workshop_proposals.workshop_group_id` es `ON DELETE CASCADE`. Los dos, porque
+sacar la cascada de la FK no quitaría el riesgo: el que está en el camino es el
+`dependent:`. Con trabajo hecho, las mesas se mueven a mano.
+
+**Nunca evicta, y borra sólo las mesas que quedan vacías.** Quien está sentado
+por una convocatoria a mano entra al reparto aunque su rol no esté en el pool
+automático: sacarlo desharía una decisión que alguien tomó a propósito. Un
+ausente conserva su asiento, así que su mesa no queda vacía y no se borra — y
+de rebote una mesa reusada puede terminar con MÁS gente que el tamaño pedido.
+Es a propósito: el tamaño habla de quién está presente. Los ausentes se
+descuentan en las **dos** fases: en evolución, si alguien no vino su idea
+pierde a esa persona y eso cambia los racimos.
+
+**En evolución sólo se vuelve grupo de una persona quien está sentado y no
+está en ninguna idea.** Sumar un grupo de una persona que YA está en una idea
+no cambia las mesas —el racimo las une y la deduplicación lo absorbe—, pero sí
+agrega una clave que el reparto puede elegir para desprender, y ahí el aviso
+anuncia un corte que no movió a nadie.
+
+**Por la regla de una sola fase el seed tiene tres talleres y no dos**: uno
+sobre idear —que además lleva el desafío que se rechaza al abrirse, y es de
+donde sale el vínculo cerrado con motivo de `28`—, uno sobre evolución —que
+lleva la propuesta pendiente— y el borrador. `25` y `28` salen del primero,
+`26` y `27` del segundo, `24` del borrador.
+
 ### Multi-tenancy: cuatro capas
 
 1. `Flow::Tenant.with(company)` para entrar. `bypass!` es la única válvula de
@@ -1235,8 +1320,11 @@ node ~/.claude/skills/archify/bin/archify.mjs visual-check docs/arquitectura.htm
 **Corrido con eso, los dos diagramas FALLAN el contenido vertical, y venían
 fallando.** Medido el 2026-09-30 sobre el HTML de `master`, sin cambios encima:
 arquitectura 1339px de alto en un viewport de 900, proceso 1688px. `overflowX` es
-false en los dos: el desborde es sólo a lo alto. No lo arregló nadie porque nadie
-lo había medido — `deliver` daba verde y `visual-check` se salteaba en silencio.
+false en los dos: el desborde es sólo a lo alto. Re-medido el 2026-10-01 en la
+rama `asignacion-de-mesas` con la misma archify: 1345px y 1688px. El 1339 de
+arquitectura se quedó viejo por contenido que cambió desde entonces; el reparto
+de mesas no movió ninguno de los dos. No lo arregló nadie porque nadie lo había
+medido — `deliver` daba verde y `visual-check` se salteaba en silencio.
 Arreglarlo es redistribuir el Y y subir el `viewBox`, o sacar contenido, y es
 decisión de diseño: el skill prohíbe explícitamente taparlo con `overflow:
 hidden` o con letra más chica.
