@@ -100,8 +100,21 @@ RSpec.describe "check-in por link", type: :request do
     # Nada lo tapa del lado del navegador: el `data-disable-with` del botón
     # necesita JS y el layout `auth` no carga ningún bundle. Sin el rescate, esto
     # es un 500 justo en el camino primario de la pantalla.
+    #
+    # Afirma QUIÉN quedó adentro y no sólo que no reventó: es el camino de
+    # autenticación PÚBLICO de la app, y «no creó una cuenta» más «redirigió» lo
+    # cumple igual un rescate que devuelva la cuenta equivocada. Por eso el
+    # asiento se compara por `user_id` y con `contain_exactly`: entró esa
+    # persona, y nadie más.
     it "no revienta cuando otro toque creó la cuenta en el medio" do
-      without_tenant { create(:user, email: "doble@taller.example", name: "Doble", password: "Test1234") }
+      ganadora = without_tenant do
+        create(:user, email: "doble@taller.example", name: "Doble", password: "Test1234")
+      end
+      # Relleno, y creado DESPUÉS a propósito: `admin` del `let!` ya hace que
+      # `User.first` no sea la persona correcta, y éste hace lo mismo con
+      # `User.last`. Las dos mitades importan, porque un rescate roto que
+      # devuelva cualquiera de las dos puntas tiene que poner esto en rojo.
+      without_tenant { create(:user, email: "relleno@taller.example", password: "Test1234") }
 
       primer_find = true
       allow(User).to receive(:find_by).and_wrap_original do |original, *args|
@@ -118,6 +131,49 @@ RSpec.describe "check-in por link", type: :request do
       }.not_to change { without_tenant { User.count } }
 
       expect(response).to redirect_to(workshop_path(taller))
+
+      # El `pluck` va ADENTRO del bloque: la relación es perezosa y leerla
+      # afuera dispara el `default_scope` sin tenant (`MissingTenant`).
+      asientos = as_company(company) do
+        WorkshopGroupMember.joins(:workshop_group)
+                           .where(workshop_groups: { workshop_id: taller.id })
+                           .pluck(:user_id, :attended)
+      end
+      expect(asientos).to contain_exactly([ganadora.id, true])
+    end
+
+    # El hermano de seguridad del de arriba: la carrera resuelve por el camino
+    # idempotente, no por «la fila existe, pasá». Con la clave que no es, el
+    # rescate tiene que terminar en el mensaje genérico del login, sin sesión y
+    # sin asiento — si no, cualquiera con el QR entra como cualquiera con sólo
+    # perder una carrera contra sí mismo.
+    it "con la clave equivocada no entra, aunque la fila ya exista" do
+      ganadora = without_tenant do
+        create(:user, email: "doble@taller.example", name: "Doble", password: "Test1234")
+      end
+
+      primer_find = true
+      allow(User).to receive(:find_by).and_wrap_original do |original, *args|
+        if primer_find
+          primer_find = false
+          nil
+        else
+          original.call(*args)
+        end
+      end
+
+      expect {
+        post url, params: { email: "doble@taller.example", name: "X", password: "otra1234" }
+      }.not_to change { without_tenant { User.count } }
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include(I18n.t("auth.invalid_credentials"))
+      expect(without_tenant { Session.where(user_id: ganadora.id).count }).to eq(0)
+      asientos = as_company(company) do
+        WorkshopGroupMember.joins(:workshop_group)
+                           .where(workshop_groups: { workshop_id: taller.id }).count
+      end
+      expect(asientos).to eq(0)
     end
 
     it "rechaza una clave corta sin crear nada" do
