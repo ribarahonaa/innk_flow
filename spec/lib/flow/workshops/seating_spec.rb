@@ -47,6 +47,17 @@ RSpec.describe Flow::Workshops::Seating do
 
       expect(result.tables).to all(be_present)
     end
+
+    it "ante un empate de solape desprende la de menos gente" do
+      # El desempate por tamaño es lo único que decide acá: i1 e i2 empatan en
+      # solape, así que se desprende la de MENOS gente. Sin ese desempate se
+      # desprendería i1, y las mesas saldrían iguales — por eso se mira `splits`
+      # y no `tables`.
+      result = repartir({ "i1" => %w[a b c], "i2" => %w[a b] }, 2)
+
+      # i1 queda sola con tres personas y no entra: de ahí el segundo aviso.
+      expect(result.splits.map { |s| [s.group_key, s.inside] }).to eq([["i2", false], ["i1", true]])
+    end
   end
 
   describe "un grupo sin nadie" do
@@ -80,12 +91,14 @@ RSpec.describe Flow::Workshops::Seating do
     end
   end
 
-  # Los desempates existen para esto. Sin medirlo se pueden romper sin que nada
-  # se queje, y dos corridas del mismo taller darían mesas distintas.
+  # Dos corridas del mismo taller tienen que dar las mismas mesas, y el orden
+  # en que llegan los grupos no puede filtrarse al resultado. Se afirma una
+  # salida concreta: comparar una corrida contra sí misma no puede fallar.
   it "es determinista" do
     grupos = { "i3" => %w[c e], "i1" => %w[a b c], "i2" => %w[a b d] }
+    esperado = [%w[a b d], %w[c e]]
 
-    expect(repartir(grupos, 3).tables).to eq(repartir(grupos, 3).tables)
-    expect(repartir(grupos.to_a.reverse.to_h, 3).tables).to eq(repartir(grupos, 3).tables)
+    expect(repartir(grupos, 3).tables).to eq(esperado)
+    expect(repartir(grupos.to_a.reverse.to_h, 3).tables).to eq(esperado)
   end
 end

@@ -78,7 +78,10 @@ module Flow
         end
 
         # Se desprende la de MENOR solape con el resto; empate por menos gente,
-        # después por clave, para que dos corridas den lo mismo.
+        # después por clave. El orden de `clusters` ya entrega las claves
+        # ordenadas, así que este último desempate no se puede observar desde
+        # afuera: está para que `fit` no dependa de una invariante que se
+        # establece en otro método.
         suelta = keys.min_by { |k| [solape(k, keys - [k]), @groups[k].size, k.to_s] }
         resto = keys - [suelta]
         compartida = @groups[suelta] & personas(resto)
