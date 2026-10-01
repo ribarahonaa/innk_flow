@@ -78,7 +78,28 @@ class WorkshopCheckinsController < ApplicationController
     return authenticated(existing) if existing
 
     user = User.new(email: email, name: params[:name].to_s.strip, password: params[:password].to_s)
-    unless user.save
+    begin
+      saved = user.save
+    rescue ActiveRecord::RecordNotUnique
+      # Dos toques del mismo pulgar. El `find_by` de arriba y este `save` no son
+      # atómicos, y `User` NO valida unicidad —sólo presencia y formato—, así que
+      # lo que frena al segundo es el índice `index_users_on_lower_email` y lo
+      # que sale es esta excepción, no una validación. Nada lo tapa del lado del
+      # navegador: el `data-disable-with` que le pone `submit_tag` al botón
+      # necesita JS y el layout `auth` no carga ningún bundle, así que el doble
+      # toque llega a la base de verdad — y es lo más común que le pasa a un QR,
+      # que además es el camino PRIMARIO de esta pantalla.
+      #
+      # Se resuelve por el camino idempotente, la misma forma con la que
+      # `Flow::Workshops::CheckIn` resuelve la carrera del asiento: la fila que
+      # creó el otro request es de la misma persona, y la clave que acaba de
+      # tipear autentica contra ella. Si fueran dos personas distintas con el
+      # mismo email y claves distintas, la que pierde recibe el mensaje genérico
+      # del login, que es exactamente lo correcto.
+      return authenticated(User.find_by(email: email))
+    end
+
+    unless saved
       flash.now[:alert] = user.errors.full_messages.to_sentence
       return nil
     end
@@ -87,8 +108,11 @@ class WorkshopCheckinsController < ApplicationController
     user
   end
 
+  # `user&.` y no `user.`, igual que `SessionsController#create`: el llamado de la
+  # carrera de arriba vuelve de un `find_by` que en teoría puede dar nil, y un
+  # `NoMethodError` en el camino público es peor que el mensaje genérico.
   def authenticated(user)
-    return user if user.authenticate(params[:password].to_s)
+    return user if user&.authenticate(params[:password].to_s)
 
     flash.now[:alert] = t("auth.invalid_credentials")
     nil

@@ -20,7 +20,10 @@
         = email_field_tag :email, params[:email], required: true, autocomplete: "email"
       .field
         = label_tag :name, "Nombre"
-        = text_field_tag :name, params[:name], autocomplete: "name"
+        -# `required`: `User` valida el nombre presente, así que sin esto una
+        -# cuenta nueva sin nombre vuelve 422 después de tipear todo en un
+        -# teléfono. Lo pide el navegador antes de enviar.
+        = text_field_tag :name, params[:name], required: true, autocomplete: "name"
       .field
         = label_tag :password, "Clave"
         = password_field_tag :password, nil, required: true, autocomplete: "current-password"

@@ -92,6 +92,34 @@ RSpec.describe "check-in por link", type: :request do
       expect(response).to have_http_status(:ok)
     end
 
+    # El doble toque del mismo pulgar. `find_by` y `save` no son atómicos, y acá
+    # el choque se fuerza: la fila ya está, pero el primer `find_by` del request
+    # devuelve nil —el otro request todavía no había commiteado cuando buscó—, así
+    # que el `save` va contra `index_users_on_lower_email`.
+    #
+    # Nada lo tapa del lado del navegador: el `data-disable-with` del botón
+    # necesita JS y el layout `auth` no carga ningún bundle. Sin el rescate, esto
+    # es un 500 justo en el camino primario de la pantalla.
+    it "no revienta cuando otro toque creó la cuenta en el medio" do
+      without_tenant { create(:user, email: "doble@taller.example", name: "Doble", password: "Test1234") }
+
+      primer_find = true
+      allow(User).to receive(:find_by).and_wrap_original do |original, *args|
+        if primer_find
+          primer_find = false
+          nil
+        else
+          original.call(*args)
+        end
+      end
+
+      expect {
+        post url, params: { email: "doble@taller.example", name: "Doble", password: "Test1234" }
+      }.not_to change { without_tenant { User.count } }
+
+      expect(response).to redirect_to(workshop_path(taller))
+    end
+
     it "rechaza una clave corta sin crear nada" do
       expect {
         post url, params: { email: "corta@taller.example", name: "Corta", password: "123" }
