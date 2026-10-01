@@ -302,11 +302,22 @@ class AddCheckinToWorkshops < ActiveRecord::Migration[7.1]
 end
 ```
 
-Run: `make rails db:migrate` (regenera `db/structure.sql`).
+**La migración la corre la sesión principal, no el implementador.** `make migrate`
+toca la base de DESARROLLO, y eso no es de un subagente. Escribí el archivo,
+**no lo commitees todavía**, y devolvé `NEEDS_CONTEXT` pidiendo la migración. La
+sesión principal corre:
+
+```
+make migrate            # dev: aplica y regenera db/structure.sql
+make db-prepare-test    # test: carga el structure.sql nuevo
+```
+
+y te re-despacha para seguir desde el Step 4. (El target es `make migrate`:
+`make rails` es la consola.)
 
 Si `uuid_generate_v7()` no estuviera disponible en el contexto de la migración,
-usar `gen_random_uuid()` (Postgres 13+, built-in). Verificar en el output del
-`UPDATE` antes de seguir.
+usar `gen_random_uuid()` (Postgres 13+, built-in). La sesión principal reporta el
+output del `UPDATE`.
 
 - [ ] **Step 4: El modelo**
 
@@ -728,7 +739,9 @@ RSpec.describe Flow::Workshops::CheckIn do
 
     expect(result).to be_ok
     expect(result.member.workshop_group.arrival).to be(false)
-    expect(result.member.workshop_group.name).to eq("Paula")
+    # Contra el nombre REAL de la persona y no contra un literal: el literal
+    # ataría el test a lo que la factory genera hoy.
+    expect(result.member.workshop_group.name).to eq(without_tenant { User.find(paula.id).name })
   end
 
   it "rechaza un taller que no está abierto" do
@@ -768,10 +781,10 @@ RSpec.describe Flow::Workshops::CheckIn do
   end
 ```
 
-El nombre `"Paula"` del ejemplo individual sale de `users.name`, que la factory
-genera como `"Usuario N"`. Ajustar el `create(:user, …)` del helper `member`
-para fijar `name: "Paula"` en Paula, o asertar contra `User.find(paula.id).name`
-— lo segundo es preferible: no acopla el test a un literal.
+Hay dos cosas que corren en la sesión principal y **no** en el implementador,
+porque tocan la base de desarrollo o los contenedores: `make migrate`,
+`make rebuild`, `make seed` y `make screens`. El implementador corre
+`make spec*` y `make db-prepare-test`, que son del contenedor de test.
 
 - [ ] **Step 2: Correr y verificar que falla**
 
@@ -1677,16 +1690,20 @@ En `Gemfile`, junto a las otras de presentación:
 gem "rqrcode", "~> 2.2"
 ```
 
-Run: `make rebuild`
-
-Verificar que la gema quedó y que las opciones de `as_svg` son las que el helper
-usa (los nombres cambiaron entre 1.x y 2.x):
+**`make rebuild` lo corre la sesión principal**, igual que la verificación de las
+opciones de `as_svg` (los nombres cambiaron entre 1.x y 2.x): las dos tocan los
+contenedores y la app corriendo. Escribí el `Gemfile`, devolvé `NEEDS_CONTEXT`, y
+la sesión principal corre:
 
 ```bash
+make rebuild
 docker compose exec app bin/rails runner 'puts RQRCode::QRCode.new("https://x.test/checkin/abc").as_svg(use_path: true, viewbox: true, color: "000000")[0, 200]'
 ```
 
-Expected: un `<svg …><path …` y ningún error de keyword.
+y te re-despacha con el output y con el `Gemfile.lock` ya generado. Expected de
+la segunda: un `<svg …><path …` y ningún error de keyword. Si alguna keyword no
+existe en 2.2, la sesión principal lo dice y el helper se ajusta a lo que el
+runner aceptó.
 
 - [ ] **Step 2: Escribir el test que falla**
 
@@ -2291,19 +2308,22 @@ Y al final del bloque, junto a los otros `puts`:
     puts "Taller con check-in: #{checkin_workshop.reload.name} (token #{checkin_workshop.checkin_token})"
 ```
 
-- [ ] **Step 2: Sembrar dos veces**
+- [ ] **Step 2: Sembrar dos veces — lo corre la sesión principal**
 
-Run: `make seed`
-Run: `make seed`
-
-Expected: las dos corridas terminan bien, y la segunda **no** deja dos talleres
-con el mismo nombre. Verificar:
+`make seed` y `make screens` tocan la base de desarrollo y la app corriendo, y
+en desarrollo **`FLOW_AI_PROVIDER=anthropic`: un pedido a la IA cuesta plata
+real**. No los corre el implementador. Escribí `db/seeds.rb`,
+`script/capture_screens.js` y `CLAUDE.md`, commiteá, y devolvé `DONE` diciendo
+que faltan las corridas; la sesión principal corre esto y te reporta el output:
 
 ```bash
+make seed
+make seed
 docker compose exec app bin/rails runner 'Flow::Tenant.bypass! { puts Workshop.where(name: "Taller con check-in").count }'
 ```
 
-Expected: `1`.
+Expected: las dos siembras terminan bien y el conteo da `1` —si da `2`, el
+nombre nuevo no entró en el `destroy_all` de arriba, que es Review Focus 5—.
 
 - [ ] **Step 3: Las capturas**
 
@@ -2386,12 +2406,13 @@ entera. `30b` es la que lo prueba.
 Después de `30b`, el recorrido sigue con «vuelve el admin», que ya existe y hace
 `salir()` + `entrar('admin@demo.test')`: no hay que agregar nada ahí.
 
-- [ ] **Step 4: Correr el recorrido**
+- [ ] **Step 4: Correr el recorrido — lo corre la sesión principal**
 
-Run: `make screens`
+Run (sesión principal): `make screens`
 Expected: 74 capturas, 0 errores. Si `[RELLENO]` o `[RITMO]` reportan haber
 medido menos que antes, leer su número: una guarda que mide de menos da verde y
-es indistinguible de una que funciona.
+es indistinguible de una que funciona. La sesión principal pega el output en el
+re-despacho.
 
 - [ ] **Step 5: La documentación**
 
