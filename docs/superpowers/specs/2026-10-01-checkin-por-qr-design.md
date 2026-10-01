@@ -451,6 +451,20 @@ cinco tests que no podían fallar, dos de ellos escritos por quien revisaba.
   que ven los desafíos y las ideas en las que participan. Es el precio de la
   decisión 4, y la alternativa —dominios de email permitidos— está descrita en
   «Lo que NO entra» por si cambia.
+- **La pantalla es un oráculo de existencia por el RESULTADO, no por el texto, y
+  con el QR se pueden pre-registrar cuentas con emails ajenos.** Lo encontró la
+  revisión de la ruta pública, y se decidió dejarlo declarado el 2026-10-01.
+  Con el token en la mano, un email que no es propio más una clave inventada da
+  422 si la cuenta ya existe y «cuenta creada y adentro» si no: el mensaje es el
+  mismo en los dos casos, pero el desenlace no, así que distingue qué emails
+  tienen cuenta. Y de paso deja sentar a alguien bajo el correo de otra persona.
+  Es **inherente al formulario único que además registra** —la decisión 3 más la
+  4—: hacerlo indistinguible exigiría confirmar por correo antes de entrar, que
+  es otro subsistema y mata el caso de uso de entrar caminando a un taller. Lo
+  acota lo mismo que acota el abuso: el token sirve sólo con el taller `open` y
+  el modo `registered`, y se rota. Las dos salidas, si algún día deja de
+  alcanzar, son los dominios de email permitidos o pedir confirmación **sólo**
+  cuando el email no existe.
 - **El modo se puede apagar con gente ya marcada presente**, y el pool de idear
   cambia de significado en ese momento. No se reescribe nada; la pantalla lo
   avisa donde está el botón.
