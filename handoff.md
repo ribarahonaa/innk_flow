@@ -18,8 +18,11 @@ salieron de una revisión, no de la implementación.
 ## Estado actual
 
 - **`master` está en `af825a3`** — el merge `--no-ff` es `415a7b9`, con la
-  convención «Merge: …» del repo, y encima va este handoff. **12 commits adelante
-  de `origin/master` y sin pushear.**
+  convención «Merge: …» del repo, y encima va este handoff. **Nada de esta sesión
+  está pusheado:** `origin/master` sigue en `a5f55b9`, el punto donde arrancó.
+  (No pongo el número de commits a propósito — cada arreglo del handoff lo
+  desactualiza, incluido el que corrige el número. `git rev-list --count
+  origin/master..master` lo dice sin mentir.)
 - `make spec` **1468/0** —corrida sobre el árbol mergeado, no sólo sobre la
   rama— contra los 1418 de antes. `make screens` **71 capturas / 0 errores**.
   `make seed` abre los dos talleres.
@@ -169,7 +172,8 @@ restaura del índice, o sea deshace el ARREGLO y no la mutación.
 
 ## Próximos pasos
 
-1. **Pushear `master`.** Son 12 commits y el remote es SSH sin clave acá: va con
+1. **Pushear `master`.** Es todo lo de esta sesión desde `a5f55b9`, y el remote
+   es SSH sin clave acá: va con
    la URL HTTPS explícita y después el ref de seguimiento se mueve a mano.
 2. **El escritor de `attended`.** Decisión tomada en esta sesión: se difiere. La
    asistencia está código-completa —la columna, el scope, el descuento en las dos
