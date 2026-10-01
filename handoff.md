@@ -18,12 +18,13 @@ salieron de una revisión, no de la implementación.
 ## Estado actual
 
 - **El merge está en `415a7b9`** (`--no-ff`, con la convención «Merge: …» del
-  repo), y encima de él van los commits de este handoff. **Nada de esta sesión
-  está pusheado:** `origin/master` sigue en `a5f55b9`, el punto donde arrancó —
-  ése es el único SHA de acá que no se mueve. Ni la cabeza de `master` ni el
-  conteo de commits los escribo: los dos nombran algo anterior al commit que
-  estás leyendo, y cada arreglo del handoff los desactualiza de nuevo.
-  `git log --oneline a5f55b9..master` los dice sin mentir.
+  repo), y encima de él van los commits de este handoff. **Todo pusheado.** La
+  sesión arrancó en `a5f55b9`, que es el único SHA de acá que no se mueve:
+  `git log --oneline a5f55b9..master` es la tanda entera. La cabeza de `master`
+  no la escribo —nombraría un commit anterior al que estás leyendo, y cada
+  arreglo del handoff la desactualiza de nuevo—; se lee con `git rev-parse
+  master`, y que el remote esté a la par con `gh api
+  repos/ribarahonaa/innk_flow/commits/master --jq .sha`.
 - `make spec` **1468/0** —corrida sobre el árbol mergeado, no sólo sobre la
   rama— contra los 1418 de antes. `make screens` **71 capturas / 0 errores**.
   `make seed` abre los dos talleres.
@@ -173,35 +174,32 @@ restaura del índice, o sea deshace el ARREGLO y no la mutación.
 
 ## Próximos pasos
 
-1. **Pushear `master`.** Es todo lo de esta sesión desde `a5f55b9`, y el remote
-   es SSH sin clave acá: va con
-   la URL HTTPS explícita y después el ref de seguimiento se mueve a mano.
-2. **El escritor de `attended`.** Decisión tomada en esta sesión: se difiere. La
+1. **El escritor de `attended`.** Decisión tomada en esta sesión: se difiere. La
    asistencia está código-completa —la columna, el scope, el descuento en las dos
    fases, el asiento que se conserva, el overflow deliberado— y **no hay forma de
    marcar a nadie ausente desde la app**: sólo la escriben los specs. `CLAUDE.md`
    lo dice con la forma de frase del repo. El control sería un toggle por
    integrante detrás del mismo `can_assemble`, con su endpoint y su par de
    ejemplos.
-3. **La frase por corte que pide el spec.** Hoy el aviso cuenta los cortes y
+2. **La frase por corte que pide el spec.** Hoy el aviso cuenta los cortes y
    distingue el caso extremo con su propio texto, pero no dice CUÁL grupo se
    partió ni quién se quedó —«*Turnos rotativos* se sentó aparte; Paula se quedó
    en la otra mesa porque también trabaja en *Pesaje*»—. Necesita títulos de idea
    y nombres en el controller. `Split#shared_user_ids` ya trae lo que hace falta y
    hoy no lo lee nadie fuera del spec.
-4. **Tres residuales parqueados con ruling:** `open_step_ids` no lo fija ningún
+3. **Tres residuales parqueados con ruling:** `open_step_ids` no lo fija ningún
    test (el ejemplo pasa por `phase`, cuyo guarda rechaza primero, así que
    revertir media línea deja la suite verde); el ejemplo del barrido stubea el
    privado `proposals?` con `allow_any_instance_of` y hay alternativa sin stub
    (`send(:seat!, …)`); y con un corte ordinario Y uno `inside` juntos el aviso
    pierde la cuenta de los ordinarios.
-5. **Cuatro diferidos del review de rama, triados como «se va así»:** el N+1 de
+4. **Cuatro diferidos del review de rama, triados como «se va así»:** el N+1 de
    `people_of` (una consulta de `IdeaContributor` por idea), la falta de
    `rescue RecordNotUnique` alrededor de `seat!` (un `Convoke` concurrente sale
    500 en vez de `Result`, aunque el `with_lock` rollbackea limpio), que
    `workshop_proposals_controller.rb:25` no toma el lock del taller, y que
    ninguna guarda de capturas busque el control nuevo.
-6. **Lo que sigue abierto de handoffs anteriores, sin tocar:** el desborde
+5. **Lo que sigue abierto de handoffs anteriores, sin tocar:** el desborde
    vertical de los dos diagramas (arquitectura 1345px, proceso 1688px en un
    viewport de 900 — medido de nuevo esta sesión; `visual-check` sale
    `status: "fail"`, no `skipped`); que `make screens` no vea violaciones de CSP
@@ -233,6 +231,11 @@ restaura del índice, o sea deshace el ARREGLO y no la mutación.
   y el comando los reescribe. Van en el commit: si no, el recibo afirma un sha256
   y un alto de un archivo que ya cambió.
 - Los merges de este repo van `--no-ff` con mensaje «Merge: …».
+- **El remote está declarado por SSH y acá no hay clave**, así que `git fetch` y
+  `git ls-remote` no sirven para comprobar nada. Para ver en qué está el remote
+  sin SSH: `gh api repos/ribarahonaa/innk_flow/commits/master --jq .sha`, que
+  autentica por el helper de `gh`. Es la forma de confirmar un push en vez de
+  suponerlo.
 - `make screens` tarda ~2 minutos y `make spec` ~6. Las dos corren bien en
   background.
 - El harness sigue inyectando `Co-Authored-By` por system-reminder; hay que
