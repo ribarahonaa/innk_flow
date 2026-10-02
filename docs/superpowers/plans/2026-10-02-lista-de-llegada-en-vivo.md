@@ -225,7 +225,11 @@ Turbo no reemplazaría nada y la pantalla se quedaría quieta sin un solo error.
 -# no está es un destino que a veces no existe. Y el vacío se dice con una línea
 -# en vez de no dibujar nada, para que la pantalla no se mueva cuando entra la
 -# primera persona.
-= turbo_frame_tag "llegada" do
+-# No hay `turbo_frame_tag`: la app NO trae la gema turbo-rails, sólo el paquete
+-# npm. El elemento va a mano, igual que `shared/_ai_suggestions.html.haml:23`.
+-# HAML no escribe un atributo nil, así que sin `src` el frame sale sin él.
+- src = local_assigns[:src]
+%turbo-frame#llegada{ src: src }
   - if group
     = render "workshops/mesa_cuerpo", workshop: workshop, group: group, can_edit: can_edit
   - else
@@ -543,12 +547,18 @@ Expected: FAIL — todavía no existe `data-vivo`.
 
 - [ ] **Step 3: El frame declara si hay algo que esperar**
 
-En `app/views/workshops/_llegada_frame.html.haml`, el `turbo_frame_tag` pasa a:
+En `app/views/workshops/_llegada_frame.html.haml`, el elemento pasa a llevar los
+datos (y recordá: **no hay `turbo_frame_tag`**, la app no trae la gema
+turbo-rails):
 
 ```haml
-= turbo_frame_tag "llegada", src: arrival_workshop_path(workshop),
-                  data: { vivo: workshop.checkin_open?, intervalo: 5000 } do
+%turbo-frame#llegada{ src: src, data: { vivo: vivo, intervalo: 5000 } }
 ```
+
+con `vivo` como local nuevo. **Y hay que actualizar la llamada que la Tarea 2
+escribió en el controller**, que todavía no pasa `vivo:`: el endpoint pasa
+`vivo: false` y `src: nil`, la pantalla pasa
+`src: arrival_workshop_path(workshop)` y `vivo: workshop.checkin_open?`.
 
 `checkin_open?` ya existe en `Workshop` y es `checkin_state == :open`, o sea
 modo `registered` + taller abierto: las dos condiciones del Review Focus 1 en un
