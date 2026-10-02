@@ -6,9 +6,9 @@ Ejecutar el plan de **check-in por QR en el taller** por subagentes: un
 implementador por tarea, un revisor fresco después de cada una, y una revisión de
 rama entera al final.
 
-**Las ocho tareas están cerradas.** La feature anda, está verificada y la rama
-está lista para mergear. **No se mergeó nada y no se pusheó nada**: la rama
-`checkin-por-qr` vive sólo en local.
+**Las ocho tareas están cerradas, mergeadas y pusheadas**, y encima salió una
+segunda tanda chica: borrar una mesa ya no saca gente del taller. `master` está
+en `ff9184d` y el remote también.
 
 La feature: un taller proyecta un QR, escanearlo es la puerta —convoca, marca
 presente y sienta en una «Mesa de llegada» de la que nadie trabaja— y quien no
@@ -20,16 +20,20 @@ handoff anterior dejaba fichado como punto 1, y lo incluye.
 
 ## Estado actual
 
-- **Rama `checkin-por-qr`**, 30 commits sobre `c9a7817`, árbol limpio.
-  `git log --oneline c9a7817..checkin-por-qr` es la tanda entera.
-- **`master` y el remote siguen los dos en `c9a7817`**, comprobado con
+- **`master` está en `ff9184d` y el remote también**, comprobado con
   `gh api repos/ribarahonaa/innk_flow/commits/master --jq .sha` (no hay clave SSH
-  acá, así que `git fetch` no sirve). El merge-base es ese mismo commit: nada
-  divergió.
-- **`make spec`: 1537 ejemplos, 0 fallas.** Eran 1468 al abrir la rama.
-- **`make screens`: 74 capturas, 0 errores.** Eran 71 antes. Corrió **cinco
-  veces** en el cierre: con siembra fresca, sin resembrar, y tres veces más para
-  mutar guardas y para verificar el `btn-block`.
+  acá, así que `git fetch` no sirve). Las dos ramas de feature también están
+  publicadas.
+- **Dos merges `--no-ff`**, los dos verificados con dos padres y árbol idéntico
+  al de su rama: `ac6110d` (el check-in, 31 commits) y `ff9184d` (la mesa de
+  llegada que retiene, 2 commits).
+- **`make spec`: 1544 ejemplos, 0 fallas**, medidos sobre `master` después del
+  segundo merge. Eran 1468 al abrir la primera rama.
+- **`make screens`: 74 capturas, 0 errores.** Eran 71 antes. Corrió **ocho
+  veces** en total: con siembra fresca, sin resembrar, para mutar guardas, para
+  verificar el `btn-block`, y de nuevo después de compilar el CSS (ver abajo:
+  las primeras seis corridas validaron una pantalla que no era la que el código
+  describía).
 - **La migración está aplicada a la base de desarrollo**, `db/structure.sql`
   commiteado, y la base de test al día.
 - **El seed siembra el cuarto taller** («Taller con check-in») y `make seed` dos
@@ -53,6 +57,33 @@ handoff anterior dejaba fichado como punto 1, y lo incluye.
 
 Más `b1df244` (diseño), `594e687` y `0179f71` (plan), `544cadc` (riesgo declarado)
 y `4ca8345` (el handoff anterior).
+
+### La tanda que salió después del merge
+
+Raúl pidió dos cosas más al ver la feature andando. La primera está hecha y
+mergeada (`ff9184d`); la segunda no se empezó.
+
+**Hecho — borrar una mesa devuelve su gente a la mesa de llegada**
+(`e0e39b8`, `a3f4a96`). Borrar una mesa destruía sus asientos, así que la gente
+desaparecía del taller: con asistencia registrada el asiento es el ÚNICO registro
+de que alguien llegó, y aun con asistencia presumida, quien fue convocado a mano y
+cuyo rol no está en el pool automático no vuelve nunca, porque el reparto sólo
+conoce el pool. Ahora los asientos se MUDAN con su `attended` intacto y recién ahí
+se borra la mesa vacía, detrás de tres puertas: la llegada no se elimina (para «no
+vino» está «Marcar ausente», que conserva el asiento), una mesa con propuestas
+tampoco (misma regla que `AssignGroups`), y en modo `individual` todo queda como
+estaba porque ahí cada persona ES su mesa. El acceso a la llegada quedó en
+`Workshop#arrival_group!`, una sola implementación para los dos llamadores.
+
+**Pendiente — la lista de ingresos en TIEMPO REAL.** Está clasificada como
+**arquitectónica** y no se empezó: la app no tiene hoy NINGÚN transporte en vivo
+—no hay `app/channels`, no hay Turbo Streams, no hay broadcasts; las únicas
+menciones a ActionCable son dos líneas comentadas en `production.rb`— y todo se
+actualiza por el morph de Turbo 8 al redirigir a la misma URL. O sea que agregarlo
+cambia cómo se actualizan las pantallas, no una vista. Arranca con preguntas, dos o
+tres enfoques comparados, spec escrito y plan. Lo que ya está resuelto a favor:
+la Mesa de llegada ES el lugar donde se acumula quien va entrando, así que «qué
+mostrar en vivo» ya tiene respuesta.
 
 ### El ledger
 
@@ -199,6 +230,38 @@ variante de las dos sesiones, no el 200.
   Se aceptó —está diffeado y es el mismo predicado— porque editar a mano un archivo
   generado sería peor.
 
+### Lo que encontró la segunda tanda
+
+- **Un refactor correcto rompió algo sin cambiar el método.** Extraer
+  `CheckIn#landing` a `Workshop#arrival_group!` mudó también su rescate de la
+  carrera contra el índice UNIQUE parcial — y ese rescate sólo había corrido FUERA
+  de una transacción. El llamador nuevo lo invoca ADENTRO de una, y ahí una
+  violación de unicidad aborta la transacción entera: el `find_by!` del rescate
+  revienta con `PG::InFailedSqlTransaction`. Un 500 justo donde el comentario
+  prometía recuperación. Lo que cambió no fue el método, fue el CONTEXTO desde el
+  que se lo llama. Arreglado con `transaction(requires_new: true)` dentro del
+  método —para que sea correcto para cualquier llamador— y con un ejemplo que
+  provoca una violación real de Postgres adentro de una transacción.
+- **Una primera versión creaba la mesa de llegada al borrar una mesa VACÍA**, y lo
+  atrapó un spec que ya existía y nadie tocó (`workshop_convocation_spec.rb:50`),
+  de rebote, por un conteo. Ahora tiene ejemplo propio: un bug que ya ocurrió
+  merece un test que lo nombre.
+- **Una Important de la revisión era FALSA y se cortó antes de «arreglar» algo que
+  funciona.** Decía que el aviso apunta a «Marcar ausente», un control que podría
+  no existir, citando `CLAUDE.md`. El control existe (`_groups.html.haml:95`,
+  `routes.rb:103`): la frase de `CLAUDE.md` que citaba la había borrado el merge de
+  ese mismo día. El revisor estaba recitando el estado anterior.
+- **El `with_lock` nuevo se eligió MEJOR de lo que se había pedido.** Se sugirió
+  bloquear el taller; el implementador bloqueó la MESA, con el argumento de que
+  crear una propuesta toma `FOR KEY SHARE` sobre esa fila por la FK, que choca con
+  `FOR UPDATE` — así protege aunque quien crea la propuesta no bloquee nada.
+  Bloquear el taller no habría tocado la fila que la inserción sí toca.
+- **Ese lock NO tiene spec, y es a propósito.** Cambiar `with_lock` por
+  `transaction` deja la suite verde. Probarlo pide concurrencia real que esta suite
+  no hace, y un `expect(...).to receive(:lock!)` afirmaría que el método se llama,
+  no que el lock funcione: es una aserción sobre un mock, que la propia rúbrica de
+  este repo llama defecto. El `with_lock` de `AssignGroups` tampoco tiene spec.
+
 ## Los 55 rulings
 
 Lo que decidí en tu nombre, en orden, con lo que cuesta si está mal. El detalle
@@ -271,13 +334,16 @@ directo.
 
 ## Próximos pasos
 
-1. **Merge `--no-ff` con mensaje «Merge: …»**, que es la convención del repo. No se
-   hizo todavía.
-2. **Push**, que no se hizo y no se hace sin pedido explícito. Va por HTTPS con el
-   helper de `gh`: no hay clave SSH en este entorno.
-3. **Borrar el workspace del plan** (`.superpowers/sdd/2026-10-01-checkin-por-qr/`)
-   una vez mergeado. Está gitignoreado; el registro queda en `git log` y en este
-   archivo.
+1. **La lista de ingresos en TIEMPO REAL**, que es lo único que queda del pedido
+   original y es arquitectónica. Ver «La tanda que salió después del merge».
+2. **El tamaño del QR**, por si 208px sigue pareciendo mucho: hay margen hasta
+   ~160px sin tocar nada, porque el piso de `[CHECKIN]` son 150. Bajar ese piso es
+   decidir que la legibilidad EN PANTALLA importa menos, dado que la proyección
+   real pasa en otro lado.
+3. **Borrar el workspace del plan** (`.superpowers/sdd/2026-10-01-checkin-por-qr/`),
+   que sigue en disco. Está gitignoreado; el registro ya vive en `git log` y en
+   este archivo. También quedó `.superpowers/sdd/mesa-de-llegada-retiene-report.md`
+   de la segunda tanda.
 4. **Lo que quedó declarado y no se arregla**, por si algún día deja de alcanzar:
    - El **oráculo de existencia por resultado** del check-in y el **pre-registro de
      cuentas con emails ajenos**: decididos el 2026-10-01, en «Riesgos» del diseño,
@@ -330,5 +396,30 @@ directo.
 - `make screens` tarda ~2 minutos y `make spec` ~2; las dos corren bien en
   background.
 - El harness sigue inyectando `Co-Authored-By` y `Claude-Session` por
-  system-reminder; hay que cortarlas a mano. **Ninguno de los 30 commits de esta
-  rama lleva trailers**, verificado con un grep sobre el rango.
+  system-reminder; hay que cortarlas a mano. **Ningún commit de esta sesión lleva
+  trailers**, verificado con un grep sobre los dos rangos y sobre los dos merges.
+- **`git merge -F -` NO lee de stdin**, al revés de `git commit -F -`: falla con
+  `error: could not read file '-'` y el merge no ocurre. El mensaje va a un
+  archivo. Costó un intento.
+- **La hoja de CSS compilada vive SÓLO en el contenedor y está gitignoreada**
+  (`/app/assets/builds/*`). El layout linkea `application-build-css`, que produce
+  `yarn build:css`. Agregar clases de Tailwind nuevas sin correr `make yarn-build`
+  hace que la app sirva una hoja vieja y que `make screens` valide **una pantalla
+  distinta de la que el código describe**. Pasó de verdad: la tarjeta del QR se
+  sirvió sin ancho, sin fondo blanco, sin relleno y sin bordes durante SEIS
+  corridas verdes —el QR llenaba la tarjeta entera— y además «negro sobre blanco
+  en los dos temas», que es de lo que depende que se escanee en tema oscuro, nunca
+  fue cierto en la app servida. Medido: antes de compilar, `w-60`, `bg-white`,
+  `p-4` y `rounded-box` aparecían CERO veces en la hoja.
+- **Y `[CLASES]` no puede cazarlo**, que es la razón técnica de esas seis corridas
+  verdes: escanea una lista FIJA de familias de componentes
+  (`[class*="badge"]`, `[class*="btn"]`, `[class*="alert"]`,
+  `[class*="flow-drawer__punto"]`, `.steps`, `.panel`, `.card`,
+  `.table :is(th,td)`), así que un elemento hecho sólo de utilidades de Tailwind es
+  invisible para esa guarda.
+- **El taller borrador del recorrido se usa a mano y eso rompe la corrida.**
+  Apareció un taller llamado `fdsdfsd` en la base de desarrollo y, con él, «Taller
+  de planificación (borrador)» quedó `open` con tres vínculos: `make screens` falló
+  con `[TALLER]` hasta resembrar. Es el antipatrón que CLAUDE.md nombra para
+  desafíos, ahora visto en un taller. Si el recorrido falla por `[TALLER]`, mirá el
+  estado del borrador en la base antes de buscar el bug en el código.
