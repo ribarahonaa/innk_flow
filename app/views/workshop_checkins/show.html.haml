@@ -28,7 +28,10 @@
         = label_tag :password, "Clave"
         = password_field_tag :password, nil, required: true, autocomplete: "current-password"
         %p.field-hint Si es tu primera vez, es la clave que vas a usar de ahora en más: ocho caracteres o más.
-    = submit_tag "Entrar al taller", class: "btn btn-primary"
+    -# `btn-block` igual que el botón del login: es el ÚNICO control de esta
+    -# pantalla y se aprieta de pie, con una mano, en la red del lugar. La
+    -# clase ya está en la hoja porque `sessions/new` la usa.
+    = submit_tag "Entrar al taller", class: "btn btn-primary btn-block"
 - when :draft
   %p.muted Este taller todavía no está abierto. Volvé a escanear cuando empiece.
 - when :closed
