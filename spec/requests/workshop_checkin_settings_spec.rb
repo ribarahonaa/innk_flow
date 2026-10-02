@@ -60,29 +60,36 @@ RSpec.describe "los controles del check-in", type: :request do
   end
 
   # Cambiar el modo NO reescribe la asistencia ya registrada: sería destruir
-  # dato por un cambio de configuración. Para eso está el toggle.
-  it "activar el modo no marca ausente a quien ya estaba presente" do
+  # dato por un cambio de configuración.
+  it "activar el modo no marca ausente a quien ya estaba presente, ni presente a quien estaba ausente" do
+    pedro = member("pedro@test.dev", :participant)
     mesa = as_company(company) { create(:workshop_group, workshop: taller) }
-    asiento = as_company(company) do
-      WorkshopGroupMember.create!(workshop_group: mesa, user_id: paula.id, attended: true)
+    presente, ausente = as_company(company) do
+      [WorkshopGroupMember.create!(workshop_group: mesa, user_id: paula.id, attended: true),
+       WorkshopGroupMember.create!(workshop_group: mesa, user_id: pedro.id, attended: false)]
     end
     sign_in(admin, company: company)
 
     post enable_checkin_workshop_path(taller)
 
-    expect(as_company(company) { asiento.reload.attended }).to be(true)
+    expect(as_company(company) { [presente.reload.attended, ausente.reload.attended] }).to eq([true, false])
   end
 
-  it "quien participa no puede activarlo" do
-    as_company(company) do
-      mesa = create(:workshop_group, workshop: taller)
-      WorkshopGroupMember.create!(workshop_group: mesa, user_id: paula.id)
+  %i[enable_checkin_workshop_path disable_checkin_workshop_path rotate_checkin_token_workshop_path].each do |ruta|
+    it "quien participa no puede usar #{ruta}" do
+      as_company(company) do
+        taller.update!(attendance_mode: "registered")
+        mesa = create(:workshop_group, workshop: taller)
+        WorkshopGroupMember.create!(workshop_group: mesa, user_id: paula.id)
+      end
+      anterior = taller.reload.attributes.slice("attendance_mode", "checkin_token")
+      sign_in(paula, company: company)
+
+      post public_send(ruta, taller)
+
+      expect(response).to have_http_status(:forbidden)
+      expect(as_company(company) { taller.reload.attributes.slice("attendance_mode", "checkin_token") }).to eq(anterior)
     end
-    sign_in(paula, company: company)
-
-    post enable_checkin_workshop_path(taller)
-
-    expect(response).to have_http_status(:forbidden)
   end
 
   describe "la pantalla" do
@@ -112,8 +119,9 @@ RSpec.describe "los controles del check-in", type: :request do
       expect(response.body).not_to include("<?xml")
     end
 
-    it "no se lo ofrece a quien participa" do
+    it "no se lo ofrece a quien participa, ni le muestra el token, aun con el modo puesto" do
       as_company(company) do
+        taller.update!(attendance_mode: "registered")
         mesa = create(:workshop_group, workshop: taller)
         WorkshopGroupMember.create!(workshop_group: mesa, user_id: paula.id)
       end
@@ -122,7 +130,21 @@ RSpec.describe "los controles del check-in", type: :request do
       get workshop_path(taller)
 
       expect(response).to have_http_status(:ok)
+      [enable_checkin_workshop_path(taller), disable_checkin_workshop_path(taller),
+       rotate_checkin_token_workshop_path(taller), taller.checkin_token, "crispEdges"].each do |rastro|
+        expect(response.body).not_to include(rastro)
+      end
+    end
+
+    it "no ofrece activarlo en un taller cerrado, y lo dice" do
+      as_company(company) { taller.update!(status: "closed") }
+      sign_in(admin, company: company)
+
+      get workshop_path(taller)
+
+      expect(response).to have_http_status(:ok)
       expect(response.body).not_to include(enable_checkin_workshop_path(taller))
+      expect(response.body).to include("Este taller ya cerró")
     end
   end
 end

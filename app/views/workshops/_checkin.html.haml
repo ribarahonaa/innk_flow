@@ -14,9 +14,14 @@
 
     - case workshop.checkin_state
     - when :off
-      %p.muted Con el check-in activado, quien escanea entra solo: queda convocado y marcado presente. Quien no escanea queda ausente, y el reparto sienta sólo a los presentes.
-      = button_to "Activar check-in por link", enable_checkin_workshop_path(workshop), method: :post,
-                  class: "btn btn-primary btn-sm"
+      -# Cerrado y sin el modo puesto no se ofrece activarlo: el QR no dejaría
+      -# entrar a nadie, y un botón que no logra nada es un control fantasma.
+      - if workshop.closed?
+        %p.muted Este taller ya cerró: no tiene sentido activar el check-in por link.
+      - else
+        %p.muted Con el check-in activado, quien escanea entra solo: queda convocado y marcado presente. Quien no escanea queda ausente, y el reparto sienta sólo a los presentes.
+        = button_to "Activar check-in por link", enable_checkin_workshop_path(workshop), method: :post,
+                    class: "btn btn-primary btn-sm"
     - when :open
       %p.muted Proyectá este código. Quien lo escanea entra al taller, y si no tiene cuenta la crea ahí mismo.
       = render "workshops/checkin_code", workshop: workshop
