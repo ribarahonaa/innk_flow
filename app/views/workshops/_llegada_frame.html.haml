@@ -2,10 +2,12 @@
 -# Lo renderizan la pantalla completa y `WorkshopsController#arrival`, y el id
 -# vive acá para que no puedan divergir.
 -#
--# Se dibuja SIEMPRE, aunque todavía no haya llegado nadie: un frame que a veces
--# no está es un destino que a veces no existe. Y el vacío se dice con una línea
--# en vez de no dibujar nada, para que la pantalla no se mueva cuando entra la
--# primera persona.
+-# Se dibuja aunque todavía no haya llegado nadie: un frame que a veces no está
+-# es un destino que a veces no existe. Y el vacío se dice con una línea en vez
+-# de no dibujar nada, para que la pantalla no se mueva cuando entra la primera
+-# persona. La ÚNICA excepción la decide quien llama: en modo individual no hay
+-# —ni puede haber— mesa de llegada, así que `_groups` no lo renderiza y acá no
+-# llega nunca.
 -#
 -# `src` lo decide quien llama y por defecto no hay: el endpoint nunca pasa uno,
 -# porque un frame que se devuelve apuntando a sí mismo se volvería a pedir en

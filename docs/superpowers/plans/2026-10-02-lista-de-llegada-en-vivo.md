@@ -568,8 +568,10 @@ turbo-rails):
 
 ```haml
 -# El splat condicional se mantiene: con `src` nil HAML escribiría `src=""`, y el
--# endpoint devolvería un frame apuntándose a sí mismo. `data` sí va siempre.
-%turbo-frame#llegada{ **(src ? { src: src } : {}), data: { vivo: vivo.to_s, intervalo: 5000 } }
+-# endpoint devolvería un frame apuntándose a sí mismo. `complete` viaja con el
+-# `src` porque sólo tiene sentido con él: le dice a Turbo que este frame ya trae
+-# su contenido y que no lo pida al conectar. `data` sí va siempre.
+%turbo-frame#llegada{ **(src ? { src: src, complete: true } : {}), data: { vivo: vivo.to_s, intervalo: 5000 } }
 ```
 
 **`vivo.to_s`, no `vivo` a secas** (medido): HAML escribe un `true` como atributo
@@ -585,10 +587,15 @@ escribió en el controller**, que todavía no pasa `vivo:`: el endpoint pasa
 modo `registered` + taller abierto: las dos condiciones del Review Focus 1 en un
 solo predicado que ya está probado.
 
-**El `src` hace que Turbo pida el frame una vez al cargar la pantalla**, además
-del contenido que ya viene renderizado. Es un pedido de más por carga y se acepta
-a cambio de que `reload()` quede bien definido: sin `src`, recargar un frame
-depende de reasignarlo a mano y hay dos caminos para lo mismo.
+**El `src` es obligatorio y el pedido de más NO se paga.** Sin `src`,
+`reload()` no hace literalmente nada: `sourceURLReloaded()` borra `complete`,
+pone `src = null` y lo reasigna, así que sin valor no hay a qué volver. Pero un
+frame con `src` se pediría al conectar aunque ya traiga su contenido, y eso se
+evita con el atributo **`complete`**, que es el mecanismo que Turbo usa para eso
+(`FrameController.connect()` llama a `#loadSourceURL()`, que sale sin hacer nada
+si `this.complete`). El polling queda intacto porque `sourceURLReloaded()` borra
+`complete` él mismo antes de cada recarga. Verificado en la fuente instalada,
+`@hotwired/turbo` 8.0.23.
 
 - [ ] **Step 4: El temporizador**
 
