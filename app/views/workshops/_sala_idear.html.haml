@@ -1,7 +1,7 @@
 -# La sala de idear de UN desafío: un formulario con los campos del módulo de
 -# ideación de ESE desafío. Se renderiza desde `show.html.haml`, detrás de
 -# `can_work`; acá no se vuelve a preguntar el permiso.
-- mates = group ? group.members.reject { |person| person.id == current_user.id } : []
+
 -# UNA variable, la misma pregunta que hace el controller: quien no puede firmar
 -# una idea (el gestor, por conflicto de interés) no recibe un formulario que
 -# rebotaría en un 403.
@@ -23,6 +23,12 @@
     - elsif !puede_crear
       %p.muted Podés acompañar a la mesa, pero no proponer ideas propias: es conflicto de interés.
     - else
+      -# Se carga ACÁ y no arriba: es la única rama que lo lee. Arriba traía los
+      -# `User` de toda la mesa en CADA render para no imprimirlos, y la sala la
+      -# abre cada integrante: con una mesa de llegada de treinta son treinta
+      -# filas por visita. En esta rama `group` no puede ser nil: lo descartó la
+      -# primera.
+      - mates = group.members.reject { |person| person.id == current_user.id }
       - if mates.any?
         %p.muted= "El borrador se comparte con #{mates.map(&:name).to_sentence}: es de la mesa, no solo tuyo."
       = form_with url: workshop_sala_ideas_path(workshop, link), multipart: true do
