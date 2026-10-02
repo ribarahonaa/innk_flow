@@ -145,6 +145,7 @@ RSpec.describe "la llegada en vivo", type: :request do
 
       get workshop_path(taller)
 
+      expect(response.body).to include('id="llegada"')
       expect(response.body).not_to include('data-vivo="true"')
     end
   end
