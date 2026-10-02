@@ -68,6 +68,23 @@ RSpec.describe "check-in por link", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("no toma asistencia por link")
     end
+
+    # «El GET NUNCA muta» es una invariante del diseño y no una casualidad: el
+    # link viaja por cámara y por chat, y un prefetch del navegador o del cliente
+    # que lo reenvía no puede sentar a nadie. Hoy es cierto por estructura
+    # (`def show; end`), así que lo que esto cuida es que un `before_action` o un
+    # «aprovechemos y marquemos presente» futuro no la rompa en silencio.
+    #
+    # Se cuentan las mesas además de los asientos: el que crea la mesa de llegada
+    # es el propio check-in (`CheckIn#landing`), así que una mutación que sentara
+    # a alguien deja rastro en las dos tablas, y la que sólo creara la mesa deja
+    # rastro en una.
+    it "no sienta a nadie ni crea cuentas" do
+      expect { get url }.not_to change {
+        [without_tenant { User.count },
+         as_company(company) { [WorkshopGroup.count, WorkshopGroupMember.count] }]
+      }
+    end
   end
 
   describe "POST sin cuenta" do
@@ -273,6 +290,67 @@ RSpec.describe "check-in por link", type: :request do
                            .find_by(workshop_groups: { workshop_id: taller.id }, user_id: admin.id)
       end
       expect(asiento.attended).to be(true)
+    end
+
+    # El de arriba firma en la MISMA empresa, así que no puede ver esto: la
+    # sesión viva puede estar en otra. `set_workshop` pone `Current.company` en la
+    # del taller y la membresía, el asiento y la presencia se escriben bien; lo
+    # que quedaba en la empresa vieja era la FILA de `sessions`, y el request
+    # siguiente arma el tenant desde ahí: `workshops#show` busca con
+    # `policy_scope`, no encuentra el taller y devuelve 404 después de un check-in
+    # que funcionó.
+    #
+    # Dos cosas que el ejemplo hace a propósito. Sigue el redirect, porque el
+    # `302` al taller se cumple igual con la sesión en la empresa equivocada —el
+    # 404 pasa en el request siguiente—. Y mira las sesiones con
+    # `contain_exactly`: así no se cumple abriendo una segunda, que es lo que
+    # haría un `sign_in!` de más (crea otra fila y la vieja queda válida, porque
+    # lo único que autentica es el token).
+    it "mueve la sesión a la empresa del taller, y el taller se ve" do
+      otra = without_tenant { create(:company, slug: "otra") }
+      viajera = without_tenant do
+        u = create(:user, email: "viajera@test.dev")
+        create(:membership, :participant, company: otra, user: u)
+        u
+      end
+      sign_in(viajera, company: otra)
+      # Que la sesión arranque en `otra` es la mitad del ejemplo: si algún día
+      # `default_company_for` dejara de elegirla, esto pasaría a ser el de abajo
+      # —sesión sin empresa— y nadie se enteraría.
+      expect(without_tenant { Session.find_by!(user_id: viajera.id).company_id }).to eq(otra.id)
+
+      post url
+
+      expect(response).to redirect_to(workshop_path(taller))
+      follow_redirect!
+      expect(response).to have_http_status(:ok)
+      expect(without_tenant { Session.where(user_id: viajera.id).pluck(:company_id) })
+        .to contain_exactly(company.id)
+    end
+
+    # La otra forma que llega de verdad, y por el mismo defecto: sesión viva SIN
+    # empresa. Es lo que deja `sessions#create` cuando `default_company_for`
+    # devuelve nil —más de una membresía y nadie eligió todavía—, y ahí el
+    # síntoma no es un 404 sino un rebote al selector de empresa, con el check-in
+    # ya escrito. El `expect` del medio no es decoración: sin él, dos membresías
+    # mal armadas dejarían este ejemplo probando otra vez el caso de arriba.
+    it "le pone la empresa del taller a una sesión que no eligió ninguna" do
+      una, dos = without_tenant { [create(:company, slug: "una"), create(:company, slug: "dos")] }
+      indecisa = without_tenant do
+        u = create(:user, email: "indecisa@test.dev")
+        [una, dos].each { |c| create(:membership, :participant, company: c, user: u) }
+        u
+      end
+      sign_in(indecisa)
+      expect(without_tenant { Session.find_by!(user_id: indecisa.id).company_id }).to be_nil
+
+      post url
+
+      expect(response).to redirect_to(workshop_path(taller))
+      follow_redirect!
+      expect(response).to have_http_status(:ok)
+      expect(without_tenant { Session.where(user_id: indecisa.id).pluck(:company_id) })
+        .to contain_exactly(company.id)
     end
   end
 
