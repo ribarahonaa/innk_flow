@@ -69,7 +69,28 @@ pintaba por un renombre o por un token roto, o un `.panel` reintroducido: la
 clase ya no tiene ninguna regla en la hoja, así que un elemento con esa clase
 sola queda sin fondo, sin relleno y sin borde, y eso es justo lo que esto
 caza; eso se revisa en todas las pantallas del recorrido, no en algunas: vive
-en `capturar()`—. También falla si un `.badge` o un `.alert` mide menos de
+en `capturar()`—.
+
+**Pero `[CLASES]` mira una lista FIJA de familias de componentes**
+—`[class*="badge"]`, `[class*="btn"]`, `[class*="alert"]`, el punto del drawer,
+`.steps`, `.panel`, `.card` y las celdas de `.table`—, así que **un elemento hecho
+sólo de utilidades de Tailwind es invisible para ella**. La tarjeta del QR del
+check-in (`.bg-white.p-4.rounded-box.w-60`) no matchea ninguna, y por eso
+sobrevivió a SEIS corridas verdes sin que ninguna de sus cuatro clases existiera
+en la hoja: el QR salía sin ancho —llenaba la tarjeta entera—, sin fondo blanco,
+sin relleno y sin bordes. No des una pantalla por cubierta porque `[CLASES]` esté
+en verde.
+
+**Y la causa de fondo de aquello: la hoja compilada vive SÓLO en el contenedor y
+está gitignoreada** (`/app/assets/builds/*`; el layout linkea
+`application-build-css`, que produce `yarn build:css`). **Si agregás clases de
+Tailwind nuevas y no corrés `make yarn-build`, la app sirve la hoja anterior y
+`make screens` valida en verde una pantalla distinta de la que escribiste.**
+Medido: antes de compilar, `w-60`, `bg-white`, `p-4` y `rounded-box` aparecían
+cero veces en la hoja. De rebote, «negro sobre blanco en los dos temas» —de lo
+que depende que un QR se escanee en tema oscuro— nunca fue cierto en la app
+servida. Después de tocar vistas con utilidades nuevas: `make yarn-build` y recién
+ahí `make screens`. También falla si un `.badge` o un `.alert` mide menos de
 4,5:1 de contraste en claro o en oscuro (`[CONTRASTE]`, en cada pantalla y en
 el muestrario), si un punto de estado del drawer mide menos de 3:1 —el piso de
 WCAG 1.4.11 para lo que no es texto— (`[PUNTOS]`, en los dos temas), si el chip
