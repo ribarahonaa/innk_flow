@@ -2821,8 +2821,8 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       // Contarlo no alcanza: `qr_svg` lo emite con `viewBox` y SIN width ni
       // height —el tamaño lo decide el contenedor, a propósito—, así que el
       // tamaño del código no está en el SVG. Si `.w-60` pasa a ser otro ancho
-      // (un renombre, un token roto) o si el `viewBox` se rompe, el QR queda
-      // ilegible y el contador sigue diciendo 1. Un QR que no se escanea es la
+      // —un renombre, un token roto— el QR se achica y el contador sigue
+      // diciendo 1. Un QR que no se escanea es la
       // única falla que esta función no sobrevive, y no la ve nadie más:
       // `[CLASES]` no, porque el `.bg-white` le da fondo al contenedor;
       // `[RELLENO]` mira `card-body` y `[CONTRASTE]`, color. Así que se MIDE.
@@ -2834,9 +2834,15 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       // 58px de margen que deja no los gasta el layout, porque `w-60` es un
       // ancho fijo y no un porcentaje.
       //
-      // Y se pide CUADRADO: sin `viewBox` el navegador le da al SVG los
-      // 300×150 que usa por default y dibuja el código en una esquina, o sea
-      // que un chequeo que sólo mirara el tamaño pasaría con el QR roto.
+      // Y se pide CUADRADO, pero ESA rama hoy no la puede disparar `qr_svg` y
+      // está medido: sacarle `viewbox: true` no deja al SVG en los 300×150 que
+      // el navegador usa por default, porque rqrcode entonces emite `width` y
+      // `height` fijos y el código sale cuadrado y grande igual —lo que se
+      // rompe ahí es el escalado por contenedor, que no es ilegibilidad—. La
+      // comparación se queda porque cuesta una resta y porque el día que el
+      // helper emita un `viewBox` no cuadrado, o un `width` sin su `height`,
+      // pasa a ser alcanzable. Es protección por adelantado, no una falla
+      // observada: la rama del piso de 150px sí está probada por mutación.
       const caja = await svg.first().boundingBox();
       if (!caja) {
         failures++;
