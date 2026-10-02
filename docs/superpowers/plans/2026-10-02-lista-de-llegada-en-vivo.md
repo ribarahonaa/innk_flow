@@ -227,9 +227,11 @@ Turbo no reemplazaría nada y la pantalla se quedaría quieta sin un solo error.
 -# primera persona.
 -# No hay `turbo_frame_tag`: la app NO trae la gema turbo-rails, sólo el paquete
 -# npm. El elemento va a mano, igual que `shared/_ai_suggestions.html.haml:23`.
--# HAML no escribe un atributo nil, así que sin `src` el frame sale sin él.
+-# Y el atributo se agrega SÓLO si hay valor: HAML 7 escribe `src=""` con un nil,
+-# no lo omite —está medido—, y un `src` vacío en la respuesta del endpoint es
+-# justo el frame apuntándose a sí mismo que esto quiere evitar.
 - src = local_assigns[:src]
-%turbo-frame#llegada{ src: src }
+%turbo-frame#llegada{ **(src ? { src: src } : {}) }
   - if group
     = render "workshops/mesa_cuerpo", workshop: workshop, group: group, can_edit: can_edit
   - else
@@ -552,7 +554,9 @@ datos (y recordá: **no hay `turbo_frame_tag`**, la app no trae la gema
 turbo-rails):
 
 ```haml
-%turbo-frame#llegada{ src: src, data: { vivo: vivo, intervalo: 5000 } }
+-# El splat condicional se mantiene: con `src` nil HAML escribiría `src=""`, y el
+-# endpoint devolvería un frame apuntándose a sí mismo. `data` sí va siempre.
+%turbo-frame#llegada{ **(src ? { src: src } : {}), data: { vivo: vivo, intervalo: 5000 } }
 ```
 
 con `vivo` como local nuevo. **Y hay que actualizar la llamada que la Tarea 2
