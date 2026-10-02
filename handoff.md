@@ -6,240 +6,329 @@ Ejecutar el plan de **check-in por QR en el taller** por subagentes: un
 implementador por tarea, un revisor fresco después de cada una, y una revisión de
 rama entera al final.
 
-**Van 4 de 8 tareas.** La sesión se pausó a propósito, no se trabó. **No se
-mergeó nada y no se pusheó nada**: la rama `checkin-por-qr` vive sólo en local.
+**Las ocho tareas están cerradas.** La feature anda, está verificada y la rama
+está lista para mergear. **No se mergeó nada y no se pusheó nada**: la rama
+`checkin-por-qr` vive sólo en local.
 
-La feature: un taller proyecta un QR, escanearlo es la puerta —convoca y marca
-presente— y quien no tiene cuenta se la crea ahí mismo. Reemplaza al toggle de
-asistencia que el handoff anterior había dejado fichado como punto 1, y lo
-incluye.
+La feature: un taller proyecta un QR, escanearlo es la puerta —convoca, marca
+presente y sienta en una «Mesa de llegada» de la que nadie trabaja— y quien no
+tiene cuenta se la crea ahí mismo, sin sesión y sin empresa en contexto, con el
+tenant saliendo del token de la URL. La pantalla de quien administra proyecta el
+código y lo puede activar, apagar y rotar, y un toggle por asiento escribe la
+presencia de quien vino sin teléfono. Reemplaza al toggle de asistencia que el
+handoff anterior dejaba fichado como punto 1, y lo incluye.
 
 ## Estado actual
 
-- **Rama `checkin-por-qr`**, abierta sobre `c9a7817` (la cabeza de `master` de
-  entonces). `git log --oneline c9a7817..checkin-por-qr` es la tanda entera. La
-  cabeza se lee con `git rev-parse checkin-por-qr`; no la escribo acá porque cada
-  commit de handoff la desactualiza.
-- `master` sigue donde estaba y **el remote también**: se comprueba con
-  `gh api repos/ribarahonaa/innk_flow/commits/master --jq .sha`, que autentica por
-  el helper de `gh` (no hay clave SSH acá, así que `git fetch` no sirve).
-- **`make spec`: 1507 ejemplos, 0 fallas**, corrida al cerrar la Tarea 4. Eran
-  1468 al abrir la rama.
-- **`make screens` NO se corrió ni una vez en esta rama.** Es de la Tarea 8, y
-  hasta ahí nada de lo hecho toca vistas salvo la pantalla pública nueva, que
-  todavía no está en el recorrido.
-- **La migración ya está aplicada a la base de desarrollo** y `db/structure.sql`
-  está commiteado. La base de test también está al día (`make db-prepare-test`).
-- **El seed NO se tocó todavía**: el cuarto taller —el del check-in— es de la
-  Tarea 8, así que hoy `make seed` siembra los tres de antes.
-- **`rqrcode` NO está en el `Gemfile`**: es de la Tarea 6. Lo único hecho es
-  comprobar que la gema baja en el contenedor (`gem fetch rqrcode --version 2.2.0`).
+- **Rama `checkin-por-qr`**, 30 commits sobre `c9a7817`, árbol limpio.
+  `git log --oneline c9a7817..checkin-por-qr` es la tanda entera.
+- **`master` y el remote siguen los dos en `c9a7817`**, comprobado con
+  `gh api repos/ribarahonaa/innk_flow/commits/master --jq .sha` (no hay clave SSH
+  acá, así que `git fetch` no sirve). El merge-base es ese mismo commit: nada
+  divergió.
+- **`make spec`: 1537 ejemplos, 0 fallas.** Eran 1468 al abrir la rama.
+- **`make screens`: 74 capturas, 0 errores.** Eran 71 antes. Corrió **cinco
+  veces** en el cierre: con siembra fresca, sin resembrar, y tres veces más para
+  mutar guardas y para verificar el `btn-block`.
+- **La migración está aplicada a la base de desarrollo**, `db/structure.sql`
+  commiteado, y la base de test al día.
+- **El seed siembra el cuarto taller** («Taller con check-in») y `make seed` dos
+  veces seguidas deja exactamente uno.
+- **`rqrcode ~> 2.2` está en el `Gemfile` y en el lock**, y las dos imágenes
+  —la de desarrollo y `app_test`— están horneadas con la gema.
 
-### Las cuatro tareas cerradas
+### Las ocho tareas
 
 | Tarea | Commits | Qué dejó |
 |---|---|---|
 | 1 · Esquema y modelo | `2fcc8e7`, `f8635dc` | `workshops.attendance_mode` (`presumed`/`registered`) con su CHECK, `workshops.checkin_token` UNIQUE, `workshop_groups.arrival` con índice UNIQUE **parcial** `(workshop_id) WHERE arrival`. `Workshop#checkin_state` con cuatro valores. |
 | 2 · Los escritores de presencia | `6070c2f`, `e1290a2` | `Convoke` recibe `attended:`; `AssignGroups#seat!` lo pasa explícito y excluye la mesa de llegada de las reusables; el pool sigue al modo **en las dos fases**. |
 | 3 · El servicio | `9fea988`, `be666f4` | `Flow::Workshops::CheckIn`: sienta en la mesa de llegada, marca presente, idempotente incluso contra su propia carrera. |
-| 4 · La ruta pública | `e5d2948`, `ce509b2`, `d6090fe` | `GET`/`POST /checkin/:token` sin sesión, el tenant desde el token, el formulario único que autentica o registra, y el concern `Authentication#sign_in!` que ahora comparte con el login. |
+| 4 · La ruta pública | `e5d2948`, `ce509b2`, `d6090fe` | `GET`/`POST /checkin/:token` sin sesión, el tenant desde el token, el formulario único que autentica o registra, y el concern `Authentication#sign_in!` compartido con el login. |
+| 5 · La mesa de llegada | `90c914d`, `611fd87` | De la llegada no se trabaja, y son **cuatro puertas con cinco preguntas**: las dos salas, los dos controllers de escritura, y la lectura de evolución guardada dos veces (el modelo devuelve `Idea.none`, la vista dice por qué). |
+| 6 · El QR y los tres controles | `6824042`, `45271e5`, `8f93ebd` | `CheckinHelper#qr_svg`, el partial con el código, y `enable_checkin`/`disable_checkin`/`rotate_checkin_token` como acciones member. |
+| 7 · El toggle de presencia | `b41fd24`, `d03e0d9` | `WorkshopAttendancesController`: el ÚNICO escritor de `attended` desde la app. El partial pasó a iterar los asientos. |
+| 8 · Seed, recorrido y docs | `572732b`, `7f3269a`, `255da2d` | El cuarto taller, las capturas `29`/`30`/`30b`, y `CLAUDE.md`. |
+| Cierre · ola de la revisión de rama | `a0c0c6e`, `0eab4f5`, `76fdae6`, `530c53a`, `0f5277f`, `f2fb91d` | El bug de la sesión, la tercera copia de una frase falsa, el seed que borra su propia cuenta, `[CHECKIN]` midiendo el QR, y el botón full-width. |
 
-Más `b1df244` (el diseño), `594e687` y `0179f71` (el plan) y `544cadc` (el riesgo
-declarado del final).
+Más `b1df244` (diseño), `594e687` y `0179f71` (plan), `544cadc` (riesgo declarado)
+y `4ca8345` (el handoff anterior).
 
-### El ledger es el mapa de recuperación
+### El ledger
 
 `.superpowers/sdd/2026-10-01-checkin-por-qr/progress.md` tiene, tarea por tarea,
-los commits, los hallazgos y **cada ruling con lo que cuesta si está mal**. Ahí
-están también los briefs y los reportes de los cuatro implementadores.
-
-**Está gitignoreado** (`.superpowers/` está en el `.gitignore` raíz), así que vive
-sólo en disco: un `git clean -fdx` se lo lleva, y de ahí en más la recuperación es
-por `git log`. Los briefs de las tareas 5 a 8 todavía no se extrajeron; se sacan
-con el script `task-brief` del skill `subagent-driven-development`.
+los commits, los hallazgos, los briefs, los reportes de los ocho implementadores y
+**los 55 rulings con lo que cuesta cada uno si está mal**. Los rulings están
+resumidos abajo en este archivo, porque **el ledger está gitignoreado** y un
+`git clean -fdx` se lo lleva.
 
 ## Archivos y cambios
 
-Diez commits de código y documentación sobre `c9a7817`.
+42 archivos, +5.246 / −283.
 
 - **Esquema:** `db/migrate/20261001120000_add_checkin_to_workshops.rb` y
-  `db/structure.sql`. Las tres columnas en inglés, como manda CLAUDE.md para todo
-  lo nuevo.
-- **El dominio nuevo:** `app/lib/flow/workshops/check_in.rb`.
-- **El dominio tocado:** `convoke.rb` (parámetro `attended:`), `assign_groups.rb`
-  (`groups_by_person`, `people_of` y `seat!`), `app/models/workshop.rb`.
-- **La ruta pública:** `app/controllers/workshop_checkins_controller.rb`,
-  `app/views/workshop_checkins/show.html.haml`,
-  `app/controllers/concerns/authentication.rb`, y los cambios chicos en
-  `application_controller.rb` (el include y `skip_pundit?`),
-  `sessions_controller.rb` (usa `sign_in!`) y `config/routes.rb`.
+  `db/structure.sql`. Las tres columnas en inglés.
+- **Dominio nuevo:** `app/lib/flow/workshops/check_in.rb`.
+- **Dominio tocado:** `convoke.rb`, `assign_groups.rb`, `app/models/workshop.rb`,
+  `app/models/workshop_group.rb`.
+- **Controllers:** `workshop_checkins_controller.rb` y
+  `workshop_attendances_controller.rb` nuevos; `concerns/authentication.rb` nuevo;
+  tocados `application_controller.rb`, `sessions_controller.rb`,
+  `workshops_controller.rb`, `workshop_ideas_controller.rb`,
+  `workshop_proposals_controller.rb`.
+- **Vistas:** `workshop_checkins/show.html.haml`, `workshops/_checkin.html.haml` y
+  `_checkin_code.html.haml` nuevos; tocados `_assembly`, `_groups`, `_sala_idear`,
+  `_sala_evolucion`, `workshops/show`.
+- **Helper:** `app/helpers/checkin_helper.rb`.
 - **Guardas:** la excepción nueva en `spec/lint/tenant_bypass_spec.rb`, con su
   razón escrita.
-- **Specs nuevos:** `check_in_spec.rb` (9), `workshop_checkin_spec.rb` (15).
-  Ampliados: `workshop_spec.rb` (14), `assign_groups_spec.rb` (22),
-  `convoke_spec.rb` (8), más los traits `:registered` y `:arrival` en
+- **Specs nuevos:** `check_in_spec.rb`, `workshop_checkin_spec.rb`,
+  `workshop_arrival_spec.rb`, `workshop_checkin_settings_spec.rb`,
+  `workshop_attendances_spec.rb`. Ampliados `workshop_spec.rb`,
+  `assign_groups_spec.rb`, `convoke_spec.rb` y los traits de
   `spec/factories/core.rb`.
-- **Diseño y plan:** `docs/superpowers/specs/2026-10-01-checkin-por-qr-design.md`
-  y `docs/superpowers/plans/2026-10-01-checkin-por-qr.md`.
+- **Seed y recorrido:** `db/seeds.rb`, `script/capture_screens.js`.
+- **Docs:** `CLAUDE.md`, el diseño y el plan en `docs/superpowers/`.
 
 ## Intentos fallidos
 
-### Cuatro defectos del PLAN, encontrados por las revisiones
+### Diez tests que no podían fallar
 
-Los cuatro los escribí yo en el plan o en el diseño, y los cuatro los encontró un
-revisor o un implementador fresco. Es el argumento entero a favor del método.
+Esta rama encontró diez, cada uno con un mecanismo distinto. Vale más que la
+feature, porque el mecanismo es lo reutilizable:
 
-1. **El `where: "arrival"` del índice parcial no lo fijaba ningún test**, y el
-   plan afirmaba que sí. El ejemplo que nombraba —«no impide una llegada en otro
-   taller»— pasa igual con un `UNIQUE (workshop_id)` pelado, porque con dos
-   talleres los ids son distintos. Lo que distingue el índice parcial es una mesa
-   **normal** más la de llegada en el **mismo** taller. Sin el `where`, el reparto
-   entero se rompería.
-2. **El hueco de evolución.** `people_of` restaba `absent_ids`, que sólo conoce a
-   quien **tiene asiento** marcado ausente, así que el autor de una idea que nunca
-   escaneó entraba al reparto igual: mesas armadas alrededor de gente que no está
-   en la sala. Era el mismo defecto que la tarea arreglaba para idear, en la otra
-   fase. Yo había definido la ausencia vía `absent_ids`, que presupone el asiento.
-3. **El doble escaneo devolvía error a alguien que había entrado.** Dos escaneos
-   simultáneos de la misma persona pasan los dos por `seat_of == nil`; el segundo
-   choca contra el UNIQUE `(workshop_id, user_id)`, `Convoke` lo rescata con «Ya
-   está en una mesa» y `CheckIn` propagaba ese fallo. Escribí la idempotencia
-   pensando sólo en el caso secuencial —escaneo, recarga, escaneo— y el
-   concurrente es el mismo caso con otro reloj. **El doble toque es la interacción
-   más común con un QR.**
-4. **Y la misma carrera una capa más arriba:** `User.find_by` + `User.new.save`
-   no es atómico y `User` no valida unicidad, así que dos toques con una cuenta
-   **nueva** chocaban contra `index_users_on_lower_email` sin rescate: 500 en el
-   camino primario de la feature. Peor: el `data-disable-with` del botón no lo
-   tapa, porque el layout `auth` **no carga ningún bundle de JS** a propósito.
+1. **Pasaba contra una página de error 500.** Con el rol en el `where`, la
+   membresía no se encontraba, el `create` moría en la validación del modelo antes
+   de llegar al índice, y el request terminaba en 500 — pero el rol «no se había
+   bajado», así que un ejemplo que sólo miraba el rol daba verde sobre una pantalla
+   de error. Se arregló exigiendo el redirect primero.
+2. **Una validación corría antes que la restricción que el test decía fijar.**
+3. **Los datos no distinguían las dos ramas.** El pool de idear: la empresa del
+   spec no tenía ningún otro `participant`, así que el pool viejo y el nuevo
+   devolvían la misma persona.
+4. **El `where: "arrival"` del índice parcial no lo fijaba ningún test**, y el plan
+   afirmaba que sí. El ejemplo que nombraba pasa igual con un `UNIQUE (workshop_id)`
+   pelado.
+5. **Sólo pedía `not_to raise_error`**, así que un `ok: false` lo pasaba.
+6. **Una guarda hermana cortocircuitaba primero.** Sin la guarda del controller de
+   propuestas, `workable_ideas` ya devolvía `Idea.none`, el `find_by!` daba 404, y
+   el único assert (`not_to change { count }`) pasaba sobre ese 404.
+7. **Los iconos SVG del layout aportaban la cadena que la aserción buscaba.**
+   `include("<svg")` daba verde **con el QR ausente de la página**. Medido: vieja
+   11/0 verde sin QR, nueva 2 fallas.
+8. **El default de la columna tapaba la diferencia.** `attended` viene `true`, así
+   que un asiento creado en `true` no distinguía «lo preservó» de «nunca lo tocó».
+9. **Probaba una puerta distinta de la que decía.** «No lo ve quien participa» no
+   probaba `can_edit`: la sección entera cuelga de `can_assemble`. Lo destapó un
+   control positivo que se puso **rojo**.
+10. **Una mutación que no mutaba.** Cambié `.w-60` por `.w-16` para probar la
+    guarda del QR y la corrida siguió verde — porque `w-16` no existe en la hoja
+    compilada (Tailwind escanea texto y la hoja la compila `yarn build:css`, que
+    `make screens` no corre), así que el div quedó sin regla de ancho y el QR salió
+    **más grande**. La mutación válida fue un `style` inline de 40px, y ahí sí
+    imprimió `[CHECKIN] el QR mide 40×40`.
 
-### Nueve tests que no podían fallar, y el noveno con un mecanismo nuevo
+**La lección acumulada:** no alcanza ver la mutación en rojo. Hay que preguntarse
+**por qué** se pone rojo —puede ser un 500, una validación anterior, una guarda
+hermana o datos que no distinguen— y **si la mutación realmente mutó algo**. Y
+cuando dos ejemplos cubren cosas parecidas, la prueba de que no son el mismo test
+es **cruzada**: cada mutación rompe uno y deja verde el otro.
 
-La sesión anterior dejó cinco. Esta rama sumó cuatro, y **dos los encontraron los
-implementadores cuando sus propias mutaciones les dieron verde** —que es
-exactamente lo que la memoria `mutacion-verde-no-prueba-nada` pedía mirar—:
+### Siete afirmaciones falsas, y una nació de arreglar otra
 
-- El del índice parcial (arriba), encontrado por una revisión.
-- **El del pool de idear:** pasaba igual con la rama mutada porque la empresa del
-  spec no tenía ningún otro `participant`, así que el pool viejo también devolvía
-  una sola persona. Lo encontró el implementador de la Tarea 2.
-- **El de idempotencia de `CheckIn`:** sólo pedía `not_to raise_error` y un
-  asiento, así que un `ok: false` —justo el bug 3— lo pasaba.
-- **El del rol, y éste es el mecanismo nuevo: se cumplía RE VENTANDO.** Con el rol
-  en el `where`, la membresía no se encuentra, el `create` no llega al índice
-  porque lo frena antes el `validates :user_id, uniqueness:` del modelo, y el
-  request muere en 500. El rol nunca se baja —queda como estaba— así que un
-  ejemplo que sólo mira el rol da verde sobre una página de error. Se arregló
-  exigiendo primero el redirect. Lo encontró el implementador de la Tarea 4.
+1. El plan decía que normalizar el email a mano era lo que evitaba el choque contra
+   el índice. Falso: `User` declara `normalizes :email` y en Rails 7.1 eso normaliza
+   también el valor de los finders. Se midió de los dos lados y se dejó como defensa
+   explícita, con el comentario reescrito.
+2. «Mismo mensaje y misma pregunta que las otras tres puertas»: la pregunta sí, el
+   mensaje no.
+3. «Para eso está el toggle de cada integrante», cuando el toggle no existía. Salió
+   en la Tarea 6 y volvió en la 7, ya verdadera, nombrando `attendance_workshop_path`.
+4. La misma cláusula falsa en una **segunda** copia, en el spec.
+5. «`WorkshopCheckinsController`, la ÚNICA ruta pública de la app», en `CLAUDE.md`.
+   Falsa: `SessionsController` también se sirve sin sesión.
+6. **La reescritura del 5 afirmó otra cosa falsa:** «el login sólo autentica y no
+   resuelve ninguna empresa». `sessions_controller.rb:27` es
+   `sign_in!(user, company: default_company_for(user))`. Una frase editada **para**
+   ser verdadera es la que más se desvía mientras se edita.
+7. Y la **tercera** copia del 5 seguía en `config/routes.rb`, que es lo primero que
+   alguien abre. Más un comentario de la guarda del QR que afirmaba un 300×150 que
+   yo medí que no ocurre.
 
-**La lección que queda, más fina que la anterior:** no alcanza con ver la
-mutación en rojo ni con preguntarse qué tendría que romperse. Hay que preguntarse
-**por qué** se pone rojo, porque un ejemplo puede cumplirse por un 500, por una
-validación que corre antes, o por datos que no distinguen las dos ramas. Y cuando
-dos ejemplos cubren cosas parecidas, la prueba de que no son el mismo test es
-**cruzada**: cada mutación tiene que romper uno y dejar verde el otro. El
-implementador de la Tarea 4 lo hizo así por su cuenta y es la mejor evidencia de
-la sesión.
+### Tres defectos del plan, encontrados durante la ejecución
 
-### Un comentario mío afirmaba algo falso
+- **El hueco de evolución:** `people_of` restaba `absent_ids`, que sólo conoce a
+  quien **tiene asiento**, así que el autor de una idea que nunca escaneó entraba al
+  reparto igual. El plan sólo mandaba tocar `groups_by_person`.
+- **El `case` partido en dos mecanismos:** `if presumed_attendance?` afuera y
+  `case checkin_state` adentro, cuando `:off` ya es uno de los cuatro valores. Dejaba
+  el `else` significando «cerró», así que un quinto estado habría mentido.
+- **`status: "submitted"` no existe** en `Idea::STATUSES`, y con un status no-`alive`
+  los dos ejemplos de evolución habrían pasado sin probar nada.
 
-El plan decía que normalizar el email a mano (`.strip.downcase`) era lo que
-evitaba que un email autocapitalizado chocara contra el índice. Es falso: `User`
-declara `normalizes :email` y en Rails 7.1 eso normaliza **también el valor de
-los finders**. El implementador lo midió de los dos lados —sacando una sigue
-verde, sacando las dos se pone rojo—, dejó la línea como defensa explícita (una
-pantalla pública no tiene por qué depender de una declaración del modelo) y
-**reescribió el comentario**. Un comentario que miente es peor que ninguno.
+### El bug, y era el único en 30 commits
 
-### `make db-prepare-test` no sirve para mutar una migración
+`sign_in!(user, company: @workshop.company) **unless signed_in?**`. Con sesión viva
+se salteaba, así que la fila de `sessions` conservaba su `company_id` viejo; y como
+`with_tenant_context` es un `around_action` que hace
+`Current.company = current_session&.company`, el request siguiente resolvía el
+taller con `policy_scope` sobre la empresa vieja y daba **404 después de haber
+escrito la membresía, el asiento y el `attended`**. El ejemplo que existía era ciego
+porque firmaba a `admin` en la **misma** empresa.
 
-Lo pedí así en el plan y está mal: `db:prepare` **no recarga una base que ya
-existe**, y además lee `structure.sql` y no la migración. Para probar que un
-ejemplo fija un índice hay que mutar el índice **en la base de test con DDL
-directo** (`DROP INDEX` / `CREATE UNIQUE INDEX`) y restaurarlo. Lo descubrió el
-implementador de la Tarea 1; verifiqué por mi cuenta que el `indexdef` volvió a
-quedar con `WHERE arrival`.
+Se arregló moviendo la sesión existente y **no** llamando `sign_in!` otra vez:
+`sign_in!` hace `user.sessions.create!` sin tocar la fila vieja, así que habría
+dejado **dos sesiones vivas** en un endpoint donde sólo el token autentica. Los dos
+ejemplos nuevos fallan por motivos **distintos** —404 el de otra empresa, 302 a
+`select_company` el de empresa `nil`— y es un `contain_exactly` el que caza la
+variante de las dos sesiones, no el 200.
 
-### El churn de `pg_dump` en `structure.sql`
+### Cosas que no funcionaron como el plan decía
 
-La versión del contenedor reformatea **todos** los CHECK que ya existían a SQL
-equivalente y rota el token de `\restrict`. Se aceptó: está probado que carga
-—`make db-prepare-test` lo levantó y la suite corrió contra esa base— y editar a
-mano un archivo generado sería peor, porque la próxima migración lo volvería a
-cambiar. Si el diff de un `structure.sql` trae trece líneas que nadie tocó, es
-esto.
+- **`make db-prepare-test` no sirve para mutar una migración:** `db:prepare` no
+  recarga una base que ya existe, y lee `structure.sql` y no la migración. Hay que
+  mutar el índice **en la base de test con DDL directo** y restaurarlo.
+- **`make rebuild` no toca el perfil `test`.** `Dockerfile.test` copia
+  `Gemfile Gemfile.lock` y bundlea **en build**, así que una gema nueva pide además
+  `docker compose --profile test build app_test` o los specs corren contra una imagen
+  sin la gema y fallan por el motivo equivocado. El `Gemfile.lock` se genera con
+  `docker compose exec app bundle install`, que el bind mount `.:/rails` escribe en
+  el host.
+- **El churn de `pg_dump` en `structure.sql`:** la versión del contenedor reformatea
+  todos los CHECK que ya existían a SQL equivalente y rota el token de `\restrict`.
+  Se aceptó —está diffeado y es el mismo predicado— porque editar a mano un archivo
+  generado sería peor.
+
+## Los 55 rulings
+
+Lo que decidí en tu nombre, en orden, con lo que cuesta si está mal. El detalle
+completo de cada uno está en el ledger mientras exista.
+
+**De arranque (4).** `make rails db:migrate` no existe, el target es `make migrate`
+· `make migrate`/`rebuild`/`seed`/`screens` los corre la sesión principal y los
+subagentes sólo `make spec*` · después de `make migrate` va `make db-prepare-test`
+· paro al terminar cada tarea y pido permiso. Costo: convenciones, cero riesgo.
+
+**Tarea 1 (3).** El churn de `pg_dump` se acepta · el Important del revisor es
+correcto y el PLAN estaba mal sobre el índice parcial · el ⚠️ lo resuelvo yo con el
+contexto cruzado. Costo del primero: un diff ruidoso en cada migración futura.
+
+**Tarea 2 (2).** El ⚠️ es un hueco REAL y entra al fix loop (`people_of`) · el Minor
+viaja en el mismo round. Costo si el primero está mal: mesas armadas alrededor de
+gente que no está en la sala.
+
+**Tarea 3 (4).** El Important 2 es un bug real en el camino principal · el Important
+1 también · dos Minor viajan porque son reglas del repo · el ⚠️ lo resuelvo yo
+(`CheckIn#call` no va envuelto en transacción). Costo: un round de más.
+
+**Tarea 4 (5).** La premisa del brief sobre `.strip.downcase` era falsa · el concern
+1 es load-bearing (la carrera de `find_by` + `new.save`) · el concern 3 viaja ·
+el concern 2 se DOCUMENTA, no se arregla con código · el hueco que el revisor marcó
+no bloqueante lo CONFIRMO como gap. Costo del segundo si está mal: un 500 en el
+camino primario.
+
+**Tarea 5 (5).** La expectativa de la mutación 1 del plan es falsa y no se persigue
+· la cuarta puerta no tiene test y eso entra al brief · el tercer defecto del plan
+(`"submitted"`) es real · los dos ⚠️ los resuelvo con greps · PROMUEVO un Minor
+—el comentario que miente— contra la regla de que los Minor no entran. Costo del
+último: un round barato de más.
+
+**Tarea 6 (8).** Las keywords de `as_svg` existen pero el prólogo XML se saca · el
+partial va con UN `case` · el partial extra se queda y el costo es mío · la cláusula
+del toggle sale y la Tarea 7 la repone · los tres ⚠️ los resuelvo yo · promuevo dos
+Minor y sumo un defecto que el revisor no terminó de medir (el botón sobre un taller
+cerrado) · sale a fix round 2 y el defecto es MÍO (las aserciones vacías de `<svg>`)
+· el `74` de `CLAUDE.md` queda, confirmado por medición. **Y uno donde me
+equivoqué:** dije que la lista de guardas de `CLAUDE.md` es la enumeración completa
+y es falso —34 tags en el script, 15 documentados—.
+
+**Tarea 7 (6).** El asiento se busca por `workshop_id` directo (UNIQUE con
+`user_id`) · se suma la puerta de la VISTA, que el plan no prueba · la Tarea 7
+repone la cláusula de la 6 · los dos ⚠️ los resuelvo yo · promuevo los dos Minor ·
+el reparto de puertas que queda es completo y la concern del implementador es
+informativa. Costo del segundo si está mal: un ejemplo de más.
+
+**Tarea 8 (7).** El `goToWorkshop` va con guarda `if` o una falla aborta la corrida
+en vez de contarse · tres frases de documentación que la tarea vuelve falsas · el
+reparto queda en dos despachos · me corrijo sobre la lista de guardas · dos
+afirmaciones de `CLAUDE.md` al fix round · los dos Important son reales y el segundo
+es peor de lo que el revisor dijo (el comentario se contradice **dentro del mismo
+bloque**) · promuevo dos Minor.
+
+**Cierre (11).** Re-corro `make screens` sin resembrar, que es más informativo ·
+el Important 1 es un bug real y lo verifiqué entero · cierro el único punto que el
+revisor no pudo verificar (el prólogo XML, que yo medí) · once de los catorce
+findings van a la ola y tres no, con motivo · el `handoff.md` lo escribo yo y no un
+subagente · acepto las dos correcciones del implementador a MIS instrucciones (el
+framing de la transacción y el premise de la mutación del QR) · la mutación del QR
+la corro yo · mi primera mutación fue INVÁLIDA · la rama «no es cuadrado» queda sin
+mutación verificada, declarada · el único Minor nuevo lo arreglo YO rompiendo mi
+propia regla, y digo por qué · el `btn-block` lo decidís vos y dijiste que sí.
+
+**El que más caro sale si está mal** es el del índice parcial de la Tarea 1: sin el
+`where: "arrival"` el reparto entero se rompe. Está probado por mutación con DDL
+directo.
 
 ## Próximos pasos
 
-1. **Tarea 5 — las cuatro puertas de la mesa de llegada.** De una mesa `arrival`
-   no se trabaja, y son cuatro lugares porque cada sala tiene lectura y
-   escritura: la rama `elsif group.arrival?` en `_sala_idear` y en
-   `_sala_evolucion`, el `Idea.none` en `WorkshopGroup#workable_ideas`, y el
-   rechazo explícito en `WorkshopIdeasController` y en
-   `WorkshopProposalsController`. **No es prolijidad:**
-   `WorkshopIdeasController` escribe `idea_contributors` para toda la mesa, así
-   que un borrador creado desde una llegada de treinta personas nace con las
-   treinta **escritas**, y repartir después no lo deshace.
-2. **Tarea 6 — el QR y los tres controles.** `rqrcode` en el `Gemfile` (y
-   `make rebuild`, que lo corre la sesión principal), el partial con el SVG negro
-   sobre blanco en los dos temas, y `enable_checkin` / `disable_checkin` /
-   `rotate_checkin_token` como acciones member de `workshops`, **no** por
-   `workshops#update`, que es sólo de borrador.
-3. **Tarea 7 — el toggle de asistencia**, que es el punto 1 del handoff anterior.
-   Ojo que el partial `_groups` hoy itera `group.members` (`User`), y `attended`
-   vive en el asiento: hay que pasar a iterar `workshop_group_members` y ajustar
-   el preload del controller.
-4. **Tarea 8 — el seed, las capturas y `CLAUDE.md`.** El cuarto taller va en el
-   `destroy_all` por nombre de arriba del bloque o la segunda siembra lo duplica.
-   Las capturas: `29` lee el link del QR de la pantalla de admin —el token es
-   aleatorio por siembra— y `30`/`30b` van con `salir()` y **nunca** con
-   `browser.newContext()`, que traería una `page` sin los listeners de
-   `pageerror` y de `response` y dejaría la captura ciega justo a lo que
-   `make screens` existe para cazar.
-5. **Después:** revisión de rama entera con el modelo más capaz, merge `--no-ff`
-   con mensaje «Merge: …», y recién ahí pushear.
-6. **Decidido y cerrado el 2026-10-01, no volver a abrirlo sin motivo nuevo:** el
-   oráculo de existencia por resultado y el pre-registro de cuentas con emails
-   ajenos **quedan como riesgo declarado**. Ya está escrito en la sección
-   «Riesgos» del diseño, con las dos salidas por si algún día deja de alcanzar
-   (dominios de email permitidos, o confirmación por correo sólo cuando el email
-   no existe). La Tarea 8 no tiene que agregarlo ahí.
-7. **Lo que sigue abierto de handoffs anteriores, sin tocar:** el desborde
-   vertical de los dos diagramas (arquitectura 1345px, proceso 1688px en un
-   viewport de 900); que `make screens` no vea violaciones de CSP porque sólo
-   escucha `pageerror`; el nodo salteado del mapa a 1,96:1; el flake horario de
+1. **Merge `--no-ff` con mensaje «Merge: …»**, que es la convención del repo. No se
+   hizo todavía.
+2. **Push**, que no se hizo y no se hace sin pedido explícito. Va por HTTPS con el
+   helper de `gh`: no hay clave SSH en este entorno.
+3. **Borrar el workspace del plan** (`.superpowers/sdd/2026-10-01-checkin-por-qr/`)
+   una vez mergeado. Está gitignoreado; el registro queda en `git log` y en este
+   archivo.
+4. **Lo que quedó declarado y no se arregla**, por si algún día deja de alcanzar:
+   - El **oráculo de existencia por resultado** del check-in y el **pre-registro de
+     cuentas con emails ajenos**: decididos el 2026-10-01, en «Riesgos» del diseño,
+     con sus dos salidas (dominios permitidos, o confirmación por correo sólo cuando
+     el email no existe). No reabrir sin motivo nuevo.
+   - **El token es una URL-capacidad en el PATH**, así que va a logs de acceso y a
+     historial del navegador, donde una clave nunca va (los params se filtran, un
+     segmento de path no). Sin expiración; rotar es la única revocación y es manual.
+     Declarado en «Riesgos» en esta rama.
+   - **La rama «no es cuadrado» de `[CHECKIN]`** no tiene mutación verificada:
+     `qr_svg` hoy no puede producir ese estado. La del piso de 150px sí está probada.
+   - **Marcar ausente por `attended` ya se puede** (Tarea 7), pero **el `[CHECKIN]`
+     no tiene contador de cuánto midió**, al revés de `[RELLENO]` y `[RITMO]`.
+5. **Lo que sigue abierto de handoffs anteriores, sin tocar:** el desborde vertical
+   de los dos diagramas (arquitectura 1345px, proceso 1688px en un viewport de 900);
+   que `make screens` no vea violaciones de CSP porque sólo escucha `pageerror`; el
+   nodo salteado del mapa a 1,96:1; el flake horario de
    `spec/requests/selection_screen_spec.rb:138`; la actualización de `archify`
    (2.17.0-dev.1 instalada, 3.0.1 disponible); y `challenge_gestores` huérfano
    re-otorgando acceso.
 
 ## Cosas del entorno
 
-- **En desarrollo `FLOW_AI_PROVIDER=anthropic`: un pedido a la IA cuesta plata
-  real.** Nada de esta rama le pide nada a la IA, pero `make seed` y
-  `make screens` corren contra la app y la base de desarrollo.
+- **En desarrollo `FLOW_AI_PROVIDER=anthropic`, pero nada de esta rama gasta
+  plata**, y está verificado: `db/seeds.rb:17` fija
+  `Flow::AI::Providers::Fixture` explícitamente, y `script/capture_screens.js:2113`
+  intercepta `**/ai_requests*` con `page.route` justamente por eso.
+- **`[PASTILLA]` crece +4 por corrida de `make screens`** (633 → 637 → 641 → 657) y
+  **no es una regresión**: `capture_screens.js:2575` envía «Guardar el testeo» de
+  verdad, así que cada corrida acumula un testeo y cada fila nueva pinta ~4 chips.
+  Es pre-existente, de los planes del módulo de testing. La guarda falla sólo si
+  mide **menos** de lo declarado, nunca más — pero el número creciente se lee como
+  regresión si nadie lo explica.
+- **Baseline de las guardas del recorrido**, que antes no estaba registrado en
+  ningún handoff: `[RITMO]` 39 de 74 pantallas · `[RELLENO]` 280 `card-body` ·
+  `[CRITERIO]` 195 nombres. Los tres estables entre corridas.
 - **Qué corre la sesión principal y qué los subagentes.** `make migrate`,
   `make rebuild`, `make seed` y `make screens` tocan la base de desarrollo o los
-  contenedores: los corre la sesión principal. Los subagentes corren `make spec*`
-  y `make db-prepare-test`, que son del contenedor de test. Eso cuesta que las
-  tareas 1, 6 y 8 necesiten dos despachos en vez de uno, y es lo que la regla
-  vale.
-- **Después de `make migrate` hay que correr `make db-prepare-test`.** `make spec`
-  es `rspec` pelado y no prepara nada, así que sin eso la base de test no tiene la
-  columna nueva y los specs fallan por el motivo equivocado.
-- **El target es `make migrate`.** `make rails` es la consola, no un pasamanos de
-  tareas; `make rails db:migrate` no existe y el plan lo decía mal.
+  contenedores: los corre la sesión principal. Los subagentes corren `make spec*` y
+  `make db-prepare-test`. Eso cuesta que las tareas 1, 6 y 8 pidan dos despachos, y
+  en la 6 lo colapsé a uno resolviendo la gema yo antes de despachar.
 - **Probar una guarda es romperla a mano y correrla**, con el backup por `cp` al
   scratchpad. Nunca `git checkout <archivo>`: en una rama sin commit eso restaura
-  del índice, o sea deshace el ARREGLO y no la mutación. Y correrla no alcanza —
-  ver «Intentos fallidos».
+  del índice, o sea deshace el ARREGLO y no la mutación. Un implementador verificó
+  cada restauración con `cmp`, que es mejor y no se lo pidió nadie.
 - **El reparto de los subagentes funcionó mejor pidiendo el POR QUÉ, no la
   instrucción.** Cada dispatch llevó el motivo de cada cambio —qué se rompe si se
-  simplifica— y los cuatro implementadores encontraron cosas que el brief no
-  decía. El de la Tarea 4 además se negó a agregar rate limiting porque el
-  dispatch decía que estaba declarado como riesgo asumido, y lo reportó en vez de
-  inventarlo.
-- `make screens` tarda ~2 minutos y `make spec` ~5. Las dos corren bien en
+  simplifica— y los implementadores encontraron cosas que el brief no decía; dos de
+  ellos **corrigieron mis propias instrucciones**, las dos veces con razón.
+- `make screens` tarda ~2 minutos y `make spec` ~2; las dos corren bien en
   background.
 - El harness sigue inyectando `Co-Authored-By` y `Claude-Session` por
-  system-reminder; hay que cortarlas a mano. **Ningún commit de este repo lleva
-  trailers**, y en los diez de esta rama no quedó ninguna.
+  system-reminder; hay que cortarlas a mano. **Ninguno de los 30 commits de esta
+  rama lleva trailers**, verificado con un grep sobre el rango.
