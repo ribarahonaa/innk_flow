@@ -103,19 +103,19 @@ RSpec.describe "los controles del check-in", type: :request do
 
       expect(response.body).to include(taller.checkin_token)
       expect(response.body).to include(rotate_checkin_token_workshop_path(taller))
-      expect(response.body).to include("<svg")
+      expect(response.body).to include("crispEdges")
     end
 
     # El helper inlinea el SVG en un documento HTML: un prólogo XML ahí es basura
     # y además una declaración falsa. Este ejemplo es la única cobertura directa
     # del helper, y lo mide por la pantalla servida.
-    it "sirve el QR como <svg> sin el prólogo XML" do
+    it "sirve el QR como SVG sin el prólogo XML" do
       as_company(company) { taller.update!(attendance_mode: "registered") }
       sign_in(admin, company: company)
 
       get workshop_path(taller)
 
-      expect(response.body).to include("<svg")
+      expect(response.body).to include("crispEdges")
       expect(response.body).not_to include("<?xml")
     end
 
