@@ -1,0 +1,31 @@
+-# El QR del taller. Se renderiza desde `_assembly`, detrás del mismo
+-# `can_assemble`; acá no se vuelve a preguntar el permiso.
+-#
+-# Un solo `case` sobre `checkin_state` y no una cadena de `elsif`: es el mismo
+-# valor cerrado que lee la pantalla pública, así que las dos dicen lo mismo, y
+-# cada estado dice lo suyo. El `else` no reutiliza el mensaje de «cerró»: un
+-# estado nuevo no puede salir diciendo que el taller terminó. El código y los
+-# controles son el mismo para todo estado con el link activado
+-# (`workshops/checkin_code`).
+.card
+  .card-body
+    .section-head
+      %h2.section-title Check-in por link
+
+    - case workshop.checkin_state
+    - when :off
+      %p.muted Con el check-in activado, quien escanea entra solo: queda convocado y marcado presente. Quien no escanea queda ausente, y el reparto sienta sólo a los presentes.
+      = button_to "Activar check-in por link", enable_checkin_workshop_path(workshop), method: :post,
+                  class: "btn btn-primary btn-sm"
+    - when :open
+      %p.muted Proyectá este código. Quien lo escanea entra al taller, y si no tiene cuenta la crea ahí mismo.
+      = render "workshops/checkin_code", workshop: workshop
+    - when :draft
+      %p.muted El código ya está, pero recién sirve cuando abras el taller.
+      = render "workshops/checkin_code", workshop: workshop
+    - when :closed
+      %p.muted Este taller cerró: el código ya no deja entrar a nadie.
+      = render "workshops/checkin_code", workshop: workshop
+    - else
+      %p.muted El check-in está activo, pero este estado del taller todavía no tiene un mensaje.
+      = render "workshops/checkin_code", workshop: workshop

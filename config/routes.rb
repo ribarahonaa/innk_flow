@@ -100,6 +100,12 @@ Rails.application.routes.draw do
       # o sea en borrador. El id del vínculo viaja como parámetro: no hay un
       # controller de vínculos, la baja es del taller.
       delete :remove_challenge
+      # El check-in NO va por `workshops#update`, que es sólo de borrador:
+      # activarlo tiene que poder hacerse con el taller ABIERTO, que es cuando
+      # la gente está llegando.
+      post :enable_checkin
+      post :disable_checkin
+      post :rotate_checkin_token
     end
     resources :workshop_groups, only: %i[create destroy], path: "mesas" do
       post :assign, on: :collection
