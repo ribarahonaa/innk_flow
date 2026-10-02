@@ -22,6 +22,7 @@ class WorkshopIdeasController < ApplicationController
     # sembrar los contribuyentes toleraba el `nil`: la idea nacía sin uno solo.
     group = group_of(current_user)
     return reject_without_group unless group
+    return reject_arrival if group.arrival?
 
     # Estar en la mesa no alcanza: firmar una idea es de `IdeaPolicy#create?`,
     # que al gestor se lo niega por conflicto de interés. Puede acompañar la
@@ -94,5 +95,13 @@ class WorkshopIdeasController < ApplicationController
   def reject_without_group
     redirect_to workshop_path(@workshop),
                 alert: "Sólo se crea un borrador desde una mesa: no estás en ninguna de este taller."
+  end
+
+  # La mesa de llegada no trabaja. El rechazo es explícito y con su mensaje: un
+  # 404 pelado en una sala que debería decir «tu mesa todavía no se armó» es el
+  # control que no responde.
+  def reject_arrival
+    redirect_to workshop_path(@workshop),
+                alert: "Tu mesa todavía no se armó: esperá el reparto para trabajar."
   end
 end

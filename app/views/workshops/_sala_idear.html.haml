@@ -14,6 +14,10 @@
       -# Sin mesa el controller rechaza el POST (`reject_without_group`):
       -# ofrecer el formulario igual sería un control que no responde.
       %p.muted Sólo se crea un borrador desde una mesa: no estás en ninguna de este taller.
+    - elsif group.arrival?
+      -# Mismo mensaje y misma pregunta que las otras tres puertas, para que no
+      -# puedan divergir.
+      %p.muted Tu mesa todavía no se armó: en cuanto se reparta, acá aparece el formulario.
     - elsif !puede_crear
       %p.muted Podés acompañar a la mesa, pero no proponer ideas propias: es conflicto de interés.
     - else

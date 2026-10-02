@@ -14,6 +14,7 @@ class WorkshopProposalsController < ApplicationController
 
     group = group_of(current_user)
     return reject_without_group unless group
+    return reject_arrival if group.arrival?
 
     # Acá el filtro NO es `policy_scope(Idea)`: ese scope deja ver a quien
     # participa sólo lo que creó o comparte él, y la mesa trabaja lo de
@@ -62,5 +63,13 @@ class WorkshopProposalsController < ApplicationController
 
   def reject_without_group
     redirect_to workshop_path(@workshop), alert: "Sólo se propone desde una mesa: no estás en ninguna de este taller."
+  end
+
+  # La mesa de llegada no trabaja. El rechazo es explícito y con su mensaje: un
+  # 404 pelado en una sala que debería decir «tu mesa todavía no se armó» es el
+  # control que no responde.
+  def reject_arrival
+    redirect_to workshop_path(@workshop),
+                alert: "Tu mesa todavía no se armó: esperá el reparto para trabajar."
   end
 end

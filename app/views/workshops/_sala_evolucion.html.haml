@@ -13,6 +13,8 @@
     %h2.section-title= link.challenge.name
     - if group.nil?
       %p.muted Sólo se propone desde una mesa: no estás en ninguna de este taller.
+    - elsif group.arrival?
+      %p.muted Tu mesa todavía no se armó: en cuanto se reparta, acá aparecen las ideas para proponer.
     - elsif ideas.empty?
       %p.muted Ninguna persona de tu mesa tiene ideas en este desafío todavía.
     - else

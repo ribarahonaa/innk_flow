@@ -25,6 +25,12 @@ class WorkshopGroup < ApplicationRecord
   # payload completo de su versión vigente— por toda su mesa: antes lo veía
   # sólo él. La ronda de evolución trabaja lo postulado.
   def workable_ideas(challenge)
+    # La mesa de llegada no trabaja: es la sala de espera hasta que alguien
+    # reparte. Acá es donde más importa, porque esto es la UNIÓN sobre los
+    # integrantes: con treinta recién llegados, cada uno vería y propondría
+    # sobre las ideas de los otros veintinueve.
+    return Idea.none if arrival?
+
     member_ids = workshop_group_members.select(:user_id)
     ideas = challenge.ideas.alive
     ideas.where(author_id: member_ids)
