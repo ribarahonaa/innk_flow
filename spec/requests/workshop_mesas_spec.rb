@@ -159,4 +159,93 @@ RSpec.describe "armar las mesas", type: :request do
       expect(flash[:notice]).not_to include("quedó partido")
     end
   end
+
+  describe "eliminar una mesa" do
+    def seat(workshop_group, user, attended: true)
+      as_company(company) do
+        WorkshopGroupMember.create!(workshop_group: workshop_group, user: user, attended: attended)
+      end
+    end
+
+    def seats_of(workshop)
+      as_company(company) do
+        WorkshopGroupMember.joins(:workshop_group)
+                           .where(workshop_groups: { workshop_id: workshop.id })
+                           .map { |m| [m.user_id, m.workshop_group.arrival?, m.attended] }
+      end
+    end
+
+    def table_exists?(group)
+      as_company(company) { WorkshopGroup.exists?(group.id) }
+    end
+
+    let!(:ana) { member("ana@test.dev", :participant) }
+
+    it "manda a su gente a la mesa de llegada, con su asistencia intacta" do
+      mesa = as_company(company) { create(:workshop_group, workshop: taller) }
+      seat(mesa, paula, attended: true)
+      seat(mesa, ana, attended: false)
+      sign_in(admin, company: company)
+
+      delete workshop_workshop_group_path(taller, mesa)
+
+      expect(response).to redirect_to(workshop_path(taller))
+      expect(flash[:notice]).to eq("Mesa eliminada.")
+      expect(table_exists?(mesa)).to be(false)
+      expect(seats_of(taller)).to contain_exactly([paula.id, true, true], [ana.id, true, false])
+    end
+
+    it "no borra la mesa de llegada, y la pantalla no lo ofrece" do
+      llegada = as_company(company) { create(:workshop_group, :arrival, workshop: taller) }
+      otra = as_company(company) { create(:workshop_group, workshop: taller) }
+      seat(llegada, paula)
+      sign_in(admin, company: company)
+
+      get workshop_path(taller)
+      expect(response).to have_http_status(:ok)
+      # Control positivo: la otra mesa SÍ se ofrece, así que la ausencia de la
+      # de llegada no es una página que no renderizó.
+      expect(response.body).to include(workshop_workshop_group_path(taller, otra))
+      expect(response.body).not_to include(workshop_workshop_group_path(taller, llegada))
+
+      delete workshop_workshop_group_path(taller, llegada)
+
+      expect(flash[:alert]).to include("llegada")
+      expect(table_exists?(llegada)).to be(true)
+      expect(seats_of(taller)).to eq([[paula.id, true, true]])
+    end
+
+    it "no borra una mesa con propuestas, y no pierde a nadie" do
+      mesa = as_company(company) { create(:workshop_group, workshop: taller) }
+      seat(mesa, paula)
+      as_company(company) do
+        step = taller.workshop_challenges.first.challenge_step
+        idea = create(:idea, challenge: step.challenge, status: "active")
+        WorkshopProposal.create!(workshop_group: mesa, idea: idea, challenge_step: step,
+                                 status: "accepted", payload: { "titulo" => "x" })
+      end
+      sign_in(admin, company: company)
+
+      delete workshop_workshop_group_path(taller, mesa)
+
+      expect(flash[:alert]).to include("propuestas")
+      expect(table_exists?(mesa)).to be(true)
+      expect(as_company(company) { WorkshopProposal.count }).to eq(1)
+      expect(seats_of(taller)).to eq([[paula.id, false, true]])
+    end
+
+    it "en modo individual se borra como siempre: cada persona es su mesa" do
+      individual = workshop_with(mode: "individual")
+      mesa = as_company(company) { create(:workshop_group, workshop: individual) }
+      seat(mesa, paula)
+      sign_in(admin, company: company)
+
+      delete workshop_workshop_group_path(individual, mesa)
+
+      expect(flash[:notice]).to eq("Mesa eliminada.")
+      expect(table_exists?(mesa)).to be(false)
+      expect(seats_of(individual)).to be_empty
+      expect(as_company(company) { WorkshopGroup.where(workshop_id: individual.id).count }).to eq(0)
+    end
+  end
 end

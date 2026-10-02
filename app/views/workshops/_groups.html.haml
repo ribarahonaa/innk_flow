@@ -60,15 +60,20 @@
                 %span
                   = group.name
                   %span.muted= " · #{Flow::Texto.contar(group.workshop_group_members.size, 'persona')}"
-                - if can_edit
+                -# La llegada no se ofrece: es la sala de espera y se va sola
+                -# cuando el reparto la vacía (`WorkshopGroupsController#destroy`
+                -# la rechazaría igual).
+                - if can_edit && !group.arrival?
                   .assignment-row__actions
-                    -# El aviso nombra lo que de verdad se pierde: las
-                    -# propuestas cascadean por `workshop_group_id`, aceptadas
-                    -# incluidas, y con ellas la procedencia de versiones que
-                    -# ya están publicadas.
+                    -# El aviso dice a dónde va la gente. Las propuestas no
+                    -# entran: con alguna, el controller rechaza el borrado, y
+                    -# prometer que se borran sería un aviso falso. En modo
+                    -# individual no hay mesa de llegada y se saca a la
+                    -# persona, así que ahí el aviso dice eso.
+                    - aviso = workshop.individual? ? "¿Eliminar esta mesa? Se saca a quien esté en ella." : "¿Eliminar esta mesa? Quien esté en ella pasa a la mesa de llegada, con su asistencia como estaba, hasta el próximo reparto."
                     = button_to "Eliminar mesa", workshop_workshop_group_path(workshop, group), method: :delete,
                                 class: "btn btn-ghost btn-sm",
-                                form: { data: { turbo_confirm: "¿Eliminar esta mesa? Se saca a quien esté en ella y se borran todas sus propuestas, incluidas las que ya se aceptaron." } }
+                                form: { data: { turbo_confirm: aviso } }
 
               - if group.workshop_group_members.any?
                 %ul.field-list

@@ -9,7 +9,7 @@ module Flow
     # mueve a nadie — quien ya estaba convocado a la mesa 3 no termina en la
     # llegada por haber escaneado.
     class CheckIn
-      ARRIVAL_NAME = "Mesa de llegada"
+      ARRIVAL_NAME = Workshop::ARRIVAL_NAME
 
       Result = Data.define(:ok, :member, :errors) do
         def ok? = ok
@@ -31,7 +31,7 @@ module Flow
         seated = seat_of(@user)
         return present!(seated) if seated
 
-        result = Convoke.new(@workshop, @user, group: landing, attended: true).call
+        result = Convoke.new(@workshop, @user, group: @workshop.arrival_group!, attended: true).call
         return Result.new(ok: true, member: result.member, errors: []) if result.ok?
 
         # `Convoke` pudo fallar porque OTRO escaneo de la misma persona ganó la
@@ -58,21 +58,6 @@ module Flow
         WorkshopGroupMember.joins(:workshop_group)
                            .where(workshop_groups: { workshop_id: @workshop.id }, user_id: user.id)
                            .first
-      end
-
-      # En modo individual NO hay mesa de llegada: `Convoke#own_group` arma la
-      # mesa de una persona, que es el diseño de ese modo. Devolver `nil` es
-      # pedirle exactamente eso.
-      def landing
-        return nil if @workshop.individual?
-
-        @workshop.workshop_groups.find_or_create_by!(arrival: true) { |g| g.name = ARRIVAL_NAME }
-      rescue ActiveRecord::RecordNotUnique
-        # El índice UNIQUE parcial es justamente lo que un `find_or_create_by!`
-        # no puede garantizar: es un SELECT y después un INSERT, y dos escaneos
-        # en el mismo segundo lo atraviesan. Que la base frene al segundo es
-        # correcto; lo que no corresponde es que quien está entrando vea un 500.
-        @workshop.workshop_groups.find_by!(arrival: true)
       end
 
       def failure(message) = Result.new(ok: false, member: nil, errors: [message])
