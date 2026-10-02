@@ -97,4 +97,37 @@ RSpec.describe "la llegada en vivo", type: :request do
 
     expect(response).to have_http_status(:not_found)
   end
+
+  # Review Focus 1: con el taller cerrado o el check-in apagado no entra nadie
+  # solo, así que la pantalla no arranca el temporizador. Lo decide la VISTA con
+  # un atributo: el JS no adivina estado del dominio.
+  describe "cuándo se refresca solo" do
+    it "con el check-in abierto el frame pide refrescarse" do
+      as_company(company) { taller.update!(attendance_mode: "registered") }
+      sign_in(admin, company: company)
+
+      get workshop_path(taller)
+
+      expect(response.body).to include('data-vivo="true"')
+      expect(response.body).to include(arrival_workshop_path(taller))
+    end
+
+    it "con el check-in apagado no lo pide" do
+      sign_in(admin, company: company)
+
+      get workshop_path(taller)
+
+      expect(response.body).to include('id="llegada"')
+      expect(response.body).not_to include('data-vivo="true"')
+    end
+
+    it "con el taller cerrado tampoco" do
+      as_company(company) { taller.update!(attendance_mode: "registered", status: "closed") }
+      sign_in(admin, company: company)
+
+      get workshop_path(taller)
+
+      expect(response.body).not_to include('data-vivo="true"')
+    end
+  end
 end

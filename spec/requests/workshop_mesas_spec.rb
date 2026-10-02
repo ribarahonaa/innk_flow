@@ -298,11 +298,12 @@ RSpec.describe "armar las mesas", type: :request do
       expect(response.body).to include("Todavía no llegó nadie")
     end
 
-    # Un frame con `src` se vuelve a pedir solo. El endpoint de la Tarea 2
-    # devuelve este mismo partial, y si el frame que devuelve apuntara a sí mismo
-    # el pedido se re-dispararía sobre el temporizador. HAML 7 SÍ escribe
-    # `src=""` con un nil; hoy lo evita el splat condicional de `_llegada_frame`,
-    # y esto lo vuelve una afirmación. Se mira el ELEMENTO:
+    # Un frame con `src` se vuelve a pedir solo. La pantalla SÍ lo lleva (de ahí
+    # sale el refresco), pero el endpoint devuelve este mismo partial, y si el
+    # frame que devuelve apuntara a sí mismo el pedido se re-dispararía sobre el
+    # temporizador. HAML 7 SÍ escribe `src=""` con un nil; hoy lo evita el splat
+    # condicional de `_llegada_frame`, y esto lo vuelve una afirmación. Se pide
+    # el ENDPOINT y se mira el ELEMENTO:
     # la página tiene otros `src` (íconos, scripts) y buscar en el body entero
     # daría verde con el frame mal.
     [true, false].each do |con_llegada|
@@ -311,7 +312,7 @@ RSpec.describe "armar las mesas", type: :request do
         as_company(company) { create(:workshop_group, :arrival, workshop: taller) } if con_llegada
         sign_in(admin, company: company)
 
-        get workshop_path(taller)
+        get arrival_workshop_path(taller)
 
         frames = Nokogiri::HTML(response.body).css("turbo-frame#llegada")
         expect(frames.size).to eq(1)

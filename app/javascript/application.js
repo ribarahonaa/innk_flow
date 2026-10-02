@@ -4,6 +4,8 @@ import '@hotwired/turbo-rails';
 // Los dos popups de la IA: el de esperar y el de responder. Chrome compartido
 // porque los botones de IA viven en diez pantallas.
 import './ia_popups';
+// La mesa de llegada de un taller se refresca sola mientras el check-in está abierto.
+import './llegada_en_vivo';
 
 // Conservar el scroll cuando la pantalla se actualiza sin recargarse.
 //

@@ -20,7 +20,8 @@ class WorkshopsController < ApplicationController
     authorize @workshop, :update?
     @group = @workshop.workshop_groups.find_by(arrival: true)
     render partial: "workshops/llegada_frame",
-           locals: { workshop: @workshop, group: @group, can_edit: !@workshop.closed? }
+           locals: { workshop: @workshop, group: @group, can_edit: !@workshop.closed?,
+                     src: nil, vivo: false }
   end
 
   def new

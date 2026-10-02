@@ -60,7 +60,8 @@
               -# solo. El `select` de convocar queda AFUERA a propósito — ahí
               -# está el estado que no se puede perder si la región se repinta.
               - if group.arrival?
-                = render "workshops/llegada_frame", workshop: workshop, group: group, can_edit: can_edit, src: nil
+                = render "workshops/llegada_frame", workshop: workshop, group: group, can_edit: can_edit,
+                  src: arrival_workshop_path(workshop), vivo: workshop.checkin_open?
               - else
                 = render "workshops/mesa_cuerpo", workshop: workshop, group: group, can_edit: can_edit
 
@@ -77,7 +78,8 @@
     -# Sin mesa de llegada el frame se dibuja igual, vacío: un destino que a
     -# veces no existe no es un destino.
     - if groups.none?(&:arrival?)
-      = render "workshops/llegada_frame", workshop: workshop, group: nil, can_edit: can_edit, src: nil
+      = render "workshops/llegada_frame", workshop: workshop, group: nil, can_edit: can_edit,
+                  src: arrival_workshop_path(workshop), vivo: workshop.checkin_open?
 
     - if workshop.closed?
       %p.field-hint Este taller ya cerró: las mesas quedan como están.
