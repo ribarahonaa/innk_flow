@@ -6,9 +6,10 @@ Ejecutar el plan de **check-in por QR en el taller** por subagentes: un
 implementador por tarea, un revisor fresco después de cada una, y una revisión de
 rama entera al final.
 
-**Las ocho tareas están cerradas, mergeadas y pusheadas**, y encima salió una
-segunda tanda chica: borrar una mesa ya no saca gente del taller. `master` está
-en `ff9184d` y el remote también.
+**Tres tandas cerradas y mergeadas**: el check-in por QR (8 tareas), la mesa de
+llegada que retiene a su gente al borrar una mesa, y la lista de llegada EN VIVO
+(4 tareas). `master` está en `cd943eb`. **El remote está en `e600847`: los dos
+últimos merges y una nota de `CLAUDE.md` NO están pusheados.**
 
 La feature: un taller proyecta un QR, escanearlo es la puerta —convoca, marca
 presente y sienta en una «Mesa de llegada» de la que nadie trabaja— y quien no
@@ -20,15 +21,18 @@ handoff anterior dejaba fichado como punto 1, y lo incluye.
 
 ## Estado actual
 
-- **`master` está en `ff9184d` y el remote también**, comprobado con
+- **`master` está en `cd943eb`; el REMOTE está en `e600847`**, comprobado con
   `gh api repos/ribarahonaa/innk_flow/commits/master --jq .sha` (no hay clave SSH
-  acá, así que `git fetch` no sirve). Las dos ramas de feature también están
-  publicadas.
-- **Dos merges `--no-ff`**, los dos verificados con dos padres y árbol idéntico
-  al de su rama: `ac6110d` (el check-in, 31 commits) y `ff9184d` (la mesa de
-  llegada que retiene, 2 commits).
-- **`make spec`: 1544 ejemplos, 0 fallas**, medidos sobre `master` después del
-  segundo merge. Eran 1468 al abrir la primera rama.
+  acá, así que `git fetch` no sirve). Las dos primeras ramas de feature están
+  publicadas; `lista-de-llegada-en-vivo` no.
+- **Tres merges `--no-ff`**, los tres verificados con dos padres y árbol idéntico
+  al de su rama: `ac6110d` (el check-in, 31 commits), `ff9184d` (la mesa de
+  llegada que retiene, 2 commits) y `cd943eb` (la lista en vivo, 18 commits).
+- **Lo que falta subir es todo lo que hay desde `e600847`**: la nota de
+  `[CLASES]` en `CLAUDE.md` (`341df19`), el merge `cd943eb` y la rama
+  `lista-de-llegada-en-vivo` entera.
+- **`make spec`: 1561 ejemplos, 0 fallas**, medidos sobre `master` después del
+  tercer merge. Eran 1468 al abrir la primera rama.
 - **`make screens`: 74 capturas, 0 errores.** Eran 71 antes. Corrió **ocho
   veces** en total: con siembra fresca, sin resembrar, para mutar guardas, para
   verificar el `btn-block`, y de nuevo después de compilar el CSS (ver abajo:
@@ -75,7 +79,24 @@ tampoco (misma regla que `AssignGroups`), y en modo `individual` todo queda como
 estaba porque ahí cada persona ES su mesa. El acceso a la llegada quedó en
 `Workshop#arrival_group!`, una sola implementación para los dos llamadores.
 
-**Pendiente — la lista de ingresos en TIEMPO REAL.** Está clasificada como
+**HECHO, y es la tercera tanda — la lista de la mesa de llegada EN VIVO**
+(`cd943eb`, 4 tareas). Lo que sigue describe cómo era ANTES de hacerla; se deja
+porque explica por qué se eligió recargar un frame y no empujar por websocket.
+
+**Cómo quedó:** el encabezado de la mesa de llegada y su lista de asientos viven
+en un `turbo-frame` que se recarga solo cada 5 segundos mientras el check-in está
+abierto; el `select` de convocar queda AFUERA a propósito, porque ahí está el
+estado que se perdería al repintar. El id del frame vive en UN archivo
+(`_llegada_frame.html.haml`) y hay una mutación que rompe los ejemplos de los dos
+lados a la vez: si divergieran, Turbo dejaría de reemplazar y la pantalla se
+quedaría quieta SIN UN SOLO ERROR. El endpoint (`WorkshopsController#arrival`) no
+escribe nada, precarga sus asientos —se pide doce veces por minuto— y pasa por la
+misma puerta `update?` detrás de la que ya se esconde el bloque de armado. El
+frame lleva `src` (sin él `reload()` no hace nada) y `complete` (con él no se pide
+al conectar). En modo individual NO hay lista en vivo, y está dicho en el código:
+ahí no existe ni puede existir mesa de llegada.
+
+**El porqué del enfoque, que sigue vigente:** Está clasificada como
 **arquitectónica** y no se empezó: la app no tiene hoy NINGÚN transporte en vivo
 —no hay `app/channels`, no hay Turbo Streams, no hay broadcasts; las únicas
 menciones a ActionCable son dos líneas comentadas en `production.rb`— y todo se
@@ -261,6 +282,39 @@ variante de las dos sesiones, no el 200.
   no hace, y un `expect(...).to receive(:lock!)` afirmaría que el método se llama,
   no que el lock funcione: es una aserción sobre un mock, que la propia rúbrica de
   este repo llama defecto. El `with_lock` de `AssignGroups` tampoco tiene spec.
+
+### Lo que encontró la tercera tanda
+
+- **La guarda del recorrido cazó una feature MUERTA mientras catorce ejemplos
+  decían que andaba.** `[LIVE]` falló en su primera corrida: el bundle
+  `app/assets/builds/application-build.js` no tenía una sola referencia a
+  `llegada_en_vivo.js`, porque nadie corrió `make yarn-build`. **Es la misma
+  trampa que el CSS, dos horas después de escribir la mitad del CSS en
+  `CLAUDE.md`** — la nota estaba acotada a Tailwind y el mecanismo es idéntico
+  para el JS. Ya está generalizada.
+- **Una mutación que corre sobre un baseline roto no prueba nada.** La primera
+  mutación de `[LIVE]` dio el mensaje esperado… pero el estado SANO daba el mismo.
+  Si me hubiera quedado con «coincide con lo que el implementador predijo», habría
+  dado la guarda por probada sobre una feature que no funcionaba. Una mutación
+  sólo discrimina si la corrida limpia PASA.
+- **La rama introdujo una regresión que ningún test veía**, y la encontró la
+  revisión de rama leyendo la fuente de Turbo: los dos `button_to` quedaron DENTRO
+  del frame, así que Turbo los enviaba con alcance de frame, descartaba la
+  respuesta completa y extraía sólo el frame. El `notice` se barría de la sesión
+  —nadie lo veía nunca— y el `select` de convocables quedaba viejo, lo que rompía
+  el flujo «Sacar + Convocar». Arreglado con `turbo_frame: "_top"`.
+- **SIETE premisas falsas en mis briefs**, todas encontradas por los
+  implementadores: HAML escribe `src=""` con un nil en vez de omitir el atributo;
+  HAML escribe `data-vivo` PELADO con `true` y OMITE el `false`; la app sin
+  membresía devuelve 302 a `select_company` y no 404; y **DOS mutaciones que yo
+  había escrito eran vacuas**, porque el ejemplo nunca llegaba a la guarda que
+  decían probar. El código de los implementadores salió limpio casi siempre; lo
+  que falló sistemáticamente fue lo que yo afirmaba sin medir.
+- **Y dos afirmaciones falsas nacieron de corregir otra**: al arreglar el
+  `turbo_frame_tag` del plan escribí «HAML no escribe un atributo nil», y al
+  aplicar el `complete` quedó en pie «el `src` cuesta un pedido de más y se
+  acepta». Una frase editada PARA ser verdadera es la que más se desvía mientras
+  se edita.
 
 ## Los 55 rulings
 
