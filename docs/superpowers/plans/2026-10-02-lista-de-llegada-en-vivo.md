@@ -82,9 +82,9 @@ tiene su test asignado a la tarea dueña del código.
 
 | Archivo | Responsabilidad |
 |---|---|
-| `app/views/workshops/_mesa_cuerpo.html.haml` | El encabezado de una mesa y su lista de asientos. UN markup, dos lugares que lo renderizan. |
-| `app/javascript/llegada_en_vivo.js` | El temporizador y su ciclo de vida. |
-| `spec/requests/workshop_llegada_en_vivo_spec.rb` | El endpoint: qué devuelve y a quién. |
+| `app/views/workshops/_group_body.html.haml` | El encabezado de una mesa y su lista de asientos. UN markup, dos lugares que lo renderizan. |
+| `app/javascript/arrival_live.js` | El temporizador y su ciclo de vida. |
+| `spec/requests/workshop_arrival_live_spec.rb` | El endpoint: qué devuelve y a quién. |
 
 **Se modifican:**
 
@@ -101,15 +101,15 @@ tiene su test asignado a la tarea dueña del código.
 ### Task 1: El partial compartido y el frame en la pantalla
 
 **Files:**
-- Create: `app/views/workshops/_mesa_cuerpo.html.haml`
-- Create: `app/views/workshops/_llegada_frame.html.haml`
+- Create: `app/views/workshops/_group_body.html.haml`
+- Create: `app/views/workshops/_arrival_frame.html.haml`
 - Modify: `app/views/workshops/_groups.html.haml:60-100`
 - Test: `spec/requests/workshop_mesas_spec.rb`
 
 **Interfaces:**
 - Consumes: nada de tareas anteriores.
-- Produces: el partial `workshops/mesa_cuerpo` con locals `workshop`, `group`,
-  `can_edit`; y el partial `workshops/llegada_frame` con locals `workshop`,
+- Produces: el partial `workshops/group_body` con locals `workshop`, `group`,
+  `can_edit`; y el partial `workshops/arrival_frame` con locals `workshop`,
   `group` (puede ser `nil`) y `can_edit`, que es **el único lugar donde vive el
   id del frame**. La Tarea 2 lo renderiza desde el endpoint sin volver a
   escribirlo.
@@ -124,8 +124,8 @@ En `spec/requests/workshop_mesas_spec.rb`, dentro del describe que ya existe:
       taller = as_company(company) { create(:workshop, status: "open") }
       otra_persona = member("otra@test.dev", :participant)
       as_company(company) do
-        llegada = create(:workshop_group, :arrival, workshop: taller)
-        WorkshopGroupMember.create!(workshop_group: llegada, user_id: paula.id)
+        arrival = create(:workshop_group, :arrival, workshop: taller)
+        WorkshopGroupMember.create!(workshop_group: arrival, user_id: paula.id)
         normal = create(:workshop_group, workshop: taller, name: "Mesa A")
         WorkshopGroupMember.create!(workshop_group: normal, user_id: otra_persona.id)
       end
@@ -137,7 +137,7 @@ En `spec/requests/workshop_mesas_spec.rb`, dentro del describe que ya existe:
       # El id tiene que ser exactamente éste: el endpoint de la Tarea 2 devuelve
       # el mismo, y si no coinciden Turbo no reemplaza nada y la pantalla se
       # queda quieta SIN un solo error.
-      expect(response.body).to include('id="llegada"')
+      expect(response.body).to include('id="arrival"')
       # Las dos mesas se siguen dibujando con su gente: el frame no se comió nada.
       expect(response.body).to include(paula.name)
       expect(response.body).to include(otra_persona.name)
@@ -150,7 +150,7 @@ En `spec/requests/workshop_mesas_spec.rb`, dentro del describe que ya existe:
 
       get workshop_path(taller)
 
-      expect(response.body).to include('id="llegada"')
+      expect(response.body).to include('id="arrival"')
       expect(response.body).to include("Todavía no llegó nadie")
     end
   end
@@ -163,11 +163,11 @@ dentro del ejemplo.
 - [ ] **Step 2: Correr y verificar que falla**
 
 Run: `make spec-file FILE=spec/requests/workshop_mesas_spec.rb`
-Expected: FAIL — hoy no existe ningún `id="llegada"` ni el texto del vacío.
+Expected: FAIL — hoy no existe ningún `id="arrival"` ni el texto del vacío.
 
 - [ ] **Step 3: Crear el partial**
 
-`app/views/workshops/_mesa_cuerpo.html.haml`, con el markup que hoy está inline
+`app/views/workshops/_group_body.html.haml`, con el markup que hoy está inline
 en `_groups` (el `.assignment-row` y la lista de asientos), tal cual:
 
 ```haml
@@ -217,7 +217,7 @@ en `_groups` (el `.assignment-row` y la lista de asientos), tal cual:
 
 - [ ] **Step 4: El partial del frame, que es donde vive el id**
 
-`app/views/workshops/_llegada_frame.html.haml`. **El id del frame existe en este
+`app/views/workshops/_arrival_frame.html.haml`. **El id del frame existe en este
 archivo y en ningún otro**: la pantalla completa y el endpoint de la Tarea 2 lo
 renderizan los dos, así que no pueden dejar de coincidir. Si coincidieran mal,
 Turbo no reemplazaría nada y la pantalla se quedaría quieta sin un solo error.
@@ -237,9 +237,9 @@ Turbo no reemplazaría nada y la pantalla se quedaría quieta sin un solo error.
 -# no lo omite —está medido—, y un `src` vacío en la respuesta del endpoint es
 -# justo el frame apuntándose a sí mismo que esto quiere evitar.
 - src = local_assigns[:src]
-%turbo-frame#llegada{ **(src ? { src: src } : {}) }
+%turbo-frame#arrival{ **(src ? { src: src } : {}) }
   - if group
-    = render "workshops/mesa_cuerpo", workshop: workshop, group: group, can_edit: can_edit
+    = render "workshops/group_body", workshop: workshop, group: group, can_edit: can_edit
   - else
     %p.muted Todavía no llegó nadie.
 ```
@@ -255,9 +255,9 @@ En `app/views/workshops/_groups.html.haml`, reemplazar el bloque que va desde
               -# solo. El `select` de convocar queda AFUERA a propósito — ahí
               -# está el estado que no se puede perder si la región se repinta.
               - if group.arrival?
-                = render "workshops/llegada_frame", workshop: workshop, group: group, can_edit: can_edit
+                = render "workshops/arrival_frame", workshop: workshop, group: group, can_edit: can_edit
               - else
-                = render "workshops/mesa_cuerpo", workshop: workshop, group: group, can_edit: can_edit
+                = render "workshops/group_body", workshop: workshop, group: group, can_edit: can_edit
 ```
 
 Y **debajo del `%ul.field-list` de las mesas**, cuando no hay ninguna mesa de
@@ -265,7 +265,7 @@ llegada, el mismo partial con `group: nil`:
 
 ```haml
       - if groups.none?(&:arrival?)
-        = render "workshops/llegada_frame", workshop: workshop, group: nil, can_edit: can_edit
+        = render "workshops/arrival_frame", workshop: workshop, group: nil, can_edit: can_edit
 ```
 
 - [ ] **Step 6: Correr y verificar que pasa**
@@ -284,7 +284,7 @@ Mutar de a una, con backup por `cp` y restaurando con `cp` (nunca
 `git checkout <archivo>`: en una rama sin commit eso restaura del índice, o sea
 deshace el ARREGLO y no la mutación):
 
-1. Cambiar el id del frame de `"llegada"` a `"llegada2"` en `_llegada_frame`.
+1. Cambiar el id del frame de `"arrival"` a `"arrival2"` en `_arrival_frame`.
    Tiene que fallar «envuelve la llegada».
 2. Sacar el bloque `- if groups.none?(&:arrival?)` de `_groups`. Tiene que fallar
    «dibuja el frame aunque no haya mesa de llegada».
@@ -295,7 +295,7 @@ una guarda hermana o de datos que no distinguen las dos ramas.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add app/views/workshops/_mesa_cuerpo.html.haml app/views/workshops/_llegada_frame.html.haml app/views/workshops/_groups.html.haml spec/requests/workshop_mesas_spec.rb
+git add app/views/workshops/_group_body.html.haml app/views/workshops/_arrival_frame.html.haml app/views/workshops/_groups.html.haml spec/requests/workshop_mesas_spec.rb
 git commit -F - <<'MSG'
 El cuerpo de una mesa es un partial, y el de la llegada va en un frame
 
@@ -317,20 +317,20 @@ MSG
 **Files:**
 - Modify: `config/routes.rb:95-112` (el `member do` de `workshops`)
 - Modify: `app/controllers/workshops_controller.rb:4-5`
-- Create: `spec/requests/workshop_llegada_en_vivo_spec.rb`
+- Create: `spec/requests/workshop_arrival_live_spec.rb`
 
-**No se toca `_llegada_frame.html.haml`:** ya existe desde la Tarea 1 y es el
+**No se toca `_arrival_frame.html.haml`:** ya existe desde la Tarea 1 y es el
 único lugar donde vive el id. Esta tarea sólo lo renderiza desde el controller.
 
 **Interfaces:**
-- Consumes: el partial `workshops/llegada_frame` de la Tarea 1, con sus locals
+- Consumes: el partial `workshops/arrival_frame` de la Tarea 1, con sus locals
   `workshop`, `group` (puede ser `nil`) y `can_edit`.
 - Produces: `arrival_workshop_path(workshop)` (GET), que la Tarea 3 pone en el
   `src` del frame.
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
-`spec/requests/workshop_llegada_en_vivo_spec.rb`:
+`spec/requests/workshop_arrival_live_spec.rb`:
 
 ```ruby
 # frozen_string_literal: true
@@ -358,15 +358,15 @@ RSpec.describe "la llegada en vivo", type: :request do
 
   it "lista a quien está en la mesa de llegada, dentro del frame" do
     as_company(company) do
-      llegada = create(:workshop_group, :arrival, workshop: taller)
-      WorkshopGroupMember.create!(workshop_group: llegada, user_id: paula.id)
+      arrival = create(:workshop_group, :arrival, workshop: taller)
+      WorkshopGroupMember.create!(workshop_group: arrival, user_id: paula.id)
     end
     sign_in(admin, company: company)
 
     get arrival_workshop_path(taller)
 
     expect(response).to have_http_status(:ok)
-    expect(response.body).to include('id="llegada"')
+    expect(response.body).to include('id="arrival"')
     expect(response.body).to include(paula.name)
   end
 
@@ -416,7 +416,7 @@ end
 
 - [ ] **Step 2: Correr y verificar que falla**
 
-Run: `make spec-file FILE=spec/requests/workshop_llegada_en_vivo_spec.rb`
+Run: `make spec-file FILE=spec/requests/workshop_arrival_live_spec.rb`
 Expected: FAIL con `undefined method 'arrival_workshop_path'`.
 
 - [ ] **Step 3: La ruta**
@@ -446,7 +446,7 @@ En `app/controllers/workshops_controller.rb`, sumar `arrival` al `only:` del
   def arrival
     authorize @workshop, :update?
     @group = @workshop.workshop_groups.find_by(arrival: true)
-    render partial: "workshops/llegada_frame",
+    render partial: "workshops/arrival_frame",
            locals: { workshop: @workshop, group: @group, can_edit: !@workshop.closed? }
   end
 ```
@@ -456,7 +456,7 @@ vuelve a escribir en ningún lado.
 
 - [ ] **Step 5: Correr y verificar que pasa**
 
-Run: `make spec-file FILE=spec/requests/workshop_llegada_en_vivo_spec.rb`
+Run: `make spec-file FILE=spec/requests/workshop_arrival_live_spec.rb`
 Expected: PASS, 5 ejemplos.
 
 Run: `make spec-file FILE=spec/requests/workshop_mesas_spec.rb`
@@ -477,7 +477,7 @@ Con backup y restauración por `cp`:
    Ese 404 lo da el `default_scope` de `TenantScoped`, que también filtra con
    `Workshop.find_by!`. No hay mutación útil sobre esa línea: el aislamiento entre empresas
    lo cubren los specs de `spec/tenancy/`.
-3. Cambiar el id del frame en `_llegada_frame` a `"llegada2"`. Tienen que fallar
+3. Cambiar el id del frame en `_arrival_frame` a `"arrival2"`. Tienen que fallar
    a la vez «lista a quien está» (Tarea 2) y «envuelve la llegada» (Tarea 1) —
    **ésta es la mutación que prueba que el fallo mudo está cubierto**, y que los
    dos lados salen del mismo archivo: si saliera de dos, una sola mutación
@@ -486,7 +486,7 @@ Con backup y restauración por `cp`:
 - [ ] **Step 7: Commit**
 
 ```bash
-git add config/routes.rb app/controllers/workshops_controller.rb spec/requests/workshop_llegada_en_vivo_spec.rb
+git add config/routes.rb app/controllers/workshops_controller.rb spec/requests/workshop_arrival_live_spec.rb
 git commit -F - <<'MSG'
 La mesa de llegada se puede pedir sola
 
@@ -506,19 +506,19 @@ MSG
 ### Task 3: El refresco en el navegador
 
 **Files:**
-- Create: `app/javascript/llegada_en_vivo.js`
+- Create: `app/javascript/arrival_live.js`
 - Modify: `app/javascript/application.js` (el import)
-- Modify: `app/views/workshops/_llegada_frame.html.haml` (el `src` y los datos)
-- Test: `spec/requests/workshop_llegada_en_vivo_spec.rb`
+- Modify: `app/views/workshops/_arrival_frame.html.haml` (el `src` y los datos)
+- Test: `spec/requests/workshop_arrival_live_spec.rb`
 
 **Interfaces:**
-- Consumes: `arrival_workshop_path` de la Tarea 2 y el frame `"llegada"`.
-- Produces: el atributo `data-vivo` en el frame, que la guarda de la Tarea 4 usa
+- Consumes: `arrival_workshop_path` de la Tarea 2 y el frame `"arrival"`.
+- Produces: el atributo `data-live` en el frame, que la guarda de la Tarea 4 usa
   para encontrarlo.
 
 - [ ] **Step 1: Escribir el test que falla**
 
-En `spec/requests/workshop_llegada_en_vivo_spec.rb`:
+En `spec/requests/workshop_arrival_live_spec.rb`:
 
 ```ruby
   # Review Focus 1: con el taller cerrado o el check-in apagado no entra nadie
@@ -531,7 +531,7 @@ En `spec/requests/workshop_llegada_en_vivo_spec.rb`:
 
       get workshop_path(taller)
 
-      expect(response.body).to include('data-vivo="true"')
+      expect(response.body).to include('data-live="true"')
       expect(response.body).to include(arrival_workshop_path(taller))
     end
 
@@ -540,8 +540,8 @@ En `spec/requests/workshop_llegada_en_vivo_spec.rb`:
 
       get workshop_path(taller)
 
-      expect(response.body).to include('id="llegada"')
-      expect(response.body).not_to include('data-vivo="true"')
+      expect(response.body).to include('id="arrival"')
+      expect(response.body).not_to include('data-live="true"')
     end
 
     it "con el taller cerrado tampoco" do
@@ -550,19 +550,19 @@ En `spec/requests/workshop_llegada_en_vivo_spec.rb`:
 
       get workshop_path(taller)
 
-      expect(response.body).not_to include('data-vivo="true"')
+      expect(response.body).not_to include('data-live="true"')
     end
   end
 ```
 
 - [ ] **Step 2: Correr y verificar que falla**
 
-Run: `make spec-file FILE=spec/requests/workshop_llegada_en_vivo_spec.rb`
-Expected: FAIL — todavía no existe `data-vivo`.
+Run: `make spec-file FILE=spec/requests/workshop_arrival_live_spec.rb`
+Expected: FAIL — todavía no existe `data-live`.
 
 - [ ] **Step 3: El frame declara si hay algo que esperar**
 
-En `app/views/workshops/_llegada_frame.html.haml`, el elemento pasa a llevar los
+En `app/views/workshops/_arrival_frame.html.haml`, el elemento pasa a llevar los
 datos (y recordá: **no hay `turbo_frame_tag`**, la app no trae la gema
 turbo-rails):
 
@@ -571,17 +571,17 @@ turbo-rails):
 -# endpoint devolvería un frame apuntándose a sí mismo. `complete` viaja con el
 -# `src` porque sólo tiene sentido con él: le dice a Turbo que este frame ya trae
 -# su contenido y que no lo pida al conectar. `data` sí va siempre.
-%turbo-frame#llegada{ **(src ? { src: src, complete: true } : {}), data: { vivo: vivo.to_s, intervalo: 5000 } }
+%turbo-frame#arrival{ **(src ? { src: src, complete: true } : {}), data: { live: live.to_s, interval: 5000 } }
 ```
 
-**`vivo.to_s`, no `vivo` a secas** (medido): HAML escribe un `true` como atributo
-sin valor (`data-vivo`) y omite un `false`, y el JS compara contra el texto
+**`live.to_s`, no `live` a secas** (medido): HAML escribe un `true` como atributo
+sin valor (`data-live`) y omite un `false`, y el JS compara contra el texto
 «true».
 
-con `vivo` como local nuevo. **Y hay que actualizar la llamada que la Tarea 2
-escribió en el controller**, que todavía no pasa `vivo:`: el endpoint pasa
-`vivo: false` y `src: nil`, la pantalla pasa
-`src: arrival_workshop_path(workshop)` y `vivo: workshop.checkin_open?`.
+con `live` como local nuevo. **Y hay que actualizar la llamada que la Tarea 2
+escribió en el controller**, que todavía no pasa `live:`: el endpoint pasa
+`live: false` y `src: nil`, la pantalla pasa
+`src: arrival_workshop_path(workshop)` y `live: workshop.checkin_open?`.
 
 `checkin_open?` ya existe en `Workshop` y es `checkin_state == :open`, o sea
 modo `registered` + taller abierto: las dos condiciones del Review Focus 1 en un
@@ -599,7 +599,7 @@ si `this.complete`). El polling queda intacto porque `sourceURLReloaded()` borra
 
 - [ ] **Step 4: El temporizador**
 
-`app/javascript/llegada_en_vivo.js`:
+`app/javascript/arrival_live.js`:
 
 ```js
 // La mesa de llegada se refresca sola mientras el check-in está abierto: quien
@@ -617,47 +617,47 @@ si `this.complete`). El polling queda intacto porque `sourceURLReloaded()` borra
 // pantalla que ya no está.
 let timer = null;
 
-function detener() {
+function stop() {
   if (timer === null) return;
   clearInterval(timer);
   timer = null;
 }
 
-function arrancar() {
-  detener();
-  const frame = document.getElementById('llegada');
-  // `data-vivo` lo pone la VISTA: el JS no sabe ni tiene que saber si el taller
+function start() {
+  stop();
+  const frame = document.getElementById('arrival');
+  // `data-live` lo pone la VISTA: el JS no sabe ni tiene que saber si el taller
   // está abierto o el check-in encendido.
-  if (!frame || frame.dataset.vivo !== 'true') return;
+  if (!frame || frame.dataset.live !== 'true') return;
   // Con la pestaña oculta no se pide nada: una pantalla proyectada está
   // visible, una pestaña de fondo no tiene por qué consultar.
   if (document.hidden) return;
 
-  const intervalo = Number(frame.dataset.intervalo) || 5000;
+  const interval = Number(frame.dataset.interval) || 5000;
   timer = setInterval(() => {
-    const vivo = document.getElementById('llegada');
-    if (!vivo) return detener();
-    vivo.reload();
-  }, intervalo);
+    const current = document.getElementById('arrival');
+    if (!current) return stop();
+    current.reload();
+  }, interval);
 }
 
-addEventListener('turbo:load', arrancar);
-addEventListener('turbo:before-render', detener);
-addEventListener('visibilitychange', () => (document.hidden ? detener() : arrancar()));
+addEventListener('turbo:load', start);
+addEventListener('turbo:before-render', stop);
+addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
 ```
 
 En `app/javascript/application.js`, sumar el import junto a los que ya están:
 
 ```js
-import './llegada_en_vivo';
+import './arrival_live';
 ```
 
 - [ ] **Step 5: Correr y verificar que pasa**
 
-Run: `make spec-file FILE=spec/requests/workshop_llegada_en_vivo_spec.rb`
+Run: `make spec-file FILE=spec/requests/workshop_arrival_live_spec.rb`
 Expected: PASS, 8 ejemplos.
 
-Run: `node --check app/javascript/llegada_en_vivo.js`
+Run: `node --check app/javascript/arrival_live.js`
 Expected: sin salida.
 
 - [ ] **Step 6: Probar que los tests pueden fallar**
@@ -673,12 +673,12 @@ mismo test.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add app/javascript/llegada_en_vivo.js app/javascript/application.js app/views/workshops/_llegada_frame.html.haml spec/requests/workshop_llegada_en_vivo_spec.rb
+git add app/javascript/arrival_live.js app/javascript/application.js app/views/workshops/_arrival_frame.html.haml spec/requests/workshop_arrival_live_spec.rb
 git commit -F - <<'MSG'
 La mesa de llegada se refresca sola cada cinco segundos
 
 Mientras el check-in está abierto, que es cuando hay alguien entrando. Lo declara
-la VISTA con `data-vivo`: el JS no adivina estado del dominio, y con el taller
+la VISTA con `data-live`: el JS no adivina estado del dominio, y con el taller
 cerrado o el modo apagado el temporizador no arranca.
 
 El ciclo de vida usa el mismo par que `islands.js` —arrancar en turbo:load,
@@ -697,7 +697,7 @@ MSG
 - Test: `make screens`
 
 **Interfaces:**
-- Consumes: el frame `"llegada"` con `data-vivo` de la Tarea 3, y el taller
+- Consumes: el frame `"arrival"` con `data-live` de la Tarea 3, y el taller
   «Taller con check-in» que el seed ya siembra.
 - Produces: la guarda `[LIVE]` y su contador en la línea final.
 
@@ -716,41 +716,41 @@ check-in'))` que ya existe):
     // simultáneas, y un `browser.newContext()` trae una `page` SIN los listeners
     // de `pageerror` y de `response`, que se registran una sola vez: la captura
     // quedaría ciega justo a lo que esto existe para cazar. Qué devuelve el
-    // endpoint lo prueba `spec/requests/workshop_llegada_en_vivo_spec.rb`.
-    const refrescos = await page.evaluate(async () => {
-      const frame = document.getElementById('llegada');
+    // endpoint lo prueba `spec/requests/workshop_arrival_live_spec.rb`.
+    const refreshes = await page.evaluate(async () => {
+      const frame = document.getElementById('arrival');
       if (!frame) return { error: 'sin frame' };
-      if (frame.dataset.vivo !== 'true') return { error: 'el frame no está vivo' };
+      if (frame.dataset.live !== 'true') return { error: 'el frame no está vivo' };
       let n = 0;
-      const contar = (e) => { if (e.target.id === 'llegada') n++; };
-      addEventListener('turbo:frame-render', contar);
+      const count = (e) => { if (e.target.id === 'arrival') n++; };
+      addEventListener('turbo:frame-render', count);
       // Algo más que el intervalo declarado, para no depender del reloj.
-      const espera = (Number(frame.dataset.intervalo) || 5000) + 1500;
-      await new Promise((r) => setTimeout(r, espera));
-      removeEventListener('turbo:frame-render', contar);
+      const wait = (Number(frame.dataset.interval) || 5000) + 1500;
+      await new Promise((r) => setTimeout(r, wait));
+      removeEventListener('turbo:frame-render', count);
       return { n };
     });
-    medidasEnVivo++;
-    if (refrescos.error || !refrescos.n) {
+    liveMeasurements++;
+    if (refreshes.error || !refreshes.n) {
       failures++;
-      console.error(`[LIVE] la mesa de llegada no se refrescó sola: ${JSON.stringify(refrescos)}`);
+      console.error(`[LIVE] la mesa de llegada no se refrescó sola: ${JSON.stringify(refreshes)}`);
     }
 ```
 
-`let medidasEnVivo = 0;` va arriba, con las otras constantes del recorrido.
+`let liveMeasurements = 0;` va arriba, con las otras constantes del recorrido.
 
 - [ ] **Step 2: El contador en la línea final**
 
 Donde el recorrido imprime `[RITMO]` y `[RELLENO]`, sumar:
 
 ```js
-` · [LIVE] ${medidasEnVivo} pantalla(s) medida(s)`
+` · [LIVE] ${liveMeasurements} pantalla(s) medida(s)`
 ```
 
 Y, junto a las otras guardas que fallan si midieron de menos:
 
 ```js
-if (!medidasEnVivo) {
+if (!liveMeasurements) {
   failures++;
   console.error('[LIVE] no se midió ninguna pantalla con la llegada en vivo');
 }
@@ -771,9 +771,9 @@ Expected: 74 capturas, 0 errores, y la línea final con `[LIVE] 1 pantalla(s)`.
 
 Con backup por `cp`, una por vez, y restaurando con `cp`:
 
-1. En `llegada_en_vivo.js`, comentar el `setInterval`. Expected: `[LIVE] la mesa
+1. En `arrival_live.js`, comentar el `setInterval`. Expected: `[LIVE] la mesa
    de llegada no se refrescó sola: {"n":0}`.
-2. En `_llegada_frame.html.haml`, poner `data: { vivo: false }`. Expected:
+2. En `_arrival_frame.html.haml`, poner `data: { live: false }`. Expected:
    `[LIVE] … {"error":"el frame no está vivo"}`.
 
 **Review Focus 5** se verifica en la misma corrida sin trabajo extra: si el

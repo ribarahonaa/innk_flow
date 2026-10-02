@@ -23,15 +23,15 @@ RSpec.describe "la llegada en vivo", type: :request do
 
   it "lista a quien está en la mesa de llegada, dentro del frame" do
     as_company(company) do
-      llegada = create(:workshop_group, :arrival, workshop: taller)
-      WorkshopGroupMember.create!(workshop_group: llegada, user_id: paula.id)
+      arrival = create(:workshop_group, :arrival, workshop: taller)
+      WorkshopGroupMember.create!(workshop_group: arrival, user_id: paula.id)
     end
     sign_in(admin, company: company)
 
     get arrival_workshop_path(taller)
 
     expect(response).to have_http_status(:ok)
-    expect(response.body).to include('id="llegada"')
+    expect(response.body).to include('id="arrival"')
     expect(response.body).to include(paula.name)
   end
 
@@ -62,15 +62,15 @@ RSpec.describe "la llegada en vivo", type: :request do
   # llegada— y lo que la frena es `update?`: 403, y sin la lista de los demás.
   it "a quien está sentada en la llegada pero no administra le da 403 y no le muestra la lista" do
     as_company(company) do
-      llegada = create(:workshop_group, :arrival, workshop: taller)
-      WorkshopGroupMember.create!(workshop_group: llegada, user_id: paula.id)
+      arrival = create(:workshop_group, :arrival, workshop: taller)
+      WorkshopGroupMember.create!(workshop_group: arrival, user_id: paula.id)
     end
     sign_in(paula, company: company)
 
     get arrival_workshop_path(taller)
 
     expect(response).to have_http_status(:forbidden)
-    expect(response.body).not_to include('id="llegada"')
+    expect(response.body).not_to include('id="arrival"')
   end
 
   # Review Focus 2: la sesión guarda la empresa y no vuelve a pedir la membresía.
@@ -78,8 +78,8 @@ RSpec.describe "la llegada en vivo", type: :request do
   # ver `spec/tenancy/sin_membresia_spec.rb`): ni 200 con la lista ni un 500.
   it "a quien perdió la membresía lo manda a elegir empresa, sin la lista" do
     as_company(company) do
-      llegada = create(:workshop_group, :arrival, workshop: taller)
-      WorkshopGroupMember.create!(workshop_group: llegada, user_id: paula.id)
+      arrival = create(:workshop_group, :arrival, workshop: taller)
+      WorkshopGroupMember.create!(workshop_group: arrival, user_id: paula.id)
     end
     sign_in(admin, company: company)
     without_tenant { Membership.where(user_id: admin.id, company_id: company.id).destroy_all }
@@ -109,7 +109,7 @@ RSpec.describe "la llegada en vivo", type: :request do
 
       get workshop_path(taller)
 
-      expect(response.body).to include('data-vivo="true"')
+      expect(response.body).to include('data-live="true"')
       expect(response.body).to include(arrival_workshop_path(taller))
     end
 
@@ -119,15 +119,15 @@ RSpec.describe "la llegada en vivo", type: :request do
     it "con el check-in abierto y una mesa de llegada poblada el frame también pide refrescarse" do
       as_company(company) do
         taller.update!(attendance_mode: "registered")
-        llegada = create(:workshop_group, :arrival, workshop: taller)
-        WorkshopGroupMember.create!(workshop_group: llegada, user_id: paula.id)
+        arrival = create(:workshop_group, :arrival, workshop: taller)
+        WorkshopGroupMember.create!(workshop_group: arrival, user_id: paula.id)
       end
       sign_in(admin, company: company)
 
       get workshop_path(taller)
 
       expect(response.body).to include(paula.name)
-      expect(response.body).to include('data-vivo="true"')
+      expect(response.body).to include('data-live="true"')
       expect(response.body).to include(arrival_workshop_path(taller))
     end
 
@@ -136,8 +136,8 @@ RSpec.describe "la llegada en vivo", type: :request do
 
       get workshop_path(taller)
 
-      expect(response.body).to include('id="llegada"')
-      expect(response.body).not_to include('data-vivo="true"')
+      expect(response.body).to include('id="arrival"')
+      expect(response.body).not_to include('data-live="true"')
     end
 
     it "con el taller cerrado tampoco" do
@@ -146,8 +146,8 @@ RSpec.describe "la llegada en vivo", type: :request do
 
       get workshop_path(taller)
 
-      expect(response.body).to include('id="llegada"')
-      expect(response.body).not_to include('data-vivo="true"')
+      expect(response.body).to include('id="arrival"')
+      expect(response.body).not_to include('data-live="true"')
     end
   end
 end

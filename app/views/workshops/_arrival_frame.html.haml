@@ -13,25 +13,25 @@
 -# porque un frame que se devuelve apuntando a sí mismo se volvería a pedir en
 -# cada recarga.
 -#
--# `vivo` también lo decide quien llama y es obligatorio —sin él la vista revienta
+-# `live` también lo decide quien llama y es obligatorio —sin él la vista revienta
 -# en vez de dejar un frame que nunca se refresca—: la pantalla pasa
 -# `workshop.checkin_open?` y el endpoint `false`, porque el temporizador vive en
--# la pantalla y no en el frame que ella recarga (`llegada_en_vivo.js`).
+-# la pantalla y no en el frame que ella recarga (`arrival_live.js`).
 - src = local_assigns[:src]
 -# No hay `turbo_frame_tag` (la app no trae turbo-rails): el elemento va a mano,
 -# como en `shared/_ai_suggestions`. HAML 7 escribe `src=""` si el valor es nil,
 -# así que el atributo se agrega sólo cuando hay `src`: sin él el frame sale sin
 -# el atributo (lo afirma `workshop_mesas_spec`).
--# `vivo.to_s`: HAML escribe un `true` como atributo sin valor (`data-vivo`) y
+-# `live.to_s`: HAML escribe un `true` como atributo sin valor (`data-live`) y
 -# omite un `false`; el JS compara contra el texto «true», así que va como texto.
 -# `complete`: el frame ya trae su contenido, y sin el atributo Turbo lo pediría
 -# otra vez al cargar la pantalla. `reload()` lo borra solo antes de cada
 -# refresco, así que el temporizador no se entera. El `src` se queda: sin él
 -# `reload()` no hace nada.
-%turbo-frame#llegada{ **(src ? { src: src, complete: true } : {}), data: { vivo: vivo.to_s, intervalo: 5000 } }
+%turbo-frame#arrival{ **(src ? { src: src, complete: true } : {}), data: { live: live.to_s, interval: 5000 } }
   -# La línea sólo donde «llegar» existe: con asistencia presumida nadie llega
   -# escaneando, y el aviso anunciaría un concepto que ese taller no tiene.
   - if group
-    = render "workshops/mesa_cuerpo", workshop: workshop, group: group, can_edit: can_edit
+    = render "workshops/group_body", workshop: workshop, group: group, can_edit: can_edit
   - elsif workshop.registered_attendance?
     %p.muted Todavía no llegó nadie.

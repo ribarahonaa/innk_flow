@@ -34,9 +34,9 @@
             -# Hermanos del form de convocar y NO adentro: un `button_to` es un
             -# `<form>`, y uno dentro de otro es HTML inválido que el navegador
             -# aplana sin dejar rastro en el DOM.
-            -# `_top`: esta lista vive dentro de `turbo-frame#llegada`, y un form
+            -# `_top`: esta lista vive dentro de `turbo-frame#arrival`, y un form
             -# de adentro se envía con alcance de frame —Turbo seguiría el
-            -# redirect y extraería sólo `#llegada`—: el aviso no se vería nunca
+            -# redirect y extraería sólo `#arrival`—: el aviso no se vería nunca
             -# y los `select` de convocar quedarían viejos. Con `_top` se envía
             -# a nivel de página, con morph y aviso.
             = button_to seat.attended ? "Marcar ausente" : "Marcar presente",

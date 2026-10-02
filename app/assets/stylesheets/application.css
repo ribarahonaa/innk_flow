@@ -2839,7 +2839,7 @@ turbo-frame#ai-suggestions { display: contents; }
 /* La mesa de llegada también es un elemento desconocido para el navegador, o */
 /* sea `inline`, con hijos de bloque dentro de un `.card-body` que reparte por */
 /* flex. Explícito: que no dependa del arreglo que hace el navegador. */
-turbo-frame#llegada { display: block; }
+turbo-frame#arrival { display: block; }
 
 /* La regla del corte, en una línea al pie de la tarjeta que la explica. */
 .rule-line { margin: 14px 0 0; font-size: 13px; }

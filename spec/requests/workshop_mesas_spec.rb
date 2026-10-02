@@ -264,8 +264,8 @@ RSpec.describe "armar las mesas", type: :request do
       taller = as_company(company) { create(:workshop, status: "open") }
       otra_persona = member("otra@test.dev", :participant)
       as_company(company) do
-        llegada = create(:workshop_group, :arrival, workshop: taller)
-        WorkshopGroupMember.create!(workshop_group: llegada, user_id: paula.id)
+        arrival = create(:workshop_group, :arrival, workshop: taller)
+        WorkshopGroupMember.create!(workshop_group: arrival, user_id: paula.id)
         normal = create(:workshop_group, workshop: taller, name: "Mesa A")
         WorkshopGroupMember.create!(workshop_group: normal, user_id: otra_persona.id)
       end
@@ -277,7 +277,7 @@ RSpec.describe "armar las mesas", type: :request do
       # El id tiene que ser exactamente éste: el endpoint de la Tarea 2 devuelve
       # el mismo, y si no coinciden Turbo no reemplaza nada y la pantalla se
       # queda quieta SIN un solo error.
-      frames = Nokogiri::HTML(response.body).css("turbo-frame#llegada")
+      frames = Nokogiri::HTML(response.body).css("turbo-frame#arrival")
       expect(frames.size).to eq(1)
       # Quien llegó está ADENTRO del frame; la otra mesa y su gente, AFUERA. Y las
       # dos siguen dibujadas: el frame no se comió nada.
@@ -289,20 +289,20 @@ RSpec.describe "armar las mesas", type: :request do
     end
 
     # Dentro del frame un form se envía con alcance de frame: Turbo seguiría el
-    # redirect y extraería sólo `#llegada`, sin aviso y con los `select` de
+    # redirect y extraería sólo `#arrival`, sin aviso y con los `select` de
     # convocar viejos. `_top` lo devuelve a nivel de página. Los request specs
     # postean directo y no ven esto: se mira el HTML servido.
     it "los formularios de adentro del frame de la llegada se envían a nivel de página" do
       taller = as_company(company) { create(:workshop, status: "open") }
       as_company(company) do
-        llegada = create(:workshop_group, :arrival, workshop: taller)
-        WorkshopGroupMember.create!(workshop_group: llegada, user_id: paula.id)
+        arrival = create(:workshop_group, :arrival, workshop: taller)
+        WorkshopGroupMember.create!(workshop_group: arrival, user_id: paula.id)
       end
       sign_in(admin, company: company)
 
       get workshop_path(taller)
 
-      frame = Nokogiri::HTML(response.body).at_css("turbo-frame#llegada")
+      frame = Nokogiri::HTML(response.body).at_css("turbo-frame#arrival")
       expect(frame).not_to be_nil
       forms = frame.css("form")
       expect(forms.size).to eq(2)
@@ -316,7 +316,7 @@ RSpec.describe "armar las mesas", type: :request do
 
       get workshop_path(taller)
 
-      expect(response.body).to include('id="llegada"')
+      expect(response.body).to include('id="arrival"')
       expect(response.body).not_to include("Todavía no llegó nadie")
     end
 
@@ -327,7 +327,7 @@ RSpec.describe "armar las mesas", type: :request do
       get workshop_path(taller)
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).not_to include('id="llegada"')
+      expect(response.body).not_to include('id="arrival"')
     end
 
     it "dibuja el frame aunque no haya mesa de llegada, y dice que no llegó nadie" do
@@ -336,7 +336,7 @@ RSpec.describe "armar las mesas", type: :request do
 
       get workshop_path(taller)
 
-      expect(response.body).to include('id="llegada"')
+      expect(response.body).to include('id="arrival"')
       expect(response.body).to include("Todavía no llegó nadie")
     end
 
@@ -344,19 +344,19 @@ RSpec.describe "armar las mesas", type: :request do
     # sale el refresco), pero el endpoint devuelve este mismo partial, y si el
     # frame que devuelve apuntara a sí mismo el pedido se re-dispararía sobre el
     # temporizador. HAML 7 SÍ escribe `src=""` con un nil; hoy lo evita el splat
-    # condicional de `_llegada_frame`, y esto lo vuelve una afirmación. Se pide
+    # condicional de `_arrival_frame`, y esto lo vuelve una afirmación. Se pide
     # el ENDPOINT y se mira el ELEMENTO:
     # la página tiene otros `src` (íconos, scripts) y buscar en el body entero
     # daría verde con el frame mal.
-    [true, false].each do |con_llegada|
-      it "sirve el frame sin src #{con_llegada ? 'con' : 'sin'} mesa de llegada" do
+    [true, false].each do |with_arrival|
+      it "sirve el frame sin src #{with_arrival ? 'con' : 'sin'} mesa de llegada" do
         taller = as_company(company) { create(:workshop, status: "open") }
-        as_company(company) { create(:workshop_group, :arrival, workshop: taller) } if con_llegada
+        as_company(company) { create(:workshop_group, :arrival, workshop: taller) } if with_arrival
         sign_in(admin, company: company)
 
         get arrival_workshop_path(taller)
 
-        frames = Nokogiri::HTML(response.body).css("turbo-frame#llegada")
+        frames = Nokogiri::HTML(response.body).css("turbo-frame#arrival")
         expect(frames.size).to eq(1)
         expect(frames.first.attributes.keys).not_to include("src")
       end

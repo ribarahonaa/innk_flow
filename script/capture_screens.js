@@ -18,7 +18,7 @@ const CHALLENGE = 'merma-bodega';
 const shots = [];
 let failures = 0;
 // En cuántas pantallas `[LIVE]` midió que la mesa de llegada se refresca sola.
-let medidasEnVivo = 0;
+let liveMeasurements = 0;
 
 // Un módulo por su TIPO, no por su nombre: el nombre es editable y una
 // propuesta de la IA lo reescribe entero.
@@ -2883,26 +2883,26 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     // simultáneas, y un `browser.newContext()` trae una `page` SIN los listeners
     // de `pageerror` y de `response`, que se registran una sola vez: la captura
     // quedaría ciega justo a lo que esto existe para cazar. Qué devuelve el
-    // endpoint lo prueba `spec/requests/workshop_llegada_en_vivo_spec.rb`: cada
+    // endpoint lo prueba `spec/requests/workshop_arrival_live_spec.rb`: cada
     // herramienta prueba lo que puede probar.
-    const refrescos = await page.evaluate(async () => {
-      const frame = document.getElementById('llegada');
+    const refreshes = await page.evaluate(async () => {
+      const frame = document.getElementById('arrival');
       if (!frame) return { error: 'sin frame' };
-      if (frame.dataset.vivo !== 'true') return { error: 'el frame no está vivo' };
+      if (frame.dataset.live !== 'true') return { error: 'el frame no está vivo' };
       let n = 0;
-      const contar = (e) => { if (e.target.id === 'llegada') n++; };
-      addEventListener('turbo:frame-render', contar);
+      const count = (e) => { if (e.target.id === 'arrival') n++; };
+      addEventListener('turbo:frame-render', count);
       // Algo más que el intervalo declarado, para no depender del reloj.
-      const espera = (Number(frame.dataset.intervalo) || 5000) + 1500;
-      await new Promise((r) => setTimeout(r, espera));
-      removeEventListener('turbo:frame-render', contar);
+      const wait = (Number(frame.dataset.interval) || 5000) + 1500;
+      await new Promise((r) => setTimeout(r, wait));
+      removeEventListener('turbo:frame-render', count);
       return { n };
     });
-    if (refrescos.error || !refrescos.n) {
+    if (refreshes.error || !refreshes.n) {
       failures++;
-      console.error(`[LIVE] la mesa de llegada no se refrescó sola: ${JSON.stringify(refrescos)}`);
+      console.error(`[LIVE] la mesa de llegada no se refrescó sola: ${JSON.stringify(refreshes)}`);
     } else {
-      medidasEnVivo++;
+      liveMeasurements++;
     }
   } else {
     console.error('[CHECKIN] sin el taller no hay link, y la pasada pública (30, 30b) no corre');
@@ -3099,7 +3099,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // verde y es indistinguible de una que funciona, que es el modo de falla que
   // este script ya pagó dos veces (la pasada oscura del muestrario, y `[MONO]`
   // después del arreglo).
-  console.log(`[RITMO] ${pantallasConRitmo} de ${shots.length} pantallas tuvieron dos tarjetas que comparar · [RELLENO] ${cardBodiesMedidos} \`card-body\` medidos · [PASTILLA] ${pastillasMedidas} chips y avisos medidos · [CRITERIO] ${criteriosMedidos} nombres medidos · [LIVE] ${medidasEnVivo} pantalla(s) medida(s)`);
+  console.log(`[RITMO] ${pantallasConRitmo} de ${shots.length} pantallas tuvieron dos tarjetas que comparar · [RELLENO] ${cardBodiesMedidos} \`card-body\` medidos · [PASTILLA] ${pastillasMedidas} chips y avisos medidos · [CRITERIO] ${criteriosMedidos} nombres medidos · [LIVE] ${liveMeasurements} pantalla(s) medida(s)`);
   if (pantallasConRitmo < PISO_DE_RITMO) {
     failures++;
     console.error(`[RITMO] sólo ${pantallasConRitmo} de ${shots.length} pantallas tuvieron un par de tarjetas que comparar, y el piso es ${PISO_DE_RITMO}: la guarda dejó de ver las tarjetas`);
@@ -3112,7 +3112,7 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     failures++;
     console.error(`[PASTILLA] sólo se midieron ${pastillasMedidas} chips y avisos en ${shots.length} pantallas, y el piso es ${PISO_DE_PASTILLAS}: la guarda dejó de ver los chips`);
   }
-  if (!medidasEnVivo) {
+  if (!liveMeasurements) {
     failures++;
     console.error('[LIVE] no se midió ninguna pantalla con la llegada en vivo');
   }
