@@ -33,6 +33,39 @@ class Workshop < ApplicationRecord
 
   def individual? = mode == "individual"
 
+  ARRIVAL_NAME = "Mesa de llegada"
+
+  # La mesa de llegada, creándola si falta: la sala de espera donde cae quien
+  # entra por el link y quien se queda sin mesa al borrar la suya. Una sola
+  # implementación para los dos caminos (`Flow::Workshops::CheckIn` y
+  # `WorkshopGroupsController#destroy`); vive en el taller porque es SU mesa,
+  # una por taller, y no de un servicio u otro.
+  #
+  # En modo individual devuelve `nil`: NO hay mesa de llegada. `Convoke#own_group`
+  # arma la mesa de una persona, que es el diseño de ese modo, y devolver `nil`
+  # es pedirle exactamente eso. Y quien borre una mesa ahí no tiene a dónde
+  # mandar a su gente: cada persona ES su mesa.
+  def arrival_group!
+    return nil if individual?
+
+    # Con su propio savepoint (`requires_new`): este método se llama FUERA de
+    # una transacción (el escaneo) y ADENTRO de una (borrar una mesa). Adentro,
+    # un UNIQUE violado por el `create!` aborta la transacción entera si no hay
+    # savepoint, y el `find_by!` del rescate corre contra una transacción
+    # envenenada (`PG::InFailedSqlTransaction`): un 500 justo donde se promete
+    # recuperar. El savepoint deshace sólo ese INSERT y el rescate puede consultar.
+    transaction(requires_new: true) do
+      workshop_groups.find_or_create_by!(arrival: true) { |g| g.name = ARRIVAL_NAME }
+    end
+  rescue ActiveRecord::RecordNotUnique
+    # El índice UNIQUE parcial es lo que un `find_or_create_by!` no puede
+    # garantizar: es un SELECT y después un INSERT, y dos pedidos de la llegada
+    # en el mismo segundo lo atraviesan (dos escaneos, o un escaneo y un
+    # borrado de mesa). Que la base frene al segundo es correcto; lo que no
+    # corresponde es que quien está entrando vea un 500.
+    workshop_groups.find_by!(arrival: true)
+  end
+
   def presumed_attendance? = attendance_mode == "presumed"
   def registered_attendance? = attendance_mode == "registered"
 

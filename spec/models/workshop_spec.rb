@@ -154,4 +154,32 @@ RSpec.describe Workshop do
       }.not_to raise_error
     end
   end
+
+  describe "#arrival_group!" do
+    # La carrera: el `find_or_create_by!` no ve la llegada que otro pedido está
+    # por crear y su INSERT choca con el UNIQUE parcial. Se provoca la
+    # violación REAL de Postgres (el stub inserta una segunda llegada), porque
+    # lo que se prueba es qué le pasa a la transacción de afuera: sin
+    # savepoint queda envenenada y el rescate revienta con
+    # `InFailedSqlTransaction`. `Workshop.transaction` explícito: la del
+    # ejemplo no es joinable y daría un savepoint sola, tapando lo probado.
+    it "se recupera de la carrera aun adentro de una transacción" do
+      as_company(company) do
+        workshop = create(:workshop)
+        existing = create(:workshop_group, :arrival, workshop: workshop)
+        allow_any_instance_of(ActiveRecord::Associations::CollectionProxy)
+          .to receive(:find_or_create_by!) { |proxy| proxy.create!(arrival: true, name: "duplicada") }
+
+        found = Workshop.transaction { workshop.arrival_group! }
+
+        expect(found).to eq(existing)
+      end
+    end
+
+    it "en modo individual es nil" do
+      as_company(company) do
+        expect(create(:workshop, mode: "individual").arrival_group!).to be_nil
+      end
+    end
+  end
 end
