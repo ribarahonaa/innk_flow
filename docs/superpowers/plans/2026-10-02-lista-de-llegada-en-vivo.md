@@ -58,7 +58,7 @@ tiene su test asignado a la tarea dueña del código.
 2. **A quien mira le sacan la membresía con la pantalla abierta.** Lo que pasa —
    MEDIDO, porque mi primera versión de esta línea decía 404 y era falsa— es un
    **302 a `select_company_path`**: `TenantResolution#require_company`
-   (`tenant_resolution.rb:71-75`) corta antes de llegar a la acción, y ya está
+   (`tenant_resolution.rb:70-76`) corta antes de llegar a la acción, y ya está
    cubierto por `spec/tenancy/sin_membresia_spec.rb`. Lo que importa acá es que
    **no** devuelve la lista. Consecuencia para la Tarea 3: un refresco del frame
    en ese estado recibe un 302 a una página SIN el frame, así que Turbo deja la
