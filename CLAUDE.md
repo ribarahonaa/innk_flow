@@ -469,7 +469,9 @@ este taller» divergen.
 `workshops.attendance_mode` es `presumed` —lo de siempre: el reparto sienta al
 pool completo y marcar ausentes es la excepción— o `registered`, y ahí la
 presencia la escribe alguien: el check-in por link (`WorkshopCheckinsController`,
-la ÚNICA ruta pública de la app) o el toggle de cada integrante
+la ÚNICA ruta pública que llega a datos del dominio: el login también se sirve
+sin sesión, pero sólo autentica y no resuelve ninguna empresa, mientras que
+ésta resuelve el tenant desde un token y escribe) o el toggle de cada integrante
 (`WorkshopAttendancesController`). Con `registered`, convocar a mano deja el
 asiento AUSENTE y el pool de idear deja de incluir a los `participant` de la
 empresa — sin eso el escaneo es decorativo, porque el pool automático sienta
@@ -481,8 +483,12 @@ revocar un link filtrado devolvería la asistencia a presumida en medio de la
 sesión. Rotar revoca; apagar el modo cambia cómo se cuenta.
 
 **La «Mesa de llegada» (`workshop_groups.arrival`, con índice UNIQUE parcial)
-es sala de espera, y son CUATRO puertas.** Cada sala tiene lectura y escritura,
-y las cuatro preguntan `group.arrival?`. No es prolijidad:
+es sala de espera, y son CUATRO puertas con CINCO preguntas.** Cada sala tiene
+lectura y escritura, y las cuatro puertas —las dos pantallas de sala y los dos
+controllers que escriben— preguntan `arrival?`; la quinta pregunta es la de la
+lectura de evolución, que está guardada DOS veces: el modelo (`WorkshopGroup`,
+`arrival?` sobre sí mismo) devuelve `Idea.none`, y la vista (`group.arrival?`)
+explica por qué la lista está vacía. No es prolijidad:
 `WorkshopIdeasController` escribe `idea_contributors` para toda la mesa, así que
 un borrador creado desde una llegada de treinta personas nace con las treinta
 ESCRITAS y repartir no lo deshace. Y `AssignGroups#seat!` la excluye de las
