@@ -277,11 +277,15 @@ RSpec.describe "armar las mesas", type: :request do
       # El id tiene que ser exactamente éste: el endpoint de la Tarea 2 devuelve
       # el mismo, y si no coinciden Turbo no reemplaza nada y la pantalla se
       # queda quieta SIN un solo error.
-      expect(response.body).to include('id="llegada"')
-      # Las dos mesas se siguen dibujando con su gente: el frame no se comió nada.
-      expect(response.body).to include(paula.name)
-      expect(response.body).to include(otra_persona.name)
+      frames = Nokogiri::HTML(response.body).css("turbo-frame#llegada")
+      expect(frames.size).to eq(1)
+      # Quien llegó está ADENTRO del frame; la otra mesa y su gente, AFUERA. Y las
+      # dos siguen dibujadas: el frame no se comió nada.
+      expect(frames.first.text).to include(paula.name)
+      expect(frames.first.text).not_to include("Mesa A")
+      expect(frames.first.text).not_to include(otra_persona.name)
       expect(response.body).to include("Mesa A")
+      expect(response.body).to include(otra_persona.name)
     end
 
     it "dibuja el frame aunque no haya mesa de llegada, y dice que no llegó nadie" do
@@ -296,8 +300,9 @@ RSpec.describe "armar las mesas", type: :request do
 
     # Un frame con `src` se vuelve a pedir solo. El endpoint de la Tarea 2
     # devuelve este mismo partial, y si el frame que devuelve apuntara a sí mismo
-    # el pedido se re-dispararía sobre el temporizador. Hoy lo evita que HAML no
-    # escriba atributos nil; esto lo vuelve una afirmación. Se mira el ELEMENTO:
+    # el pedido se re-dispararía sobre el temporizador. HAML 7 SÍ escribe
+    # `src=""` con un nil; hoy lo evita el splat condicional de `_llegada_frame`,
+    # y esto lo vuelve una afirmación. Se mira el ELEMENTO:
     # la página tiene otros `src` (íconos, scripts) y buscar en el body entero
     # daría verde con el frame mal.
     [true, false].each do |con_llegada|
