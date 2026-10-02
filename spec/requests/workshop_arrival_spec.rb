@@ -73,7 +73,7 @@ RSpec.describe "la mesa de llegada no trabaja", type: :request do
 
   describe "evolución" do
     it "no lista ninguna idea de los otros integrantes" do
-      taller, link, challenge, step = taller_con_llegada(kind: "evolution")
+      taller, _, challenge, step = taller_con_llegada(kind: "evolution")
       otra = member("otra@test.dev", :participant)
       as_company(company) do
         Flow::Workshops::CheckIn.new(taller, User.find(otra.id)).call

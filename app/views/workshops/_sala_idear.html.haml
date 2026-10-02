@@ -15,8 +15,10 @@
       -# ofrecer el formulario igual sería un control que no responde.
       %p.muted Sólo se crea un borrador desde una mesa: no estás en ninguna de este taller.
     - elsif group.arrival?
-      -# Mismo mensaje y misma pregunta que las otras tres puertas, para que no
-      -# puedan divergir.
+      -# Misma pregunta (`arrival?`) que las otras tres puertas, para que no
+      -# puedan divergir. El texto no es idéntico al del aviso del controller: lo
+      -# comparten sólo el arranque («Tu mesa todavía no se armó») y la causa;
+      -# acá se dice además qué va a aparecer en este lugar.
       %p.muted Tu mesa todavía no se armó: en cuanto se reparta, acá aparece el formulario.
     - elsif !puede_crear
       %p.muted Podés acompañar a la mesa, pero no proponer ideas propias: es conflicto de interés.
