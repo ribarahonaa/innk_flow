@@ -747,6 +747,20 @@ Flow::Tenant.bypass! do
     Workshop.where(company: demo, name: ["Taller de mejora continua", "Taller de evolución",
                                          "Taller de planificación (borrador)",
                                          "Taller con check-in"]).destroy_all
+    # Y la cuenta que siembra el RECORRIDO y no el seed: la captura `30b` se
+    # registra como `llegada@taller.example` por la pantalla pública, y eso le
+    # deja una membresía `participant` de verdad en la empresa demo. La primera
+    # corrida sale limpia porque `12-miembros` se saca ANTES que `30b`; de la
+    # segunda en adelante esa captura fotografía una fila que ningún seed
+    # produce.
+    #
+    # Se borra la persona y no sólo la membresía: `User` declara
+    # `has_many … dependent: :destroy` para identidades, membresías y sesiones,
+    # así que la base vuelve a ser exactamente lo que el seed hace. Va DESPUÉS de
+    # los talleres a propósito: su asiento de la mesa de llegada cuelga de uno de
+    # ellos, y `workshop_group_members.user_id` es una FK sin `ON DELETE`, así
+    # que con el asiento en pie Postgres no deja borrar la fila de `users`.
+    User.where(email: "llegada@taller.example").destroy_all
     %w[taller-idear taller-evolucion taller-avanzado].each { |slug| Challenge.where(slug: slug).destroy_all }
 
     workshop_admin = User.find_by!(email: "admin@demo.test")

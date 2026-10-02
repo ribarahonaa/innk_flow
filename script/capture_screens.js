@@ -2817,6 +2817,40 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     if (!(await svg.count())) {
       failures++;
       console.error('[CHECKIN] la pantalla del taller no dibuja el QR');
+    } else {
+      // Contarlo no alcanza: `qr_svg` lo emite con `viewBox` y SIN width ni
+      // height —el tamaño lo decide el contenedor, a propósito—, así que el
+      // tamaño del código no está en el SVG. Si `.w-60` pasa a ser otro ancho
+      // (un renombre, un token roto) o si el `viewBox` se rompe, el QR queda
+      // ilegible y el contador sigue diciendo 1. Un QR que no se escanea es la
+      // única falla que esta función no sobrevive, y no la ve nadie más:
+      // `[CLASES]` no, porque el `.bg-white` le da fondo al contenedor;
+      // `[RELLENO]` mira `card-body` y `[CONTRASTE]`, color. Así que se MIDE.
+      //
+      // 150px de piso. Hoy mide 208 —los 240 de `w-60` menos los dos `p-4`,
+      // con `box-sizing: border-box`— y el link ronda los 55 caracteres, o sea
+      // unos 37 módulos por lado con nivel M: 150/37 ≈ 4px por módulo, que es
+      // el piso con el que un lector de teléfono lo saca de una pantalla. Los
+      // 58px de margen que deja no los gasta el layout, porque `w-60` es un
+      // ancho fijo y no un porcentaje.
+      //
+      // Y se pide CUADRADO: sin `viewBox` el navegador le da al SVG los
+      // 300×150 que usa por default y dibuja el código en una esquina, o sea
+      // que un chequeo que sólo mirara el tamaño pasaría con el QR roto.
+      const caja = await svg.first().boundingBox();
+      if (!caja) {
+        failures++;
+        console.error('[CHECKIN] el QR está en el DOM pero no ocupa lugar en la pantalla');
+      } else {
+        const medida = `${Math.round(caja.width)}×${Math.round(caja.height)}`;
+        if (Math.min(caja.width, caja.height) < 150) {
+          failures++;
+          console.error(`[CHECKIN] el QR mide ${medida}: así no se escanea`);
+        } else if (Math.abs(caja.width - caja.height) > caja.width * 0.1) {
+          failures++;
+          console.error(`[CHECKIN] el QR no salió cuadrado (${medida}): el viewBox no manda el tamaño`);
+        }
+      }
     }
     const hint = page.locator('.card:has-text("Check-in por link") .field-hint');
     if (await hint.count()) {
