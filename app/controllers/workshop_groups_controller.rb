@@ -28,15 +28,19 @@ class WorkshopGroupsController < ApplicationController
                                 "Para quien no vino, usá «Marcar ausente»."
     end
 
-    # Misma regla que `AssignGroups` (no rearmar con propuestas), para que
-    # borrar a mano y repartir no se contradigan: las propuestas cuelgan de la
-    # mesa y borrarla se llevaría la procedencia de versiones ya publicadas.
-    if group.workshop_proposals.exists?
-      return redirect_to workshop_path(@workshop),
-                         alert: "Esta mesa ya tiene propuestas: no se elimina. Las mesas con trabajo hecho se mueven a mano."
-    end
+    # `group.with_lock` (FOR UPDATE sobre la mesa) y la guarda va ADENTRO.
+    # Crear una propuesta inserta una fila con FK a esta mesa, que
+    # toma FOR KEY SHARE sobre ella: conflicta con nuestro lock, así que una
+    # propuesta concurrente espera, y si llega después del borrado la FK la
+    # frena. Sin esto, una propuesta creada entre el `exists?` y el `destroy!`
+    # se iría por la cascada sin ruido —y las aceptadas son la procedencia de
+    # versiones publicadas—. Va antes de pedir la llegada para no crear una
+    # que después la guarda rechaza.
+    refused = group.with_lock do
+      # Misma regla que `AssignGroups` (no rearmar con propuestas), para que
+      # borrar a mano y repartir no se contradigan.
+      next :proposals if group.workshop_proposals.exists?
 
-    group.transaction do
       # En modo individual `arrival_group!` es `nil` y la mesa se borra como
       # siempre: cada persona ES su mesa, no hay a dónde redistribuirla.
       #
@@ -54,6 +58,12 @@ class WorkshopGroupsController < ApplicationController
       # `destroy!` los borraría por `dependent: :destroy`.
       group.workshop_group_members.reset
       group.destroy!
+      nil
+    end
+
+    if refused == :proposals
+      return redirect_to workshop_path(@workshop),
+                         alert: "Esta mesa ya tiene propuestas: no se elimina. Las mesas con trabajo hecho se mueven a mano."
     end
     redirect_to workshop_path(@workshop), notice: "Mesa eliminada."
   end

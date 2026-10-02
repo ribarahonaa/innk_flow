@@ -112,14 +112,17 @@ RSpec.describe Flow::Workshops::CheckIn do
   # persona —que está entrando— se come un 500.
   it "sobrevive a que otro escaneo cree la mesa de llegada en el medio" do
     taller = workshop
+    # La otra llegada ya existe ANTES de llamar: `arrival_group!` corre su
+    # alta en un savepoint, y una fila creada desde adentro del stub se
+    # desharía con él, que no es lo que hace un escaneo ajeno (ese commitea
+    # por su lado).
+    as_company(company) { create(:workshop_group, :arrival, workshop: taller) }
     llamadas = 0
     allow_any_instance_of(ActiveRecord::Associations::CollectionProxy)
       .to receive(:find_or_create_by!).and_wrap_original do |original, *args, &blk|
         llamadas += 1
-        if llamadas == 1
-          as_company(company) { create(:workshop_group, :arrival, workshop: taller) }
-          raise ActiveRecord::RecordNotUnique, "index_workshop_groups_on_workshop_id_arrival"
-        end
+        raise ActiveRecord::RecordNotUnique, "index_workshop_groups_on_workshop_id_arrival" if llamadas == 1
+
         original.call(*args, &blk)
       end
 

@@ -234,6 +234,16 @@ RSpec.describe "armar las mesas", type: :request do
       expect(seats_of(taller)).to eq([[paula.id, false, true]])
     end
 
+    it "borrar una mesa vacía no arma una mesa de llegada que nadie va a usar" do
+      mesa = as_company(company) { create(:workshop_group, workshop: taller) }
+      sign_in(admin, company: company)
+
+      delete workshop_workshop_group_path(taller, mesa)
+
+      expect(table_exists?(mesa)).to be(false)
+      expect(as_company(company) { WorkshopGroup.where(workshop_id: taller.id, arrival: true).exists? }).to be(false)
+    end
+
     it "en modo individual se borra como siempre: cada persona es su mesa" do
       individual = workshop_with(mode: "individual")
       mesa = as_company(company) { create(:workshop_group, workshop: individual) }
