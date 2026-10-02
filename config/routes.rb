@@ -96,6 +96,9 @@ Rails.application.routes.draw do
       # que no existe.
       post   :convoke, to: "workshop_convocations#create"
       delete :dismiss, to: "workshop_convocations#destroy"
+      # Marcar presente o ausente. `to:` explícito por lo mismo que `convoke`:
+      # sin él mapearía a `workshops#attendance`, que no existe.
+      patch :attendance, to: "workshop_attendances#update"
       # Sacar un desafío del taller. El ciclo de vida lo pone junto a sumarlo,
       # o sea en borrador. El id del vínculo viaja como parámetro: no hay un
       # controller de vínculos, la baja es del taller.

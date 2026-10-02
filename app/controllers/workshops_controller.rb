@@ -36,7 +36,7 @@ class WorkshopsController < ApplicationController
     # avanzó. Va ANTES de leer `@links`, para que la pantalla vea lo cerrado.
     Flow::Workshops::MaterializeClosures.new(@workshop).call
     @links = @workshop.workshop_challenges.includes(:challenge, :challenge_step)
-    @groups = @workshop.workshop_groups.includes(:members)
+    @groups = @workshop.workshop_groups.includes(workshop_group_members: :user)
     @my_group = @workshop.workshop_groups.joins(:workshop_group_members)
                          .find_by(workshop_group_members: { user_id: current_user.id })
   end
@@ -101,7 +101,8 @@ class WorkshopsController < ApplicationController
   #
   # Cambiar el modo NO reescribe la asistencia ya registrada: quien fue
   # convocado a mano antes de activarlo sigue presente sin haber escaneado.
-  # Reescribirlo sería destruir dato por un cambio de configuración.
+  # Reescribirlo sería destruir dato por un cambio de configuración, y para
+  # corregirlo está el botón de cada integrante (`attendance_workshop_path`).
   def enable_checkin
     authorize @workshop, :update?
     @workshop.update!(attendance_mode: "registered")

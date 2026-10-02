@@ -60,7 +60,8 @@ RSpec.describe "los controles del check-in", type: :request do
   end
 
   # Cambiar el modo NO reescribe la asistencia ya registrada: sería destruir
-  # dato por un cambio de configuración.
+  # dato por un cambio de configuración. Corregirlo es del botón de cada
+  # integrante (`attendance_workshop_path`), que prueba workshop_attendances_spec.
   it "activar el modo no marca ausente a quien ya estaba presente, ni presente a quien estaba ausente" do
     pedro = member("pedro@test.dev", :participant)
     mesa = as_company(company) { create(:workshop_group, workshop: taller) }
