@@ -112,6 +112,24 @@ RSpec.describe "la llegada en vivo", type: :request do
       expect(response.body).to include(arrival_workshop_path(taller))
     end
 
+    # `_groups` llama al partial en dos lugares —con mesa de llegada y sin ella—
+    # con locals escritos por separado: el ejemplo de arriba sólo ejercita la
+    # llamada SIN mesa.
+    it "con el check-in abierto y una mesa de llegada poblada el frame también pide refrescarse" do
+      as_company(company) do
+        taller.update!(attendance_mode: "registered")
+        llegada = create(:workshop_group, :arrival, workshop: taller)
+        WorkshopGroupMember.create!(workshop_group: llegada, user_id: paula.id)
+      end
+      sign_in(admin, company: company)
+
+      get workshop_path(taller)
+
+      expect(response.body).to include(paula.name)
+      expect(response.body).to include('data-vivo="true"')
+      expect(response.body).to include(arrival_workshop_path(taller))
+    end
+
     it "con el check-in apagado no lo pide" do
       sign_in(admin, company: company)
 
