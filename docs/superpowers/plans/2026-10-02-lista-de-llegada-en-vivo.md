@@ -55,9 +55,15 @@ tiene su test asignado a la tarea dueña del código.
    endpoint tiene que seguir respondiendo bien —la lista sigue existiendo— pero la
    pantalla recién cargada en ese estado no tiene que arrancar el temporizador.
    Test en la Tarea 3.
-2. **A quien mira le sacan la membresía con la pantalla abierta.** La sesión sigue
-   viva y el tenant puesto, pero `current_membership` queda en `nil`: el endpoint
-   tiene que dar **404**, no 200 con la lista ni un 500. Test en la Tarea 2.
+2. **A quien mira le sacan la membresía con la pantalla abierta.** Lo que pasa —
+   MEDIDO, porque mi primera versión de esta línea decía 404 y era falsa— es un
+   **302 a `select_company_path`**: `TenantResolution#require_company`
+   (`tenant_resolution.rb:71-75`) corta antes de llegar a la acción, y ya está
+   cubierto por `spec/tenancy/sin_membresia_spec.rb`. Lo que importa acá es que
+   **no** devuelve la lista. Consecuencia para la Tarea 3: un refresco del frame
+   en ese estado recibe un 302 a una página SIN el frame, así que Turbo deja la
+   región con su «content missing» en vez de datos de otra empresa. Feo, pero no
+   es una fuga. Test en la Tarea 2.
 3. **La mesa de llegada deja de existir entre dos refrescos**, porque el reparto
    la vació y la barrió. El frame tiene que devolver el estado vacío, no reventar
    ni crear una mesa de la nada. Test en la Tarea 2.
