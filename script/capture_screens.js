@@ -2931,19 +2931,31 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     await page.fill('input[name="email"]', 'llegada@taller.example');
     await page.fill('input[name="name"]', 'Lucía Llegada');
     await page.fill('input[name="password"]', 'Test1234');
-    await Promise.all([
-      page.waitForURL(/\/workshops\/[^/]+$/, { timeout: 15000 }),
-      page.click('input[type="submit"]')
-    ]);
-    // La sala tiene que decir que la mesa todavía no se armó: es la mesa de
-    // llegada, y de ella no se trabaja. Si dijera otra cosa, el borrador que
-    // alguien cree ahí nacería con toda la sala como contribuyentes.
-    const espera = await page.locator('body').innerText();
-    if (!/todavía no se armó/.test(espera)) {
+    // Si el registro falla, el listener de `response` ya contó el 4xx, pero el
+    // `waitForURL` vencería y lanzaría: abortaría la corrida en vez de sumarle
+    // una falla contada, que es lo que `29` también evita.
+    let entro = true;
+    try {
+      await Promise.all([
+        page.waitForURL(/\/workshops\/[^/]+$/, { timeout: 15000 }),
+        page.click('input[type="submit"]')
+      ]);
+    } catch (e) {
+      entro = false;
       failures++;
-      console.error('[CHECKIN] entró, pero la sala no anuncia la espera de la mesa de llegada');
+      console.error(`[CHECKIN] el registro no llevó al taller: ${e.message.split('\n')[0]}`);
     }
-    await capturar(page, '30b-taller-llegada');
+    if (entro) {
+      // La sala tiene que decir que la mesa todavía no se armó: es la mesa de
+      // llegada, y de ella no se trabaja. Si dijera otra cosa, el borrador que
+      // alguien cree ahí nacería con toda la sala como contribuyentes.
+      const espera = await page.locator('body').innerText();
+      if (!/todavía no se armó/.test(espera)) {
+        failures++;
+        console.error('[CHECKIN] entró, pero la sala no anuncia la espera de la mesa de llegada');
+      }
+      await capturar(page, '30b-taller-llegada');
+    }
   }
 
   // Vuelve el admin: la pasada oscura sigue después y recorre pantallas que

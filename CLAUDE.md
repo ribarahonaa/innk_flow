@@ -103,7 +103,7 @@ si una pantalla de módulo pierde su forma: sin
 columna de referencia o sin los ajustes plegados (`[ZONAS]`), con el plegable
 cerrándose solo al morfear (`[PLEGABLE]`), sin la fila desplegable del desglose
 de evaluación (`[DESGLOSE]`) o sin el módulo salteado en el drawer y el mapa
-del flujo (`[SALTEADO]`), o sin el link del check-in, sin el formulario público
+del flujo (`[SALTEADO]`), o sin el QR ni el link del check-in en la pantalla del taller, sin el formulario público
 o sin el aviso de espera de la mesa de llegada (`[CHECKIN]`). Corrélo después de tocar vistas, islas o CSS — un bug
 de Vue no lo atrapa ningún spec de Ruby (un `__VUE_OPTIONS_API__` mal puesto
 dejó el builder en blanco y la suite en verde).
@@ -469,9 +469,10 @@ este taller» divergen.
 `workshops.attendance_mode` es `presumed` —lo de siempre: el reparto sienta al
 pool completo y marcar ausentes es la excepción— o `registered`, y ahí la
 presencia la escribe alguien: el check-in por link (`WorkshopCheckinsController`,
-la ÚNICA ruta pública que llega a datos del dominio: el login también se sirve
-sin sesión, pero sólo autentica y no resuelve ninguna empresa, mientras que
-ésta resuelve el tenant desde un token y escribe) o el toggle de cada integrante
+la ÚNICA ruta pública que escribe datos del dominio sin que nadie haya probado
+quién es: el login también se sirve sin sesión, pero elige la empresa entre las
+membresías de alguien que ya se autenticó con su clave, mientras que ésta la
+resuelve desde un token que cualquiera con el link tiene) o el toggle de cada integrante
 (`WorkshopAttendancesController`). Con `registered`, convocar a mano deja el
 asiento AUSENTE y el pool de idear deja de incluir a los `participant` de la
 empresa — sin eso el escaneo es decorativo, porque el pool automático sienta
@@ -525,7 +526,8 @@ donde sale el vínculo cerrado con motivo de `28`—, uno sobre evolución —qu
 lleva la propuesta pendiente—, el borrador y «Taller con check-in». `25` y `28`
 salen del primero, `26` y `27` del segundo, `24` del borrador. El cuarto existe
 SÓLO para `29`, `30` y `30b`, y va **sin nadie sentado**: `29` tiene que
-mostrar la llegada vacía, y `30b` siembra a Lucía Llegada
+mostrar la llegada vacía —con la base recién sembrada: `30b` sienta a Lucía,
+así que un segundo `make screens` sin resembrar la muestra sentada—, y `30b` siembra a Lucía Llegada
 (`llegada@taller.example`, una membresía `participant` real de la empresa demo)
 al correr. Sentar a alguien a mano en ese taller rompe `29`; reusarlo para otra
 cosa, también.

@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
-# Entrar a un taller escaneando su QR. La ÚNICA ruta pública de la app.
+# Entrar a un taller escaneando su QR. La ÚNICA ruta pública que escribe datos
+# del dominio sin que nadie haya probado quién es (el login también se sirve sin
+# sesión, pero parte de alguien que se autenticó con su clave).
 #
 # El tenant sale del TOKEN y no de la sesión, porque quien abre esto todavía no
 # tiene ninguna: es la misma razón por la que `SessionsController` ya levanta el
