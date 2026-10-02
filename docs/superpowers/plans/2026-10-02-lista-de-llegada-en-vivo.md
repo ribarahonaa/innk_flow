@@ -466,10 +466,17 @@ Expected: PASS — los de la Tarea 1 siguen verdes con el partial nuevo.
 
 Con backup y restauración por `cp`:
 
-1. Cambiar `authorize @workshop, :update?` por `:show?`. Tiene que fallar «a quien
-   participa le da 404» — y ojo: tiene que fallar por el 200, no por un 500.
-2. Cambiar `policy_scope(Workshop).find_by!` por `Workshop.find_by!` en
-   `set_workshop`. Tiene que fallar «a un taller de otra empresa le da 404».
+1. ~~Cambiar `authorize @workshop, :update?` por `:show?` y esperar que falle «a
+   quien participa le da 404».~~ **Medido: no discrimina.** Con `:show?` pasan los
+   cinco ejemplos, porque ese 404 lo da el `policy_scope` de `set_workshop` y
+   nunca se llega al `authorize`. Lo que sí ejercita `update?` es el ejemplo de
+   quien está sentada en la llegada pero no administra (403): mutar a `:show?`
+   tiene que ponerlo en rojo.
+2. ~~Cambiar `policy_scope(Workshop).find_by!` por `Workshop.find_by!` y esperar
+   que falle «a un taller de otra empresa le da 404».~~ **Medido: no discrimina.**
+   Ese 404 lo da el `default_scope` de `TenantScoped`, que también filtra con
+   `Workshop.find_by!`. No hay mutación útil sobre esa línea: el aislamiento entre empresas
+   lo cubren los specs de `spec/tenancy/`.
 3. Cambiar el id del frame en `_llegada_frame` a `"llegada2"`. Tienen que fallar
    a la vez «lista a quien está» (Tarea 2) y «envuelve la llegada» (Tarea 1) —
    **ésta es la mutación que prueba que el fallo mudo está cubierto**, y que los
@@ -562,8 +569,12 @@ turbo-rails):
 ```haml
 -# El splat condicional se mantiene: con `src` nil HAML escribiría `src=""`, y el
 -# endpoint devolvería un frame apuntándose a sí mismo. `data` sí va siempre.
-%turbo-frame#llegada{ **(src ? { src: src } : {}), data: { vivo: vivo, intervalo: 5000 } }
+%turbo-frame#llegada{ **(src ? { src: src } : {}), data: { vivo: vivo.to_s, intervalo: 5000 } }
 ```
+
+**`vivo.to_s`, no `vivo` a secas** (medido): HAML escribe un `true` como atributo
+sin valor (`data-vivo`) y omite un `false`, y el JS compara contra el texto
+«true».
 
 con `vivo` como local nuevo. **Y hay que actualizar la llamada que la Tarea 2
 escribió en el controller**, que todavía no pasa `vivo:`: el endpoint pasa

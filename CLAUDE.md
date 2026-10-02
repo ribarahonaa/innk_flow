@@ -129,12 +129,18 @@ error de maquetado. O si un `card-body` no tiene el relleno que fija la hoja
 la regla `.card` le devuelve sus 24px por default sin dejar rastro en el DOM;
 los `empty-state` se exceptúan por selector, porque ahí los 44px/20px los
 declara la hoja.
-**Dos de las guardas cuentan cuánto midieron y fallan si midieron de menos**
-—en cuántas pantallas `[RITMO]` encontró dos tarjetas que comparar, y cuántos
-`card-body` vio `[RELLENO]` en toda la corrida—, porque una guarda que mide
+**Cinco de las guardas cuentan cuánto midieron y fallan si midieron de menos**
+—en cuántas pantallas `[RITMO]` encontró dos tarjetas que comparar, cuántos
+`card-body` vio `[RELLENO]`, cuántos chips y avisos midió `[PASTILLA]`, cuántos
+nombres de criterio `[CRITERIO]` y en cuántas pantallas vio `[LIVE]` refrescarse
+sola la mesa de llegada—, porque una guarda que mide
 cero da verde y es indistinguible de una que funciona: es el mismo motivo por
 el que `[MONO]` tiene autotest y por el que el muestrario falla si mide menos
-muestras de las que declara. La corrida imprime los dos números al terminar.
+muestras de las que declara. La corrida imprime los cinco números al terminar.
+Falla si la mesa de llegada de un taller con el check-in abierto no se
+refresca sola en el tiempo que declara su intervalo (`[LIVE]`): el frame, el
+temporizador y el endpoint pueden estar cada uno en verde y la lista quedarse
+quieta, y sólo un navegador corriendo lo ve.
 Falla también si aparece monoespaciada donde no hay código
 ni un identificador (`[MONO]`): el texto propio de un elemento mono tiene que
 ser un identificador pelado —«v3», «reduccion_merma»—, y «veredicto por idea» o
