@@ -13,30 +13,30 @@
 // pantalla que ya no está.
 let timer = null;
 
-function detener() {
+function stop() {
   if (timer === null) return;
   clearInterval(timer);
   timer = null;
 }
 
-function arrancar() {
-  detener();
-  const frame = document.getElementById('llegada');
-  // `data-vivo` lo pone la VISTA: el JS no sabe ni tiene que saber si el taller
+function start() {
+  stop();
+  const frame = document.getElementById('arrival');
+  // `data-live` lo pone la VISTA: el JS no sabe ni tiene que saber si el taller
   // está abierto o el check-in encendido.
-  if (!frame || frame.dataset.vivo !== 'true') return;
+  if (!frame || frame.dataset.live !== 'true') return;
   // Con la pestaña oculta no se pide nada: una pantalla proyectada está
   // visible, una pestaña de fondo no tiene por qué consultar.
   if (document.hidden) return;
 
-  const intervalo = Number(frame.dataset.intervalo) || 5000;
+  const interval = Number(frame.dataset.interval) || 5000;
   timer = setInterval(() => {
-    const vivo = document.getElementById('llegada');
-    if (!vivo) return detener();
-    vivo.reload();
-  }, intervalo);
+    const current = document.getElementById('arrival');
+    if (!current) return stop();
+    current.reload();
+  }, interval);
 }
 
-addEventListener('turbo:load', arrancar);
-addEventListener('turbo:before-render', detener);
-addEventListener('visibilitychange', () => (document.hidden ? detener() : arrancar()));
+addEventListener('turbo:load', start);
+addEventListener('turbo:before-render', stop);
+addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));

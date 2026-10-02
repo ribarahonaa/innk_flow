@@ -60,10 +60,10 @@
               -# solo. El `select` de convocar queda AFUERA a propósito — ahí
               -# está el estado que no se puede perder si la región se repinta.
               - if group.arrival?
-                = render "workshops/llegada_frame", workshop: workshop, group: group, can_edit: can_edit,
-                  src: arrival_workshop_path(workshop), vivo: workshop.checkin_open?
+                = render "workshops/arrival_frame", workshop: workshop, group: group, can_edit: can_edit,
+                  src: arrival_workshop_path(workshop), live: workshop.checkin_open?
               - else
-                = render "workshops/mesa_cuerpo", workshop: workshop, group: group, can_edit: can_edit
+                = render "workshops/group_body", workshop: workshop, group: group, can_edit: can_edit
 
               - if workshop.mode == "group" && convocable.any?
                 -# El `id:` explícito evita ids duplicados: cada mesa repite
@@ -82,8 +82,8 @@
     -# mientras la gente entra a su propia mesa. No hay lista en vivo en
     -# individual; hacerla andar ahí sería otra feature.
     - if !workshop.individual? && groups.none?(&:arrival?)
-      = render "workshops/llegada_frame", workshop: workshop, group: nil, can_edit: can_edit,
-                  src: arrival_workshop_path(workshop), vivo: workshop.checkin_open?
+      = render "workshops/arrival_frame", workshop: workshop, group: nil, can_edit: can_edit,
+                  src: arrival_workshop_path(workshop), live: workshop.checkin_open?
 
     - if workshop.closed?
       %p.field-hint Este taller ya cerró: las mesas quedan como están.
