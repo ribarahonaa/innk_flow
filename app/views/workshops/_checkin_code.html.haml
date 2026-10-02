@@ -1,0 +1,18 @@
+-# El código y sus dos controles, para todo estado con el link activado. Los dos
+-# `button_to` son hermanos: un `button_to` es un `<form>`, y uno dentro de otro
+-# es HTML inválido que el navegador aplana sin dejar rastro en el DOM.
+
+-# Fondo blanco explícito y en los dos temas: lo de adentro es un lector, no un
+-# elemento temable.
+.bg-white.p-4.rounded-box.w-60
+  = qr_svg(checkin_url(workshop.checkin_token))
+
+%p.field-hint= checkin_url(workshop.checkin_token)
+
+.assignment-row__actions
+  = button_to "Rotar el link", rotate_checkin_token_workshop_path(workshop), method: :post,
+              class: "btn btn-ghost btn-sm",
+              form: { data: { turbo_confirm: "¿Rotar el link? El QR que ya se proyectó o se fotografió deja de servir." } }
+  = button_to "Apagar el check-in", disable_checkin_workshop_path(workshop), method: :post,
+              class: "btn btn-ghost btn-sm",
+              form: { data: { turbo_confirm: "¿Apagar el check-in? El reparto vuelve a sentar a todo el pool de la empresa, no sólo a quien escaneó." } }

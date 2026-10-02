@@ -1,0 +1,40 @@
+-# La pantalla del escaneo. Layout `auth`: sin bundle de JS, que es lo que se
+-# quiere en un teléfono con la red del lugar.
+-#
+-# `case` sobre un valor cerrado y no una cadena de `elsif`: es la forma que
+-# `WorkshopChallenge#room_state` ya fijó, y lo que hace que un estado nuevo se
+-# vea en vez de dejar la pantalla muda.
+- content_for :title, @workshop.name
+
+%h1.page-title= @workshop.name
+
+- case @workshop.checkin_state
+- when :open
+  %p.muted Registrate para entrar. Si ya tenés cuenta, entrá con tu clave.
+  = form_with url: checkin_path(@workshop.checkin_token), method: :post do
+    - if signed_in?
+      %p.muted= "Vas a entrar como #{current_user.name}."
+    - else
+      .field
+        = label_tag :email, "Correo"
+        = email_field_tag :email, params[:email], required: true, autocomplete: "email"
+      .field
+        = label_tag :name, "Nombre"
+        -# `required`: `User` valida el nombre presente, así que sin esto una
+        -# cuenta nueva sin nombre vuelve 422 después de tipear todo en un
+        -# teléfono. Lo pide el navegador antes de enviar.
+        = text_field_tag :name, params[:name], required: true, autocomplete: "name"
+      .field
+        = label_tag :password, "Clave"
+        = password_field_tag :password, nil, required: true, autocomplete: "current-password"
+        %p.field-hint Si es tu primera vez, es la clave que vas a usar de ahora en más: ocho caracteres o más.
+    -# `btn-block` igual que el botón del login: es el ÚNICO control de esta
+    -# pantalla y se aprieta de pie, con una mano, en la red del lugar. La
+    -# clase ya está en la hoja porque `sessions/new` la usa.
+    = submit_tag "Entrar al taller", class: "btn btn-primary btn-block"
+- when :draft
+  %p.muted Este taller todavía no está abierto. Volvé a escanear cuando empiece.
+- when :closed
+  %p.muted Este taller ya cerró.
+- else
+  %p.muted Este taller no toma asistencia por link.

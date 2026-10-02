@@ -103,9 +103,13 @@ si una pantalla de módulo pierde su forma: sin
 columna de referencia o sin los ajustes plegados (`[ZONAS]`), con el plegable
 cerrándose solo al morfear (`[PLEGABLE]`), sin la fila desplegable del desglose
 de evaluación (`[DESGLOSE]`) o sin el módulo salteado en el drawer y el mapa
-del flujo (`[SALTEADO]`). Corrélo después de tocar vistas, islas o CSS — un bug
-de Vue no lo atrapa ningún spec de Ruby (un `__VUE_OPTIONS_API__` mal puesto
-dejó el builder en blanco y la suite en verde).
+del flujo (`[SALTEADO]`), o si la pantalla del taller no dibuja el QR del
+check-in —medido: un código más chico que 150px, o que no salga cuadrado, no se
+escanea—, no muestra su link, o si falta el formulario público o el aviso de
+espera de la mesa de llegada (`[CHECKIN]`). Corrélo después de tocar vistas,
+islas o CSS — un bug de Vue no lo atrapa ningún spec de Ruby (un
+`__VUE_OPTIONS_API__` mal puesto dejó el builder en blanco y la suite en
+verde).
 
 **«Falla si hay HTTP >= 400» tiene una excepción, angosta a propósito.** Dos
 pantallas se fotografían con un error encima aposta —el 403 de `19-forbidden`
@@ -464,13 +468,36 @@ ausentes es la excepción. Cuelga de la membresía de la mesa y no de un padrón
 aparte: estar convocado ES estar en una mesa, y dos fuentes para «quién está en
 este taller» divergen.
 
-**Pero marcar a alguien ausente todavía no se puede desde la app.** Ninguna
-ruta, ningún controller y ninguna vista escriben `attended`: hoy sólo cambia
-desde una consola o un spec, y el código de la app únicamente lo lee
-(`WorkshopGroupMember.presentes` y los `absent_ids` de `AssignGroups`). Es una
-capacidad del dominio sin interfaz, igual que el payload editable de
-`Tasks::EvaluateIdea`. O sea que las reglas de la ausencia que siguen son el
-contrato que el reparto respeta, no un control que alguien pueda apretar.
+**La presencia se escribe de dos formas, y el taller declara cuál vale.**
+`workshops.attendance_mode` es `presumed` —lo de siempre: el reparto sienta al
+pool completo y marcar ausentes es la excepción— o `registered`, y ahí la
+presencia la escribe alguien: el check-in por link (`WorkshopCheckinsController`,
+la ÚNICA ruta pública que escribe datos del dominio sin que nadie haya probado
+quién es: el login también se sirve sin sesión, pero elige la empresa entre las
+membresías de alguien que ya se autenticó con su clave, mientras que ésta la
+resuelve desde un token que cualquiera con el link tiene) o el toggle de cada
+integrante (`WorkshopAttendancesController`). Con `registered`, convocar a mano
+deja el asiento AUSENTE y el pool de idear deja de incluir a los `participant`
+de la empresa — sin eso el escaneo es decorativo, porque el pool automático
+sienta igual a quien no vino.
+
+**El token y el modo son dos cosas.** `checkin_token` es la credencial y
+`attendance_mode` la semántica: si el modo se derivara del token, rotarlo para
+revocar un link filtrado devolvería la asistencia a presumida en medio de la
+sesión. Rotar revoca; apagar el modo cambia cómo se cuenta.
+
+**La «Mesa de llegada» (`workshop_groups.arrival`, con índice UNIQUE parcial)
+es sala de espera, y son CUATRO puertas con CINCO preguntas.** Cada sala tiene
+lectura y escritura, y las cuatro puertas —las dos pantallas de sala y los dos
+controllers que escriben— preguntan `arrival?`; la quinta pregunta es la de la
+lectura de evolución, que está guardada DOS veces: el modelo (`WorkshopGroup`,
+`arrival?` sobre sí mismo) devuelve `Idea.none`, y la vista (`group.arrival?`)
+explica por qué la lista está vacía. No es prolijidad:
+`WorkshopIdeasController` escribe `idea_contributors` para toda la mesa, así que
+un borrador creado desde una llegada de treinta personas nace con las treinta
+ESCRITAS y repartir no lo deshace. Y `AssignGroups#seat!` la excluye de las
+mesas reusables: es la primera creada, así que la habría convertido en «Mesa 1»
+con `arrival: true` puesto y su sala habría quedado muda para siempre.
 
 **El reparto se niega a correr en cuanto hay propuestas.** Rearmar borra las
 mesas que queden vacías, y eso se llevaría las propuestas aceptadas, que son la
@@ -496,11 +523,20 @@ no cambia las mesas —el racimo las une y la deduplicación lo absorbe—, pero
 agrega una clave que el reparto puede elegir para desprender, y ahí el aviso
 anuncia un corte que no movió a nadie.
 
-**Por la regla de una sola fase el seed tiene tres talleres y no dos**: uno
-sobre idear —que además lleva el desafío que se rechaza al abrirse, y es de
-donde sale el vínculo cerrado con motivo de `28`—, uno sobre evolución —que
-lleva la propuesta pendiente— y el borrador. `25` y `28` salen del primero,
-`26` y `27` del segundo, `24` del borrador.
+**El seed tiene cuatro talleres, y no por una sola razón.** La regla de una
+sola fase explica los tres primeros —sin ella serían dos—: uno sobre idear
+—que además lleva el desafío que se rechaza al abrirse, y es de donde sale el
+vínculo cerrado con motivo de `28`—, uno sobre evolución —que lleva la
+propuesta pendiente— y el borrador. `25` y `28` salen del primero, `26` y `27`
+del segundo, `24` del borrador. El cuarto, «Taller con check-in», no sale de
+esa regla: existe SÓLO para `29`, `30` y `30b`, y va **sin nadie sentado**,
+porque `29` tiene que mostrar la llegada vacía. A Lucía Llegada
+(`llegada@taller.example`, con una membresía `participant` real de la empresa
+demo) la siembra `30b` al correr, así que un segundo `make screens` sin
+resembrar la muestra sentada — y por eso el seed la BORRA, al lado de los
+talleres: si no, `12-miembros` la lista en toda corrida posterior a la primera.
+Sentar a alguien a mano en ese taller rompe `29`; reusarlo para otra cosa,
+también.
 
 ### Multi-tenancy: cuatro capas
 
@@ -1093,7 +1129,7 @@ script cambia con ella.
 **Lo que sigue sin vigilancia son los otros dos tercios: `--card-fs` y la
 sombra.** No los mira nadie más —`[CLASES]` mira fondo, relleno y borde;
 `[CONTRASTE]`, color—, así que una `card` puede perder la letra de 14px o la
-sombra y las 71 capturas seguir en verde. Que nadie lo dé por cubierto.
+sombra y las 74 capturas seguir en verde. Que nadie lo dé por cubierto.
 
 **Dos grillas con el mismo aspecto y mecánica distinta.** En
 `challenges/index` las tarjetas son `.challenge-card`, que declara

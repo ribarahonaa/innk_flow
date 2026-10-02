@@ -88,4 +88,39 @@ RSpec.describe Flow::Workshops::Convoke do
       expect(workshop.workshop_groups.count).to eq(0)
     end
   end
+
+  describe "la asistencia con la que nace el asiento" do
+    it "nace presente en un taller con la presencia presumida" do
+      taller = as_company(company) { create(:workshop, status: "open") }
+      mesa = as_company(company) { create(:workshop_group, workshop: taller) }
+
+      result = as_company(company) { described_class.new(taller, User.find(ana.id), group: mesa).call }
+
+      expect(result).to be_ok
+      expect(result.member.attended).to be(true)
+    end
+
+    # Convocar a mano en un taller con la presencia registrada deja el asiento
+    # AUSENTE: está invitado, no llegó.
+    it "nace ausente en un taller con la presencia registrada" do
+      taller = as_company(company) { create(:workshop, :registered, status: "open") }
+      mesa = as_company(company) { create(:workshop_group, workshop: taller) }
+
+      result = as_company(company) { described_class.new(taller, User.find(ana.id), group: mesa).call }
+
+      expect(result).to be_ok
+      expect(result.member.attended).to be(false)
+    end
+
+    it "un valor explícito le gana al default del modo" do
+      taller = as_company(company) { create(:workshop, :registered, status: "open") }
+      mesa = as_company(company) { create(:workshop_group, workshop: taller) }
+
+      result = as_company(company) do
+        described_class.new(taller, User.find(ana.id), group: mesa, attended: true).call
+      end
+
+      expect(result.member.attended).to be(true)
+    end
+  end
 end

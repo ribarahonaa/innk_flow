@@ -745,7 +745,22 @@ Flow::Tenant.bypass! do
     # Acotado a la empresa: el seed corre bajo `bypass!` y un `where` por nombre
     # solo borraría los talleres homónimos de TODAS las empresas.
     Workshop.where(company: demo, name: ["Taller de mejora continua", "Taller de evolución",
-                                         "Taller de planificación (borrador)"]).destroy_all
+                                         "Taller de planificación (borrador)",
+                                         "Taller con check-in"]).destroy_all
+    # Y la cuenta que siembra el RECORRIDO y no el seed: la captura `30b` se
+    # registra como `llegada@taller.example` por la pantalla pública, y eso le
+    # deja una membresía `participant` de verdad en la empresa demo. La primera
+    # corrida sale limpia porque `12-miembros` se saca ANTES que `30b`; de la
+    # segunda en adelante esa captura fotografía una fila que ningún seed
+    # produce.
+    #
+    # Se borra la persona y no sólo la membresía: `User` declara
+    # `has_many … dependent: :destroy` para identidades, membresías y sesiones,
+    # así que la base vuelve a ser exactamente lo que el seed hace. Va DESPUÉS de
+    # los talleres a propósito: su asiento de la mesa de llegada cuelga de uno de
+    # ellos, y `workshop_group_members.user_id` es una FK sin `ON DELETE`, así
+    # que con el asiento en pie Postgres no deja borrar la fila de `users`.
+    User.where(email: "llegada@taller.example").destroy_all
     %w[taller-idear taller-evolucion taller-avanzado].each { |slug| Challenge.where(slug: slug).destroy_all }
 
     workshop_admin = User.find_by!(email: "admin@demo.test")
@@ -848,6 +863,22 @@ Flow::Tenant.bypass! do
                                   "reservadas para sus dudas." }
     )
 
+    # El CUARTO taller existe SÓLO para las capturas del check-in por link
+    # (`29`, `30`, `30b`), como manda CLAUDE.md: un taller compartido con
+    # pruebas a mano rompió el recorrido dos veces.
+    #
+    # Va sobre el desafío de idear —el mismo que el primero, que se puede: el
+    # vínculo es único por TALLER, y las mesas son de cada uno— y **sin nadie
+    # sentado**, porque la captura tiene que mostrar el estado vacío de la
+    # llegada: el que ve quien proyecta el QR antes de que llegue nadie.
+    checkin_workshop = Workshop.create!(name: "Taller con check-in", mode: "group",
+                                        created_by: workshop_admin,
+                                        attendance_mode: "registered",
+                                        scheduled_at: Time.zone.now.change(hour: 9, min: 0) + 3.days)
+    checkin_workshop.workshop_challenges.create!(challenge: ideation_challenge)
+    checking = Flow::Workshops::Open.new(checkin_workshop).call
+    raise "El taller de check-in no abrió: #{checking.errors.to_sentence}" unless checking.ok?
+
     # Un segundo taller en BORRADOR, para `24-taller-armado`: es el único
     # estado en que el bloque de armado ofrece «Abrir taller».
     draft_workshop = Workshop.create!(name: "Taller de planificación (borrador)", mode: "group",
@@ -855,6 +886,7 @@ Flow::Tenant.bypass! do
     [ideation_challenge].each { |c| draft_workshop.workshop_challenges.create!(challenge: c) }
     draft_workshop.workshop_groups.create!(name: "Mesa Norte")
 
+    puts "Taller con check-in: #{checkin_workshop.reload.name} (token #{checkin_workshop.checkin_token})"
     puts "Desafío en curso:  #{challenge.name}"
     puts "  módulos:   #{challenge.steps.count} · activo: #{challenge.pipeline.active_step&.name}"
     puts "  ideas:     #{challenge.ideas.count} (#{challenge.ideas.alive.count} en carrera)"

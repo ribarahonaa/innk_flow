@@ -59,7 +59,7 @@
               .assignment-row
                 %span
                   = group.name
-                  %span.muted= " · #{Flow::Texto.contar(group.members.size, 'persona')}"
+                  %span.muted= " · #{Flow::Texto.contar(group.workshop_group_members.size, 'persona')}"
                 - if can_edit
                   .assignment-row__actions
                     -# El aviso nombra lo que de verdad se pierde: las
@@ -70,14 +70,29 @@
                                 class: "btn btn-ghost btn-sm",
                                 form: { data: { turbo_confirm: "¿Eliminar esta mesa? Se saca a quien esté en ella y se borran todas sus propuestas, incluidas las que ya se aceptaron." } }
 
-              - if group.members.any?
+              - if group.workshop_group_members.any?
                 %ul.field-list
-                  - group.members.each do |person|
+                  -# Los ASIENTOS y no `group.members`: `attended` vive en el
+                  -# asiento, y `members` es un `has_many through` que devuelve
+                  -# los `User`.
+                  - group.workshop_group_members.each do |seat|
                     %li.field-list__item
-                      %span= person.name
+                      %span
+                        = seat.user.name
+                        - unless seat.attended
+                          %span.muted= " · ausente"
                       - if can_edit
-                        = button_to "Sacar", dismiss_workshop_path(workshop), method: :delete,
-                                    params: { user_id: person.id }, class: "btn btn-ghost btn-sm"
+                        .assignment-row__actions
+                          -# Hermanos del form de convocar y NO adentro: un
+                          -# `button_to` es un `<form>`, y uno dentro de otro es
+                          -# HTML inválido que el navegador aplana sin dejar
+                          -# rastro en el DOM.
+                          = button_to seat.attended ? "Marcar ausente" : "Marcar presente",
+                                      attendance_workshop_path(workshop), method: :patch,
+                                      params: { user_id: seat.user_id, attended: !seat.attended },
+                                      class: "btn btn-ghost btn-sm"
+                          = button_to "Sacar", dismiss_workshop_path(workshop), method: :delete,
+                                      params: { user_id: seat.user_id }, class: "btn btn-ghost btn-sm"
 
               - if workshop.mode == "group" && convocable.any?
                 -# El `id:` explícito evita ids duplicados: cada mesa repite

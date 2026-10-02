@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 class WorkshopsController < ApplicationController
-  before_action :set_workshop, only: %i[show update destroy open close remove_challenge]
+  before_action :set_workshop, only: %i[show update destroy open close remove_challenge
+                                          enable_checkin disable_checkin rotate_checkin_token]
 
   def index
     # Postgres pone NULL primero en DESC: sin `nulls_last` los talleres sin
@@ -35,7 +36,7 @@ class WorkshopsController < ApplicationController
     # avanzó. Va ANTES de leer `@links`, para que la pantalla vea lo cerrado.
     Flow::Workshops::MaterializeClosures.new(@workshop).call
     @links = @workshop.workshop_challenges.includes(:challenge, :challenge_step)
-    @groups = @workshop.workshop_groups.includes(:members)
+    @groups = @workshop.workshop_groups.includes(workshop_group_members: :user)
     @my_group = @workshop.workshop_groups.joins(:workshop_group_members)
                          .find_by(workshop_group_members: { user_id: current_user.id })
   end
@@ -94,6 +95,31 @@ class WorkshopsController < ApplicationController
 
     @workshop.workshop_challenges.find_by!(id: params[:workshop_challenge_id]).destroy!
     redirect_to workshop_path(@workshop), notice: "Desafío sacado del taller."
+  end
+
+  # Activar y apagar el check-in por link, y rotar el link.
+  #
+  # Cambiar el modo NO reescribe la asistencia ya registrada: quien fue
+  # convocado a mano antes de activarlo sigue presente sin haber escaneado.
+  # Reescribirlo sería destruir dato por un cambio de configuración, y para
+  # corregirlo está el botón de cada integrante (`attendance_workshop_path`).
+  def enable_checkin
+    authorize @workshop, :update?
+    @workshop.update!(attendance_mode: "registered")
+    redirect_to workshop_path(@workshop), notice: "Check-in por link activado."
+  end
+
+  def disable_checkin
+    authorize @workshop, :update?
+    @workshop.update!(attendance_mode: "presumed")
+    redirect_to workshop_path(@workshop),
+                notice: "Check-in por link apagado. El reparto vuelve a sentar a todo el pool."
+  end
+
+  def rotate_checkin_token
+    authorize @workshop, :update?
+    @workshop.regenerate_checkin_token
+    redirect_to workshop_path(@workshop), notice: "Link nuevo. El QR anterior ya no sirve."
   end
 
   def destroy

@@ -1428,6 +1428,9 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
 
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  // El link del check-in, que `29` lee de la pantalla y `30` usa sin sesión.
+  // Queda en `null` si `29` no pudo leerlo, y `30` lo sabe.
+  let checkinUrl = null;
 
   await probarMedidorDeContraste(page);
   await probarMedidorDePastilla(page);
@@ -2801,7 +2804,79 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     await capturar(page, '27-taller-propuesta-en-la-idea');
   }
 
-  // ── Las tres que piden otra sesión ──────────────────────────────────────
+  // El QR del check-in. El token es aleatorio por siembra, así que el link se
+  // LEE de la pantalla —es para eso que el diseño lo pone en texto debajo del
+  // código— y se usa más abajo, en la pasada sin sesión.
+  //
+  // Con la guarda de las otras: `goToWorkshop` cuenta la falla y devuelve false
+  // SIN moverse del listado, y seguir de largo leería un locator que no matchea
+  // nada, que lanza y aborta la corrida entera. Una corrida abortada y una con
+  // fallas no se leen igual.
+  if (await goToWorkshop('Taller con check-in')) {
+    const svg = page.locator('.card:has-text("Check-in por link") svg');
+    if (!(await svg.count())) {
+      failures++;
+      console.error('[CHECKIN] la pantalla del taller no dibuja el QR');
+    } else {
+      // Contarlo no alcanza: `qr_svg` lo emite con `viewBox` y SIN width ni
+      // height —el tamaño lo decide el contenedor, a propósito—, así que el
+      // tamaño del código no está en el SVG. Si `.w-60` pasa a ser otro ancho
+      // —un renombre, un token roto— el QR se achica y el contador sigue
+      // diciendo 1. Un QR que no se escanea es la
+      // única falla que esta función no sobrevive, y no la ve nadie más:
+      // `[CLASES]` no, porque el `.bg-white` le da fondo al contenedor;
+      // `[RELLENO]` mira `card-body` y `[CONTRASTE]`, color. Así que se MIDE.
+      //
+      // 150px de piso. Hoy mide 208 —los 240 de `w-60` menos los dos `p-4`,
+      // con `box-sizing: border-box`— y el link ronda los 55 caracteres, o sea
+      // unos 37 módulos por lado con nivel M: 150/37 ≈ 4px por módulo, que es
+      // el piso con el que un lector de teléfono lo saca de una pantalla. Los
+      // 58px de margen que deja no los gasta el layout, porque `w-60` es un
+      // ancho fijo y no un porcentaje.
+      //
+      // Y se pide CUADRADO, pero ESA rama hoy no la puede disparar `qr_svg` y
+      // está medido: sacarle `viewbox: true` no deja al SVG en los 300×150 que
+      // el navegador usa por default, porque rqrcode entonces emite `width` y
+      // `height` fijos y el código sale cuadrado y grande igual —lo que se
+      // rompe ahí es el escalado por contenedor, que no es ilegibilidad—. La
+      // comparación se queda porque cuesta una resta y porque el día que el
+      // helper emita un `viewBox` no cuadrado, o un `width` sin su `height`,
+      // pasa a ser alcanzable. Es protección por adelantado, no una falla
+      // observada: la rama del piso de 150px sí está probada por mutación.
+      const caja = await svg.first().boundingBox();
+      if (!caja) {
+        failures++;
+        console.error('[CHECKIN] el QR está en el DOM pero no ocupa lugar en la pantalla');
+      } else {
+        const medida = `${Math.round(caja.width)}×${Math.round(caja.height)}`;
+        if (Math.min(caja.width, caja.height) < 150) {
+          failures++;
+          console.error(`[CHECKIN] el QR mide ${medida}: así no se escanea`);
+        } else if (Math.abs(caja.width - caja.height) > caja.width * 0.1) {
+          failures++;
+          console.error(`[CHECKIN] el QR no salió cuadrado (${medida}): el viewBox no manda el tamaño`);
+        }
+      }
+    }
+    const hint = page.locator('.card:has-text("Check-in por link") .field-hint');
+    if (await hint.count()) {
+      const leido = (await hint.first().innerText()).trim();
+      if (/\/checkin\/[A-Za-z0-9]+$/.test(leido)) {
+        checkinUrl = leido;
+      } else {
+        failures++;
+        console.error(`[CHECKIN] el link del QR no se pudo leer: «${leido}»`);
+      }
+    } else {
+      failures++;
+      console.error('[CHECKIN] la pantalla del taller no muestra el link del QR en texto');
+    }
+    await capturar(page, '29-taller-checkin');
+  } else {
+    console.error('[CHECKIN] sin el taller no hay link, y la pasada pública (30, 30b) no corre');
+  }
+
+  // ── Las que piden otra sesión ───────────────────────────────────────────
   //
   // Van últimas de la pasada clara: el recorrido como admin ya terminó, así
   // que cambiar de usuario acá no le saca la sesión a ninguna captura.
@@ -2864,6 +2939,64 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
 
   // El 404, sobre un slug que no existe.
   await shotConEstado(page, '20-not-found', '/challenges/no-existe', 404);
+
+  // El check-in sin sesión. `salir()` y NO un `browser.newContext()`: un
+  // contexto nuevo trae una `page` nueva SIN los listeners de `pageerror` y de
+  // `response`, que se registran una sola vez sobre la del recorrido. La
+  // captura quedaría ciega justo a lo que esto existe para cazar, y daría verde.
+  //
+  // Acá el `goto` es correcto: no hay link que seguir —el QR es una imagen— y
+  // la pantalla pública no monta ninguna isla ni carga el bundle de JS, que es
+  // lo que la regla de «navegá por link» protege.
+  //
+  // Sin link leído no hay nada que abrir: `29` ya contó la falla, y un `goto`
+  // a `null` abortaría la corrida.
+  if (checkinUrl) {
+    await salir();
+    await page.goto(checkinUrl, { waitUntil: 'networkidle' });
+    if (!(await page.locator('input[name="email"]').count())) {
+      failures++;
+      console.error('[CHECKIN] la pantalla pública no ofrece el formulario');
+    }
+    await capturar(page, '30-checkin-publico');
+
+    // El registro, con un email FIJO: la primera corrida crea la cuenta, las
+    // siguientes autentican con la misma clave y el check-in sólo re-marca
+    // presente. Es idempotente por el mismo mecanismo que hace que el formulario
+    // único no sea un oráculo de cuentas.
+    //
+    // `.example` y no `.test`: `Flow::Demo` identifica lo sembrado por el sufijo
+    // `.test`, así que una cuenta `@demo.test` creada acá aparecería en la lista
+    // de la pantalla de login y cambiaría esa captura.
+    await page.fill('input[name="email"]', 'llegada@taller.example');
+    await page.fill('input[name="name"]', 'Lucía Llegada');
+    await page.fill('input[name="password"]', 'Test1234');
+    // Si el registro falla, el listener de `response` ya contó el 4xx, pero el
+    // `waitForURL` vencería y lanzaría: abortaría la corrida en vez de sumarle
+    // una falla contada, que es lo que `29` también evita.
+    let entro = true;
+    try {
+      await Promise.all([
+        page.waitForURL(/\/workshops\/[^/]+$/, { timeout: 15000 }),
+        page.click('input[type="submit"]')
+      ]);
+    } catch (e) {
+      entro = false;
+      failures++;
+      console.error(`[CHECKIN] el registro no llevó al taller: ${e.message.split('\n')[0]}`);
+    }
+    if (entro) {
+      // La sala tiene que decir que la mesa todavía no se armó: es la mesa de
+      // llegada, y de ella no se trabaja. Si dijera otra cosa, el borrador que
+      // alguien cree ahí nacería con toda la sala como contribuyentes.
+      const espera = await page.locator('body').innerText();
+      if (!/todavía no se armó/.test(espera)) {
+        failures++;
+        console.error('[CHECKIN] entró, pero la sala no anuncia la espera de la mesa de llegada');
+      }
+      await capturar(page, '30b-taller-llegada');
+    }
+  }
 
   // Vuelve el admin: la pasada oscura sigue después y recorre pantallas que
   // sólo quien administra ve.

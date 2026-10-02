@@ -23,13 +23,7 @@ class SessionsController < ApplicationController
     user = User.find_by(email: params[:email].to_s.strip.downcase)
 
     if user&.authenticate(params[:password].to_s)
-      session_record = user.sessions.create!(
-        company: default_company_for(user),
-        ip_address: request.remote_ip,
-        user_agent: request.user_agent.to_s.first(255),
-        last_seen_at: Time.current
-      )
-      cookies.signed.permanent[:session_token] = { value: session_record.token, httponly: true, same_site: :lax }
+      session_record = sign_in!(user, company: default_company_for(user))
       redirect_to(session_record.company ? root_path : select_company_path)
     else
       # Mensaje único: no se distingue "email inexistente" de "clave incorrecta".

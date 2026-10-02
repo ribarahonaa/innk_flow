@@ -11,6 +11,12 @@ class Workshop < ApplicationRecord
   MODES = %w[individual group].freeze
   STATUSES = %w[draft open closed].freeze
 
+  # Cómo se establece la presencia. `presumed` es lo de siempre: el reparto
+  # sienta al pool completo y marcar ausentes es la excepción. `registered` dice
+  # que la presencia la ESCRIBE alguien —el escaneo, o el toggle de la pantalla—
+  # y que quien no está marcado no está.
+  ATTENDANCE_MODES = %w[presumed registered].freeze
+
   belongs_to :created_by, class_name: "User", optional: true
   has_many :workshop_challenges, dependent: :destroy
   has_many :challenges, through: :workshop_challenges
@@ -19,10 +25,33 @@ class Workshop < ApplicationRecord
   validates :name, presence: true
   validates :mode, inclusion: { in: MODES }
   validates :status, inclusion: { in: STATUSES }
+  validates :attendance_mode, inclusion: { in: ATTENDANCE_MODES }
+
+  has_secure_token :checkin_token
 
   STATUSES.each { |s| define_method("#{s}?") { status == s } }
 
   def individual? = mode == "individual"
+
+  def presumed_attendance? = attendance_mode == "presumed"
+  def registered_attendance? = attendance_mode == "registered"
+
+  # Qué puede hacer el link, en UN valor. Misma forma que
+  # `WorkshopChallenge#room_state`: con un valor cerrado y un `case` con `else`
+  # la pantalla no puede quedarse muda cuando mañana haya un estado más, que es
+  # justo cómo una sala se renderizó vacía sin un solo mensaje.
+  #
+  # Borrador y cerrado se distinguen porque la pantalla dice cosas distintas:
+  # «volvé cuando empiece» sobre un taller que ya terminó es mentira.
+  def checkin_state
+    return :off unless registered_attendance?
+    return :closed if closed?
+    return :draft if draft?
+
+    :open
+  end
+
+  def checkin_open? = checkin_state == :open
 
   # La fase del taller: el `kind` de sus vínculos VIVOS, homogéneo por la
   # regla de `Flow::Workshops::Open`. Se DERIVA y no se guarda: una columna

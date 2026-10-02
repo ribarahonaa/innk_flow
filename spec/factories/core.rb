@@ -71,6 +71,8 @@ FactoryBot.define do
     sequence(:name) { |n| "Taller #{n}" }
     mode { "group" }
     status { "draft" }
+
+    trait(:registered) { attendance_mode { "registered" } }
   end
 
   factory :workshop_challenge do
@@ -81,6 +83,11 @@ FactoryBot.define do
   factory :workshop_group do
     workshop
     sequence(:name) { |n| "Mesa #{n}" }
+
+    trait(:arrival) do
+      arrival { true }
+      name { "Mesa de llegada" }
+    end
   end
 
   factory :workshop_group_member do

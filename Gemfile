@@ -51,6 +51,11 @@ gem "wicked_pdf", "~> 2.1"
 # acá alcanza el binario empaquetado (la maqueta no despliega).
 gem "wkhtmltopdf-binary", "~> 0.12"
 
+# El QR del check-in del taller. Ruby puro y SIN red: el SVG se arma en el
+# server, así que no hay que pedirle una imagen a un tercero ni montar una isla
+# para dibujarla.
+gem "rqrcode", "~> 2.2"
+
 gem "bootsnap", require: false
 
 group :development, :test do

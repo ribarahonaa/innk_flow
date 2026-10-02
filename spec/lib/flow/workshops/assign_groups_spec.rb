@@ -9,8 +9,8 @@ RSpec.describe Flow::Workshops::AssignGroups do
   let(:pedro) { as_company(company) { create(:user, name: "Pedro") } }
   let(:ana)   { as_company(company) { create(:user, name: "Ana") } }
 
-  def open_workshop(*kinds_and_challenges)
-    workshop = create(:workshop, status: "open")
+  def open_workshop(*kinds_and_challenges, registered: false)
+    workshop = create(:workshop, status: "open", attendance_mode: registered ? "registered" : "presumed")
     kinds_and_challenges.each do |kind, challenge|
       challenge ||= create(:challenge)
       step = create(:challenge_step, challenge: challenge, kind: kind, status: "active")
@@ -308,6 +308,63 @@ RSpec.describe Flow::Workshops::AssignGroups do
 
       expect(result).not_to be_ok
       expect(result.errors.join).to include("ya se cerraron")
+    end
+  end
+
+  describe "el pool en un taller con la presencia registrada" do
+    # Sin esto el escaneo es DECORATIVO para idear: `participant_ids` son todos
+    # los `participant` de la empresa, así que el reparto sienta igual a quien
+    # no vino.
+    it "son sólo los sentados y presentes, no toda la empresa" do
+      taller = as_company(company) { open_workshop(["ideation"], registered: true) }
+      mesa = as_company(company) { create(:workshop_group, workshop: taller) }
+      as_company(company) do
+        # Pedro es participante de la empresa y nunca escaneó: es quien el pool
+        # automático metería de más.
+        create(:membership, company: company, user: pedro, role: "participant")
+        WorkshopGroupMember.create!(workshop_group: mesa, user_id: paula.id, attended: true)
+      end
+
+      result = as_company(company) { described_class.new(taller, size: 4).call }
+
+      expect(result).to be_ok
+      expect(result.tables.flatten).to contain_exactly(paula.id)
+    end
+
+    # En evolución `absent_ids` no alcanza: el autor que nunca escaneó no tiene
+    # asiento, así que no figura como ausente y su idea armaba la mesa igual.
+    it "en evolución, la idea de quien no escaneó no arma mesa" do
+      taller = as_company(company) { open_workshop(["evolution"], registered: true) }
+      mesa = as_company(company) { create(:workshop_group, workshop: taller) }
+      as_company(company) do
+        step = step_of(taller)
+        idea_in(step, paula)
+        idea_in(step, pedro)
+        WorkshopGroupMember.create!(workshop_group: mesa, user_id: paula.id, attended: true)
+      end
+
+      result = as_company(company) { described_class.new(taller, size: 4).call }
+
+      expect(result).to be_ok
+      expect(result.tables.flatten).to contain_exactly(paula.id)
+    end
+
+    # La de llegada es la PRIMERA mesa creada, así que `seat!` la reusaría como
+    # «Mesa 1» conservando `arrival: true` y el nombre, y la sala de la mesa 1
+    # quedaría muda para siempre.
+    it "no reusa la mesa de llegada, y la borra cuando queda vacía" do
+      taller = as_company(company) { open_workshop(["ideation"], registered: true) }
+      llegada = as_company(company) { create(:workshop_group, :arrival, workshop: taller) }
+      as_company(company) do
+        WorkshopGroupMember.create!(workshop_group: llegada, user_id: paula.id, attended: true)
+      end
+
+      as_company(company) { described_class.new(taller, size: 4).call }
+
+      mesas = as_company(company) { taller.workshop_groups.reload.to_a }
+      expect(mesas.map(&:id)).not_to include(llegada.id)
+      expect(mesas.map(&:arrival)).to all(be(false))
+      expect(mesas.map(&:name)).to contain_exactly("Mesa 1")
     end
   end
 end

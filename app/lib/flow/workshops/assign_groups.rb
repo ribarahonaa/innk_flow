@@ -72,10 +72,17 @@ module Flow
 
       # Idear: un grupo por persona. No hay ideas de las que deducir nada.
       def groups_by_person
-        # `- absent_ids` también sobre `participant_ids`: ése no está filtrado por
-        # asistencia, así que sin esto un participante marcado ausente volvía a
-        # entrar por el pool automático.
-        ids = (participant_ids | seated_present_ids) - absent_ids
+        # Con la presencia REGISTRADA el pool automático sobra y además miente:
+        # `participant_ids` son todos los `participant` de la empresa, así que
+        # sentaría a quien no vino y dejaría al escaneo sin efecto. Acá no hace
+        # falta restar `absent_ids` — `seated_present_ids` ya sale de
+        # `presentes`, y una persona tiene UN asiento por taller (UNIQUE), así
+        # que no puede estar en las dos listas.
+        ids = if @workshop.registered_attendance?
+                seated_present_ids
+              else
+                (participant_ids | seated_present_ids) - absent_ids
+              end
         ids.to_h { |id| [id, [id]] }
       end
 
@@ -83,11 +90,17 @@ module Flow
       # extra: si alguien no vino, su idea pierde a esa persona y eso CAMBIA los
       # racimos. Ignorarlo dejaría mesas armadas alrededor de gente que no está.
       #
-      # Sólo se descuenta a quien está marcado ausente: la asistencia existe
-      # para quien está sentado, y a quien nunca se convocó se lo presume
-      # presente.
+      # Cómo se lee «no vino» depende del modo. Con la presencia PRESUMIDA se
+      # descuenta sólo a quien está marcado ausente, porque a quien nunca se
+      # convocó se lo presume presente. Con la presencia REGISTRADA no alcanza:
+      # `absent_ids` sólo conoce a quien TIENE asiento, así que el autor que
+      # nunca escaneó no aparecería ahí y el reparto armaría su mesa igual,
+      # alrededor de alguien que no está en la sala.
       def people_of(idea)
-        ([idea.author_id] + IdeaContributor.where(idea_id: idea.id).pluck(:user_id)) - absent_ids
+        gente = [idea.author_id] + IdeaContributor.where(idea_id: idea.id).pluck(:user_id)
+        return gente & seated_present_ids if @workshop.registered_attendance?
+
+        gente - absent_ids
       end
 
       def absent_ids
@@ -107,10 +120,11 @@ module Flow
         Membership.where(company_id: @workshop.company_id, role: "participant").pluck(:user_id)
       end
 
+      # Memoizado: `people_of` lo pregunta una vez por idea.
       def seated_present_ids
-        WorkshopGroupMember.presentes.joins(:workshop_group)
-                            .where(workshop_groups: { workshop_id: @workshop.id })
-                            .pluck(:user_id)
+        @seated_present_ids ||= WorkshopGroupMember.presentes.joins(:workshop_group)
+                                                   .where(workshop_groups: { workshop_id: @workshop.id })
+                                                   .pluck(:user_id)
       end
 
       # Sienta a cada mesa. Mueve a los presentes, crea las mesas que falten y
@@ -127,14 +141,22 @@ module Flow
       # mesa vacía, borrarla se llevaría la propuesta por el CASCADE. Una mesa
       # que sobrevive sólo por eso es un sobrante inocuo; perder la propuesta no.
       def seat!(tables)
-        existentes = @workshop.workshop_groups.order(:created_at).to_a
+        # La mesa de llegada NO es reusable: es la primera creada, así que
+        # `existentes[0]` la convertiría en «Mesa 1» conservando `arrival: true`
+        # y su nombre, y su sala quedaría muda para siempre. El barrido de
+        # vacías de abajo la borra cuando se queda sin nadie.
+        existentes = @workshop.workshop_groups.where(arrival: false).order(:created_at).to_a
 
         tables.each_with_index do |user_ids, i|
           mesa = existentes[i] || @workshop.workshop_groups.create!(name: "Mesa #{i + 1}")
           WorkshopGroupMember.presentes.joins(:workshop_group)
                               .where(workshop_groups: { workshop_id: @workshop.id }, user_id: user_ids)
                               .destroy_all
-          user_ids.each { |id| WorkshopGroupMember.create!(workshop_group: mesa, user_id: id) }
+          # `attended: true` EXPLÍCITO y no heredado del default de la columna:
+          # lo que se siembra acá viene de `seated_present_ids`, o sea gente
+          # presente. Heredarlo acertaba por casualidad, y el default puede
+          # querer lo contrario según el modo del taller.
+          user_ids.each { |id| WorkshopGroupMember.create!(workshop_group: mesa, user_id: id, attended: true) }
         end
 
         @workshop.workshop_groups.reload.each do |mesa|

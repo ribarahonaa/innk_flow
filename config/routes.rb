@@ -5,6 +5,15 @@ Rails.application.routes.draw do
   post   "login",  to: "sessions#create"
   delete "logout", to: "sessions#destroy", as: :logout
 
+  # La ÚNICA ruta pública que escribe datos del dominio sin que nadie haya
+  # probado quién es (el login también se sirve sin sesión, pero parte de alguien
+  # que se autenticó con su clave; `up` no pasa por `ApplicationController`). Se
+  # entra escaneando el QR de un taller, sin sesión y sin empresa en contexto —el
+  # tenant sale del token—. Va acá y no colgada de `workshops` porque quien la
+  # abre todavía no puede ver ningún taller.
+  get  "checkin/:token", to: "workshop_checkins#show", as: :checkin
+  post "checkin/:token", to: "workshop_checkins#create"
+
   get  "select_company", to: "sessions#select_company", as: :select_company
   post "choose_company", to: "sessions#choose_company", as: :choose_company
 
@@ -89,10 +98,19 @@ Rails.application.routes.draw do
       # que no existe.
       post   :convoke, to: "workshop_convocations#create"
       delete :dismiss, to: "workshop_convocations#destroy"
+      # Marcar presente o ausente. `to:` explícito por lo mismo que `convoke`:
+      # sin él mapearía a `workshops#attendance`, que no existe.
+      patch :attendance, to: "workshop_attendances#update"
       # Sacar un desafío del taller. El ciclo de vida lo pone junto a sumarlo,
       # o sea en borrador. El id del vínculo viaja como parámetro: no hay un
       # controller de vínculos, la baja es del taller.
       delete :remove_challenge
+      # El check-in NO va por `workshops#update`, que es sólo de borrador:
+      # activarlo tiene que poder hacerse con el taller ABIERTO, que es cuando
+      # la gente está llegando.
+      post :enable_checkin
+      post :disable_checkin
+      post :rotate_checkin_token
     end
     resources :workshop_groups, only: %i[create destroy], path: "mesas" do
       post :assign, on: :collection
