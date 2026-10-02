@@ -245,9 +245,9 @@ addEventListener('turbo:fetch-request-error', () => {
 // del marco y nada más.
 //
 // Mismo problema que el de arriba: el evento es global a cualquier
-// `turbo-frame` de la app, no sólo al de las propuestas de IA. Hoy da lo
-// mismo porque `#ai-suggestions` es el único marco que hay, pero eso es
-// accidente y no algo que este código pueda asumir — la misma guarda.
+// `turbo-frame` de la app, no sólo al de las propuestas de IA. Hay
+// otro marco —`#llegada`, la mesa de llegada del taller— y no es de la IA: este
+// código no puede asumir de quién es el que falló — la misma guarda.
 //
 // Y tiene que mirar `pedidoEnVuelo`, no `espera`: en un 403 o un 500 Turbo
 // dispara `turbo:submit-end` (que cierra la espera) ANTES que este evento —

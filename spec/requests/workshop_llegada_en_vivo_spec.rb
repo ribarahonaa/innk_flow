@@ -38,6 +38,7 @@ RSpec.describe "la llegada en vivo", type: :request do
   # Review Focus 3: el reparto puede haber vaciado y barrido la llegada entre dos
   # refrescos. El frame devuelve el vacío; no revienta ni crea una mesa.
   it "sin mesa de llegada devuelve el vacío y no la crea" do
+    as_company(company) { taller.update!(attendance_mode: "registered") }
     sign_in(admin, company: company)
 
     expect do

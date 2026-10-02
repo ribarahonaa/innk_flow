@@ -76,8 +76,12 @@
                   = submit_tag "Convocar", class: "btn btn-ghost btn-sm"
 
     -# Sin mesa de llegada el frame se dibuja igual, vacío: un destino que a
-    -# veces no existe no es un destino.
-    - if groups.none?(&:arrival?)
+    -# veces no existe no es un destino. Salvo en modo individual: ahí NO hay
+    -# mesa de llegada (`Workshop#arrival_group!` devuelve nil) ni puede haberla,
+    -# y un frame vivo diría «Todavía no llegó nadie.» cada cinco segundos
+    -# mientras la gente entra a su propia mesa. No hay lista en vivo en
+    -# individual; hacerla andar ahí sería otra feature.
+    - if !workshop.individual? && groups.none?(&:arrival?)
       = render "workshops/llegada_frame", workshop: workshop, group: nil, can_edit: can_edit,
                   src: arrival_workshop_path(workshop), vivo: workshop.checkin_open?
 

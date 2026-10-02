@@ -2898,10 +2898,11 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
       removeEventListener('turbo:frame-render', contar);
       return { n };
     });
-    medidasEnVivo++;
     if (refrescos.error || !refrescos.n) {
       failures++;
       console.error(`[LIVE] la mesa de llegada no se refrescó sola: ${JSON.stringify(refrescos)}`);
+    } else {
+      medidasEnVivo++;
     }
   } else {
     console.error('[CHECKIN] sin el taller no hay link, y la pasada pública (30, 30b) no corre');

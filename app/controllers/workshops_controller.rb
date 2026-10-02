@@ -18,9 +18,11 @@ class WorkshopsController < ApplicationController
   # mismo, y el día que una cambie la otra miente.
   def arrival
     authorize @workshop, :update?
-    @group = @workshop.workshop_groups.find_by(arrival: true)
+    # Con `includes`: es el único endpoint que se pide solo cada pocos
+    # segundos, y sin precarga cuesta 3 + N consultas por pedido.
+    group = @workshop.workshop_groups.includes(workshop_group_members: :user).find_by(arrival: true)
     render partial: "workshops/llegada_frame",
-           locals: { workshop: @workshop, group: @group, can_edit: !@workshop.closed?,
+           locals: { workshop: @workshop, group: group, can_edit: !@workshop.closed?,
                      src: nil, vivo: false }
   end
 

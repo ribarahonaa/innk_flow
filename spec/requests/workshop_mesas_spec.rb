@@ -288,8 +288,50 @@ RSpec.describe "armar las mesas", type: :request do
       expect(response.body).to include(otra_persona.name)
     end
 
-    it "dibuja el frame aunque no haya mesa de llegada, y dice que no llegó nadie" do
+    # Dentro del frame un form se envía con alcance de frame: Turbo seguiría el
+    # redirect y extraería sólo `#llegada`, sin aviso y con los `select` de
+    # convocar viejos. `_top` lo devuelve a nivel de página. Los request specs
+    # postean directo y no ven esto: se mira el HTML servido.
+    it "los formularios de adentro del frame de la llegada se envían a nivel de página" do
       taller = as_company(company) { create(:workshop, status: "open") }
+      as_company(company) do
+        llegada = create(:workshop_group, :arrival, workshop: taller)
+        WorkshopGroupMember.create!(workshop_group: llegada, user_id: paula.id)
+      end
+      sign_in(admin, company: company)
+
+      get workshop_path(taller)
+
+      frame = Nokogiri::HTML(response.body).at_css("turbo-frame#llegada")
+      expect(frame).not_to be_nil
+      forms = frame.css("form")
+      expect(forms.size).to eq(2)
+      expect(forms.map { |f| f["action"] }).to contain_exactly(attendance_workshop_path(taller), dismiss_workshop_path(taller))
+      expect(forms.map { |f| f["data-turbo-frame"] }).to all(eq("_top"))
+    end
+
+    it "sin asistencia registrada no dice que no llegó nadie: ahí nadie llega escaneando" do
+      taller = as_company(company) { create(:workshop, status: "open") }
+      sign_in(admin, company: company)
+
+      get workshop_path(taller)
+
+      expect(response.body).to include('id="llegada"')
+      expect(response.body).not_to include("Todavía no llegó nadie")
+    end
+
+    it "en modo individual no dibuja el frame: no hay mesa de llegada que listar" do
+      taller = as_company(company) { create(:workshop, :registered, mode: "individual", status: "open") }
+      sign_in(admin, company: company)
+
+      get workshop_path(taller)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).not_to include('id="llegada"')
+    end
+
+    it "dibuja el frame aunque no haya mesa de llegada, y dice que no llegó nadie" do
+      taller = as_company(company) { create(:workshop, status: "open", attendance_mode: "registered") }
       sign_in(admin, company: company)
 
       get workshop_path(taller)
