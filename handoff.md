@@ -6,10 +6,10 @@ Ejecutar el plan de **check-in por QR en el taller** por subagentes: un
 implementador por tarea, un revisor fresco después de cada una, y una revisión de
 rama entera al final.
 
-**Tres tandas cerradas y mergeadas**: el check-in por QR (8 tareas), la mesa de
-llegada que retiene a su gente al borrar una mesa, y la lista de llegada EN VIVO
-(4 tareas). `master` está en `cd943eb`. **El remote está en `e600847`: los dos
-últimos merges y una nota de `CLAUDE.md` NO están pusheados.**
+**Cuatro tandas cerradas y mergeadas**: el check-in por QR (8 tareas), la mesa de
+llegada que retiene a su gente al borrar una mesa, la lista de llegada EN VIVO
+(4 tareas), y el renombre a inglés de lo que esa última había dejado en español.
+**El remote está en `e600847`: desde ahí para adelante NO hay nada pusheado.**
 
 La feature: un taller proyecta un QR, escanearlo es la puerta —convoca, marca
 presente y sienta en una «Mesa de llegada» de la que nadie trabaja— y quien no
@@ -21,16 +21,28 @@ handoff anterior dejaba fichado como punto 1, y lo incluye.
 
 ## Estado actual
 
-- **`master` está en `cd943eb`; el REMOTE está en `e600847`**, comprobado con
+- **El REMOTE está en `e600847`** y `master` local bastante más adelante,
+  comprobado con
   `gh api repos/ribarahonaa/innk_flow/commits/master --jq .sha` (no hay clave SSH
   acá, así que `git fetch` no sirve). Las dos primeras ramas de feature están
   publicadas; `lista-de-llegada-en-vivo` no.
-- **Tres merges `--no-ff`**, los tres verificados con dos padres y árbol idéntico
-  al de su rama: `ac6110d` (el check-in, 31 commits), `ff9184d` (la mesa de
-  llegada que retiene, 2 commits) y `cd943eb` (la lista en vivo, 18 commits).
-- **Lo que falta subir es todo lo que hay desde `e600847`**: la nota de
-  `[CLASES]` en `CLAUDE.md` (`341df19`), el merge `cd943eb` y la rama
-  `lista-de-llegada-en-vivo` entera.
+- **Cuatro merges `--no-ff`**, los cuatro verificados con dos padres y árbol
+  idéntico al de su rama: `ac6110d` (el check-in, 31 commits), `ff9184d` (la mesa
+  de llegada que retiene, 2 commits), `cd943eb` (la lista en vivo, 18 commits) y
+  `f3c01e4` (el renombre a inglés).
+- **Lo que falta subir es TODO lo que hay desde `e600847`**: la nota de
+  `[CLASES]` en `CLAUDE.md`, los merges `cd943eb` y `f3c01e4`, y las ramas
+  `lista-de-llegada-en-vivo` y `nombres-en-ingles`.
+- **La regla de los nombres se aplicó y se rompió en el camino.** `CLAUDE.md` ya
+  decía «nombres de método, de variable, de clase y de archivo en inglés», y la
+  tanda de la lista en vivo los escribió en español igual. Se corrigió en una
+  rama propia: cuatro archivos, el id del frame, los locals, los data-attrs, dos
+  funciones del JS y un contador. **Lo que NO se renombra** y conviene tener
+  claro para la próxima: los comentarios, los textos que ve la gente («Mesa de
+  llegada», «Todavía no llegó nadie.», avisos y confirms), el VALOR de
+  `ARRIVAL_NAME`, los nombres de archivo de `docs/superpowers/` —que son
+  documentos y van en español como toda esa carpeta— y los identificadores en
+  español de tandas anteriores, que CLAUDE.md manda dejar quietos.
 - **`make spec`: 1561 ejemplos, 0 fallas**, medidos sobre `master` después del
   tercer merge. Eran 1468 al abrir la primera rama.
 - **`make screens`: 74 capturas, 0 errores.** Eran 71 antes. Corrió **ocho
@@ -282,6 +294,28 @@ variante de las dos sesiones, no el 200.
   no hace, y un `expect(...).to receive(:lock!)` afirmaría que el método se llama,
   no que el lock funcione: es una aserción sobre un mock, que la propia rúbrica de
   este repo llama defecto. El `with_lock` de `AssignGroups` tampoco tiene spec.
+
+### La lista en vivo está verificada CONTRA LA APP, no sólo contra la guarda
+
+Raúl reportó que no veía los ingresos nuevos sin recargar. Se reprodujo con un
+navegador de verdad contra la app corriendo: se abrió la pantalla del «Taller con
+check-in» como admin y, **con el navegador mirando y sin tocar nada**, se insertó
+un asiento en la mesa de llegada. A los 22 segundos la lista mostraba a esa
+persona, con **cinco recargas automáticas** en esa ventana (una cada ~5 s, como
+corresponde). O sea que el contenido se actualiza de verdad, no sólo el frame.
+
+**Lo que explica el reporte** es que una pestaña abierta conserva el JS que cargó.
+Una abierta antes del merge de la feature no tiene el temporizador en absoluto; y
+una abierta entre ese merge y el renombre a inglés buscaba `#llegada` mientras el
+servidor ya mandaba `#arrival`. En los dos casos hay que recargar una vez. **Si
+recompilás los assets con pantallas abiertas, esas pantallas quedan viejas hasta
+que alguien recargue** — y no hay nada que lo anuncie.
+
+**Y una trampa que se volvió a pagar al reproducirlo:** el script de reproducción
+usó `waitForLoadState('networkidle')` y midió la pantalla ANTERIOR, porque
+`networkidle` se calma antes de que Turbo ponga el body nuevo. Está documentado en
+`CLAUDE.md` para las capturas y aplica igual a cualquier script de Playwright
+contra esta app.
 
 ### Lo que encontró la tercera tanda
 
