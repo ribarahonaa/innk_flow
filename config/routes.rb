@@ -5,10 +5,12 @@ Rails.application.routes.draw do
   post   "login",  to: "sessions#create"
   delete "logout", to: "sessions#destroy", as: :logout
 
-  # La ÚNICA ruta pública de la app: se entra escaneando el QR de un taller, sin
-  # sesión y sin empresa en contexto —el tenant sale del token—. Va acá y no
-  # colgada de `workshops` porque quien la abre todavía no puede ver ningún
-  # taller.
+  # La ÚNICA ruta pública que escribe datos del dominio sin que nadie haya
+  # probado quién es (el login también se sirve sin sesión, pero parte de alguien
+  # que se autenticó con su clave; `up` no pasa por `ApplicationController`). Se
+  # entra escaneando el QR de un taller, sin sesión y sin empresa en contexto —el
+  # tenant sale del token—. Va acá y no colgada de `workshops` porque quien la
+  # abre todavía no puede ver ningún taller.
   get  "checkin/:token", to: "workshop_checkins#show", as: :checkin
   post "checkin/:token", to: "workshop_checkins#create"
 

@@ -103,10 +103,13 @@ si una pantalla de módulo pierde su forma: sin
 columna de referencia o sin los ajustes plegados (`[ZONAS]`), con el plegable
 cerrándose solo al morfear (`[PLEGABLE]`), sin la fila desplegable del desglose
 de evaluación (`[DESGLOSE]`) o sin el módulo salteado en el drawer y el mapa
-del flujo (`[SALTEADO]`), o sin el QR ni el link del check-in en la pantalla del taller, sin el formulario público
-o sin el aviso de espera de la mesa de llegada (`[CHECKIN]`). Corrélo después de tocar vistas, islas o CSS — un bug
-de Vue no lo atrapa ningún spec de Ruby (un `__VUE_OPTIONS_API__` mal puesto
-dejó el builder en blanco y la suite en verde).
+del flujo (`[SALTEADO]`), o si la pantalla del taller no dibuja el QR del
+check-in —medido: un código más chico que 150px, o que no salga cuadrado, no se
+escanea—, no muestra su link, o si falta el formulario público o el aviso de
+espera de la mesa de llegada (`[CHECKIN]`). Corrélo después de tocar vistas,
+islas o CSS — un bug de Vue no lo atrapa ningún spec de Ruby (un
+`__VUE_OPTIONS_API__` mal puesto dejó el builder en blanco y la suite en
+verde).
 
 **«Falla si hay HTTP >= 400» tiene una excepción, angosta a propósito.** Dos
 pantallas se fotografían con un error encima aposta —el 403 de `19-forbidden`
@@ -472,11 +475,11 @@ presencia la escribe alguien: el check-in por link (`WorkshopCheckinsController`
 la ÚNICA ruta pública que escribe datos del dominio sin que nadie haya probado
 quién es: el login también se sirve sin sesión, pero elige la empresa entre las
 membresías de alguien que ya se autenticó con su clave, mientras que ésta la
-resuelve desde un token que cualquiera con el link tiene) o el toggle de cada integrante
-(`WorkshopAttendancesController`). Con `registered`, convocar a mano deja el
-asiento AUSENTE y el pool de idear deja de incluir a los `participant` de la
-empresa — sin eso el escaneo es decorativo, porque el pool automático sienta
-igual a quien no vino.
+resuelve desde un token que cualquiera con el link tiene) o el toggle de cada
+integrante (`WorkshopAttendancesController`). Con `registered`, convocar a mano
+deja el asiento AUSENTE y el pool de idear deja de incluir a los `participant`
+de la empresa — sin eso el escaneo es decorativo, porque el pool automático
+sienta igual a quien no vino.
 
 **El token y el modo son dos cosas.** `checkin_token` es la credencial y
 `attendance_mode` la semántica: si el modo se derivara del token, rotarlo para
@@ -520,17 +523,20 @@ no cambia las mesas —el racimo las une y la deduplicación lo absorbe—, pero
 agrega una clave que el reparto puede elegir para desprender, y ahí el aviso
 anuncia un corte que no movió a nadie.
 
-**Por la regla de una sola fase el seed tiene cuatro talleres y no dos**: uno
-sobre idear —que además lleva el desafío que se rechaza al abrirse, y es de
-donde sale el vínculo cerrado con motivo de `28`—, uno sobre evolución —que
-lleva la propuesta pendiente—, el borrador y «Taller con check-in». `25` y `28`
-salen del primero, `26` y `27` del segundo, `24` del borrador. El cuarto existe
-SÓLO para `29`, `30` y `30b`, y va **sin nadie sentado**: `29` tiene que
-mostrar la llegada vacía —con la base recién sembrada: `30b` sienta a Lucía,
-así que un segundo `make screens` sin resembrar la muestra sentada—, y `30b` siembra a Lucía Llegada
-(`llegada@taller.example`, una membresía `participant` real de la empresa demo)
-al correr. Sentar a alguien a mano en ese taller rompe `29`; reusarlo para otra
-cosa, también.
+**El seed tiene cuatro talleres, y no por una sola razón.** La regla de una
+sola fase explica los tres primeros —sin ella serían dos—: uno sobre idear
+—que además lleva el desafío que se rechaza al abrirse, y es de donde sale el
+vínculo cerrado con motivo de `28`—, uno sobre evolución —que lleva la
+propuesta pendiente— y el borrador. `25` y `28` salen del primero, `26` y `27`
+del segundo, `24` del borrador. El cuarto, «Taller con check-in», no sale de
+esa regla: existe SÓLO para `29`, `30` y `30b`, y va **sin nadie sentado**,
+porque `29` tiene que mostrar la llegada vacía. A Lucía Llegada
+(`llegada@taller.example`, con una membresía `participant` real de la empresa
+demo) la siembra `30b` al correr, así que un segundo `make screens` sin
+resembrar la muestra sentada — y por eso el seed la BORRA, al lado de los
+talleres: si no, `12-miembros` la lista en toda corrida posterior a la primera.
+Sentar a alguien a mano en ese taller rompe `29`; reusarlo para otra cosa,
+también.
 
 ### Multi-tenancy: cuatro capas
 

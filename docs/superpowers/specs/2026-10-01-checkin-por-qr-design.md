@@ -465,6 +465,20 @@ cinco tests que no podían fallar, dos de ellos escritos por quien revisaba.
   el modo `registered`, y se rota. Las dos salidas, si algún día deja de
   alcanzar, son los dominios de email permitidos o pedir confirmación **sólo**
   cuando el email no existe.
+- **El token es una URL-capacidad y viaja en el PATH, así que queda escrito
+  donde una clave nunca queda.** Los parámetros se filtran —`:passw` y `:token`
+  están los dos en `config.filter_parameters`, así que la clave que se tipea en
+  esta pantalla no toca ningún log— y un segmento de la ruta no se filtra: el
+  token entra entero en el `Started POST "/checkin/…"` del log y queda en el
+  historial del navegador de quien escaneó, de donde lo lee cualquiera que
+  llegue a esos dos lugares.
+  Tampoco expira: la única revocación es rotarlo, y es a mano. Lo acota lo mismo
+  que acota los otros dos —el taller `open`, el modo `registered`, dos ventanas
+  cortas que alguien abre a propósito— y que la pantalla pública no tiene un
+  solo link hacia afuera, así que no hay `Referer` que se lo lleve a un
+  tercero. Las salidas, si deja de alcanzar: un vencimiento por tiempo sobre el
+  token, o rotarlo al ABRIR el taller, para que lo que quedó escrito no sirva en
+  la sesión siguiente.
 - **El modo se puede apagar con gente ya marcada presente**, y el pool de idear
   cambia de significado en ese momento. No se reescribe nada; la pantalla lo
   avisa donde está el botón.
