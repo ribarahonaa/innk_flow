@@ -12,9 +12,10 @@
 -# cada recarga.
 - src = local_assigns[:src]
 -# No hay `turbo_frame_tag` (la app no trae turbo-rails): el elemento va a mano,
--# como en `shared/_ai_suggestions`. HAML no escribe un atributo nil, así que
--# sin `src` el frame sale sin él.
-%turbo-frame#llegada{ src: src }
+-# como en `shared/_ai_suggestions`. HAML 7 escribe `src=""` si el valor es nil,
+-# así que el atributo se agrega sólo cuando hay `src`: sin él el frame sale sin
+-# el atributo (lo afirma `workshop_mesas_spec`).
+%turbo-frame#llegada{ **(src ? { src: src } : {}) }
   - if group
     = render "workshops/mesa_cuerpo", workshop: workshop, group: group, can_edit: can_edit
   - else

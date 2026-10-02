@@ -293,5 +293,25 @@ RSpec.describe "armar las mesas", type: :request do
       expect(response.body).to include('id="llegada"')
       expect(response.body).to include("Todavía no llegó nadie")
     end
+
+    # Un frame con `src` se vuelve a pedir solo. El endpoint de la Tarea 2
+    # devuelve este mismo partial, y si el frame que devuelve apuntara a sí mismo
+    # el pedido se re-dispararía sobre el temporizador. Hoy lo evita que HAML no
+    # escriba atributos nil; esto lo vuelve una afirmación. Se mira el ELEMENTO:
+    # la página tiene otros `src` (íconos, scripts) y buscar en el body entero
+    # daría verde con el frame mal.
+    [true, false].each do |con_llegada|
+      it "sirve el frame sin src #{con_llegada ? 'con' : 'sin'} mesa de llegada" do
+        taller = as_company(company) { create(:workshop, status: "open") }
+        as_company(company) { create(:workshop_group, :arrival, workshop: taller) } if con_llegada
+        sign_in(admin, company: company)
+
+        get workshop_path(taller)
+
+        frames = Nokogiri::HTML(response.body).css("turbo-frame#llegada")
+        expect(frames.size).to eq(1)
+        expect(frames.first.attributes.keys).not_to include("src")
+      end
+    end
   end
 end
