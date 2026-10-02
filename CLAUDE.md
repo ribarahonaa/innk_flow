@@ -90,7 +90,28 @@ Medido: antes de compilar, `w-60`, `bg-white`, `p-4` y `rounded-box` aparecían
 cero veces en la hoja. De rebote, «negro sobre blanco en los dos temas» —de lo
 que depende que un QR se escanee en tema oscuro— nunca fue cierto en la app
 servida. Después de tocar vistas con utilidades nuevas: `make yarn-build` y recién
-ahí `make screens`. También falla si un `.badge` o un `.alert` mide menos de
+ahí `make screens`.
+
+**Y lo mismo vale para el JavaScript, que es la mitad que esta nota no decía y
+costó caer dos veces en la misma sesión.** `app/assets/builds/*` está gitignoreado
+entero: ahí viven la hoja Y el bundle (`application-build.js`, que arma esbuild
+con `yarn build`). **Un archivo `.js` nuevo importado desde `application.js` no
+existe para el navegador hasta que corras `make yarn-build`.** Pasó con
+`llegada_en_vivo.js`: la suite daba 1558 ejemplos en verde, el bundle no tenía una
+sola referencia al archivo, y el recorrido reportó que la lista NO se refrescaba —
+la guarda `[LIVE]` cazó una feature que no funcionaba mientras catorce ejemplos
+decían que sí. La regla corta: **tocaste `app/javascript/` o agregaste utilidades
+de Tailwind → `make yarn-build` ANTES de `make screens`.** Si no, el recorrido
+valida una app que no es la que escribiste, y lo hace en verde.
+
+Dos cosas más de esa corrida, para leer bien su salida. La línea final dice «N
+errores de página» pero imprime el contador GLOBAL de fallas
+(`capture_screens.js:3125`), así que una guarda que falla aparece ahí aunque no
+haya ningún error de JS ni respuesta >= 400: no busques un error de página que no
+existe. Y una guarda nueva **se prueba contra un baseline que funciona**: la
+primera mutación de `[LIVE]` corrió sobre el bundle viejo, donde el estado sano y
+el mutado daban el MISMO `{"n":0}`, así que no probó nada — una mutación sólo
+discrimina si la corrida limpia pasa. También falla si un `.badge` o un `.alert` mide menos de
 4,5:1 de contraste en claro o en oscuro (`[CONTRASTE]`, en cada pantalla y en
 el muestrario), si un punto de estado del drawer mide menos de 3:1 —el piso de
 WCAG 1.4.11 para lo que no es texto— (`[PUNTOS]`, en los dos temas), si el chip
@@ -108,12 +129,18 @@ error de maquetado. O si un `card-body` no tiene el relleno que fija la hoja
 la regla `.card` le devuelve sus 24px por default sin dejar rastro en el DOM;
 los `empty-state` se exceptúan por selector, porque ahí los 44px/20px los
 declara la hoja.
-**Dos de las guardas cuentan cuánto midieron y fallan si midieron de menos**
-—en cuántas pantallas `[RITMO]` encontró dos tarjetas que comparar, y cuántos
-`card-body` vio `[RELLENO]` en toda la corrida—, porque una guarda que mide
+**Cinco de las guardas cuentan cuánto midieron y fallan si midieron de menos**
+—en cuántas pantallas `[RITMO]` encontró dos tarjetas que comparar, cuántos
+`card-body` vio `[RELLENO]`, cuántos chips y avisos midió `[PASTILLA]`, cuántos
+nombres de criterio `[CRITERIO]` y en cuántas pantallas vio `[LIVE]` refrescarse
+sola la mesa de llegada—, porque una guarda que mide
 cero da verde y es indistinguible de una que funciona: es el mismo motivo por
 el que `[MONO]` tiene autotest y por el que el muestrario falla si mide menos
-muestras de las que declara. La corrida imprime los dos números al terminar.
+muestras de las que declara. La corrida imprime los cinco números al terminar.
+Falla si la mesa de llegada de un taller con el check-in abierto no se
+refresca sola en el tiempo que declara su intervalo (`[LIVE]`): el frame, el
+temporizador y el endpoint pueden estar cada uno en verde y la lista quedarse
+quieta, y sólo un navegador corriendo lo ve.
 Falla también si aparece monoespaciada donde no hay código
 ni un identificador (`[MONO]`): el texto propio de un elemento mono tiene que
 ser un identificador pelado —«v3», «reduccion_merma»—, y «veredicto por idea» o
