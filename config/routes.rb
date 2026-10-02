@@ -111,6 +111,10 @@ Rails.application.routes.draw do
       post :enable_checkin
       post :disable_checkin
       post :rotate_checkin_token
+      # La mesa de llegada sola, para recargarla sin tocar el resto de la
+      # pantalla. Es de LECTURA: por eso es GET y por eso no hay `to:` —mapea a
+      # `workshops#arrival`, que sí existe—.
+      get :arrival
     end
     resources :workshop_groups, only: %i[create destroy], path: "mesas" do
       post :assign, on: :collection

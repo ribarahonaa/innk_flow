@@ -2,12 +2,25 @@
 
 class WorkshopsController < ApplicationController
   before_action :set_workshop, only: %i[show update destroy open close remove_challenge
-                                          enable_checkin disable_checkin rotate_checkin_token]
+                                          enable_checkin disable_checkin rotate_checkin_token arrival]
 
   def index
     # Postgres pone NULL primero en DESC: sin `nulls_last` los talleres sin
     # fecha quedaban arriba de los programados.
     @workshops = policy_scope(Workshop).order(Workshop.arel_table[:scheduled_at].desc.nulls_last, created_at: :desc)
+  end
+
+  # La mesa de llegada sola, en el mismo frame que dibuja la pantalla completa.
+  #
+  # Misma puerta que el resto del armado y no una nueva: `update?` es el
+  # predicado detrás del que `workshops/show` esconde el bloque entero
+  # (`can_assemble`). Si esto usara su propio criterio habría dos puertas para lo
+  # mismo, y el día que una cambie la otra miente.
+  def arrival
+    authorize @workshop, :update?
+    @group = @workshop.workshop_groups.find_by(arrival: true)
+    render partial: "workshops/llegada_frame",
+           locals: { workshop: @workshop, group: @group, can_edit: !@workshop.closed? }
   end
 
   def new
