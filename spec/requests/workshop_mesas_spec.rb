@@ -258,4 +258,40 @@ RSpec.describe "armar las mesas", type: :request do
       expect(as_company(company) { WorkshopGroup.where(workshop_id: individual.id).count }).to eq(0)
     end
   end
+
+  describe "el frame de la mesa de llegada" do
+    it "envuelve la llegada y deja las otras mesas sin frame" do
+      taller = as_company(company) { create(:workshop, status: "open") }
+      otra_persona = member("otra@test.dev", :participant)
+      as_company(company) do
+        llegada = create(:workshop_group, :arrival, workshop: taller)
+        WorkshopGroupMember.create!(workshop_group: llegada, user_id: paula.id)
+        normal = create(:workshop_group, workshop: taller, name: "Mesa A")
+        WorkshopGroupMember.create!(workshop_group: normal, user_id: otra_persona.id)
+      end
+      sign_in(admin, company: company)
+
+      get workshop_path(taller)
+
+      expect(response).to have_http_status(:ok)
+      # El id tiene que ser exactamente éste: el endpoint de la Tarea 2 devuelve
+      # el mismo, y si no coinciden Turbo no reemplaza nada y la pantalla se
+      # queda quieta SIN un solo error.
+      expect(response.body).to include('id="llegada"')
+      # Las dos mesas se siguen dibujando con su gente: el frame no se comió nada.
+      expect(response.body).to include(paula.name)
+      expect(response.body).to include(otra_persona.name)
+      expect(response.body).to include("Mesa A")
+    end
+
+    it "dibuja el frame aunque no haya mesa de llegada, y dice que no llegó nadie" do
+      taller = as_company(company) { create(:workshop, status: "open") }
+      sign_in(admin, company: company)
+
+      get workshop_path(taller)
+
+      expect(response.body).to include('id="llegada"')
+      expect(response.body).to include("Todavía no llegó nadie")
+    end
+  end
 end

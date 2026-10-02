@@ -56,48 +56,13 @@
             -# `%div` envolvente, mismo arreglo que pide CLAUDE.md para el
             -# `alert` de DaisyUI que también reparte por columnas.
             %div
-              .assignment-row
-                %span
-                  = group.name
-                  %span.muted= " · #{Flow::Texto.contar(group.workshop_group_members.size, 'persona')}"
-                -# La llegada no se ofrece: es la sala de espera y se va sola
-                -# cuando el reparto la vacía (`WorkshopGroupsController#destroy`
-                -# la rechazaría igual).
-                - if can_edit && !group.arrival?
-                  .assignment-row__actions
-                    -# El aviso dice a dónde va la gente. Las propuestas no
-                    -# entran: con alguna, el controller rechaza el borrado, y
-                    -# prometer que se borran sería un aviso falso. En modo
-                    -# individual no hay mesa de llegada y se saca a la
-                    -# persona, así que ahí el aviso dice eso.
-                    - aviso = workshop.individual? ? "¿Eliminar esta mesa? Se saca a quien esté en ella." : "¿Eliminar esta mesa? Quien esté en ella pasa a la mesa de llegada, con su asistencia como estaba, hasta el próximo reparto."
-                    = button_to "Eliminar mesa", workshop_workshop_group_path(workshop, group), method: :delete,
-                                class: "btn btn-ghost btn-sm",
-                                form: { data: { turbo_confirm: aviso } }
-
-              - if group.workshop_group_members.any?
-                %ul.field-list
-                  -# Los ASIENTOS y no `group.members`: `attended` vive en el
-                  -# asiento, y `members` es un `has_many through` que devuelve
-                  -# los `User`.
-                  - group.workshop_group_members.each do |seat|
-                    %li.field-list__item
-                      %span
-                        = seat.user.name
-                        - unless seat.attended
-                          %span.muted= " · ausente"
-                      - if can_edit
-                        .assignment-row__actions
-                          -# Hermanos del form de convocar y NO adentro: un
-                          -# `button_to` es un `<form>`, y uno dentro de otro es
-                          -# HTML inválido que el navegador aplana sin dejar
-                          -# rastro en el DOM.
-                          = button_to seat.attended ? "Marcar ausente" : "Marcar presente",
-                                      attendance_workshop_path(workshop), method: :patch,
-                                      params: { user_id: seat.user_id, attended: !seat.attended },
-                                      class: "btn btn-ghost btn-sm"
-                          = button_to "Sacar", dismiss_workshop_path(workshop), method: :delete,
-                                      params: { user_id: seat.user_id }, class: "btn btn-ghost btn-sm"
+              -# Sólo la llegada va envuelta en un frame: es lo único que cambia
+              -# solo. El `select` de convocar queda AFUERA a propósito — ahí
+              -# está el estado que no se puede perder si la región se repinta.
+              - if group.arrival?
+                = render "workshops/llegada_frame", workshop: workshop, group: group, can_edit: can_edit, src: nil
+              - else
+                = render "workshops/mesa_cuerpo", workshop: workshop, group: group, can_edit: can_edit
 
               - if workshop.mode == "group" && convocable.any?
                 -# El `id:` explícito evita ids duplicados: cada mesa repite
@@ -108,6 +73,11 @@
                   = select_tag :user_id, options_from_collection_for_select(convocable, :id, :name),
                                include_blank: "Sumar a esta mesa…", id: "convocar_#{group.id}", required: true
                   = submit_tag "Convocar", class: "btn btn-ghost btn-sm"
+
+    -# Sin mesa de llegada el frame se dibuja igual, vacío: un destino que a
+    -# veces no existe no es un destino.
+    - if groups.none?(&:arrival?)
+      = render "workshops/llegada_frame", workshop: workshop, group: nil, can_edit: can_edit, src: nil
 
     - if workshop.closed?
       %p.field-hint Este taller ya cerró: las mesas quedan como están.
