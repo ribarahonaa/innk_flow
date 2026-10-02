@@ -21,7 +21,7 @@ RSpec.describe "la asistencia a mano", type: :request do
   let!(:taller) { as_company(company) { create(:workshop, status: "open") } }
   let!(:asiento) do
     as_company(company) do
-      mesa = create(:workshop_group, workshop: taller)
+      mesa = create(:workshop_group, workshop: taller, name: "Mesa de Paula")
       WorkshopGroupMember.create!(workshop_group: mesa, user_id: paula.id, attended: true)
     end
   end
@@ -64,6 +64,20 @@ RSpec.describe "la asistencia a mano", type: :request do
     expect(as_company(company) { asiento.reload.attended }).to be(true)
   end
 
+  # Sólo acepta los dos valores que manda la pantalla: sin `attended` la
+  # columna NOT NULL daba un 500, y cualquier otro valor se leía como presente.
+  [{}, { attended: "" }, { attended: "banana" }].each do |extra|
+    it "rechaza #{extra.inspect} sin tocar nada ni dar 500" do
+      as_company(company) { asiento.update!(attended: false) }
+      sign_in(admin, company: company)
+
+      patch attendance_workshop_path(taller), params: { user_id: paula.id }.merge(extra)
+
+      expect(flash[:alert]).to eq("La asistencia tiene que ser presente o ausente.")
+      expect(as_company(company) { asiento.reload.attended }).to be(false)
+    end
+  end
+
   it "da 404 por alguien que no está sentado" do
     pedro = member("pedro@test.dev", :participant)
     sign_in(admin, company: company)
@@ -89,6 +103,13 @@ RSpec.describe "la asistencia a mano", type: :request do
       get workshop_path(taller)
 
       expect(response).to have_http_status(:ok)
+      # Quien participa no ve la lista de mesas entera: vive detrás del
+      # `can_assemble` de `show`, no de `can_edit`. El control positivo es que
+      # la pantalla sí se rinde para esa persona (el nombre del taller sale del
+      # encabezado, que se sirve siempre), y el contraste, el ejemplo del admin
+      # de arriba, que sí ve el botón con este mismo taller.
+      expect(response.body).to include(taller.name)
+      expect(response.body).not_to include("Mesa de Paula")
       expect(response.body).not_to include(attendance_workshop_path(taller))
     end
 
