@@ -354,6 +354,41 @@ RSpec.describe "check-in por link", type: :request do
     end
   end
 
+  # La cadena de DOS redirects, que es la que recorre quien escanea de verdad.
+  # Los otros ejemplos de este archivo NO la recorren: sus talleres no tienen
+  # desafíos vinculados a propósito, así que el redirect de `workshops#show`
+  # nunca dispara y su `follow_redirect!` llega a la pantalla del taller. Acá el
+  # taller tiene UN solo desafío trabajable y quien escanea no administra nada,
+  # así que el taller es puro pasaje y manda a la sala.
+  #
+  # Lo que fija: que el acuse del ÚNICO camino público que escribe datos del
+  # dominio llegue a la pantalla que se sirve, dos redirects después. Hoy llega
+  # sin el `flash.keep` de `workshops#show` —ese paso no toca `flash`, así que
+  # Rails no marca nada para descartar—, o sea por accidente; medido. Lo que
+  # este ejemplo caza es la pérdida: cualquier lectura del flash en el salto del
+  # medio sin volver a conservarlo deja la sala muda, y es lo que `flash.keep`
+  # vuelve imposible.
+  describe "con una sola sala trabajable" do
+    it "el aviso del escaneo sobrevive los dos redirects y llega a la sala" do
+      link = as_company(company) do
+        challenge = create(:challenge)
+        step = create(:challenge_step, challenge: challenge, kind: "ideation", status: "active")
+        create(:workshop_challenge, workshop: taller, challenge: challenge, challenge_step: step)
+      end
+
+      post url, params: { email: "avisada@taller.example", name: "Avisada", password: "Test1234" }
+
+      expect(response).to redirect_to(workshop_path(taller))
+      follow_redirect!
+      # El salto del medio: el taller no tiene nada más que ofrecerle.
+      expect(response).to redirect_to(workshop_sala_path(taller, link))
+      follow_redirect!
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("Listo: estás en el taller.")
+    end
+  end
+
   # Review Focus 3: el taller se cierra entre el GET y el POST. Tiene que
   # explicar, no reventar ni redirigir a un taller que todavía no puede ver.
   describe "cuando el taller se cierra entre el GET y el POST" do

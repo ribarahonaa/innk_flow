@@ -58,6 +58,24 @@ class WorkshopsController < ApplicationController
     # se redirige. La condición vive en `Rooms` porque el breadcrumb de la sala
     # pregunta lo mismo: si divergieran, volver al taller sería un bucle.
     if @rooms.redirects?(can_assemble: policy(@workshop).update?)
+      # Esta pantalla es puro PASAJE en esta rama, y es el salto del MEDIO de
+      # la única cadena de dos redirects de la app: `POST /checkin/:token`
+      # redirige acá con su aviso y de acá se sale a la sala.
+      #
+      # Hoy el aviso llega a la sala SIN esta línea, y conviene saber por qué:
+      # Rails marca para descartar las claves del flash que se CARGARON en el
+      # request, y esta rama no toca `flash` —`redirect_to` sin `notice:` ni
+      # `alert:` no lo instancia, y acá no se renderiza ninguna vista—, así que
+      # `commit_flash` deja la cookie como estaba. Es decir: sobrevive por
+      # accidente. Un `flash.now` agregado mañana en este `show`, o cualquier
+      # lectura del flash antes del redirect, se llevaría puesto el único acuse
+      # del único camino público que escribe datos del dominio, y lo haría en
+      # silencio. `flash.keep` lo vuelve explícito.
+      #
+      # Por lo mismo, NINGÚN ejemplo puede distinguir esta línea hoy: lo que el
+      # spec del check-in fija es que el aviso recorre la cadena entera, que no
+      # estaba cubierto por nada.
+      flash.keep
       return redirect_to workshop_sala_path(@workshop, @rooms.only_room)
     end
 

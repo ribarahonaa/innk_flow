@@ -3113,6 +3113,15 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
         failures++;
         console.error('[CHECKIN] entró, pero la sala no anuncia la espera de la mesa de llegada');
       }
+      // Y el acuse del escaneo, que es lo único que le confirma que funcionó.
+      // Es la ÚNICA cadena de dos redirects de la app —check-in → taller →
+      // sala— y el flash tiene que sobrevivir los dos: la pantalla del medio
+      // lo conserva a mano (`flash.keep` en `workshops#show`). Acá es donde se
+      // mide de verdad: lo que ve quien escanea el QR.
+      if (!(await page.locator('.alert', { hasText: 'Listo: estás en el taller' }).count())) {
+        failures++;
+        console.error('[CHECKIN] entró a la sala sin el aviso del escaneo: se perdió en la cadena de redirects');
+      }
       await capturar(page, '30b-taller-llegada');
     }
   }
