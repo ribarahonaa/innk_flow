@@ -384,6 +384,30 @@ RSpec.describe "talleres", type: :request do
       expect(response.body).to include(workshop_sala_path(escena[:workshop], escena[:links].first))
     end
 
+    # El selector mostraba el brief de TODOS los desafíos del taller, y a un
+    # gestor `work?` le abre el taller por administrar ALGUNO: el de los otros
+    # es contenido de un desafío cuya ficha le da 404. El nombre sí: es lo que
+    # dice qué salas hay.
+    it "no muestra el brief del desafío que el gestor no alcanza, y sí el nombre" do
+      escena = taller_con(%w[ideation ideation])
+      gestor = member("gestor-selector@test.dev", :gestor)
+      suyo, ajeno = as_company(company) do
+        links = escena[:links]
+        ChallengeGestor.create!(challenge: links.first.challenge, user: gestor)
+        links.last.challenge.update!(brief: "El brief del desafío que no administra.")
+        [links.first.challenge, links.last.challenge]
+      end
+      sign_in(gestor, company: company)
+      get workshop_path(escena[:workshop])
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(ajeno.name)
+      expect(response.body).not_to include("El brief del desafío que no administra.")
+      # Control positivo: el brief del suyo SÍ está, así que el ejemplo no pasa
+      # por haberse quedado sin briefs.
+      expect(response.body).to include(suyo.brief)
+    end
+
     it "el vínculo no trabajable se lista con su motivo y sin «Entrar»" do
       escena = taller_con(%w[ideation])
       as_company(company) do

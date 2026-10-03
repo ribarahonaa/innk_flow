@@ -14,10 +14,16 @@
     - else
       %ul.field-list
         - rooms.links.each do |link|
+          -# La misma pregunta que hace la referencia de la sala, y por lo
+          -# mismo: a un gestor `work?` le abre el taller por administrar
+          -# ALGUNO de sus desafíos, y el brief de uno que no alcanza es
+          -# contenido de un desafío que `GET /challenges/:id` le niega con un
+          -# 404. El nombre se muestra igual: es lo que dice qué salas hay.
+          - alcanza = policy(link.challenge).show?
           %li.field-list__item
             %div
               %strong= link.challenge.name
-              - if link.challenge.brief.present?
+              - if alcanza && link.challenge.brief.present?
                 %p.muted= truncate(link.challenge.brief, length: 180)
               - case link.room_state
               - when :unopened
@@ -26,6 +32,11 @@
                 -# sin nota: el botón ya dice qué hacer
               - else
                 %p.field-hint= link.closed_reason.presence || "Esta sala ya no admite trabajo: el desafío avanzó de fase."
-            - if WorkshopChallenge::WORKABLE_KINDS.include?(link.room_state.to_s)
+            -# `rooms.workable` y no una segunda copia de `WORKABLE_KINDS`: es
+            -# la misma pregunta que decide el redirect y el breadcrumb, sobre
+            -# los MISMOS objetos de `rooms.links`. Escrita de nuevo acá, el día
+            -# que `workable` sume una condición el botón seguiría ofreciendo
+            -# entrar a una sala que `only_room` ya no cuenta.
+            - if rooms.workable.include?(link)
               .assignment-row__actions
                 = link_to "Entrar", workshop_sala_path(workshop, link), class: "btn btn-ghost btn-sm"

@@ -196,11 +196,29 @@ RSpec.describe "la sala del taller", type: :request do
       expect(response.body).not_to include(carla.name)
     end
 
+    # El control POSITIVO de la guarda de al lado. Sin esto se puede borrar el
+    # `if policy(link.challenge).show?` de `_referencia`, dejar siempre la rama
+    # con link, y la suite entera sigue en verde: el único ejemplo que miraba
+    # ese bloque era el negativo de abajo.
+    it "linkea el desafío a quien sí lo alcanza" do
+      sign_in(ana, company: company)
+      get workshop_sala_path(scene[:workshop], scene[:link])
+
+      expect(response).to have_http_status(:ok)
+      as_company(company) { expect(response.body).to include(challenge_path(scene[:challenge])) }
+    end
+
     # `work?` abre la sala de un gestor por administrar ALGUNO de los desafíos
     # del taller; el link a un desafío ajeno daría 404.
-    it "no linkea un desafío que el gestor no alcanza" do
+    #
+    # Y el link no era lo único: el `brief` COMPLETO y el módulo contra el que
+    # corre la sala se servían abajo, sin guarda. Las dos cosas no pueden ser
+    # correctas a la vez, así que las tres preguntan lo mismo. El NOMBRE se
+    # sigue mostrando: ya se mostraba antes de la sala.
+    it "no linkea ni describe un desafío que el gestor no alcanza" do
       gestor = member("gestor-sala@test.dev", :gestor)
       ajeno, link_ajeno = as_company(company) do
+        scene[:step].update!(name: "Postulación de la ronda")
         propio = create(:challenge)
         ChallengeGestor.create!(challenge: propio, user: gestor)
         create(:workshop_challenge, workshop: scene[:workshop], challenge: propio,
@@ -213,6 +231,8 @@ RSpec.describe "la sala del taller", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include(ajeno.name)
       as_company(company) { expect(response.body).not_to include(challenge_path(ajeno)) }
+      expect(response.body).not_to include("Bajar la merma de bodega sin tocar el stock de seguridad.")
+      expect(response.body).not_to include("Postulación de la ronda")
     end
 
     # En modo individual la mesa es de una persona y NO hay mesa de llegada

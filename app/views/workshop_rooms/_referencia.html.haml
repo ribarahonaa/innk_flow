@@ -1,21 +1,30 @@
 -# Lo que se consulta y no se edita. Orden fijo: primero el desafío, después
 -# quién participa — el mismo orden que ya fijaron las pantallas de módulo.
+-#
+-# UNA variable calculada una vez y no el predicado repetido en cada bloque: es
+-# la forma que ya fijó `steps/_criterios_editor`, y al preguntar todos lo
+-# mismo no pueden divergir.
+-#
+-# Qué protege: `work?` abre la sala de CUALQUIER vínculo del taller, y a un
+-# gestor se la abre por `administers_any?` —alcanza con que administre ALGUNO
+-# de los desafíos—, lo que no implica llegar a ÉSTE. `ChallengesController`
+-# busca por `policy_scope`, así que `GET /challenges/:id` le da 404: el link
+-# sería un control que no responde, y el brief y el módulo, contenido del
+-# desafío que no alcanza. El NOMBRE se muestra igual: ya se mostraba antes de
+-# la sala —la pantalla del taller listaba uno por vínculo— y es lo que dice de
+-# qué sala es ésta.
+- alcanza = policy(link.challenge).show?
 .card
   .card-body
     .section-head
       %h2.section-title El desafío
     %ul.field-list
       %li.field-list__item
-        -# Se linkea sólo si el desafío se alcanza: `work?` abre la sala de un
-        -# gestor por `administers_any?` —alcanza con que administre ALGUNO de
-        -# los desafíos del taller—, y eso no implica llegar a éste.
-        -# `ChallengesController` busca por `policy_scope`, así que el link le
-        -# daría 404: un control que no responde.
-        - if policy(link.challenge).show?
+        - if alcanza
           %span= link_to link.challenge.name, challenge_path(link.challenge)
         - else
           %span= link.challenge.name
-      - if link.challenge_step
+      - if alcanza && link.challenge_step
         %li.field-list__item
           %span= link.challenge_step.name
           -# `display_kind` y no `t(...)` a mano: la clave es `flow.kinds`, no
@@ -24,7 +33,7 @@
           -# lugar que el día que la clave se mueva muestra el kind en inglés
           -# por el fallback `humanize`.
           %span.muted= " · #{link.challenge_step.display_kind}"
-    - if link.challenge.brief.present?
+    - if alcanza && link.challenge.brief.present?
       %p.muted= link.challenge.brief
 
 = render "workshops/my_group", workshop: workshop, group: group
