@@ -204,6 +204,10 @@ es:
       draft: "Borrador"
       open: "Abierto"
       closed: "Cerrado"
+    workshop_proposal_statuses:
+      pending: "Pendiente"
+      accepted: "Aceptada"
+      rejected: "Descartada"
     workshop_modes:
       individual: "Individual"
       group: "Por mesas"

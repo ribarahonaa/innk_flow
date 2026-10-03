@@ -104,7 +104,7 @@ RSpec.describe "la mesa de llegada no trabaja", type: :request do
       # Sin la guarda, `workable_ideas` ya es `none` y el `find_by!` da 404:
       # «no crea nada» también se cumple. Lo que distingue es el redirect con el
       # aviso propio del controller.
-      expect(response).to redirect_to(workshop_path(taller))
+      expect(response).to redirect_to(workshop_sala_path(taller, link))
       expect(flash[:alert]).to include("todavía no se armó")
     end
   end

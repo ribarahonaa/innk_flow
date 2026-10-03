@@ -28,7 +28,8 @@ class WorkshopProposalsController < ApplicationController
       payload: payload || {}, status: "pending"
     )
 
-    redirect_to workshop_path(@workshop), notice: "Propuesta enviada a quien es autor."
+    redirect_to workshop_sala_path(@workshop, @link, idea: idea.id),
+                notice: "Propuesta enviada a quien es autor."
   end
 
   private
@@ -47,24 +48,26 @@ class WorkshopProposalsController < ApplicationController
     raw.respond_to?(:permit!) ? raw.permit!.to_h.slice(*keys) : nil
   end
 
+  # A la sala y no al taller: es la pantalla que muestra cada uno de estos
+  # mensajes, y volver al taller perdía la idea que la mesa estaba trabajando.
   def reject_room
-    redirect_to workshop_path(@workshop),
+    redirect_to workshop_sala_path(@workshop, @link),
                 alert: "Esta sala ya no admite trabajo: el desafío avanzó de fase."
   end
 
   def reject_payload
-    redirect_to workshop_path(@workshop), alert: "La propuesta llegó mal formada: probá de nuevo desde el formulario."
+    redirect_to workshop_sala_path(@workshop, @link), alert: "La propuesta llegó mal formada: probá de nuevo desde el formulario."
   end
 
   def reject_without_group
-    redirect_to workshop_path(@workshop), alert: "Sólo se propone desde una mesa: no estás en ninguna de este taller."
+    redirect_to workshop_sala_path(@workshop, @link), alert: "Sólo se propone desde una mesa: no estás en ninguna de este taller."
   end
 
   # La mesa de llegada no trabaja. El rechazo es explícito y con su mensaje: un
   # 404 pelado en una sala que debería decir «tu mesa todavía no se armó» es el
   # control que no responde.
   def reject_arrival
-    redirect_to workshop_path(@workshop),
+    redirect_to workshop_sala_path(@workshop, @link),
                 alert: "Tu mesa todavía no se armó: esperá el reparto para trabajar."
   end
 end

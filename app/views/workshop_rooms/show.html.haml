@@ -21,7 +21,9 @@
   = render "workshop_rooms/ideation", workshop: @workshop, link: @link, group: @group,
                                       mesa_ideas: @mesa_ideas
 - when :evolution
-  = render "workshops/sala_evolucion", workshop: @workshop, link: @link, group: @group
+  = render "workshop_rooms/evolution", workshop: @workshop, link: @link, group: @group,
+                                       ideas: @workable_ideas, selected: @selected_idea,
+                                       proposals: @mesa_proposals
 - when :unopened
   .card
     .card-body

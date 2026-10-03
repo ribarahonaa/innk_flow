@@ -25,26 +25,63 @@ class WorkshopRoomsController < ApplicationController
     @group = @workshop.group_of(current_user)
     @rooms = Flow::Workshops::Rooms.new(@workshop)
 
-    # Las ideas de la mesa en este desafío. `policy_scope(Idea)` y NO
-    # `workable_ideas`: ese método filtra con `Idea.alive` (o sea `active`) y no
-    # trae borradores, y su comentario documenta que exponer a la mesa el
-    # borrador que un integrante creó AFUERA del taller fue una fuga ya
-    # arreglada. Con `policy_scope` la fuga es imposible por construcción.
-    #
-    # Y el filtro por integrantes va ADENTRO del scope, no en vez de él: para
-    # quien administra, `IdeaPolicy::Scope` devuelve `all`, así que sin esto el
-    # bloque listaba las ideas de las OTRAS mesas bajo un título que dice que
-    # son de ésta. En evolución llega en la Task 5.
-    #
-    # Va en el CONTROLLER a propósito: el lint sólo mira controllers.
+    case @link.room_state
+    when :ideation then load_ideation
+    when :evolution then load_evolution
+    end
+  end
+
+  private
+
+  # Las ideas de la mesa en este desafío. `policy_scope(Idea)` y NO
+  # `workable_ideas`: ese método filtra con `Idea.alive` (o sea `active`) y no
+  # trae borradores, y su comentario documenta que exponer a la mesa el
+  # borrador que un integrante creó AFUERA del taller fue una fuga ya
+  # arreglada. Con `policy_scope` la fuga es imposible por construcción.
+  #
+  # Y el filtro por integrantes va ADENTRO del scope, no en vez de él: para
+  # quien administra, `IdeaPolicy::Scope` devuelve `all`, así que sin esto el
+  # bloque listaba las ideas de las OTRAS mesas bajo un título que dice que
+  # son de ésta.
+  #
+  # Va en el CONTROLLER a propósito: el lint sólo mira controllers.
+  def load_ideation
     @mesa_ideas =
-      if @link.room_state == :ideation && @group && !@group.arrival?
+      if @group && !@group.arrival?
         member_ids = @group.workshop_group_members.select(:user_id)
         visibles = policy_scope(Idea).where(challenge_id: @link.challenge_id, status: %w[draft active])
         visibles.where(author_id: member_ids)
                 .or(visibles.where(id: IdeaContributor.where(user_id: member_ids).select(:idea_id)))
                 .includes(:author, :current_version, idea_contributors: :user)
                 .order(created_at: :desc).to_a
+      else
+        []
+      end
+  end
+
+  # Acá SÍ es `workable_ideas`: es el método que existe para esto —la unión
+  # sobre los integrantes de la mesa— y ya excluye la mesa de llegada, lo
+  # eliminado y lo retirado.
+  def load_evolution
+    @workable_ideas =
+      if @group
+        @group.workable_ideas(@link.challenge)
+              .includes(:author, :current_version, idea_contributors: :user).to_a
+      else
+        []
+      end
+
+    # Fuera del conjunto trabajable es `nil`, igual que un id inexistente: no
+    # confirma que exista. Se busca en el array ya cargado y no con otra
+    # consulta. Con una sola idea se preselecciona: es un DEFAULT, no un
+    # redirect, así que no hay bucle posible.
+    @selected_idea = @workable_ideas.detect { |idea| idea.id == params[:idea] }
+    @selected_idea ||= @workable_ideas.first if @workable_ideas.one?
+
+    @mesa_proposals =
+      if @group && @selected_idea
+        @group.workshop_proposals.where(idea_id: @selected_idea.id)
+              .includes(:challenge_step).order(created_at: :desc).to_a
       else
         []
       end
