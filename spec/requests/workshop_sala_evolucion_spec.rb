@@ -259,18 +259,32 @@ RSpec.describe "sala del taller: evolución", type: :request do
       expect(response.body).to include("Ronda vieja")
     end
 
-    it "no lista la propuesta de otra mesa" do
-      otra = as_company(company) do
+    # Dos ejemplos y no uno: la vista no dibuja el payload, así que se mide lo
+    # que SÍ dibuja —el bloque y la etiqueta del chip—.
+    def propuesta_de_otra_mesa
+      as_company(company) do
         mesa = create(:workshop_group, workshop: scene[:workshop], name: "Mesa 9")
         WorkshopProposal.create!(workshop_group: mesa, idea: scene[:ana_idea],
                                  challenge_step: scene[:round], payload: { scene[:field].key => "De otra mesa" },
                                  status: "pending")
       end
+    end
+
+    it "si sólo otra mesa propuso, el bloque no aparece" do
+      propuesta_de_otra_mesa
       sign_in(beto, company: company)
       get workshop_sala_path(scene[:workshop], scene[:link], idea: scene[:ana_idea].id)
 
-      expect(response.body).not_to include("De otra mesa")
-      expect(otra).to be_pending
+      expect(response.body).not_to include("Lo que esta mesa propuso")
+    end
+
+    it "si las dos propusieron, lista una sola fila: la de esta mesa" do
+      propuesta_de_otra_mesa
+      sign_in(beto, company: company)
+      propose(scene[:ana_idea])
+      get workshop_sala_path(scene[:workshop], scene[:link], idea: scene[:ana_idea].id)
+
+      expect(response.body.scan(I18n.t("flow.workshop_proposal_statuses.pending")).size).to eq(1)
     end
   end
 

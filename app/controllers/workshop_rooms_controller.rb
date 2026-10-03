@@ -66,7 +66,8 @@ class WorkshopRoomsController < ApplicationController
     @workable_ideas =
       if @group
         @group.workable_ideas(@link.challenge)
-              .includes(:author, :current_version, idea_contributors: :user).to_a
+              .includes(:author, :current_version, idea_contributors: :user)
+              .order(created_at: :desc).to_a
       else
         []
       end
