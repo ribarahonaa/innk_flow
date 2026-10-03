@@ -6,7 +6,15 @@
       %h2.section-title El desafío
     %ul.field-list
       %li.field-list__item
-        %span= link_to link.challenge.name, challenge_path(link.challenge)
+        -# Se linkea sólo si el desafío se alcanza: `work?` abre la sala de un
+        -# gestor por `administers_any?` —alcanza con que administre ALGUNO de
+        -# los desafíos del taller—, y eso no implica llegar a éste.
+        -# `ChallengesController` busca por `policy_scope`, así que el link le
+        -# daría 404: un control que no responde.
+        - if policy(link.challenge).show?
+          %span= link_to link.challenge.name, challenge_path(link.challenge)
+        - else
+          %span= link.challenge.name
       - if link.challenge_step
         %li.field-list__item
           %span= link.challenge_step.name

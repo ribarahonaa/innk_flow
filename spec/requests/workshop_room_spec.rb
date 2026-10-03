@@ -165,14 +165,54 @@ RSpec.describe "la sala del taller", type: :request do
       expect(response.body).to include("ausente")
     end
 
-    # Marcar presente y sacar gente son de quien administra, y viven en el
-    # bloque de armado. En la referencia la mesa se LEE.
-    it "no ofrece controles de asistencia" do
-      sign_in(ana, company: company)
+    # Se mira como admin, que SÍ ve esos botones en `workshops#show`: así la
+    # ausencia queda anclada a una pantalla que dibujó el panel para alguien
+    # con el permiso. Marcar presente y sacar gente viven en el bloque de armado.
+    it "no ofrece controles de asistencia ni a quien administra" do
+      as_company(company) { create(:workshop_group_member, workshop_group: scene[:group], user: admin) }
+      sign_in(admin, company: company)
       get workshop_sala_path(scene[:workshop], scene[:link])
 
+      expect(response.body).to include("(vos)")
       expect(response.body).not_to include(attendance_workshop_path(scene[:workshop]))
       expect(response.body).not_to include(dismiss_workshop_path(scene[:workshop]))
+    end
+
+    # Sin esta rama la llegada caería en el `else` y el panel listaría a toda la
+    # sala de espera, gente que nadie convocó a esa mesa.
+    it "en la mesa de llegada no lista a los demás que esperan" do
+      espera = as_company(company) do
+        w = create(:workshop, status: "open")
+        g = create(:workshop_group, :arrival, workshop: w)
+        create(:workshop_group_member, workshop_group: g, user: ana)
+        create(:workshop_group_member, workshop_group: g, user: carla)
+        [w, create(:workshop_challenge, workshop: w, challenge: scene[:challenge], challenge_step: scene[:step])]
+      end
+      sign_in(ana, company: company)
+      get workshop_sala_path(espera[0], espera[1])
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("Estás en la mesa de llegada")
+      expect(response.body).not_to include(carla.name)
+    end
+
+    # `work?` abre la sala de un gestor por administrar ALGUNO de los desafíos
+    # del taller; el link a un desafío ajeno daría 404.
+    it "no linkea un desafío que el gestor no alcanza" do
+      gestor = member("gestor-sala@test.dev", :gestor)
+      ajeno, link_ajeno = as_company(company) do
+        propio = create(:challenge)
+        ChallengeGestor.create!(challenge: propio, user: gestor)
+        create(:workshop_challenge, workshop: scene[:workshop], challenge: propio,
+                                    challenge_step: create(:challenge_step, challenge: propio, kind: "ideation", status: "active"))
+        [scene[:challenge], scene[:link]]
+      end
+      sign_in(gestor, company: company)
+      get workshop_sala_path(scene[:workshop], link_ajeno)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(ajeno.name)
+      as_company(company) { expect(response.body).not_to include(challenge_path(ajeno)) }
     end
 
     # En modo individual la mesa es de una persona y NO hay mesa de llegada

@@ -17,7 +17,11 @@
       -# Los ASIENTOS y no `group.members`: `attended` vive en el asiento, y
       -# `members` es un `has_many through` que devuelve los `User`.
       %ul.field-list
-        - group.workshop_group_members.each do |seat|
+        -# `includes(:user)` va ACÁ y no en `Workshop#group_of`: ese `find_by`
+        -# filtra por `workshop_group_members.user_id`, así que Rails pasaría a
+        -# `eager_load` y la asociación quedaría cargada con SÓLO el asiento de
+        -# quien mira: el panel listaría una persona en vez de la mesa.
+        - group.workshop_group_members.includes(:user).each do |seat|
           %li.field-list__item
             %span
               = seat.user.name
