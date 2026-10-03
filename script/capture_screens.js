@@ -2703,6 +2703,31 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     return true;
   };
 
+  // Entrar a la sala de un desafío POR LINK, desde el selector del taller.
+  // Nunca `goto`: Turbo no dispara `DOMContentLoaded` al navegar por link, y un
+  // `goto` monta la pantalla igual y esconde el bug.
+  //
+  // El `li` se busca por el NOMBRE del desafío y el link adentro: el bloque de
+  // armado lista los mismos nombres en sus propios `li.field-list__item`, así
+  // que el locator matchea dos y lo que desempata es tener un «Entrar», que es
+  // del selector y de nadie más.
+  const goToRoom = async (challengeName) => {
+    const entrar = page.locator('li.field-list__item', { hasText: challengeName })
+      .locator('a:has-text("Entrar")');
+    if (!(await entrar.count())) {
+      failures++;
+      console.error(`[TALLER] el selector del taller no ofrece entrar a «${challengeName}»`);
+      return false;
+    }
+    await Promise.all([
+      page.waitForURL(/\/workshops\/[^/]+\/salas\/[^/?]+/, { timeout: 15000 }),
+      entrar.first().click()
+    ]);
+    // Señal determinista de que la sala pintó: su propio título.
+    await page.waitForSelector(`h1.page-title:has-text("${challengeName}")`, { timeout: 10000 });
+    return true;
+  };
+
   // 24: el taller en borrador, con el bloque de armado. «Abrir taller» sólo
   // existe en este estado.
   if (await goToWorkshop('Taller de planificación (borrador)')) {
@@ -2734,27 +2759,54 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     await capturar(page, '24-taller-armado');
   }
 
-  // 25 y 28 son la MISMA pantalla —el taller de idear—, y cada captura exige
-  // lo suyo: si una sala dejara de renderizar, la otra seguiría pasando. 26 y
-  // 27 salen del taller de evolución, más abajo.
+  // 25a, 25 y 28 salen del taller de idear, y cada captura exige lo suyo: si
+  // una sala dejara de renderizar, las otras seguirían pasando. 26 y 27 salen
+  // del taller de evolución, más abajo.
   if (await goToWorkshop('Taller de mejora continua')) {
-    // 25: la sala de idear ofrece el formulario del módulo de ideación.
-    if (!(await page.locator('form[action$="/ideas"] input[value="Crear borrador"]').count())) {
-      failures++;
-      console.error('[TALLER] la sala de idear no ofrece «Crear borrador»');
-    }
-    if (!(await page.locator('p.muted', { hasText: 'El borrador se comparte con Paula Participante' }).count())) {
-      failures++;
-      console.error('[TALLER] la sala de idear no dice con quién se comparte el borrador');
-    }
-    await capturar(page, '25-taller-sala-idear');
+    // El bloque de armado lista los MISMOS nombres de desafío en sus propios
+    // `li.field-list__item`, y el motivo del vínculo cerrado también, así que
+    // las dos guardas de abajo se acotan a la tarjeta del selector. Sin eso, el
+    // día que el selector pierda el brief o el motivo, el armado los tendría
+    // igual y las dos darían verde midiendo la tarjeta de al lado.
+    const selector = page.locator('.card', {
+      has: page.locator('h2.section-title', { hasText: 'Salas' })
+    });
 
-    // 28: el desafío que avanzó de fase se ve cerrado, y DICE POR QUÉ. El
-    // motivo también aparece en la lista de armado, así que se acota a la
-    // tarjeta de la sala.
-    const closedRoom = page.locator('.card', {
-      has: page.locator('h2.section-title', { hasText: 'Ideas para el manual de seguridad' })
-    }).locator('p.muted');
+    // El selector: cada desafío con su brief y su «Entrar». Es la pantalla que
+    // antes apilaba un formulario por desafío sin decir de qué trataba ninguno.
+    const conBrief = await selector.locator('li.field-list__item p.muted').count();
+    if (!conBrief) {
+      failures++;
+      console.error('[TALLER] el selector del taller no muestra el brief de ningún desafío');
+    }
+    await capturar(page, '25a-taller-salas');
+
+    // 25: la sala de idear ofrece el formulario del módulo de ideación y dice
+    // con quién se comparte el borrador.
+    if (await goToRoom('Ideas para la sala de descanso')) {
+      if (!(await page.locator('form[action$="/ideas"] input[value="Crear borrador"]').count())) {
+        failures++;
+        console.error('[TALLER] la sala de idear no ofrece «Crear borrador»');
+      }
+      if (!(await page.locator('p.muted', { hasText: 'El borrador se comparte con Paula Participante' }).count())) {
+        failures++;
+        console.error('[TALLER] la sala de idear no dice con quién se comparte el borrador');
+      }
+      // La referencia: el brief y la mesa. Sin esto, la sala podría perder la
+      // columna entera y las capturas seguirían en verde.
+      if (!(await page.locator('.app-aside h2.section-title:has-text("Tu mesa")').count())) {
+        failures++;
+        console.error('[TALLER] la sala no dibuja «Tu mesa» en la referencia');
+      }
+      await capturar(page, '25-taller-sala-idear');
+      await goToWorkshop('Taller de mejora continua');
+    }
+
+    // 28: el desafío que avanzó de fase se ve cerrado, y DICE POR QUÉ. Vive en
+    // el selector, que lista los vínculos no trabajables con su motivo.
+    const closedRoom = selector.locator('li.field-list__item', {
+      hasText: 'Ideas para el manual de seguridad'
+    }).locator('p.field-hint');
     const closedReason = (await closedRoom.count()) ? await closedRoom.first().innerText() : '';
     if (!/El desafío está en Evaluación, y un taller sólo trabaja sobre idear o evolución/.test(closedReason)) {
       failures++;
@@ -2766,14 +2818,43 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   // El taller de evolución: 26 y 27 salen de acá, no del de idear. La mesa es
   // la suya —se llama igual y lleva a la misma gente a propósito—.
   if (await goToWorkshop('Taller de evolución')) {
-    // 26: la sala de evolución, un formulario por idea de la mesa (las dos de
-    // Paula; la de Pedro no entra: su autor no está en esta mesa).
-    const proposalForms = await page.locator('form[action$="/proposals"] input[value="Proponer"]').count();
-    if (proposalForms !== 2) {
-      failures++;
-      console.error(`[TALLER] la sala de evolución ofrece ${proposalForms} propuestas y se esperaban 2 (las ideas de la mesa)`);
+    if (await goToRoom('Ideas para la inducción de nuevos ingresos')) {
+      // 26: el selector de ideas de la mesa. Las dos de Paula; la de Pedro no,
+      // porque su autor no está en esta mesa.
+      const filas = await page.locator('li.field-list__item a[href*="?idea="]').count();
+      const elegidas = await page.locator('li.field-list__item strong').count();
+      if (filas + elegidas !== 2) {
+        failures++;
+        console.error(`[TALLER] el selector de la sala de evolución lista ${filas + elegidas} ideas y se esperaban 2`);
+      }
+      // Y la participación de cada uno, que es lo que explica por qué una idea
+      // ajena entra: alguien de la mesa colabora en ella.
+      if (!(await page.locator('.people-list__role:has-text("creó la idea")').count())) {
+        failures++;
+        console.error('[TALLER] el selector no dice quién creó cada idea');
+      }
+      await capturar(page, '26-taller-sala-evolucion');
+
+      // 26b: con una idea elegida, su contenido y UN formulario. Por link.
+      const primera = page.locator('li.field-list__item a[href*="?idea="]').first();
+      if (await primera.count()) {
+        await Promise.all([
+          page.waitForURL(/\?idea=/, { timeout: 15000 }),
+          primera.click()
+        ]);
+        await page.waitForSelector('h2.section-title:has-text("Contenido")', { timeout: 10000 });
+        const forms = await page.locator('form[action$="/proposals"] input[value="Proponer"]').count();
+        if (forms !== 1) {
+          failures++;
+          console.error(`[TALLER] con una idea elegida hay ${forms} formularios de propuesta y se esperaba 1`);
+        }
+        await capturar(page, '26b-taller-idea-elegida');
+      } else {
+        failures++;
+        console.error('[TALLER] ninguna idea del selector se puede elegir');
+      }
+      await goToWorkshop('Taller de evolución');
     }
-    await capturar(page, '26-taller-sala-evolucion');
 
     // 27: la propuesta de la mesa, en la ficha de la idea. Por link: taller →
     // desafío → «Ideas» → la idea. La ficha la ve quien administra, que no es
@@ -3006,23 +3087,29 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
     // Si el registro falla, el listener de `response` ya contó el 4xx, pero el
     // `waitForURL` vencería y lanzaría: abortaría la corrida en vez de sumarle
     // una falla contada, que es lo que `29` también evita.
+    //
+    // El taller tiene UN solo desafío y ella no lo administra, así que el
+    // taller redirige derecho a la sala: el `Location` del check-in apunta a
+    // `workshops#show` y ésa es otra redirección más, así que la URL del
+    // taller no llega a quedar nunca en la barra —se espera la de la sala, no
+    // la intermedia—.
     let entro = true;
     try {
       await Promise.all([
-        page.waitForURL(/\/workshops\/[^/]+$/, { timeout: 15000 }),
+        page.waitForURL(/\/workshops\/[^/]+\/salas\/[^/?]+/, { timeout: 15000 }),
         page.click('input[type="submit"]')
       ]);
     } catch (e) {
       entro = false;
       failures++;
-      console.error(`[CHECKIN] el registro no llevó al taller: ${e.message.split('\n')[0]}`);
+      console.error(`[CHECKIN] el registro no llevó a la sala: ${e.message.split('\n')[0]}`);
     }
     if (entro) {
       // La sala tiene que decir que la mesa todavía no se armó: es la mesa de
       // llegada, y de ella no se trabaja. Si dijera otra cosa, el borrador que
-      // alguien cree ahí nacería con toda la sala como contribuyentes.
-      const espera = await page.locator('body').innerText();
-      if (!/todavía no se armó/.test(espera)) {
+      // alguien cree ahí nacería con toda la sala como contribuyentes. El
+      // mensaje vive en la sala: es la única cara que puede decirlo.
+      if (!(await page.locator('p.muted', { hasText: 'Tu mesa todavía no se armó' }).count())) {
         failures++;
         console.error('[CHECKIN] entró, pero la sala no anuncia la espera de la mesa de llegada');
       }
