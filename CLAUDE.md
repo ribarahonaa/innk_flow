@@ -81,6 +81,18 @@ en la hoja: el QR salía sin ancho —llenaba la tarjeta entera—, sin fondo bl
 sin relleno y sin bordes. No des una pantalla por cubierta porque `[CLASES]` esté
 en verde.
 
+**Ni porque exista la captura: un bloque que sólo se dibuja con datos se
+fotografía AUSENTE y da verde.** La sala de idear lista «Las ideas de tu mesa»
+sólo si la mesa tiene alguna, y `taller-idear` no tenía ninguna idea sembrada,
+así que la captura `25` retrataba el formulario y nada más — mientras la lista
+de participación de cada idea salía al costado del título en vez de debajo
+(`.field-list__item` es flex con `space-between` y, fuera de `.app-aside`, sin
+`flex-wrap`: las cajitas de los nombres se pegan al borde derecho y aprietan el
+título). Las cuatro clases de `people-list` sí tienen regla en la hoja, así que
+`[CLASES]` no tenía nada que decir. Hoy el seed siembra ese borrador y la
+captura mira además que ninguna `ul.people-list` cuelgue directo del
+`li.field-list__item`.
+
 **Y la causa de fondo de aquello: la hoja compilada vive SÓLO en el contenedor y
 está gitignoreada** (`/app/assets/builds/*`; el layout linkea
 `application-build-css`, que produce `yarn build:css`). **Si agregás clases de
@@ -137,6 +149,13 @@ sola la mesa de llegada—, porque una guarda que mide
 cero da verde y es indistinguible de una que funciona: es el mismo motivo por
 el que `[MONO]` tiene autotest y por el que el muestrario falla si mide menos
 muestras de las que declara. La corrida imprime los cinco números al terminar.
+**Y `[PASTILLA]` crece sola entre corridas sobre la misma siembra** —unos 4
+chips por vez (medido: 677 → 689 en cuatro corridas), y vuelve a bajar al
+resembrar—, porque el recorrido le pide cosas a la IA de verdad y después
+fotografía `/admin/ai_runs`: cada corrida deja runs nuevos con su chip. Hoy es
+inofensivo porque `PISO_DE_PASTILLAS` es un **piso** y no un techo. Es el mismo
+patrón que Lucía Llegada en el seed: el recorrido deja datos que ninguna siembra
+produce.
 Falla si la mesa de llegada de un taller con el check-in abierto no se
 refresca sola en el tiempo que declara su intervalo (`[LIVE]`): el frame, el
 temporizador y el endpoint pueden estar cada uno en verde y la lista quedarse
@@ -153,8 +172,9 @@ cerrándose solo al morfear (`[PLEGABLE]`), sin la fila desplegable del desglose
 de evaluación (`[DESGLOSE]`) o sin el módulo salteado en el drawer y el mapa
 del flujo (`[SALTEADO]`), o si la pantalla del taller no dibuja el QR del
 check-in —medido: un código más chico que 150px, o que no salga cuadrado, no se
-escanea—, no muestra su link, o si falta el formulario público o el aviso de
-espera de la mesa de llegada (`[CHECKIN]`). Corrélo después de tocar vistas,
+escanea—, no muestra su link, si falta el formulario público, o si quien escanea
+no termina en la SALA con el aviso de espera de la mesa de llegada y el acuse
+del escaneo (`[CHECKIN]`). Corrélo después de tocar vistas,
 islas o CSS — un bug de Vue no lo atrapa ningún spec de Ruby (un
 `__VUE_OPTIONS_API__` mal puesto dejó el builder en blanco y la suite en
 verde).
@@ -478,6 +498,83 @@ lo hace avanzar ni lo traba —nada se engancha en `advance!`—. Lo que ata el
 taller al desafío es el MÓDULO (`workshop_challenges.challenge_step_id`),
 resuelto al abrir con el mismo late binding del pipeline.
 
+**La pantalla del taller ELIGE; la sala trabaja.** `workshops#show` es el
+selector —una fila por vínculo con el nombre del desafío, su `brief` truncado y
+«Entrar»— y el trabajo vive en una pantalla por vínculo:
+`GET /workshops/:workshop_id/salas/:id` → `WorkshopRoomsController#show`
+(`workshop_sala_path`). Antes apilaba un formulario por desafío, uno debajo del
+otro y sin decir de qué trataba ninguno. Los dos POST no se movieron: el id de
+esa ruta siempre fue el del VÍNCULO y no el del desafío, porque es el vínculo el
+que sabe contra qué módulo se trabaja. Los vínculos no trabajables se listan
+**con su motivo y sin botón**: una sala escondida no se distingue de una que
+nunca existió, y entrar a una por URL renderiza el motivo y **no** 404 —el
+vínculo existe y el selector lo lista, esconderlo ahí sería el oráculo al revés—.
+
+**`Flow::Workshops::MaterializeClosures` corre en las DOS entradas**
+—`workshops#show` y la sala—, en las dos **antes** de leer los vínculos. El
+cierre es perezoso (nada se engancha en `advance!`) y entrar es justo lo que
+hace que el taller se entere de que el desafío avanzó; sin eso la sala dibuja
+trabajo sobre un módulo que ya cerró.
+
+**Con una sola sala el taller redirige, y el breadcrumb de la sala pregunta lo
+MISMO.** Si el taller manda a la sala, un link «volver al taller» rebota en
+bucle: por eso la pregunta vive UNA vez, en
+`Flow::Workshops::Rooms#redirects?`, y la consultan el redirect y el breadcrumb
+(`spec/lib/flow/workshops/rooms_spec.rb`). Son **dos** condiciones y la segunda
+no es la obvia: que quien mira no pueda armar el taller **y** que el taller
+tenga un solo vínculo EN TOTAL (`links.one?`), no una sola sala trabajable. Con
+dos vínculos donde uno cerró, redirigir dejaba la sala cerrada y su motivo sin
+ningún camino —el breadcrumb, correctamente, no ofrece volver—, así que quien no
+administra nunca se enteraba de que ese desafío estuvo en el taller: exactamente
+lo que el selector existe para no hacer. `Rooms` expone sólo `links`,
+`workable`, `only_room` y `redirects?`, y nada más a propósito, para que no se
+vuelva el cajón de todo lo del taller.
+
+**`workshops#show` conserva el flash al redirigir** (`flash.keep`), y es una
+línea defensiva: medido, el aviso llega a la sala sin ella, porque esa rama no
+instancia el flash —un `redirect_to` sin `notice:` no lo toca y no se renderiza
+ninguna vista— y Rails sólo descarta las claves que se CARGARON. O sea que
+sobrevive por accidente. Importa porque es la única cadena de DOS redirects de
+la app (`POST /checkin/:token` → `workshops#show` → la sala) y un `flash.now`
+agregado ahí mañana se llevaría puesto, en silencio, el único acuse del único
+camino público que escribe datos del dominio. Ningún ejemplo puede distinguir
+esa línea hoy: lo que fijan el spec del check-in y la captura `30b` es que el
+aviso recorre la cadena entera.
+
+**Las dos listas de ideas de la sala salen de fuentes distintas, y es lo primero
+que un lector va a equivocar.** La cara de **idear** va por
+`policy_scope(Idea)` —`status` en `draft` o `active`— con el filtro por
+integrantes de la mesa **adentro** del scope, no en vez de él: el scope hace la
+fuga imposible por construcción (un borrador creado en la sala nace con la mesa
+entera como `idea_contributors`, así que cada integrante lo ve por
+`IdeaPolicy::Scope`, y el borrador privado de alguien de afuera lo sigue viendo
+sólo él), y el filtro es lo que impide que a quien el scope le devuelve `all`
+—todo rol que no sea `participant`— le liste las ideas de OTRAS mesas bajo un
+título que dice que son de ésta. La cara de **evolución** va por
+`WorkshopGroup#workable_ideas`, que es la unión sobre los integrantes —«traé tu
+idea y la mejoramos entre todos»— y ya excluye la llegada, lo eliminado y lo
+retirado, y no trae borradores (`Idea.alive` es `status: "active"`). Y la
+consulta de idear vive en el CONTROLLER a propósito:
+`spec/lint/ideas_por_policy_scope_spec.rb` sólo mira controllers, así que
+escondida en un presenter o en el HAML no la ve nadie.
+
+**La sala no describe un desafío que quien mira no alcanza.** `work?` abre la
+sala de CUALQUIER vínculo del taller, y a un gestor se la abre por
+`administers_any?` —alcanza con que administre ALGUNO de los desafíos—, mientras
+el vínculo se busca sin filtrar por asignación: entra a la sala de un desafío
+que `GET /challenges/:id` le devuelve 404. El NOMBRE se muestra igual —ya se
+mostraba, la pantalla vieja listaba uno por vínculo, y es lo que dice de qué
+sala es ésta—; el link, el módulo con su fase y el `brief` van detrás de
+`alcanza = policy(link.challenge).show?`, UNA variable calculada arriba del
+partial y no el predicado repetido por bloque, en los dos lugares que lo dibujan
+(`workshop_rooms/_referencia` y `workshops/_room_picker`). Lo que **no** se
+gateó, a propósito: el `closed_reason` del selector, que nombra la fase del
+desafío (`Flow::Workshops::Open.reason_for`). Es el motivo por el que esa sala
+no se puede trabajar —información del taller, no sólo del desafío— y esconderlo
+volvería muda la pantalla justo en lo que el selector existe para decir. En este
+GET el 403 es inalcanzable: todo rol que `WorkshopPolicy::Scope` admite pasa
+también `work?`, y quien no pasa el scope ya tuvo 404.
+
 **Un taller trabaja sobre una sola fase.** Se verifica en
 `Flow::Workshops::Open` y no como validación de modelo: en borrador el vínculo
 todavía no tiene `challenge_step`, así que la fase no existe y no hay con qué
@@ -535,17 +632,45 @@ revocar un link filtrado devolvería la asistencia a presumida en medio de la
 sesión. Rotar revoca; apagar el modo cambia cómo se cuenta.
 
 **La «Mesa de llegada» (`workshop_groups.arrival`, con índice UNIQUE parcial)
-es sala de espera, y son CUATRO puertas con CINCO preguntas.** Cada sala tiene
-lectura y escritura, y las cuatro puertas —las dos pantallas de sala y los dos
-controllers que escriben— preguntan `arrival?`; la quinta pregunta es la de la
-lectura de evolución, que está guardada DOS veces: el modelo (`WorkshopGroup`,
-`arrival?` sobre sí mismo) devuelve `Idea.none`, y la vista (`group.arrival?`)
-explica por qué la lista está vacía. No es prolijidad:
-`WorkshopIdeasController` escribe `idea_contributors` para toda la mesa, así que
-un borrador creado desde una llegada de treinta personas nace con las treinta
-ESCRITAS y repartir no lo deshace. Y `AssignGroups#seat!` la excluye de las
+es sala de espera, y hoy son SIETE los lugares que preguntan `arrival?` para no
+dejar trabajar desde ella** —el bloque de armado la pregunta cuatro veces más,
+por otras razones: no se borra a mano, y se sirve en el frame que se refresca
+solo—. Los siete: las
+dos caras de la sala (`workshop_rooms/_ideation` y `_evolution`), que en vez del
+trabajo dicen que la mesa todavía no se armó; los dos controllers que escriben;
+el panel «Tu mesa» (`workshops/_my_group`); y las dos fuentes de ideas, que la
+vuelven a preguntar por su cuenta —la de evolución en el modelo
+(`WorkshopGroup#workable_ideas` devuelve `Idea.none`) y la de idear en el
+controller (`WorkshopRoomsController#load_ideation`)—. Esa última es
+**load-bearing** y no prolijidad: `policy_scope(Idea)` devuelve `all` a todo rol
+que no sea `participant`, así que sin ella quien administra y está sentado en la
+llegada vería las ideas de los treinta que esperan, bajo el título «Las ideas de
+tu mesa». Del lado de la escritura, `WorkshopIdeasController` escribe
+`idea_contributors` para toda la mesa, así que un borrador creado desde una
+llegada de treinta personas nace con las treinta ESCRITAS y repartir no lo
+deshace. Y `AssignGroups#seat!` la excluye de las
 mesas reusables: es la primera creada, así que la habría convertido en «Mesa 1»
 con `arrival: true` puesto y su sala habría quedado muda para siempre.
+
+**«Mi mesa en este taller» vive en `Workshop#group_of`, y en ningún otro lado.**
+Estaba escrito tres veces —el `group_of` privado de los dos controllers que
+escriben y el `@my_group` de `workshops#show`— y la sala habría sido la cuarta
+copia. La trampa, que es el arreglo que cualquiera va a intentar:
+**`includes(workshop_group_members: :user)` NO puede ir adentro de ese
+método.** Su `find_by` filtra por `workshop_group_members.user_id`, así que
+Rails pasa de `joins` a `eager_load` y la asociación queda cargada con SÓLO el
+asiento de quien mira: el panel listaría una persona en vez de la mesa, y todos
+los specs del panel seguirían verdes porque miran a quien está logueado. La
+precarga va en el punto de uso (`workshops/_my_group`).
+
+**Con quién estás sentado ya se ve, y sin controles.** `workshops/_my_group`
+—nombre de la mesa, integrantes, «(vos)» y «· ausente»— se sirve a cualquiera
+con `work?`, en la pantalla del taller y en la columna de referencia de la sala:
+UN partial para los dos lugares, porque dos copias del mismo markup divergen y
+nadie se entera. Sin controles a propósito: marcar presente y sacar gente son de
+quien administra y viven en el bloque de armado, que sigue dibujando el asiento
+con su propio markup (`workshops/_group_body`). La lista COMPLETA de mesas sigue
+detrás del permiso de armar (`can_assemble`, que es `WorkshopPolicy#update?`).
 
 **El reparto se niega a correr en cuanto hay propuestas.** Rearmar borra las
 mesas que queden vacías, y eso se llevaría las propuestas aceptadas, que son la
@@ -575,9 +700,17 @@ anuncia un corte que no movió a nadie.
 sola fase explica los tres primeros —sin ella serían dos—: uno sobre idear
 —que además lleva el desafío que se rechaza al abrirse, y es de donde sale el
 vínculo cerrado con motivo de `28`—, uno sobre evolución —que lleva la
-propuesta pendiente— y el borrador. `25` y `28` salen del primero, `26` y `27`
-del segundo, `24` del borrador. El cuarto, «Taller con check-in», no sale de
-esa regla: existe SÓLO para `29`, `30` y `30b`, y va **sin nadie sentado**,
+propuesta pendiente— y el borrador. `25a`, `25` y `28` salen del primero;
+`26`, `26b` y `27` del segundo; `24` del borrador. El de idear lleva además un
+borrador de Mesa Bodega que existe **sólo** para que `25` dibuje «Las ideas de
+tu mesa», y va **sin postular** a propósito: el editor de campos del formulario
+tiene un candado más fino que `touched?` (`ideas.submitted.exists?`), así que
+postularlo trabaría ese editor de `taller-idear` por una idea que nadie
+postuló. Y ojo con `goToWorkshop` al escribir una captura: espera
+`/workshops/<id>$`, o sea que sólo sirve para quien el taller **no** redirige
+—hoy, el recorrido entra a los cuatro talleres como quien administra—. El
+cuarto, «Taller con check-in», no sale de esa regla: existe SÓLO para `29`,
+`30` y `30b`, y va **sin nadie sentado**,
 porque `29` tiene que mostrar la llegada vacía. A Lucía Llegada
 (`llegada@taller.example`, con una membresía `participant` real de la empresa
 demo) la siembra `30b` al correr, así que un segundo `make screens` sin
@@ -1221,6 +1354,13 @@ de la clase con `end_with`; con `badge` varios estados comparten la misma clase
 decir qué estado la pidió. Y todo chip empieza con `badge `: un valor que quedó
 con el nombre viejo se ve bien hasta que se borra su regla.
 
+Un mapeo escrito como **ternario en la vista** queda afuera de ese spec. El
+estado de una propuesta de la mesa (`WorkshopProposal::STATUSES`) vivía así en
+`workshop_rooms/_evolution`, de modo que un cuarto estado se habría pintado con
+la rama de «descartada» —ámbar, o sea «mirá esta fila»— y con el texto de
+traducción faltante al lado, sin que nada se pusiera rojo. Hoy es
+`CHIP_DE_PROPUESTA` + `chip_de_propuesta`, con su caso en el spec.
+
 #### El shell de tres regiones
 
 `.app-shell` es una grilla: el flujo del desafío a la izquierda (232px), el
@@ -1253,7 +1393,12 @@ pantalla declara su layout.
   1280px, donde sube arriba del trabajo, las tarjetas van en UNA fila que se
   desliza de costado (tope de 320px por tarjeta): en varias filas empujaban el
   título del módulo afuera de la primera pantalla. Lo mide `[REFERENCIA]` en
-  `make screens`, a 1440×1000 y a 1100×900.
+  `make screens`, a 1440×1000 y a 1100×900 — **pero sólo en las pantallas de
+  módulo**: `revisarReferencia` se llama desde la rama de `[ZONAS]` y desde la
+  de testing, y de ningún otro lado, así que la columna de la **sala de la
+  mesa** —la única otra pantalla que llena `content_for :referencia`— no está
+  medida en ninguna captura. Su límite declarado es justamente ése: una mesa muy
+  grande queda detrás de su propio scroll.
 - El drawer aparece solo si hay un desafío **guardado** en contexto
   (`ShellHelper#desafio_del_shell`). Dos guardas que parecen de más y no lo
   son: `/challenges/new` deja un `Challenge.new` sin slug y el `challenge_path`
@@ -1343,6 +1488,12 @@ login no carga ningún bundle de JS y no hace falta que empiece a cargarlo.
 - `Criterion` fija `self.table_name = "criteria"` explícitamente: un proceso que
   arranque antes del initializer de inflexiones busca `criterions`.
 - HAML no acepta bloques Ruby en una línea (`- coll.each { |e| %li= e }`).
+- **`ideas` no tiene columna `title`.** `Idea#title` sale de
+  `current_version&.title` y sin versión publicada devuelve `"(sin título)"`
+  para TODAS, así que una aserción que compara títulos entre ideas sin versión
+  no distingue ninguna de otra — y pasa sola. Pasó de verdad en los specs de la
+  sala de la mesa: se asevera sobre la URL de cada idea, o se le publica una
+  versión con título propio.
 - `submit_tag` usa el primer argumento **como value**: para mandar un valor
   distinto al texto visible, `button_tag`.
 - Migraciones: `schema_format = :sql`. Después de migrar, commiteá
