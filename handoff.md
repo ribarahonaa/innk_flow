@@ -1,5 +1,59 @@
 # Handoff — la sala de la mesa (2026-10-03)
 
+## Empezá por acá: B, el guardado automático como versión
+
+Lo de abajo está cerrado y pusheado. Lo que sigue es **B**, la segunda de las
+cuatro partes del pedido original (la lista completa está más abajo, en «Lo que
+queda abierto»).
+
+**Qué pidió Raúl, textual:** «todos los cambios que vayan haciendo, la idea es
+que se vayan guardando de forma automática y como se hace en la idea normal, que
+cuando se hace un cambio de idea se guarda como una nueva versión».
+
+**La decisión que hay que tomar antes de escribir una línea, y es de producto:**
+hoy, en la sala de evolución, la mesa **propone** y el autor acepta o rechaza
+(`WorkshopProposal`, nace `pending`). Un guardado automático que publique una
+`idea_version` directa borra esa regla —«nadie reescribe la idea de otro»— y hay
+que decidir qué pasa con las propuestas pendientes y con `WorkshopProposal`
+entero. En la conversación de diseño de A se eligió **no** tocarlo, justamente
+para decidirlo completo acá y no de costado. Las tres salidas que se ven:
+
+1. El autosave escribe **sobre la propuesta** (`workshop_proposals.payload`), y
+   aceptar sigue siendo del autor. Conserva la regla; el autosave deja de ser
+   «como en la idea normal».
+2. El autosave publica **versión directa** cuando quien edita participa de la
+   idea, y propuesta cuando no. Dos caminos de escritura en la misma pantalla.
+3. El autosave publica versión directa para toda la mesa, y `WorkshopProposal`
+   queda sólo para lo que venga de afuera de la mesa. Es la más simple y la que
+   más cambia el dominio.
+
+**Lo que ya está medido y no hay que volver a averiguar:**
+
+- `Flow::Ideas::PublishVersion` es el único camino para publicar una versión, y
+  toma `payload:`, `author:`, `source_step:`, `title:`, `files:` y
+  `enqueue_embedding:`. Publicar encola `EmbedVersionJob` **fuera** de la
+  transacción: adentro, un worker que tome el job antes del commit no encuentra
+  la versión y falla en silencio.
+- **Una versión por tecla es inviable**: hay que decidir el debounce y qué
+  cuenta como «un cambio». `idea_versions` es contenido inmutable y cada una
+  calcula su vector.
+- `IdeaPolicy#update?` ya abre la edición a quien participa de la idea mientras
+  está en borrador **o** hay una ronda de evolución abierta. Esa ventana es la
+  que el autosave de la mesa tendría que respetar o ensanchar a propósito.
+- La sala de evolución ya tiene el payload vigente precargado en el formulario
+  (`workshop_rooms/_evolution`), así que el lugar donde enganchar el autosave ya
+  existe.
+- **Turbo con debounce alcanza**: no hace falta una isla Vue. Las cuatro que hay
+  son todas de configuración, y en A se descartó una quinta por lo mismo.
+- Ojo con el morph: un POST que redirige a la misma URL morfea el DOM, y este
+  repo ya pagó que un `<dialog>` abierto no sobrevive un morph y que un
+  `<details>` se cerraba solo. Un formulario que se guarda solo mientras alguien
+  escribe es la misma familia de problema — ahí está el riesgo real de B.
+
+**Lo primero que haría:** invocar la skill de brainstorming y cerrar la decisión
+de arriba con Raúl, antes de tocar código. B no es acotado: cambia el modelo de
+escritura.
+
 ## Qué se hizo
 
 El trabajo de una mesa de taller dejó de ser una pila de formularios en la
@@ -113,4 +167,8 @@ Diferidos de la revisión final que se decidió dejar (ninguno bloquea):
   comportamiento nuevo, y están escritas las trampas de `group_of`, de las dos
   fuentes de ideas, del `links.one?` del redirect y del bloque que sólo se
   dibuja con datos.
-- **Nada quedó pusheado.** El merge es local, en `master`.
+- **Pusheado.** `origin/master` quedó en el mismo commit que el local; el merge
+  es `8579e87`. Lo subió Raúl a mano: el push desde la sesión lo frena el
+  clasificador de auto mode, y la regla de permiso angosta —si alguna vez se
+  quiere habilitar— es `"Bash(git push https://github.com/ribarahonaa/innk_flow.git:*)"`
+  en `.claude/settings.local.json`.
