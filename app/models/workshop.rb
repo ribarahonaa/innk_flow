@@ -66,6 +66,17 @@ class Workshop < ApplicationRecord
     workshop_groups.find_by!(arrival: true)
   end
 
+  # La mesa de alguien en ESTE taller, o `nil`. Vive en el taller por lo mismo
+  # que `arrival_group!`: es SU mesa. Estaba escrito tres veces —el `group_of`
+  # privado de los dos controllers que escriben y el `@my_group` de
+  # `workshops#show`—, y la sala habría sido la cuarta copia.
+  def group_of(user)
+    return nil if user.nil?
+
+    workshop_groups.joins(:workshop_group_members)
+                   .find_by(workshop_group_members: { user_id: user.id })
+  end
+
   def presumed_attendance? = attendance_mode == "presumed"
   def registered_attendance? = attendance_mode == "registered"
 

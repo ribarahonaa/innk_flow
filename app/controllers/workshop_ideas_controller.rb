@@ -20,7 +20,7 @@ class WorkshopIdeasController < ApplicationController
     # prohíbe por conflicto de interés— y podía hacerlo en la sala de un
     # desafío ajeno, que por la ruta normal le da 404. Y el `&.` que había al
     # sembrar los contribuyentes toleraba el `nil`: la idea nacía sin uno solo.
-    group = group_of(current_user)
+    group = @workshop.group_of(current_user)
     return reject_without_group unless group
     return reject_arrival if group.arrival?
 
@@ -67,11 +67,6 @@ class WorkshopIdeasController < ApplicationController
   def set_link
     @workshop = policy_scope(Workshop).find_by!(id: params[:workshop_id])
     @link = @workshop.workshop_challenges.find_by!(id: params[:sala_id])
-  end
-
-  def group_of(user)
-    @workshop.workshop_groups.joins(:workshop_group_members)
-             .find_by(workshop_group_members: { user_id: user.id })
   end
 
   # Contra el formulario declarado: una clave que no es de un campo se descarta.

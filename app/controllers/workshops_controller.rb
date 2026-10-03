@@ -53,8 +53,7 @@ class WorkshopsController < ApplicationController
     Flow::Workshops::MaterializeClosures.new(@workshop).call
     @links = @workshop.workshop_challenges.includes(:challenge, :challenge_step)
     @groups = @workshop.workshop_groups.includes(workshop_group_members: :user)
-    @my_group = @workshop.workshop_groups.joins(:workshop_group_members)
-                         .find_by(workshop_group_members: { user_id: current_user.id })
+    @my_group = @workshop.group_of(current_user)
   end
 
   def open

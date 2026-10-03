@@ -121,7 +121,12 @@ Rails.application.routes.draw do
     end
     # La sala de UN desafío dentro del taller. El id es el del VÍNCULO, no el
     # del desafío: el vínculo es el que sabe contra qué módulo se trabaja.
-    resources :workshop_challenges, only: [], path: "salas", as: :sala do
+    #
+    # `show` es la pantalla donde la mesa trabaja: el formulario de idear o el
+    # selector de ideas de evolución, con el brief del desafío y la mesa al
+    # costado. `workshops#show` ya no apila las salas — es el selector.
+    resources :workshop_challenges, only: %i[show], path: "salas", as: :sala,
+                                    controller: "workshop_rooms" do
       resources :ideas, only: %i[create], controller: "workshop_ideas"
       resources :proposals, only: %i[create], controller: "workshop_proposals"
     end

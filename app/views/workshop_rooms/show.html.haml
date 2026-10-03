@@ -1,0 +1,29 @@
+-# La sala de un desafío. El `case` sobre `room_state` tiene rama por defecto a
+-# propósito: el vínculo que avanzó —`open` con su módulo ya `completed`— no
+-# caía en ninguna y la sala salía EN BLANCO, sin un solo mensaje. Con `else`,
+-# el estado que alguien agregue mañana se ve.
+- content_for :title, @link.challenge.name
+
+.page-head
+  %div
+    %p.breadcrumb
+      -# Sin condición todavía: la vuelve condicional la tarea que introduce el
+      -# redirect del taller, que es la dueña de esa pregunta.
+      = link_to "Talleres", workshops_path
+      = " › "
+      = link_to @workshop.name, workshop_path(@workshop)
+    %h1.page-title= @link.challenge.name
+
+- case @link.room_state
+- when :ideation
+  = render "workshops/sala_idear", workshop: @workshop, link: @link, group: @group
+- when :evolution
+  = render "workshops/sala_evolucion", workshop: @workshop, link: @link, group: @group
+- when :unopened
+  .card
+    .card-body
+      %p.muted Este taller todavía no se abrió: la sala arranca cuando alguien lo abra.
+- else
+  .card
+    .card-body
+      %p.muted= @link.closed_reason.presence || "Esta sala ya no admite trabajo: el desafío avanzó de fase."
