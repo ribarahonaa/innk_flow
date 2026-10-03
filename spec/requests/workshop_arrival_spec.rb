@@ -62,12 +62,11 @@ RSpec.describe "la mesa de llegada no trabaja", type: :request do
         post workshop_sala_ideas_path(taller, link), params: { payload: { titulo: "Desde la llegada" } }
       }.not_to change { as_company(company) { Idea.count } }
 
-      expect(response).to redirect_to(workshop_path(taller))
+      expect(response).to redirect_to(workshop_sala_path(taller, link))
       # El aviso es del controller: la sala ya pinta la misma frase, así que el
       # cuerpo tras el redirect no distingue quién rechazó.
       expect(flash[:alert]).to include("todavía no se armó")
-      # El taller con una sola sala redirige a ella: se pide la sala directo.
-      get workshop_sala_path(taller, link)
+      follow_redirect!
       expect(response.body).to include("todavía no se armó")
     end
   end

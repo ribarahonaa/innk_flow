@@ -24,5 +24,27 @@ class WorkshopRoomsController < ApplicationController
     @link = @workshop.workshop_challenges.find_by!(id: params[:id])
     @group = @workshop.group_of(current_user)
     @rooms = Flow::Workshops::Rooms.new(@workshop)
+
+    # Las ideas de la mesa, según la cara. En idear es lo que la mesa YA creó;
+    # en evolución llega en la Task 5.
+    #
+    # `policy_scope(Idea)` y NO `group.workable_ideas`, por dos razones: ese
+    # método filtra con `Idea.alive` (o sea `active`) y no trae borradores, y su
+    # comentario documenta que exponer a toda la mesa el borrador que un
+    # integrante creó AFUERA del taller fue una fuga ya arreglada. Con
+    # `policy_scope` la fuga es imposible: el borrador creado en la sala lleva a
+    # la mesa entera como `idea_contributors`, así que cada integrante lo ve por
+    # `IdeaPolicy::Scope`, y el privado de alguien sigue siendo sólo suyo.
+    #
+    # Va en el CONTROLLER a propósito: `spec/lint/ideas_por_policy_scope_spec.rb`
+    # sólo mira controllers. Escondida en un presenter no la ve nadie.
+    @mesa_ideas =
+      if @link.room_state == :ideation
+        policy_scope(Idea).where(challenge_id: @link.challenge_id, status: %w[draft active])
+                          .includes(:author, :current_version, idea_contributors: :user)
+                          .order(created_at: :desc).to_a
+      else
+        []
+      end
   end
 end

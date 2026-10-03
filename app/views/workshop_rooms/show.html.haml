@@ -18,7 +18,8 @@
 
 - case @link.room_state
 - when :ideation
-  = render "workshops/sala_idear", workshop: @workshop, link: @link, group: @group
+  = render "workshop_rooms/ideation", workshop: @workshop, link: @link, group: @group,
+                                      mesa_ideas: @mesa_ideas
 - when :evolution
   = render "workshops/sala_evolucion", workshop: @workshop, link: @link, group: @group
 - when :unopened
