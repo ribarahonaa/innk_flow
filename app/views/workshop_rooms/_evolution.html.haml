@@ -91,7 +91,7 @@
             - proposals.each do |proposal|
               %li.field-list__item
                 %div
-                  %span{ class: chip_de_estado(proposal.pending? ? "pending" : (proposal.accepted? ? "completed" : "skipped")) }
+                  %span{ class: chip_de_propuesta(proposal.status) }
                     = t("flow.workshop_proposal_statuses.#{proposal.status}")
                   %span.muted= " · #{l(proposal.created_at, format: :short)}"
                   - unless proposal.actionable?

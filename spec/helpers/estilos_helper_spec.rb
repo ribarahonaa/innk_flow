@@ -8,7 +8,7 @@ RSpec.describe EstilosHelper, type: :helper do
   def todos_los_chips
     [EstilosHelper::CHIP_DE_ESTADO, EstilosHelper::CHIP_DE_ORIGEN, EstilosHelper::CLASE_DE_FEEDBACK,
      EstilosHelper::CLASE_DE_NODO_DE_FLUJO, EstilosHelper::CHIPS, EstilosHelper::CHIP_DE_VEREDICTO,
-     EstilosHelper::CHIP_DE_RESULTADO]
+     EstilosHelper::CHIP_DE_RESULTADO, EstilosHelper::CHIP_DE_PROPUESTA]
       .flat_map(&:values) << EstilosHelper::CHIP_DE_IA
   end
 
@@ -94,6 +94,21 @@ RSpec.describe EstilosHelper, type: :helper do
 
   it "cubre todos los veredictos de un testing" do
     expect(sin_mapear(StepTest::VERDICTS, EstilosHelper::CHIP_DE_VEREDICTO)).to be_empty
+  end
+
+  # Era un ternario anidado en `workshop_rooms/_evolution`, o sea afuera de este
+  # spec: un cuarto estado del enum se pintaba con la rama de «descartada» y
+  # mostraba el texto de traducción faltante al lado, en verde.
+  it "cubre todos los estados de una propuesta de la mesa" do
+    expect(sin_mapear(WorkshopProposal::STATUSES, EstilosHelper::CHIP_DE_PROPUESTA)).to be_empty
+  end
+
+  # Los tres dicen cosas distintas, así que no pueden compartir clase: con las
+  # claves solas, dos celdas pegadas y cambiadas pasarían.
+  it "pendiente, aceptada y descartada no se confunden" do
+    expect(helper.chip_de_propuesta("pending")).to eq(EstilosHelper::CHIP_DE_ESTADO.fetch("pending"))
+    expect(helper.chip_de_propuesta("accepted")).to include("badge-success")
+    expect(helper.chip_de_propuesta("rejected")).to include("badge-warning")
   end
 
   # `pipeline_builder.vue` pinta el chip de un módulo recién agregado —que

@@ -96,6 +96,24 @@ module EstilosHelper
     "no_factible" => "badge badge-soft badge-error badge-sm font-semibold whitespace-nowrap"
   }.freeze
 
+  # Las claves son `WorkshopProposal::STATUSES`: lo que una mesa propuso sobre
+  # una idea, que es otro enum que el estado de un módulo. Tiene mapa propio y
+  # no un ternario en la vista por la razón de siempre: el ternario anidado
+  # `pending? ? ... : (accepted? ? ... : ...)` manda cualquier estado futuro a
+  # la rama de descartada —ámbar, o sea «mirá esta fila»— y queda afuera del
+  # spec que prueba cada mapeo CONTRA SU ENUM, así que no se pone nada rojo.
+  #
+  # Los colores son los que pintaba ese ternario, para no mover nada de lo que
+  # ya se mide: pendiente al neutro, aceptada al verde y descartada al ÁMBAR y
+  # no al rojo — por el mismo motivo que `eliminated` en `CHIP_DE_RESULTADO`:
+  # que el autor no tome una propuesta es un resultado normal, no un error, y
+  # `CHIP_DE_ESTADO` sigue sin variante de error.
+  CHIP_DE_PROPUESTA = {
+    "pending" => "badge badge-soft badge-sm font-semibold whitespace-nowrap",
+    "accepted" => "badge badge-soft badge-success badge-sm font-semibold whitespace-nowrap",
+    "rejected" => "badge badge-soft badge-warning badge-sm font-semibold whitespace-nowrap"
+  }.freeze
+
   CLASE_DE_DIFF = {
     "added" => "diff-kind diff-kind--added",
     "removed" => "diff-kind diff-kind--removed",
@@ -183,6 +201,7 @@ module EstilosHelper
   def clase_de_nodo_de_flujo(estado) = CLASE_DE_NODO_DE_FLUJO.fetch(estado.to_s, CLASE_DE_NODO_DE_FLUJO.fetch("pending"))
   def punto_de_estado(estado) = PUNTO_DE_ESTADO.fetch(estado.to_s, PUNTO_DE_ESTADO.fetch("pending"))
   def chip(nombre) = CHIPS.fetch(nombre.to_s)
+  def chip_de_propuesta(status) = CHIP_DE_PROPUESTA.fetch(status.to_s, CHIP_DE_PROPUESTA.fetch("pending"))
   def chip_de_veredicto(veredicto) = CHIP_DE_VEREDICTO.fetch(veredicto.to_s, CHIP_DE_VEREDICTO.fetch("con_reservas"))
 
   # `_setup_progress.html.haml` ya arma su clase como ARREGLO y le suma otras
