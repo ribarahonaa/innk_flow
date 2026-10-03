@@ -2798,6 +2798,37 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
         failures++;
         console.error('[TALLER] la sala no dibuja «Tu mesa» en la referencia');
       }
+      // Y lo que la mesa ya creó, con la participación de cada uno. El seed
+      // siembra un borrador de Mesa Bodega justo para esto: sin ninguna idea el
+      // bloque NO se renderiza, y durante seis corridas verdes esta captura
+      // fotografió su ausencia mientras la lista de participación estaba mal
+      // maquetada. `[CLASES]` no lo cazaba: las cuatro clases tienen regla en
+      // la hoja. Se mide dentro de la tarjeta, no en la pantalla, porque la
+      // referencia dibuja sus propios `.field-list__item`.
+      const mesaIdeas = page.locator('.card', {
+        has: page.locator('h2.section-title', { hasText: 'Las ideas de tu mesa' })
+      });
+      if (!(await mesaIdeas.count())) {
+        failures++;
+        console.error('[TALLER] la sala de idear no dibuja «Las ideas de tu mesa»');
+      } else {
+        const participacion = await mesaIdeas.locator('li.people-list__item').count();
+        if (!participacion) {
+          failures++;
+          console.error('[TALLER] «Las ideas de tu mesa» no lista la participación de ninguna idea');
+        }
+        // Y va DENTRO del bloque del título, no al lado. Como hijo directo del
+        // `li` queda como segundo hijo flex de `.field-list__item`
+        // (`space-between`, sin `flex-wrap` afuera de `.app-aside`): las
+        // cajitas de los nombres se pegan al borde derecho y aprietan el
+        // título. Es el defecto que esta captura no veía porque el bloque no
+        // se dibujaba; el conteo de arriba no lo distingue.
+        const alCostado = await mesaIdeas.locator('li.field-list__item > ul.people-list').count();
+        if (alCostado) {
+          failures++;
+          console.error(`[TALLER] la participación de ${alCostado} idea(s) cuelga del li y no del bloque del título`);
+        }
+      }
       await capturar(page, '25-taller-sala-idear');
       await goToWorkshop('Taller de mejora continua');
     }
