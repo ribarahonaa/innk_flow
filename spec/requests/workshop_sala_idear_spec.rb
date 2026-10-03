@@ -282,6 +282,41 @@ RSpec.describe "sala del taller: idear", type: :request do
       expect(response.body).not_to include(challenge_idea_path(setup[:challenge], ajena))
     end
 
+    # Discrimina I1: para quien administra, `IdeaPolicy::Scope` devuelve `all`,
+    # así que sin el filtro por integrantes este bloque lista las ideas de las
+    # OTRAS mesas del taller bajo un título que dice que son de ésta.
+    it "no lista el borrador de otra mesa, ni para quien administra" do
+      admin = without_tenant do
+        u = create(:user, email: "admin-mesas@test.dev")
+        create(:membership, :admin, company: company, user: u)
+        u
+      end
+      ajena = as_company(company) do
+        tercera = without_tenant do
+          u = create(:user, email: "tercera@test.dev")
+          create(:membership, :participant, company: company, user: u)
+          u
+        end
+        otra_mesa = create(:workshop_group, workshop: setup[:workshop], name: "Mesa 9")
+        create(:workshop_group_member, workshop_group: otra_mesa, user: tercera)
+        # Quien administra se sienta en la mesa de ana y beto: el bloque sólo se
+        # dibuja desde una mesa.
+        create(:workshop_group_member, workshop_group: setup[:workshop].workshop_groups.first, user: admin)
+        idea = create(:idea, challenge: setup[:challenge], author: tercera, status: "draft")
+        result = Flow::Ideas::PublishVersion.new(
+          idea, payload: {}, author: tercera, title: "Borrador de la Mesa 9"
+        ).call
+        expect(result).to be_ok
+        idea
+      end
+      sign_in(admin, company: company)
+      sala
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).not_to include("Borrador de la Mesa 9")
+      expect(response.body).not_to include(challenge_idea_path(setup[:challenge], ajena))
+    end
+
     it "sin nada creado dice que no hay nada y ofrece el formulario igual" do
       sign_in(ana, company: company)
       sala

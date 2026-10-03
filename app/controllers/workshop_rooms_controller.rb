@@ -25,24 +25,26 @@ class WorkshopRoomsController < ApplicationController
     @group = @workshop.group_of(current_user)
     @rooms = Flow::Workshops::Rooms.new(@workshop)
 
-    # Las ideas de la mesa, según la cara. En idear es lo que la mesa YA creó;
-    # en evolución llega en la Task 5.
+    # Las ideas de la mesa en este desafío. `policy_scope(Idea)` y NO
+    # `workable_ideas`: ese método filtra con `Idea.alive` (o sea `active`) y no
+    # trae borradores, y su comentario documenta que exponer a la mesa el
+    # borrador que un integrante creó AFUERA del taller fue una fuga ya
+    # arreglada. Con `policy_scope` la fuga es imposible por construcción.
     #
-    # `policy_scope(Idea)` y NO `group.workable_ideas`, por dos razones: ese
-    # método filtra con `Idea.alive` (o sea `active`) y no trae borradores, y su
-    # comentario documenta que exponer a toda la mesa el borrador que un
-    # integrante creó AFUERA del taller fue una fuga ya arreglada. Con
-    # `policy_scope` la fuga es imposible: el borrador creado en la sala lleva a
-    # la mesa entera como `idea_contributors`, así que cada integrante lo ve por
-    # `IdeaPolicy::Scope`, y el privado de alguien sigue siendo sólo suyo.
+    # Y el filtro por integrantes va ADENTRO del scope, no en vez de él: para
+    # quien administra, `IdeaPolicy::Scope` devuelve `all`, así que sin esto el
+    # bloque listaba las ideas de las OTRAS mesas bajo un título que dice que
+    # son de ésta. En evolución llega en la Task 5.
     #
-    # Va en el CONTROLLER a propósito: `spec/lint/ideas_por_policy_scope_spec.rb`
-    # sólo mira controllers. Escondida en un presenter no la ve nadie.
+    # Va en el CONTROLLER a propósito: el lint sólo mira controllers.
     @mesa_ideas =
-      if @link.room_state == :ideation
-        policy_scope(Idea).where(challenge_id: @link.challenge_id, status: %w[draft active])
-                          .includes(:author, :current_version, idea_contributors: :user)
-                          .order(created_at: :desc).to_a
+      if @link.room_state == :ideation && @group && !@group.arrival?
+        member_ids = @group.workshop_group_members.select(:user_id)
+        visibles = policy_scope(Idea).where(challenge_id: @link.challenge_id, status: %w[draft active])
+        visibles.where(author_id: member_ids)
+                .or(visibles.where(id: IdeaContributor.where(user_id: member_ids).select(:idea_id)))
+                .includes(:author, :current_version, idea_contributors: :user)
+                .order(created_at: :desc).to_a
       else
         []
       end
