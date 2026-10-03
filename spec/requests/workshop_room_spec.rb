@@ -138,4 +138,65 @@ RSpec.describe "la sala del taller", type: :request do
       expect(response.body).to include(%(href="#{workshop_path(scene[:workshop])}"))
     end
   end
+
+  describe "la columna de referencia" do
+    it "muestra el brief del desafío y la mesa, en ese orden" do
+      as_company(company) { create(:workshop_group_member, workshop_group: scene[:group], user: admin) }
+      sign_in(ana, company: company)
+      get workshop_sala_path(scene[:workshop], scene[:link])
+
+      expect(response.body).to include("Bajar la merma de bodega sin tocar el stock de seguridad.")
+      expect(response.body).to include(admin.name)
+      # El orden es el que ya fijaron las pantallas de módulo: lo propio del
+      # módulo, y después quién participa. Invertirlo enseñaría dos órdenes
+      # para la misma columna.
+      expect(response.body.index("El desafío")).to be < response.body.index("Tu mesa")
+    end
+
+    it "marca a quien mira y a quien no vino" do
+      as_company(company) do
+        seat = create(:workshop_group_member, workshop_group: scene[:group], user: admin)
+        seat.update!(attended: false)
+      end
+      sign_in(ana, company: company)
+      get workshop_sala_path(scene[:workshop], scene[:link])
+
+      expect(response.body).to include("(vos)")
+      expect(response.body).to include("ausente")
+    end
+
+    # Marcar presente y sacar gente son de quien administra, y viven en el
+    # bloque de armado. En la referencia la mesa se LEE.
+    it "no ofrece controles de asistencia" do
+      sign_in(ana, company: company)
+      get workshop_sala_path(scene[:workshop], scene[:link])
+
+      expect(response.body).not_to include(attendance_workshop_path(scene[:workshop]))
+      expect(response.body).not_to include(dismiss_workshop_path(scene[:workshop]))
+    end
+
+    # En modo individual la mesa es de una persona y NO hay mesa de llegada
+    # (`arrival_group!` devuelve nil). El panel lo dice en vez de desaparecer:
+    # un panel que no está no se distingue de uno roto.
+    it "en modo individual dice que la mesa es de una persona" do
+      workshop, link = as_company(company) do
+        w = create(:workshop, status: "open", mode: "individual")
+        g = create(:workshop_group, workshop: w, name: "Mesa de Ana")
+        create(:workshop_group_member, workshop_group: g, user: ana)
+        [w, create(:workshop_challenge, workshop: w, challenge: scene[:challenge], challenge_step: scene[:step])]
+      end
+      sign_in(ana, company: company)
+      get workshop_sala_path(workshop, link)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("Trabajás sola o solo en este taller")
+    end
+
+    it "sin mesa la referencia lo dice y no finge una" do
+      sign_in(admin, company: company)
+      get workshop_sala_path(scene[:workshop], scene[:link])
+
+      expect(response.body).to include("No estás en ninguna mesa de este taller")
+    end
+  end
 end

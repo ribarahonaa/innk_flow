@@ -18,3 +18,6 @@
 
 - if can_work
   = render "workshops/room_picker", workshop: @workshop, rooms: @rooms
+  -# Quien cae en el selector ya ve con quién está sentado. Mismo partial que
+  -# la referencia de la sala.
+  = render "workshops/my_group", workshop: @workshop, group: @my_group

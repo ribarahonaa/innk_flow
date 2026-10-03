@@ -98,18 +98,22 @@ RSpec.describe "la asistencia a mano", type: :request do
     end
 
     it "no lo ve quien participa" do
+      as_company(company) { create(:workshop_group, workshop: taller, name: "Mesa de otras personas") }
       sign_in(paula, company: company)
 
       get workshop_path(taller)
 
       expect(response).to have_http_status(:ok)
       # Quien participa no ve la lista de mesas entera: vive detrás del
-      # `can_assemble` de `show`, no de `can_edit`. El control positivo es que
+      # `can_assemble` de `show`, no de `can_edit`. Sí ve SU mesa, en el panel
+      # «Tu mesa» (`workshops/_my_group`), así que la ausencia se prueba con la
+      # mesa de otras personas y no con la suya. El control positivo es que
       # la pantalla sí se rinde para esa persona (el nombre del taller sale del
       # encabezado, que se sirve siempre), y el contraste, el ejemplo del admin
       # de arriba, que sí ve el botón con este mismo taller.
       expect(response.body).to include(taller.name)
-      expect(response.body).not_to include("Mesa de Paula")
+      expect(response.body).to include("Tu mesa")
+      expect(response.body).not_to include("Mesa de otras personas")
       expect(response.body).not_to include(attendance_workshop_path(taller))
     end
 

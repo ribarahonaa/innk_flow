@@ -1,0 +1,22 @@
+-# Lo que se consulta y no se edita. Orden fijo: primero el desafío, después
+-# quién participa — el mismo orden que ya fijaron las pantallas de módulo.
+.card
+  .card-body
+    .section-head
+      %h2.section-title El desafío
+    %ul.field-list
+      %li.field-list__item
+        %span= link_to link.challenge.name, challenge_path(link.challenge)
+      - if link.challenge_step
+        %li.field-list__item
+          %span= link.challenge_step.name
+          -# `display_kind` y no `t(...)` a mano: la clave es `flow.kinds`, no
+          -# `flow.step_kinds`, y el modelo ya es dueño de esa traducción
+          -# (`ChallengeStep#display_kind`). Escribirla acá sería un segundo
+          -# lugar que el día que la clave se mueva muestra el kind en inglés
+          -# por el fallback `humanize`.
+          %span.muted= " · #{link.challenge_step.display_kind}"
+    - if link.challenge.brief.present?
+      %p.muted= link.challenge.brief
+
+= render "workshops/my_group", workshop: workshop, group: group

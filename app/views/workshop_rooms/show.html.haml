@@ -32,3 +32,10 @@
   .card
     .card-body
       %p.muted= @link.closed_reason.presence || "Esta sala ya no admite trabajo: el desafío avanzó de fase."
+
+-# El layout la lee DESPUÉS del `yield`: es el template el que la llena.
+-# `.app-shell` se acomoda con `:has()`, así que la sala no declara layout. En
+-# el taller no hay drawer —`desafio_del_shell` devuelve nil, porque el taller
+-# no cuelga de un desafío—, así que la grilla queda centro + referencia.
+- content_for :referencia do
+  = render "workshop_rooms/referencia", workshop: @workshop, link: @link, group: @group
