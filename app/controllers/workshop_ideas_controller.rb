@@ -20,7 +20,7 @@ class WorkshopIdeasController < ApplicationController
     # prohíbe por conflicto de interés— y podía hacerlo en la sala de un
     # desafío ajeno, que por la ruta normal le da 404. Y el `&.` que había al
     # sembrar los contribuyentes toleraba el `nil`: la idea nacía sin uno solo.
-    group = group_of(current_user)
+    group = @workshop.group_of(current_user)
     return reject_without_group unless group
     return reject_arrival if group.arrival?
 
@@ -56,9 +56,13 @@ class WorkshopIdeasController < ApplicationController
     publish.enqueue_embedding! if result.ok?
 
     if result.ok?
-      redirect_to workshop_path(@workshop), notice: "Borrador creado en la sala."
+      # A la SALA y no al taller: la sala es donde se ve lo que la mesa acaba
+      # de crear. Volviendo al taller el borrador no aparecía en ninguna
+      # pantalla, así que la mesa no sabía que ya lo había creado y lo creaba
+      # de nuevo.
+      redirect_to workshop_sala_path(@workshop, @link), notice: "Borrador creado en la sala."
     else
-      redirect_to workshop_path(@workshop), alert: result.error_sentence
+      redirect_to workshop_sala_path(@workshop, @link), alert: result.error_sentence
     end
   end
 
@@ -67,11 +71,6 @@ class WorkshopIdeasController < ApplicationController
   def set_link
     @workshop = policy_scope(Workshop).find_by!(id: params[:workshop_id])
     @link = @workshop.workshop_challenges.find_by!(id: params[:sala_id])
-  end
-
-  def group_of(user)
-    @workshop.workshop_groups.joins(:workshop_group_members)
-             .find_by(workshop_group_members: { user_id: user.id })
   end
 
   # Contra el formulario declarado: una clave que no es de un campo se descarta.
@@ -88,12 +87,12 @@ class WorkshopIdeasController < ApplicationController
   end
 
   def reject_room
-    redirect_to workshop_path(@workshop),
+    redirect_to workshop_sala_path(@workshop, @link),
                 alert: "Esta sala ya no admite trabajo: el desafío avanzó de fase."
   end
 
   def reject_without_group
-    redirect_to workshop_path(@workshop),
+    redirect_to workshop_sala_path(@workshop, @link),
                 alert: "Sólo se crea un borrador desde una mesa: no estás en ninguna de este taller."
   end
 
@@ -101,7 +100,7 @@ class WorkshopIdeasController < ApplicationController
   # 404 pelado en una sala que debería decir «tu mesa todavía no se armó» es el
   # control que no responde.
   def reject_arrival
-    redirect_to workshop_path(@workshop),
+    redirect_to workshop_sala_path(@workshop, @link),
                 alert: "Tu mesa todavía no se armó: esperá el reparto para trabajar."
   end
 end

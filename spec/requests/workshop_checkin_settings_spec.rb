@@ -125,6 +125,11 @@ RSpec.describe "los controles del check-in", type: :request do
         taller.update!(attendance_mode: "registered")
         mesa = create(:workshop_group, workshop: taller)
         WorkshopGroupMember.create!(workshop_group: mesa, user_id: paula.id)
+        # Con una sola sala el taller redirige a ella y la pantalla del taller
+        # no se sirve: un segundo desafío la mantiene a la vista.
+        otro = create(:challenge)
+        paso = create(:challenge_step, challenge: otro, kind: "ideation", status: "active")
+        create(:workshop_challenge, workshop: taller, challenge: otro, challenge_step: paso)
       end
       sign_in(paula, company: company)
 

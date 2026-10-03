@@ -455,14 +455,11 @@ Crear `app/views/workshop_rooms/show.html.haml`:
 .page-head
   %div
     %p.breadcrumb
-      -# La misma pregunta que hace el redirect de `workshops#show`: si el
-      -# taller manda acá, ofrecer «volver al taller» sería un bucle.
-      - if @rooms.redirects?(can_assemble: policy(@workshop).update?)
-        = link_to "Talleres", workshops_path
-      - else
-        = link_to "Talleres", workshops_path
-        = " › "
-        = link_to @workshop.name, workshop_path(@workshop)
+      -# Sin condición todavía: la vuelve condicional la tarea que introduce el
+      -# redirect del taller, que es la dueña de esa pregunta.
+      = link_to "Talleres", workshops_path
+      = " › "
+      = link_to @workshop.name, workshop_path(@workshop)
     %h1.page-title= @link.challenge.name
 
 - case @link.room_state
@@ -528,7 +525,22 @@ MSG
 - Consumes: `Flow::Workshops::Rooms#links`, `#workable`, `#only_room`, `#redirects?(can_assemble:)` (Task 1); `workshop_sala_path` (Task 2).
 - Produces: `@rooms` en `workshops#show`, consumido por `workshops/_room_picker`.
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [ ] **Step 1: Mover los dos spec de sala a la URL de la sala**
+
+Esta tarea es la que rompe las aserciones de pantalla de `workshop_sala_idear_spec.rb` y `workshop_sala_evolucion_spec.rb`: sacarle los formularios a `workshops/show` las deja mirando una pantalla que ya no los tiene. Es su dueña, así que las mueve ella y no deja la suite en rojo para la tarea siguiente —si no, el revisor de esta tarea no puede distinguir el rojo esperado de uno nuevo—.
+
+En los DOS archivos, todo `get workshop_path(setup[:workshop])` / `get workshop_path(scene[:workshop])` pasa a `get workshop_sala_path(…, …[:link])`. Son **todos**, incluido el del `describe "un gestor convocado a la mesa"` del spec de idear, que está fuera del describe de la pantalla. Los `redirect_to(workshop_path(...))` de los rechazos NO se tocan acá: los controllers todavía redirigen al taller y los cambian las tareas que los tocan.
+
+Y se **borra** del spec de idear el ejemplo «con dos salas de idear no repite ids de DOM»: existía porque dos salas compartían pantalla, y esta tarea abole exactamente eso.
+
+```bash
+make spec-file FILE=spec/requests/workshop_sala_idear_spec.rb
+make spec-file FILE=spec/requests/workshop_sala_evolucion_spec.rb
+```
+
+Esperado: los dos en verde. La sala todavía renderiza los mismos partials, así que apuntar a su URL alcanza.
+
+- [ ] **Step 2: Escribir los tests que fallan**
 
 Agregar a `spec/requests/workshops_spec.rb`, dentro del describe de más afuera:
 
@@ -594,10 +606,14 @@ Agregar a `spec/requests/workshops_spec.rb`, dentro del describe de más afuera:
       expect(response.body).to include("Abrir taller").or include("Cerrar taller")
     end
 
-    # Review Focus 2: sin mesa en ninguna de las dos, el selector se muestra
-    # igual y no redirige. Redirigir a una sola sala es la excepción que pidió
-    # el pedido; con dos, no hay a dónde.
-    it "con dos salas y sin mesa muestra el selector y no redirige" do
+    # Review Focus 2: a quien no tiene mesa el selector se le SIRVE igual.
+    #
+    # Lo que este ejemplo NO puede aislar: que con dos salas no se redirija.
+    # Quien no tiene mesa y aun así ve el taller sólo puede ser quien
+    # administra o un gestor, y para ellos `can_assemble` ya es true. La
+    # discriminación de «con dos salas no redirige» la aporta el primer
+    # ejemplo de este describe, con un participante CON mesa.
+    it "con dos salas y sin mesa se sirve el selector" do
       escena = taller_con(%w[ideation evolution])
       sin_mesa = without_tenant do
         u = create(:user, email: "sin-mesa@test.dev")
@@ -655,7 +671,7 @@ Agregar a `spec/requests/workshop_room_spec.rb`:
   end
 ```
 
-- [ ] **Step 2: Correrlos y verlos fallar**
+- [ ] **Step 3: Correrlos y verlos fallar**
 
 ```bash
 make spec-file FILE=spec/requests/workshops_spec.rb
@@ -664,7 +680,7 @@ make spec-file FILE=spec/requests/workshop_room_spec.rb
 
 Esperado: el selector falla porque `workshops/show` todavía apila formularios (`name="payload[` presente) y no redirige; el breadcrumb falla porque hoy siempre linkea al taller.
 
-- [ ] **Step 3: Escribir el selector**
+- [ ] **Step 4: Escribir el selector**
 
 Crear `app/views/workshops/_room_picker.html.haml`:
 
@@ -702,7 +718,7 @@ Crear `app/views/workshops/_room_picker.html.haml`:
                 = link_to "Entrar", workshop_sala_path(workshop, link), class: "btn btn-ghost btn-sm"
 ```
 
-- [ ] **Step 4: Reemplazar el cuerpo de `workshops/show`**
+- [ ] **Step 5: Reemplazar el cuerpo de `workshops/show`**
 
 En `app/views/workshops/show.html.haml`, reemplazar el bloque `- if can_work` (el `@links.each` con el `case`) por el selector:
 
@@ -713,7 +729,7 @@ En `app/views/workshops/show.html.haml`, reemplazar el bloque `- if can_work` (e
 
 El resto de la pantalla (el `.card` del encabezado y el `- if can_assemble` con `workshops/assembly`) no se toca.
 
-- [ ] **Step 5: Redirigir cuando hay una sola sala**
+- [ ] **Step 6: Redirigir cuando hay una sola sala**
 
 En `app/controllers/workshops_controller.rb#show`, después de `MaterializeClosures` y antes de leer `@links`:
 
@@ -740,9 +756,9 @@ En `app/controllers/workshops_controller.rb#show`, después de `MaterializeClosu
   end
 ```
 
-- [ ] **Step 6: Escribir el breadcrumb condicional**
+- [ ] **Step 7: Escribir el breadcrumb condicional**
 
-Ya está escrito en `app/views/workshop_rooms/show.html.haml` (Task 2, Step 6), pero las dos ramas eran idénticas. Corregir la primera para que **no** linkee al taller:
+La Task 2 lo dejó sin condición a propósito: la condición es de esta tarea, que es la que introduce el redirect. En `app/views/workshop_rooms/show.html.haml`:
 
 ```haml
     %p.breadcrumb
@@ -755,21 +771,29 @@ Ya está escrito en `app/views/workshop_rooms/show.html.haml` (Task 2, Step 6), 
         = link_to @workshop.name, workshop_path(@workshop)
 ```
 
-- [ ] **Step 7: Correr y verlos pasar**
+- [ ] **Step 8: Correr y verlos pasar**
 
 ```bash
 make spec-file FILE=spec/requests/workshops_spec.rb
 make spec-file FILE=spec/requests/workshop_room_spec.rb
 ```
 
-Esperado: los dos en verde. `workshop_sala_idear_spec.rb` y `workshop_sala_evolucion_spec.rb` ahora FALLAN —sus aserciones de pantalla miran `workshops/show`, que ya no tiene formularios—: se arreglan en las Tasks 4 y 5, que son sus dueñas.
+Esperado: los cuatro en verde — los dos de arriba y además los dos spec de sala, que el Step 1 ya movió a la URL de la sala:
 
-- [ ] **Step 8: Commit**
+```bash
+make spec-file FILE=spec/requests/workshop_sala_idear_spec.rb
+make spec-file FILE=spec/requests/workshop_sala_evolucion_spec.rb
+```
+
+Ninguna tarea deja la suite en rojo.
+
+- [ ] **Step 9: Commit**
 
 ```bash
 git add app/views/workshops/show.html.haml app/views/workshops/_room_picker.html.haml \
         app/views/workshop_rooms/show.html.haml app/controllers/workshops_controller.rb \
-        spec/requests/workshops_spec.rb spec/requests/workshop_room_spec.rb
+        spec/requests/workshops_spec.rb spec/requests/workshop_room_spec.rb \
+        spec/requests/workshop_sala_idear_spec.rb spec/requests/workshop_sala_evolucion_spec.rb
 git commit -m "$(cat <<'MSG'
 La pantalla del taller elige desafío, no apila formularios
 
@@ -803,7 +827,7 @@ MSG
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
-En `spec/requests/workshop_sala_idear_spec.rb`, reemplazar el `describe "la pantalla del taller"` por un `describe "la sala"`, y cambiar los `get workshop_path(...)` por `get workshop_sala_path(setup[:workshop], setup[:link])`. Los `redirect_to(workshop_path(...))` de los rechazos pasan a `workshop_sala_path(setup[:workshop], setup[:link])`. El ejemplo «con dos salas de idear no repite ids de DOM» se BORRA: con una sala por pantalla la colisión no puede existir, que es por lo que se cae el `id_prefix`.
+En `spec/requests/workshop_sala_idear_spec.rb` las URLs ya apuntan a la sala (lo hizo la Task 3). Acá queda: renombrar el `describe "la pantalla del taller"` a `describe "la sala"`, y pasar los `redirect_to(workshop_path(...))` de los rechazos a `workshop_sala_path(setup[:workshop], setup[:link])` — son los redirects de los controllers, que esta tarea cambia.
 
 Agregar estos ejemplos:
 
@@ -1038,11 +1062,13 @@ Esperado: los tres en verde. El de lint importa: la consulta nueva de ideas tien
 
 - [ ] **Step 8: Commit**
 
+El `git rm` del Step 5 ya dejó preparada la baja del partial viejo.
+
 ```bash
-git add app/views/workshop_rooms app/controllers/workshop_rooms_controller.rb \
+git add -A app/views/workshop_rooms app/views/workshops \
+        app/controllers/workshop_rooms_controller.rb \
         app/controllers/workshop_ideas_controller.rb spec/requests/workshop_sala_idear_spec.rb
-git rm --cached app/views/workshops/_sala_idear.html.haml 2>/dev/null; true
-git commit -a -m "$(cat <<'MSG'
+git commit -m "$(cat <<'MSG'
 La sala de idear muestra lo que la mesa ya creó
 
 Crear volvía al taller y el borrador no aparecía en ninguna pantalla, así
@@ -1078,7 +1104,7 @@ MSG
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
-En `spec/requests/workshop_sala_evolucion_spec.rb`: el `describe "la pantalla del taller"` pasa a `describe "la sala"`, los `get workshop_path(...)` a `get workshop_sala_path(scene[:workshop], scene[:link])`, y los `redirect_to(workshop_path(...))` a `workshop_sala_path(scene[:workshop], scene[:link])`. El ejemplo «precarga cada formulario … y no repite ids de DOM» se reescribe: ahora hay UN formulario, el de la idea seleccionada.
+En `spec/requests/workshop_sala_evolucion_spec.rb` las URLs ya apuntan a la sala (lo hizo la Task 3). Acá queda: renombrar el `describe "la pantalla del taller"` a `describe "la sala"`, pasar los `redirect_to(workshop_path(...))` a `workshop_sala_path(scene[:workshop], scene[:link])`, y reescribir el ejemplo «precarga cada formulario … y no repite ids de DOM»: ahora hay UN formulario, el de la idea seleccionada.
 
 Agregar:
 

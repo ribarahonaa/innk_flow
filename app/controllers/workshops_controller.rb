@@ -48,13 +48,40 @@ class WorkshopsController < ApplicationController
   def show
     authorize @workshop, :show?
     # El cierre del vínculo es perezoso: nada se engancha en `advance!`, y
-    # entrar a la sala es lo que hace que el taller se entere de que el desafío
-    # avanzó. Va ANTES de leer `@links`, para que la pantalla vea lo cerrado.
+    # entrar acá es lo que hace que el taller se entere de que el desafío
+    # avanzó. Va ANTES de leer las salas, para que el selector vea lo cerrado.
     Flow::Workshops::MaterializeClosures.new(@workshop).call
-    @links = @workshop.workshop_challenges.includes(:challenge, :challenge_step)
+    @rooms = Flow::Workshops::Rooms.new(@workshop)
+
+    # Con UNA sola sala trabajable y sin bloque de armado, esta pantalla no
+    # tiene nada que ofrecer: se va derecho a la sala. Quien administra nunca
+    # se redirige. La condición vive en `Rooms` porque el breadcrumb de la sala
+    # pregunta lo mismo: si divergieran, volver al taller sería un bucle.
+    if @rooms.redirects?(can_assemble: policy(@workshop).update?)
+      # Esta pantalla es puro PASAJE en esta rama, y es el salto del MEDIO de
+      # la única cadena de dos redirects de la app: `POST /checkin/:token`
+      # redirige acá con su aviso y de acá se sale a la sala.
+      #
+      # Hoy el aviso llega a la sala SIN esta línea, y conviene saber por qué:
+      # Rails marca para descartar las claves del flash que se CARGARON en el
+      # request, y esta rama no toca `flash` —`redirect_to` sin `notice:` ni
+      # `alert:` no lo instancia, y acá no se renderiza ninguna vista—, así que
+      # `commit_flash` deja la cookie como estaba. Es decir: sobrevive por
+      # accidente. Un `flash.now` agregado mañana en este `show`, o cualquier
+      # lectura del flash antes del redirect, se llevaría puesto el único acuse
+      # del único camino público que escribe datos del dominio, y lo haría en
+      # silencio. `flash.keep` lo vuelve explícito.
+      #
+      # Por lo mismo, NINGÚN ejemplo puede distinguir esta línea hoy: lo que el
+      # spec del check-in fija es que el aviso recorre la cadena entera, que no
+      # estaba cubierto por nada.
+      flash.keep
+      return redirect_to workshop_sala_path(@workshop, @rooms.only_room)
+    end
+
+    @links = @rooms.links
     @groups = @workshop.workshop_groups.includes(workshop_group_members: :user)
-    @my_group = @workshop.workshop_groups.joins(:workshop_group_members)
-                         .find_by(workshop_group_members: { user_id: current_user.id })
+    @my_group = @workshop.group_of(current_user)
   end
 
   def open

@@ -1,7 +1,13 @@
--# El encabezado de una mesa y su lista de asientos. UN markup para los dos
--# lugares que lo renderizan: la pantalla del taller y el endpoint que recarga
--# la mesa de llegada. Si fueran dos copias, el día que una cambie la otra
--# dibujaría otra cosa y nadie se enteraría.
+-# El encabezado de una mesa y su lista de asientos, PARA EL BLOQUE DE ARMADO.
+-# UN markup para los dos lugares que lo renderizan: la pantalla del taller y el
+-# endpoint que recarga la mesa de llegada. Si fueran dos copias, el día que una
+-# cambie la otra dibujaría otra cosa y nadie se enteraría.
+-#
+-# El panel «Tu mesa» (`workshops/_my_group`) dibuja un asiento con su propio
+-# markup, y es a propósito: éste lleva los controles de asistencia y de baja,
+-# que son de quien administra, y aquél se sirve a cualquiera con `work?`.
+-# Compartirlos obligaría a pasar el permiso como variable a un partial que hoy
+-# no pregunta nada.
 .assignment-row
   %span
     = group.name

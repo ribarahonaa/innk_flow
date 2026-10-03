@@ -1,0 +1,99 @@
+-# La sala de evolución: las ideas que la mesa puede trabajar, el contenido de
+-# la elegida, el formulario de propuesta y lo que la mesa ya propuso.
+-#
+-# Los formularios son hermanos, nunca anidados: un `button_to` es un `<form>`
+-# y uno dentro de otro es HTML inválido que el navegador aplana sin dejar
+-# rastro en el DOM.
+- ideation = link.challenge.pipeline.ideation_step
+- all_fields = ideation ? ideation.form_fields.ordered.to_a : []
+-# Un archivo no viaja en una propuesta: sólo campos de valor.
+- fields = all_fields.reject { |field| field.field_type == "file" }
+- file_fields = all_fields.select { |field| field.field_type == "file" }
+
+- if group.nil?
+  .card
+    .card-body
+      %p.muted Sólo se propone desde una mesa: no estás en ninguna de este taller.
+- elsif group.arrival?
+  .card
+    .card-body
+      %p.muted Tu mesa todavía no se armó: en cuanto se reparta, acá aparecen las ideas para proponer.
+- elsif ideas.empty?
+  .card
+    .card-body.empty-state
+      %h2 Ninguna idea para trabajar
+      %p.muted Ninguna persona de tu mesa tiene ideas postuladas en este desafío todavía.
+- else
+  .card
+    .card-body
+      .section-head
+        %h2.section-title Las ideas de tu mesa
+      %p.muted Proponé cambios sobre ellas: quien es autor decide si los acepta.
+      %ul.field-list
+        - ideas.each do |idea|
+          - elegida = selected && selected.id == idea.id
+          %li.field-list__item
+            %div
+              - if elegida
+                %strong= idea.title
+              - else
+                = link_to idea.title, workshop_sala_path(workshop, link, idea: idea.id)
+              - if idea.current_version
+                %span{ class: chip("version") }= idea.current_version.label
+              %ul.people-list
+                %li.people-list__item
+                  %span.people-list__name= idea.author.name
+                  %span.people-list__role creó la idea
+                - idea.idea_contributors.each do |contributor|
+                  %li.people-list__item
+                    %span.people-list__name= contributor.user.name
+                    %span.people-list__role= t("flow.contributor_roles.#{contributor.role}")
+
+  - if selected
+    .card
+      .card-body
+        .section-head
+          %h2.section-title Contenido
+        %p.muted= "Versión vigente: #{selected.current_version&.label || '—'}"
+        %dl.answer-list
+          - fields.each do |field|
+            -# `selected.payload` puede ser `{}` cuando la idea no tiene
+            -# versión publicada: se dibuja `—` y no se revienta.
+            - value = selected.payload[field.key]
+            %dt.answer-list__label= field.label
+            %dd{ class: ("is-empty" if value.blank?) }
+              = value.is_a?(Array) ? value.join(", ") : (value.presence || "—")
+
+    - if file_fields.any?
+      -# `alert` es display:grid con grid-auto-flow:column: todo dentro de UN
+      -# `%div`, o los hijos se reparten en columnas.
+      .alert.alert-soft.alert-warning
+        - una = file_fields.size == 1
+        %div= "#{una ? 'El campo de archivo' : 'Los campos de archivo'} #{file_fields.map(&:label).to_sentence} #{una ? 'no se propone' : 'no se proponen'} desde el taller, por eso #{una ? 'no está' : 'no están'} en el formulario."
+
+    .card
+      .card-body
+        .section-head
+          %h2.section-title Proponer cambios
+        = form_with url: workshop_sala_proposals_path(workshop, link) do
+          = hidden_field_tag :idea_id, selected.id
+          = render "ideas/form_fields", fields: fields, payload: selected.payload
+          .form-actions
+            = submit_tag "Proponer", class: "btn btn-primary"
+
+    - if proposals.any?
+      .card
+        .card-body
+          .section-head
+            %h2.section-title Lo que esta mesa propuso
+          %p.muted Aceptarla o descartarla es de quien es autor, en la ficha de la idea.
+          %ul.field-list
+            - proposals.each do |proposal|
+              %li.field-list__item
+                %div
+                  %span{ class: chip_de_propuesta(proposal.status) }
+                    = t("flow.workshop_proposal_statuses.#{proposal.status}")
+                  %span.muted= " · #{l(proposal.created_at, format: :short)}"
+                  - unless proposal.actionable?
+                    - if proposal.pending?
+                      %p.field-hint= "La ronda «#{proposal.challenge_step.name}» ya cerró: esta propuesta venció."

@@ -779,17 +779,21 @@ Flow::Tenant.bypass! do
       [created, step]
     end
 
-    workshop_idea = lambda do |challenge, step, author, title, description|
+    # `submit:` por el borrador de la sala de idear, que es lo único que NO se
+    # postula: `Idea.submitted` es `where.not(submitted_at: nil)`, así que
+    # marcarlo postulado trabaría el editor de campos de su módulo
+    # (`ideas.submitted.exists?`) por una idea que nadie postuló.
+    workshop_idea = lambda do |challenge, step, author, title, description, submit: true|
       idea = Idea.create!(challenge: challenge, author: author, status: "draft", origin: "human")
       Flow::Ideas::PublishVersion.new(
         idea, payload: { "titulo" => title, "descripcion" => description },
         author: author, actor_type: "human", source_step: step, change_note: "Creación de la idea"
       ).call
-      idea.update!(submitted_at: Time.current)
+      idea.update!(submitted_at: Time.current) if submit
       idea
     end
 
-    ideation_challenge, = workshop_challenge.call(
+    ideation_challenge, ideation_step = workshop_challenge.call(
       "taller-idear", "Ideas para la sala de descanso",
       "La sala de descanso se usa poco y nadie sabe qué le falta. Se trabaja en un taller de una tarde.",
       [["ideation", "Postulación"]]
@@ -839,6 +843,23 @@ Flow::Tenant.bypass! do
     WorkshopGroupMember.create!(workshop_group: despacho_group, user: workshop_part2)
     opening = Flow::Workshops::Open.new(open_workshop).call
     raise "El taller de idear no abrió: #{opening.errors.to_sentence}" unless opening.ok?
+
+    # Un borrador de Mesa Bodega en el desafío de idear, armado como lo arma la
+    # sala: lo firma alguien de la mesa y el resto queda como contribuyente
+    # (`WorkshopIdeasController` escribe `idea_contributors` para toda la mesa
+    # desde el minuto cero), y NO se postula.
+    #
+    # Existe para que la captura `25` dibuje el bloque «Las ideas de tu mesa».
+    # Sin ninguna idea sembrada ese bloque no se renderiza, y eso dejó pasar
+    # seis corridas verdes sobre una lista de participación mal maquetada que
+    # nadie había visto con datos: `[CLASES]` no lo caza, porque sus cuatro
+    # clases sí tienen regla en la hoja. Es el mismo patrón que la tarjeta del
+    # QR del check-in.
+    bodega_idea = workshop_idea.call(ideation_challenge, ideation_step, workshop_part1,
+                                     "Un rincón de café con plantas",
+                                     "Sumar una cafetera, dos plantas y una mesa baja al rincón que hoy está vacío.",
+                                     submit: false)
+    IdeaContributor.create!(idea: bodega_idea, user: workshop_admin, role: "contributor")
 
     # El taller de EVOLUCIÓN, con su PROPIA mesa: una persona se sienta en una
     # mesa por taller, pero en dos talleres distintos sí. Se llama igual y lleva

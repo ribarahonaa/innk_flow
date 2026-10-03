@@ -79,7 +79,7 @@ RSpec.describe "sala del taller: idear", type: :request do
   describe "no deja crear si la sala no es trabajable" do
     def rejected_room!
       expect { post_draft }.not_to(change { as_company(company) { Idea.count } })
-      expect(response).to redirect_to(workshop_path(setup[:workshop]))
+      expect(response).to redirect_to(workshop_sala_path(setup[:workshop], setup[:link]))
       expect(flash[:alert]).to eq("Esta sala ya no admite trabajo: el desafío avanzó de fase.")
     end
 
@@ -151,7 +151,7 @@ RSpec.describe "sala del taller: idear", type: :request do
     sign_in(admin, company: company)
 
     expect { post_draft }.not_to(change { as_company(company) { Idea.count } })
-    expect(response).to redirect_to(workshop_path(setup[:workshop]))
+    expect(response).to redirect_to(workshop_sala_path(setup[:workshop], setup[:link]))
     expect(flash[:alert]).to include("desde una mesa")
   end
 
@@ -207,7 +207,7 @@ RSpec.describe "sala del taller: idear", type: :request do
 
     it "no recibe el formulario en la pantalla" do
       sign_in(gestor, company: company)
-      get workshop_path(setup[:workshop])
+      get workshop_sala_path(setup[:workshop], setup[:link])
 
       expect(response).to have_http_status(:ok)
       expect(response.body).not_to include(%(name="payload[#{setup[:field].key}]"))
@@ -220,18 +220,132 @@ RSpec.describe "sala del taller: idear", type: :request do
   # Anti-sobrecorrección: cerrar de más no rompe ningún otro ejemplo.
   it "quien participa y está en la mesa sigue creando y viendo el formulario" do
     sign_in(ana, company: company)
-    get workshop_path(setup[:workshop])
+    get workshop_sala_path(setup[:workshop], setup[:link])
     expect(response.body).to include(%(name="payload[#{setup[:field].key}]"))
     expect(response.body).to include("Crear borrador")
 
     expect { post_draft }.to(change { as_company(company) { Idea.count } }.by(1))
-    expect(response).to redirect_to(workshop_path(setup[:workshop]))
+    expect(response).to redirect_to(workshop_sala_path(setup[:workshop], setup[:link]))
   end
 
-  describe "la pantalla del taller" do
+  describe "lo que ya creó la mesa" do
+    def sala = get workshop_sala_path(setup[:workshop], setup[:link])
+
+    it "lista el borrador que la mesa creó, con estado y versión" do
+      sign_in(ana, company: company)
+      post_draft("Idea de la mesa")
+      # `ideas` NO tiene columna `title`: `Idea#title` sale de la versión
+      # vigente y sin versión es «(sin título)» para TODAS. Se lee del registro
+      # en vez de escribirlo a mano, así la aserción no depende de cómo se
+      # derive.
+      # El título se lee DENTRO del tenant: `title` consulta la versión.
+      idea, title = as_company(company) { Idea.order(:created_at).last.then { |i| [ i, i.title ] } }
+
+      sala
+      expect(response.body).to include(title)
+      expect(response.body).to include(challenge_idea_path(setup[:challenge], idea))
+      expect(response.body).to include("Borrador")
+    end
+
+    # Lo ve cada integrante porque el borrador nace con la mesa entera como
+    # `idea_contributors`: la visibilidad la resuelve `IdeaPolicy::Scope`, no
+    # una excepción nueva.
+    it "lo ve también el resto de la mesa" do
+      sign_in(ana, company: company)
+      post_draft("Idea compartida")
+      idea, title = as_company(company) { Idea.order(:created_at).last.then { |i| [ i, i.title ] } }
+
+      sign_in(beto, company: company)
+      sala
+      expect(response.body).to include(challenge_idea_path(setup[:challenge], idea))
+      expect(response.body).to include(title)
+    end
+
+    # La razón por la que la consulta NO sale de `workable_ideas`: su comentario
+    # documenta que exponer a toda la mesa el borrador que alguien creó AFUERA
+    # fue una fuga ya arreglada. `policy_scope(Idea)` la hace imposible.
+    it "no muestra el borrador que un compañero creó fuera del taller" do
+      ajena = as_company(company) do
+        idea = create(:idea, challenge: setup[:challenge], author: beto, status: "draft")
+        # Con título propio: sin versión publicada toda idea se llama
+        # «(sin título)», y una aserción sobre ese texto no distingue nada.
+        result = Flow::Ideas::PublishVersion.new(
+          idea, payload: {}, author: beto, title: "Borrador privado de Beto"
+        ).call
+        expect(result).to be_ok
+        idea
+      end
+      sign_in(ana, company: company)
+      sala
+
+      expect(response.body).not_to include("Borrador privado de Beto")
+      expect(response.body).not_to include(challenge_idea_path(setup[:challenge], ajena))
+    end
+
+    # Discrimina I1: para quien administra, `IdeaPolicy::Scope` devuelve `all`,
+    # así que sin el filtro por integrantes este bloque lista las ideas de las
+    # OTRAS mesas del taller bajo un título que dice que son de ésta.
+    it "no lista el borrador de otra mesa, ni para quien administra" do
+      admin = without_tenant do
+        u = create(:user, email: "admin-mesas@test.dev")
+        create(:membership, :admin, company: company, user: u)
+        u
+      end
+      ajena = as_company(company) do
+        tercera = without_tenant do
+          u = create(:user, email: "tercera@test.dev")
+          create(:membership, :participant, company: company, user: u)
+          u
+        end
+        otra_mesa = create(:workshop_group, workshop: setup[:workshop], name: "Mesa 9")
+        create(:workshop_group_member, workshop_group: otra_mesa, user: tercera)
+        # Quien administra se sienta en la mesa de ana y beto: el bloque sólo se
+        # dibuja desde una mesa.
+        create(:workshop_group_member, workshop_group: setup[:workshop].workshop_groups.first, user: admin)
+        idea = create(:idea, challenge: setup[:challenge], author: tercera, status: "draft")
+        result = Flow::Ideas::PublishVersion.new(
+          idea, payload: {}, author: tercera, title: "Borrador de la Mesa 9"
+        ).call
+        expect(result).to be_ok
+        idea
+      end
+      sign_in(admin, company: company)
+      sala
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).not_to include("Borrador de la Mesa 9")
+      expect(response.body).not_to include(challenge_idea_path(setup[:challenge], ajena))
+    end
+
+    it "sin nada creado dice que no hay nada y ofrece el formulario igual" do
+      sign_in(ana, company: company)
+      sala
+
+      expect(response.body).to include("Crear un borrador")
+      expect(response.body).to include(%(name="payload[#{setup[:field].key}]"))
+    end
+
+    it "con algo creado el formulario dice «Crear otro borrador»" do
+      sign_in(ana, company: company)
+      post_draft
+      sala
+
+      expect(response.body).to include("Crear otro borrador")
+    end
+  end
+
+  it "crear el borrador vuelve a la sala, no al taller: ahí se ve lo que se creó" do
+    sign_in(ana, company: company)
+    post_draft
+
+    expect(response).to redirect_to(workshop_sala_path(setup[:workshop], setup[:link]))
+  end
+
+
+  describe "la sala" do
     it "ofrece a quien está en la mesa el formulario del módulo, diciendo con quién se comparte" do
       sign_in(ana, company: company)
-      get workshop_path(setup[:workshop])
+      get workshop_sala_path(setup[:workshop], setup[:link])
 
       # El submit va en `.form-actions`, igual que en `ideas/new`.
       expect(response.body).to match(/class="form-actions">\s*<input[^>]*value="Crear borrador"/)
@@ -251,7 +365,7 @@ RSpec.describe "sala del taller: idear", type: :request do
         create(:challenge_step, challenge: setup[:challenge], kind: "evolution", status: "active")
       end
       sign_in(ana, company: company)
-      get workshop_path(setup[:workshop])
+      get workshop_sala_path(setup[:workshop], setup[:link])
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("Evolución")
@@ -264,31 +378,12 @@ RSpec.describe "sala del taller: idear", type: :request do
       end
     end
 
-    # Un taller con dos desafíos en idear es el caso más natural, y sin prefijo
-    # las dos salas emiten el mismo `id="payload_<clave>"`: el `<label for>` de
-    # la segunda enfoca el campo de la primera.
-    it "con dos salas de idear no repite ids de DOM" do
-      as_company(company) do
-        otro = create(:challenge)
-        paso = create(:challenge_step, challenge: otro, kind: "ideation", status: "active")
-        create(:form_field, challenge_step: paso, label: "Resumen", field_type: "text")
-        create(:workshop_challenge, workshop: setup[:workshop], challenge: otro, challenge_step: paso)
-      end
-      sign_in(ana, company: company)
-      get workshop_path(setup[:workshop])
-
-      ids = response.body.scan(/\bid="([^"]+)"/).flatten
-      expect(ids.grep(/payload_/).size).to eq(2)
-      expect(ids.tally.select { |_, n| n > 1 }.keys.grep(/payload_/)).to be_empty
-      expect(response.body.scan(/for="([^"]*payload_[^"]*)"/).flatten.uniq.size).to eq(2)
-    end
-
     it "muestra la sala cerrada con su motivo en vez de hacerla desaparecer" do
       as_company(company) do
         setup[:link].update!(status: "closed", closed_reason: "El desafío avanzó de fase.", closed_at: Time.current)
       end
       sign_in(ana, company: company)
-      get workshop_path(setup[:workshop])
+      get workshop_sala_path(setup[:workshop], setup[:link])
 
       expect(response.body).to include("El desafío avanzó de fase.")
       expect(response.body).not_to include(%(name="payload[))
