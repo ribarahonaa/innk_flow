@@ -341,12 +341,34 @@ RSpec.describe "talleres", type: :request do
       expect(response.body).not_to include(%(name="payload[))
     end
 
-    it "con una sola sala redirige a ella" do
+    it "con un único vínculo, y trabajable, redirige a su sala" do
       escena = taller_con(%w[ideation])
       sign_in(ana, company: company)
       get workshop_path(escena[:workshop])
 
       expect(response).to redirect_to(workshop_sala_path(escena[:workshop], escena[:links].first))
+    end
+
+    # El escenario está en el seed: «Taller de mejora continua» lleva idear
+    # activo y el desafío del manual, que se rechaza al abrir y queda cerrado
+    # con su motivo. Con el redirect puesto sólo en «una sola sala trabajable»,
+    # Paula caía en la sala de idear y el breadcrumb —que pregunta lo mismo,
+    # para no hacer bucle— no le ofrecía volver: ningún camino al selector, así
+    # que nunca se enteraba de que ese desafío estuvo en el taller ni de por qué
+    # cerró. Es justo lo que el selector existe para no hacer.
+    it "con un vínculo trabajable y otro cerrado sirve el selector, con el motivo del cerrado" do
+      escena = taller_con(%w[ideation ideation])
+      as_company(company) do
+        escena[:links].last.update!(status: "closed", closed_at: Time.current,
+                                    closed_reason: "El desafío está en Evaluación.")
+      end
+      sign_in(ana, company: company)
+      get workshop_path(escena[:workshop])
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("El desafío está en Evaluación.")
+      # Y la sala trabajable se sigue ofreciendo desde el selector.
+      expect(response.body).to include(workshop_sala_path(escena[:workshop], escena[:links].first))
     end
 
     it "a quien administra no lo redirige: ahí está el bloque de armado" do

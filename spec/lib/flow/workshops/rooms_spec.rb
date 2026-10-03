@@ -15,7 +15,7 @@ RSpec.describe Flow::Workshops::Rooms do
                                 challenge_step: step, status: link_status)
   end
 
-  it "con una sola sala trabajable la nombra, y redirige a quien no arma el taller" do
+  it "con una sola sala trabajable la nombra, y el vínculo de otra fase no cuenta" do
     as_company(company) do
       workshop = create(:workshop, status: "open")
       sala = room(workshop, kind: "ideation")
@@ -25,7 +25,42 @@ RSpec.describe Flow::Workshops::Rooms do
 
       expect(rooms.workable.map(&:id)).to eq([ sala.id ])
       expect(rooms.only_room.id).to eq(sala.id)
+      # Y aun así NO redirige: queda otro vínculo del que el selector informa.
+      expect(rooms.redirects?(can_assemble: false)).to be(false)
+    end
+  end
+
+  # El redirect pide las DOS cosas: una sola sala trabajable y ningún otro
+  # vínculo. Con un solo vínculo el selector no tiene nada que contar.
+  it "con un único vínculo, y trabajable, redirige a quien no arma el taller" do
+    as_company(company) do
+      workshop = create(:workshop, status: "open")
+      sala = room(workshop, kind: "ideation")
+
+      rooms = described_class.new(workshop)
+
+      expect(rooms.only_room.id).to eq(sala.id)
       expect(rooms.redirects?(can_assemble: false)).to be(true)
+    end
+  end
+
+  # La contracara, que es el defecto que el `links.one?` arregla: el breadcrumb
+  # de la sala pregunta lo mismo que el redirect y, para no hacer bucle, no
+  # ofrece volver al taller. Con el redirect puesto sólo en «una sola sala
+  # trabajable», quien no administra no tenía NINGÚN camino al selector, así que
+  # nunca se enteraba de que el otro desafío estuvo en el taller ni de por qué
+  # su sala cerró.
+  it "no redirige si queda un vínculo cerrado del que informar" do
+    as_company(company) do
+      workshop = create(:workshop, status: "open")
+      room(workshop, kind: "ideation")
+      room(workshop, kind: "ideation", link_status: "closed")
+
+      rooms = described_class.new(workshop)
+
+      expect(rooms.workable.size).to eq(1)
+      expect(rooms.only_room).not_to be_nil
+      expect(rooms.redirects?(can_assemble: false)).to be(false)
     end
   end
 

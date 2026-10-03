@@ -32,7 +32,16 @@ module Flow
       # pregunta de Pundit sobre quien mira (`WorkshopPolicy#update?`), y esta
       # clase no conoce la membresía. Quien administra nunca se redirige
       # —el bloque de armado es lo que tiene que ver—.
-      def redirects?(can_assemble:) = !can_assemble && !only_room.nil?
+      #
+      # Y pide `links.one?` además de la sala única. El motivo del redirect es
+      # «esta pantalla no tiene nada más que ofrecer», y una sala cerrada CON SU
+      # MOTIVO sí es algo que ofrecer: con el redirect puesto sólo en «una sola
+      # sala trabajable», quien no administra caía en la sala y el breadcrumb
+      # —que pregunta esto mismo, para no hacer bucle— no le ofrecía volver, así
+      # que no le quedaba NINGÚN camino al selector. Nunca se enteraba de que el
+      # otro desafío estuvo en el taller ni de por qué cerró, que es justo lo
+      # que el selector existe para no hacer.
+      def redirects?(can_assemble:) = !can_assemble && !only_room.nil? && links.one?
     end
   end
 end
