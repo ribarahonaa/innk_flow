@@ -114,4 +114,28 @@ RSpec.describe "la sala del taller", type: :request do
     expect(response.body).to include("Evolución")
     as_company(company) { expect(scene[:link].reload).to be_closed }
   end
+
+  # El breadcrumb pregunta lo mismo que el redirect. Si divergen, el taller
+  # manda a la sala y la sala ofrece volver al taller: bucle.
+  describe "el breadcrumb" do
+    it "con una sola sala no ofrece volver al taller, que redirigiría de nuevo" do
+      sign_in(ana, company: company)
+      get workshop_sala_path(scene[:workshop], scene[:link])
+
+      expect(response.body).not_to include(%(href="#{workshop_path(scene[:workshop])}"))
+      expect(response.body).to include(%(href="#{workshops_path}"))
+    end
+
+    it "con dos salas sí ofrece volver al taller" do
+      as_company(company) do
+        otro = create(:challenge)
+        paso = create(:challenge_step, challenge: otro, kind: "ideation", status: "active")
+        create(:workshop_challenge, workshop: scene[:workshop], challenge: otro, challenge_step: paso)
+      end
+      sign_in(ana, company: company)
+      get workshop_sala_path(scene[:workshop], scene[:link])
+
+      expect(response.body).to include(%(href="#{workshop_path(scene[:workshop])}"))
+    end
+  end
 end

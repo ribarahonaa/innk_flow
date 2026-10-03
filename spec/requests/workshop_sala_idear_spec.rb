@@ -207,7 +207,7 @@ RSpec.describe "sala del taller: idear", type: :request do
 
     it "no recibe el formulario en la pantalla" do
       sign_in(gestor, company: company)
-      get workshop_path(setup[:workshop])
+      get workshop_sala_path(setup[:workshop], setup[:link])
 
       expect(response).to have_http_status(:ok)
       expect(response.body).not_to include(%(name="payload[#{setup[:field].key}]"))
@@ -220,7 +220,7 @@ RSpec.describe "sala del taller: idear", type: :request do
   # Anti-sobrecorrección: cerrar de más no rompe ningún otro ejemplo.
   it "quien participa y está en la mesa sigue creando y viendo el formulario" do
     sign_in(ana, company: company)
-    get workshop_path(setup[:workshop])
+    get workshop_sala_path(setup[:workshop], setup[:link])
     expect(response.body).to include(%(name="payload[#{setup[:field].key}]"))
     expect(response.body).to include("Crear borrador")
 
@@ -231,7 +231,7 @@ RSpec.describe "sala del taller: idear", type: :request do
   describe "la pantalla del taller" do
     it "ofrece a quien está en la mesa el formulario del módulo, diciendo con quién se comparte" do
       sign_in(ana, company: company)
-      get workshop_path(setup[:workshop])
+      get workshop_sala_path(setup[:workshop], setup[:link])
 
       # El submit va en `.form-actions`, igual que en `ideas/new`.
       expect(response.body).to match(/class="form-actions">\s*<input[^>]*value="Crear borrador"/)
@@ -251,7 +251,7 @@ RSpec.describe "sala del taller: idear", type: :request do
         create(:challenge_step, challenge: setup[:challenge], kind: "evolution", status: "active")
       end
       sign_in(ana, company: company)
-      get workshop_path(setup[:workshop])
+      get workshop_sala_path(setup[:workshop], setup[:link])
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("Evolución")
@@ -264,31 +264,12 @@ RSpec.describe "sala del taller: idear", type: :request do
       end
     end
 
-    # Un taller con dos desafíos en idear es el caso más natural, y sin prefijo
-    # las dos salas emiten el mismo `id="payload_<clave>"`: el `<label for>` de
-    # la segunda enfoca el campo de la primera.
-    it "con dos salas de idear no repite ids de DOM" do
-      as_company(company) do
-        otro = create(:challenge)
-        paso = create(:challenge_step, challenge: otro, kind: "ideation", status: "active")
-        create(:form_field, challenge_step: paso, label: "Resumen", field_type: "text")
-        create(:workshop_challenge, workshop: setup[:workshop], challenge: otro, challenge_step: paso)
-      end
-      sign_in(ana, company: company)
-      get workshop_path(setup[:workshop])
-
-      ids = response.body.scan(/\bid="([^"]+)"/).flatten
-      expect(ids.grep(/payload_/).size).to eq(2)
-      expect(ids.tally.select { |_, n| n > 1 }.keys.grep(/payload_/)).to be_empty
-      expect(response.body.scan(/for="([^"]*payload_[^"]*)"/).flatten.uniq.size).to eq(2)
-    end
-
     it "muestra la sala cerrada con su motivo en vez de hacerla desaparecer" do
       as_company(company) do
         setup[:link].update!(status: "closed", closed_reason: "El desafío avanzó de fase.", closed_at: Time.current)
       end
       sign_in(ana, company: company)
-      get workshop_path(setup[:workshop])
+      get workshop_sala_path(setup[:workshop], setup[:link])
 
       expect(response.body).to include("El desafío avanzó de fase.")
       expect(response.body).not_to include(%(name="payload[))

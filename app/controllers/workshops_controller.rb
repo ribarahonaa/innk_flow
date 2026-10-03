@@ -48,10 +48,20 @@ class WorkshopsController < ApplicationController
   def show
     authorize @workshop, :show?
     # El cierre del vínculo es perezoso: nada se engancha en `advance!`, y
-    # entrar a la sala es lo que hace que el taller se entere de que el desafío
-    # avanzó. Va ANTES de leer `@links`, para que la pantalla vea lo cerrado.
+    # entrar acá es lo que hace que el taller se entere de que el desafío
+    # avanzó. Va ANTES de leer las salas, para que el selector vea lo cerrado.
     Flow::Workshops::MaterializeClosures.new(@workshop).call
-    @links = @workshop.workshop_challenges.includes(:challenge, :challenge_step)
+    @rooms = Flow::Workshops::Rooms.new(@workshop)
+
+    # Con UNA sola sala trabajable y sin bloque de armado, esta pantalla no
+    # tiene nada que ofrecer: se va derecho a la sala. Quien administra nunca
+    # se redirige. La condición vive en `Rooms` porque el breadcrumb de la sala
+    # pregunta lo mismo: si divergieran, volver al taller sería un bucle.
+    if @rooms.redirects?(can_assemble: policy(@workshop).update?)
+      return redirect_to workshop_sala_path(@workshop, @rooms.only_room)
+    end
+
+    @links = @rooms.links
     @groups = @workshop.workshop_groups.includes(workshop_group_members: :user)
     @my_group = @workshop.group_of(current_user)
   end

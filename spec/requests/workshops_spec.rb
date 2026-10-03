@@ -301,4 +301,101 @@ RSpec.describe "talleres", type: :request do
         .to(change { group_count }.by(1))
     end
   end
+
+  describe "el selector de salas" do
+    let!(:ana) do
+      without_tenant do
+        u = create(:user, email: "ana-selector@test.dev")
+        create(:membership, :participant, company: company, user: u)
+        u
+      end
+    end
+
+    def taller_con(kinds, brief: "De qué trata este desafío.")
+      as_company(company) do
+        workshop = create(:workshop, status: "open")
+        group = create(:workshop_group, workshop: workshop)
+        create(:workshop_group_member, workshop_group: group, user: ana)
+        links = kinds.map do |kind|
+          challenge = create(:challenge, brief: brief)
+          step = create(:challenge_step, challenge: challenge, kind: kind, status: "active")
+          create(:form_field, challenge_step: step, label: "Resumen", field_type: "text")
+          create(:workshop_challenge, workshop: workshop, challenge: challenge, challenge_step: step)
+        end
+        { workshop: workshop, links: links }
+      end
+    end
+
+    it "con dos salas lista cada desafío con su brief y no apila formularios" do
+      escena = taller_con(%w[ideation ideation])
+      sign_in(ana, company: company)
+      get workshop_path(escena[:workshop])
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("De qué trata este desafío.")
+      escena[:links].each do |link|
+        expect(response.body).to include(workshop_sala_path(escena[:workshop], link))
+      end
+      # El formulario vive en la sala, no acá: era lo que hacía de la pantalla
+      # del taller una pila de formularios sin contexto.
+      expect(response.body).not_to include(%(name="payload[))
+    end
+
+    it "con una sola sala redirige a ella" do
+      escena = taller_con(%w[ideation])
+      sign_in(ana, company: company)
+      get workshop_path(escena[:workshop])
+
+      expect(response).to redirect_to(workshop_sala_path(escena[:workshop], escena[:links].first))
+    end
+
+    it "a quien administra no lo redirige: ahí está el bloque de armado" do
+      escena = taller_con(%w[ideation])
+      admin = without_tenant do
+        u = create(:user, email: "admin-selector@test.dev")
+        create(:membership, :admin, company: company, user: u)
+        u
+      end
+      sign_in(admin, company: company)
+      get workshop_path(escena[:workshop])
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("Abrir taller").or include("Cerrar taller")
+    end
+
+    # A quien no tiene mesa el selector se le SIRVE igual.
+    #
+    # Lo que este ejemplo NO puede aislar: que con dos salas no se redirija.
+    # Quien no tiene mesa y aun así ve el taller sólo puede ser quien
+    # administra o un gestor, y para ellos `can_assemble` ya es true. La
+    # discriminación de «con dos salas no redirige» la aporta el primer
+    # ejemplo de este describe, con un participante CON mesa.
+    it "con dos salas y sin mesa se sirve el selector" do
+      escena = taller_con(%w[ideation evolution])
+      sin_mesa = without_tenant do
+        u = create(:user, email: "sin-mesa@test.dev")
+        create(:membership, :admin, company: company, user: u)
+        u
+      end
+      sign_in(sin_mesa, company: company)
+      get workshop_path(escena[:workshop])
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(workshop_sala_path(escena[:workshop], escena[:links].first))
+    end
+
+    it "el vínculo no trabajable se lista con su motivo y sin «Entrar»" do
+      escena = taller_con(%w[ideation])
+      as_company(company) do
+        escena[:links].first.update!(status: "closed", closed_at: Time.current,
+                                     closed_reason: "El desafío está en Evaluación.")
+      end
+      sign_in(ana, company: company)
+      get workshop_path(escena[:workshop])
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("El desafío está en Evaluación.")
+      expect(response.body).not_to include(workshop_sala_path(escena[:workshop], escena[:links].first))
+    end
+  end
 end

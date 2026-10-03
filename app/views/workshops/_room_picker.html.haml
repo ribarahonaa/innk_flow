@@ -1,0 +1,31 @@
+-# Qué desafíos tiene este taller y de qué trata cada uno. El formulario vive
+-# en la sala: apilar uno por desafío era pedirle a la mesa que eligiera
+-# leyendo nombres.
+-#
+-# Los vínculos NO trabajables se listan con su motivo y sin botón. No
+-# desaparecen: una sala escondida no se distingue de una que nunca existió, y
+-# ese silencio es el defecto que `room_state` se escribió para cerrar.
+.card
+  .card-body
+    .section-head
+      %h2.section-title Salas
+    - if rooms.links.empty?
+      %p.muted Este taller todavía no tiene desafíos.
+    - else
+      %ul.field-list
+        - rooms.links.each do |link|
+          %li.field-list__item
+            %div
+              %strong= link.challenge.name
+              - if link.challenge.brief.present?
+                %p.muted= truncate(link.challenge.brief, length: 180)
+              - case link.room_state
+              - when :unopened
+                %p.field-hint Este taller todavía no se abrió.
+              - when :ideation, :evolution
+                -# sin nota: el botón ya dice qué hacer
+              - else
+                %p.field-hint= link.closed_reason.presence || "Esta sala ya no admite trabajo: el desafío avanzó de fase."
+            - if WorkshopChallenge::WORKABLE_KINDS.include?(link.room_state.to_s)
+              .assignment-row__actions
+                = link_to "Entrar", workshop_sala_path(workshop, link), class: "btn btn-ghost btn-sm"

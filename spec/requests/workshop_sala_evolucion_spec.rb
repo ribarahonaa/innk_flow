@@ -156,7 +156,7 @@ RSpec.describe "sala del taller: evolución", type: :request do
         end
       end
       sign_in(beto, company: company)
-      get workshop_path(scene[:workshop])
+      get workshop_sala_path(scene[:workshop], scene[:link])
 
       expect(response.body).to include(%(value="Texto de #{ana.name}"))
       expect(response.body).to include(%(value="Texto de #{dani.name}"))
@@ -167,7 +167,7 @@ RSpec.describe "sala del taller: evolución", type: :request do
 
     it "ofrece un formulario por idea de la mesa, y ninguno para la ajena" do
       sign_in(beto, company: company)
-      get workshop_path(scene[:workshop])
+      get workshop_sala_path(scene[:workshop], scene[:link])
 
       expect(response.body).to include(%(value="#{scene[:ana_idea].id}"))
       expect(response.body).to include(%(value="#{scene[:dani_idea].id}"))
@@ -186,7 +186,7 @@ RSpec.describe "sala del taller: evolución", type: :request do
                             label: "Plano firmado", field_type: "file", required: true)
       end
       sign_in(beto, company: company)
-      get workshop_path(scene[:workshop])
+      get workshop_sala_path(scene[:workshop], scene[:link])
 
       expect(response.body).to include("El campo de archivo Plano firmado no se propone desde el taller")
       expect(response.body).not_to include(%(name="files[))
@@ -199,14 +199,14 @@ RSpec.describe "sala del taller: evolución", type: :request do
         create(:form_field, challenge_step: step, label: "Anexo", field_type: "file")
       end
       sign_in(beto, company: company)
-      get workshop_path(scene[:workshop])
+      get workshop_sala_path(scene[:workshop], scene[:link])
 
       expect(response.body).to include("Los campos de archivo Plano y Anexo no se proponen desde el taller, por eso no están en el formulario.")
     end
 
     it "sin campos de archivo no muestra ese aviso" do
       sign_in(beto, company: company)
-      get workshop_path(scene[:workshop])
+      get workshop_sala_path(scene[:workshop], scene[:link])
 
       expect(response.body).not_to include("no se propone desde el taller")
     end

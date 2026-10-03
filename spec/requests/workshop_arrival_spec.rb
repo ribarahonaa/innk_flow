@@ -44,10 +44,10 @@ RSpec.describe "la mesa de llegada no trabaja", type: :request do
 
   describe "idear" do
     it "la sala no ofrece el formulario" do
-      taller, = taller_con_llegada(kind: "ideation")
+      taller, link = taller_con_llegada(kind: "ideation")
       sign_in(paula, company: company)
 
-      get workshop_path(taller)
+      get workshop_sala_path(taller, link)
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("todavía no se armó")
@@ -66,14 +66,15 @@ RSpec.describe "la mesa de llegada no trabaja", type: :request do
       # El aviso es del controller: la sala ya pinta la misma frase, así que el
       # cuerpo tras el redirect no distingue quién rechazó.
       expect(flash[:alert]).to include("todavía no se armó")
-      follow_redirect!
+      # El taller con una sola sala redirige a ella: se pide la sala directo.
+      get workshop_sala_path(taller, link)
       expect(response.body).to include("todavía no se armó")
     end
   end
 
   describe "evolución" do
     it "no lista ninguna idea de los otros integrantes" do
-      taller, _, challenge, step = taller_con_llegada(kind: "evolution")
+      taller, link, challenge, step = taller_con_llegada(kind: "evolution")
       otra = member("otra@test.dev", :participant)
       as_company(company) do
         Flow::Workshops::CheckIn.new(taller, User.find(otra.id)).call
@@ -84,7 +85,7 @@ RSpec.describe "la mesa de llegada no trabaja", type: :request do
       end
       sign_in(paula, company: company)
 
-      get workshop_path(taller)
+      get workshop_sala_path(taller, link)
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("todavía no se armó")

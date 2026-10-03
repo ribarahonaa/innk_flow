@@ -7,11 +7,13 @@
 .page-head
   %div
     %p.breadcrumb
-      -# Sin condición todavía: la vuelve condicional la tarea que introduce el
-      -# redirect del taller, que es la dueña de esa pregunta.
+      -# La misma pregunta que hace el redirect de `workshops#show`: si el
+      -# taller manda acá, ofrecer «volver al taller» sería un bucle. Por eso
+      -# la pregunta vive UNA vez, en `Rooms`.
       = link_to "Talleres", workshops_path
-      = " › "
-      = link_to @workshop.name, workshop_path(@workshop)
+      - unless @rooms.redirects?(can_assemble: policy(@workshop).update?)
+        = " › "
+        = link_to @workshop.name, workshop_path(@workshop)
     %h1.page-title= @link.challenge.name
 
 - case @link.room_state
