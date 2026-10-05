@@ -36,11 +36,13 @@ RSpec.describe "clases CSS interpoladas", type: :lint do
   # con la misma trampa.
   PATRONES = {
     ".haml" => /class[:=][^,)]*"[^"]*\#\{/,
+    ".erb" => /class\s*=\s*"[^"]*<%/,
     ".vue" => /class[^`\n>]{0,40}`[^`]*\$\{/,
     ".js" => /class[^`\n>]{0,40}`[^`]*\$\{/
   }.freeze
 
   ARCHIVOS = Rails.root.glob("app/views/**/*.haml") +
+             Rails.root.glob("app/views/**/*.erb") +
              Rails.root.glob("app/javascript/**/*.vue") +
              Rails.root.glob("app/javascript/**/*.js")
 

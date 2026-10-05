@@ -1344,6 +1344,71 @@ async function revisarAnchoDeCriterio(page, name) {
   }
 }
 
+// `[RIEL]` — que el riel exista, marque dónde estás, y SOBREVIVA al angosto.
+//
+// Lo que esta guarda cuida de verdad es el tercer punto. Abajo de 1024px la hoja
+// cambia la grilla, y un riel que se esconda en vez de volverse fila deja la
+// app sin navegación global en ese ancho —y ninguna otra captura mira ahí
+// (`[REFERENCIA]` mide a 1100, que todavía es escritorio, y sólo ve las
+// pantallas de módulo)—. Se mide la posición real, no la clase: un riel con su clase puesta y `display: none`
+// tiene la clase igual.
+// Medido: 71 pantallas con riel de 76, SIEMPRE las mismas: el riel depende de
+// sesión y empresa, no de datos, así que el contador es determinista. Por eso
+// el piso va ajustado (66, 93%, como `[RELLENO]`) y no flojo como `[PASTILLA]`
+// o `[CRITERIO]`, que varían entre corridas. Cinco de margen son las pantallas
+// sin riel que podrían sumarse; un renombre de `.app-rail` lo lleva a cero.
+const PISO_DE_RIEL = 66;
+let rielesMedidos = 0;
+
+async function revisarRiel(page, name) {
+  const medir = () => page.evaluate(() => {
+    const riel = document.querySelector('.app-rail');
+    if (!riel) return null;
+    const caja = riel.getBoundingClientRect();
+    return {
+      visible: caja.width > 0 && caja.height > 0,
+      entradas: riel.querySelectorAll('.app-rail__item').length,
+      activas: riel.querySelectorAll('.app-rail__item--on').length,
+      // Vertical si es más alto que ancho; horizontal al revés.
+      vertical: caja.height > caja.width
+    };
+  });
+  const r = await medir();
+
+  // Sin riel no es falla: el selector de empresa y el login no lo tienen.
+  if (!r) return;
+  rielesMedidos++;
+
+  if (!r.visible) {
+    failures++;
+    console.error(`[RIEL] ${name}: el riel está en el DOM pero no se ve`);
+  }
+  if (r.vertical === false) {
+    failures++;
+    console.error(`[RIEL] ${name}: a escritorio el riel salió horizontal; arriba de 1024 tiene que ser una columna`);
+  }
+  if (r.entradas < 2) {
+    failures++;
+    console.error(`[RIEL] ${name}: ${r.entradas} entrada(s); todo rol ve al menos Desafíos y Talleres`);
+  }
+  if (r.activas > 1) {
+    failures++;
+    console.error(`[RIEL] ${name}: ${r.activas} entradas marcadas como activas a la vez`);
+  }
+
+  // En el angosto: sigue visible y cambió de orientación. A 1000px y no a
+  // 1100: el corte de la hoja es `max-width: 1023px`, así que a 1100 el riel
+  // TODAVÍA es vertical por diseño y la guarda fallaría en todas las pantallas.
+  const tamano = page.viewportSize();
+  await page.setViewportSize({ width: 1000, height: 900 });
+  const angosto = await medir();
+  await page.setViewportSize(tamano);
+  if (angosto && (!angosto.visible || angosto.vertical)) {
+    failures++;
+    console.error(`[RIEL] ${name} a 1000px: el riel ${angosto.visible ? 'siguió vertical' : 'desapareció'} — abajo de 1024 tiene que ser una fila`);
+  }
+}
+
 async function capturar(page, name) {
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
   await revisarTexto(page, name);
@@ -1352,6 +1417,7 @@ async function capturar(page, name) {
   await revisarClasesDescartadas(page, name);
   await revisarCardSinBody(page, name);
   await revisarRellenoDeTarjeta(page, name);
+  await revisarRiel(page, name);
   // UNA sola medición para las dos guardas: `medirContraste` recorre el DOM y
   // compone la cadena de fondos de cada elemento, y se estaba haciendo dos veces
   // por pantalla sobre el mismo selector.
@@ -2749,7 +2815,7 @@ async function revisarTema(page, pantalla, url) {
     // espera por su título, no por la red.
     await Promise.all([
       page.waitForURL(/\/workshops$/, { timeout: 15000 }),
-      page.click('.app-nav__link:has-text("Talleres")')
+      page.click('.app-rail__item:has-text("Talleres")')
     ]);
     await page.waitForSelector('h1.page-title:has-text("Talleres")', { timeout: 10000 });
     const workshopLink = page.locator('table.table a', { hasText: workshopName });
@@ -3130,7 +3196,7 @@ async function revisarTema(page, pantalla, url) {
   // Por link —el nav de arriba—, no `goto`: es el mismo camino que recorrería
   // cualquiera, y `manages_challenges?` lo ofrece porque acá `multi@demo.test`
   // es admin.
-  await page.click('.app-nav__link:has-text("Criterios")');
+  await page.click('.app-rail__item:has-text("Criterios")');
   await page.waitForURL(/\/criteria_sets$/);
   await capturar(page, '18c-criterios-vacio');
   await revisarEstadoVacio(page, '18c-criterios-vacio');
@@ -3295,7 +3361,7 @@ async function revisarTema(page, pantalla, url) {
   // verde y es indistinguible de una que funciona, que es el modo de falla que
   // este script ya pagó dos veces (la pasada oscura del muestrario, y `[MONO]`
   // después del arreglo).
-  console.log(`[RITMO] ${pantallasConRitmo} de ${shots.length} pantallas tuvieron dos tarjetas que comparar · [RELLENO] ${cardBodiesMedidos} \`card-body\` medidos · [PASTILLA] ${pastillasMedidas} chips y avisos medidos · [CRITERIO] ${criteriosMedidos} nombres medidos · [LIVE] ${liveMeasurements} pantalla(s) medida(s)`);
+  console.log(`[RITMO] ${pantallasConRitmo} de ${shots.length} pantallas tuvieron dos tarjetas que comparar · [RELLENO] ${cardBodiesMedidos} \`card-body\` medidos · [PASTILLA] ${pastillasMedidas} chips y avisos medidos · [CRITERIO] ${criteriosMedidos} nombres medidos · [LIVE] ${liveMeasurements} pantalla(s) medida(s) · [RIEL] ${rielesMedidos} pantallas con riel`);
   if (pantallasConRitmo < PISO_DE_RITMO) {
     failures++;
     console.error(`[RITMO] sólo ${pantallasConRitmo} de ${shots.length} pantallas tuvieron un par de tarjetas que comparar, y el piso es ${PISO_DE_RITMO}: la guarda dejó de ver las tarjetas`);
@@ -3315,6 +3381,10 @@ async function revisarTema(page, pantalla, url) {
   if (temaMedido < 2) {
     failures++;
     console.error(`[TEMA] la guarda midió ${temaMedido} pantalla(s) y son 2: con sesión y el login`);
+  }
+  if (rielesMedidos < PISO_DE_RIEL) {
+    failures++;
+    console.error(`[RIEL] sólo ${rielesMedidos} pantallas tuvieron riel y el piso es ${PISO_DE_RIEL}: la guarda dejó de verlo`);
   }
   if (cardBodiesMedidos < PISO_DE_CARD_BODY) {
     failures++;

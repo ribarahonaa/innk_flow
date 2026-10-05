@@ -1863,17 +1863,69 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
 
 /* ── Navegación principal ───────────────────────────────────────────────── */
 .app-header__brand-link { color: inherit; text-decoration: none; }
-.app-nav { display: flex; gap: 4px; margin-left: 18px; }
-.app-nav__link {
-  padding: 5px 11px;
-  border-radius: 7px;
+/* El riel es la primera columna del marco, no de `.app-shell`: en el diseño
+   arranca arriba de todo, así que abarca la barra. Así `.app-shell` no se
+   entera de que existe. */
+.app-frame { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 100vh; }
+/* El fondo y el borde de la columna del riel van acá y no en `.app-rail`: el
+   riel es sticky y mide 100vh, así que en una captura de página entera su
+   propio fondo cortaba a media pantalla. */
+.app-frame--con-riel {
+  grid-template-columns: 80px minmax(0, 1fr);
+  background: linear-gradient(to right, var(--surface) 79px, var(--borde) 79px 80px, transparent 80px);
+}
+.app-frame__body { min-width: 0; }
+
+/* Pegado: la navegación global no se va con el scroll del trabajo. */
+.app-rail {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 6px;
+}
+.app-rail__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 8px 2px;
+  border-radius: var(--radius-field);
   color: var(--muted);
   text-decoration: none;
-  font-size: 13px;
-  font-weight: 550;
+  font-size: 11px;
+  text-align: center;
 }
-.app-nav__link:hover { background: var(--bg); color: var(--text); }
-.app-nav__link.is-active { background: var(--accent-soft); color: var(--accent); }
+.app-rail__item:hover { background: var(--bg); color: var(--text); }
+.app-rail__item--on { background: var(--accent-soft); color: var(--accent); }
+.app-rail__icon { width: 22px; height: 22px; flex: none; }
+.app-rail__label { line-height: 1.2; }
+
+/* Abajo de 1024px el riel pasa a fila horizontal arriba del contenido, que es
+   el mismo mecanismo que `.flow-strip` ya usa para el drawer: un markup y un
+   cambio de dirección. NO se esconde: un riel que desaparece deja la app sin
+   navegación global en ese ancho. */
+@media (max-width: 1023px) {
+  .app-frame--con-riel { grid-template-columns: minmax(0, 1fr); background: none; }
+  .app-rail {
+    position: static;
+    background: var(--surface);
+    height: auto;
+    flex-direction: row;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-bottom: 1px solid var(--borde);
+    padding: 6px 10px;
+  }
+  .app-rail__item { width: auto; flex-direction: row; gap: 6px; padding: 6px 10px; font-size: 12px; }
+}
 
 .field-hint__link { margin-left: 4px; }
 

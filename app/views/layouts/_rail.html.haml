@@ -1,0 +1,23 @@
+-# El riel de navegación global.
+-#
+-# No es nav nueva: es la que estaba en `.app-nav`, dentro del header, con las
+-# mismas entradas y las mismas condiciones de permiso. Se mudó acá porque es
+-# donde la pone el diseño de INNK, y de paso deja el header para lo que es de
+-# la sesión.
+-#
+-# Las clases van literales y el estado activo también: Tailwind escanea texto
+-# y una clase interpolada no llega a la hoja.
+%nav.app-rail{ "aria-label": "Navegación principal" }
+  = rail_link "Desafíos", challenges_path, "challenges",
+              activo: controller_name.in?(%w[challenges steps ideas assessments])
+  -# Sin condicionar a `manages_challenges?`: a un taller se entra por
+  -# convocatoria, y quien participa en una mesa es quien más lo necesita.
+  = rail_link "Talleres", workshops_path, "workshops",
+              activo: controller_name.start_with?("workshop")
+  - if current_membership&.manages_challenges?
+    = rail_link "Criterios", criteria_sets_path, "criteria",
+                activo: controller_name == "criteria_sets"
+    = rail_link "Miembros", members_path, "members",
+                activo: controller_name == "memberships"
+    = rail_link "IA", ai_runs_path, "ai",
+                activo: controller_name.start_with?("ai_")

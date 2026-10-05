@@ -32,68 +32,64 @@
     = javascript_include_tag "application-build", "data-turbo-track": "reload", defer: true, nonce: content_security_policy_nonce
     = yield :head
   %body
-    %header.app-header
-      .app-header__brand= link_to "innk flow", root_path, class: "app-header__brand-link"
-      - if signed_in? && current_company
-        %nav.app-nav
-          = link_to "Desafíos", challenges_path,
-                    class: ["app-nav__link", ("is-active" if controller_name.in?(%w[challenges steps ideas assessments]))]
-          -# Sin condicionar a `manages_challenges?`: a un taller se entra por
-          -# convocatoria, y quien participa en una mesa es quien más lo necesita.
-          = link_to "Talleres", workshops_path,
-                    class: ["app-nav__link", ("is-active" if controller_name.start_with?("workshop"))]
-          - if current_membership&.manages_challenges?
-            = link_to "Criterios", criteria_sets_path,
-                      class: ["app-nav__link", ("is-active" if controller_name == "criteria_sets")]
-            = link_to "IA", ai_runs_path,
-                      class: ["app-nav__link", ("is-active" if controller_name.start_with?("ai_"))]
-            = link_to "Miembros", members_path,
-                      class: ["app-nav__link", ("is-active" if controller_name == "memberships")]
-      .app-header__spacer
-      = yield :header_right
-      - if signed_in?
-        .app-header__session
-          = render "shared/theme_switch"
-          = link_to notifications_path, class: "bell", title: "Avisos" do
-            %svg.bell__icon{ viewBox: "0 0 16 16", "aria-hidden": true }
-              %path{ fill: "currentColor", d: "M8 1.5a3.5 3.5 0 0 0-3.5 3.5v2.2L3.3 9.4a.6.6 0 0 0 .5.9h8.4a.6.6 0 0 0 .5-.9l-1.2-2.2V5A3.5 3.5 0 0 0 8 1.5Zm0 12a1.8 1.8 0 0 0 1.7-1.2H6.3A1.8 1.8 0 0 0 8 13.5Z" }
-            - count = unread_notifications
-            - if count.positive?
-              %span.bell__count= count > 9 ? "9+" : count
-          %span.app-header__company= current_company&.name
-          %span.app-header__user
-            = current_user.name
-            -# Sólo si hay membresía. Sin ella —el selector de empresa, o a
-            -# quien le sacaron el acceso— el chip salía igual y VACÍO: una
-            -# pastilla de 14×2px que en pantalla se lee como un «—» suelto
-            -# entre el nombre y «Cambiar empresa».
-            -# Traducido, como en la lista de cuentas del login y en el
-            -# selector de empresa: el valor crudo del enum («admin») era el
-            -# único lugar de la app donde el rol se mostraba sin pasar por
-            -# `flow.roles`.
-            - if current_membership
-              %span.app-header__role= t("flow.roles.#{current_membership.role}")
-          - if current_user.multi_company?
-            = link_to "Cambiar empresa", select_company_path, class: "app-header__link"
-          = button_to "Salir", logout_path, method: :delete, class: "app-header__link app-header__link--button"
-    -# Las tres regiones. El drawer solo existe si hay un desafío en contexto y
-    -# la referencia solo si la pantalla la llenó: las dos regiones opcionales
-    -# se declaran acá y la grilla se acomoda sola con `:has()`.
-    - desafio = desafio_del_shell
-    %div{ class: desafio ? "app-shell app-shell--con-flujo" : "app-shell" }
-      - if desafio
-        = render "layouts/flow_drawer", desafio: desafio
-      %main.app-main
-        - flash.each do |type, message|
-          -# `:ia` no se pinta acá: es el popup de respuesta y lo arma
-          -# `shared/_ia_respuesta`. Su valor además es un hash, así que
-          -# pintarlo como franja escupiría el hash entero en la pantalla.
-          - next if type.to_s == "ia"
-          %div{ class: clase_de_flash(type) }= message
-        -# El popup de respuesta, para los pedidos que responden a la pantalla
-        -# entera y para las pantallas que no tienen marco de propuestas.
-        = render "shared/ia_respuesta"
-        = yield
-      -# Después del `yield`: es el template el que llena la referencia.
-      - if content_for?(:referencia)
-        %aside.app-aside= yield :referencia
+    -# El riel va AFUERA de `.app-shell` y no como una columna más: en el
+    -# diseño arranca en el borde de arriba, o sea que abarca también la barra.
+    -# Como envoltorio, las reglas de grilla de `.app-shell` quedan intactas.
+    -#
+    -# Sólo con sesión Y empresa elegida: sin eso no hay a dónde navegar, y una
+    -# columna de 80px vacía en el selector de empresa se lee como un error.
+    - con_riel = signed_in? && current_company
+    %div{ class: con_riel ? "app-frame app-frame--con-riel" : "app-frame" }
+      - if con_riel
+        = render "layouts/rail"
+      %div.app-frame__body
+        %header.app-header
+          .app-header__brand= link_to "innk flow", root_path, class: "app-header__brand-link"
+          .app-header__spacer
+          = yield :header_right
+          - if signed_in?
+            .app-header__session
+              = render "shared/theme_switch"
+              = link_to notifications_path, class: "bell", title: "Avisos" do
+                %svg.bell__icon{ viewBox: "0 0 16 16", "aria-hidden": true }
+                  %path{ fill: "currentColor", d: "M8 1.5a3.5 3.5 0 0 0-3.5 3.5v2.2L3.3 9.4a.6.6 0 0 0 .5.9h8.4a.6.6 0 0 0 .5-.9l-1.2-2.2V5A3.5 3.5 0 0 0 8 1.5Zm0 12a1.8 1.8 0 0 0 1.7-1.2H6.3A1.8 1.8 0 0 0 8 13.5Z" }
+                - count = unread_notifications
+                - if count.positive?
+                  %span.bell__count= count > 9 ? "9+" : count
+              %span.app-header__company= current_company&.name
+              %span.app-header__user
+                = current_user.name
+                -# Sólo si hay membresía. Sin ella —el selector de empresa, o a
+                -# quien le sacaron el acceso— el chip salía igual y VACÍO: una
+                -# pastilla de 14×2px que en pantalla se lee como un «—» suelto
+                -# entre el nombre y «Cambiar empresa».
+                -# Traducido, como en la lista de cuentas del login y en el
+                -# selector de empresa: el valor crudo del enum («admin») era el
+                -# único lugar de la app donde el rol se mostraba sin pasar por
+                -# `flow.roles`.
+                - if current_membership
+                  %span.app-header__role= t("flow.roles.#{current_membership.role}")
+              - if current_user.multi_company?
+                = link_to "Cambiar empresa", select_company_path, class: "app-header__link"
+              = button_to "Salir", logout_path, method: :delete, class: "app-header__link app-header__link--button"
+        -# Las tres regiones. El drawer solo existe si hay un desafío en contexto y
+        -# la referencia solo si la pantalla la llenó: las dos regiones opcionales
+        -# se declaran acá y la grilla se acomoda sola con `:has()`.
+        - desafio = desafio_del_shell
+        %div{ class: desafio ? "app-shell app-shell--con-flujo" : "app-shell" }
+          - if desafio
+            = render "layouts/flow_drawer", desafio: desafio
+          %main.app-main
+            - flash.each do |type, message|
+              -# `:ia` no se pinta acá: es el popup de respuesta y lo arma
+              -# `shared/_ia_respuesta`. Su valor además es un hash, así que
+              -# pintarlo como franja escupiría el hash entero en la pantalla.
+              - next if type.to_s == "ia"
+              %div{ class: clase_de_flash(type) }= message
+            -# El popup de respuesta, para los pedidos que responden a la pantalla
+            -# entera y para las pantallas que no tienen marco de propuestas.
+            = render "shared/ia_respuesta"
+            = yield
+          -# Después del `yield`: es el template el que llena la referencia.
+          - if content_for?(:referencia)
+            %aside.app-aside= yield :referencia

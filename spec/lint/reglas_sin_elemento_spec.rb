@@ -34,7 +34,7 @@ RSpec.describe "reglas de CSS sin ningún elemento", type: :lint do
   # que toda clase se encuentre a sí misma y la guarda no reportaría nunca nada.
   def self.fuente
     @fuente ||= begin
-      patrones = ["app/**/*.haml", "app/**/*.vue", "app/**/*.js", "app/**/*.rb", "script/*.js"]
+      patrones = ["app/**/*.haml", "app/**/*.erb", "app/**/*.vue", "app/**/*.js", "app/**/*.rb", "script/*.js"]
       patrones.flat_map { |p| Rails.root.glob(p) }
               .reject { |f| f.to_s.include?("assets/builds") }
               .map { |f| f.read }

@@ -12,6 +12,26 @@
 # desafío se cae entera. Un desafío que todavía no existe tampoco tiene flujo
 # que mostrar.
 module ShellHelper
+  # Una entrada del riel: icono arriba, nombre abajo.
+  #
+  # El icono va INLINE (`layouts/rail/_<icono>`) y no por `image_tag`: un
+  # `<img>` no hereda `currentColor`, así que con la entrada activa el nombre
+  # tomaría el color del acento y el icono se quedaría gris.
+  #
+  # La clase del estado activo se escribe COMPLETA en las dos ramas y no se
+  # arma con interpolación: Tailwind escanea texto, y `"app-rail__item--#{x}"`
+  # no llegaría a la hoja —el elemento quedaría sin ninguna regla detrás y en
+  # el DOM se vería perfecto—.
+  def rail_link(texto, path, icono, activo:)
+    clase = activo ? "app-rail__item app-rail__item--on" : "app-rail__item"
+    link_to path, class: clase, "aria-current": (activo ? "page" : nil) do
+      safe_join([
+        render("layouts/rail/#{icono}"),
+        content_tag(:span, texto, class: "app-rail__label")
+      ])
+    end
+  end
+
   def desafio_del_shell
     # Las pantallas de 404 y 403 se renderizan DESPUÉS del `Current.reset` del
     # around_action —`rescue_from` corre afuera de la cadena de callbacks—, así
