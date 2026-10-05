@@ -82,14 +82,16 @@
   color-scheme: light;
 
   --color-base-100: oklch(100% 0 0);
-  --color-base-200: oklch(96.5% 0.004 286.3);
-  --color-base-300: oklch(92.4% 0.006 286.3);
-  --color-base-content: oklch(21.5% 0.028 285.9);
+  --color-base-200: oklch(97.470% 0.0051 247.88);
+  --color-base-300: oklch(92.400% 0.0080 247.88);
+  --color-base-content: oklch(21.500% 0.0280 247.88);
 
-  /* #5b3df5 exacto. Provisorio hasta saber si innk tiene marca propia: es UNA
-     línea, y nada más de la hoja lo escribe literal. */
-  --color-primary: oklch(52.249% 0.2549 280.33);
-  --color-primary-content: oklch(100% 0 0);          /* 6.12:1 */
+  /* #4747f3 exacto: la marca de INNK, del Figma «General Rediseño». Dejó de
+     ser provisorio. Es un corrimiento de 6,7° de tono sobre el violeta que
+     había (280.33), a la misma luminosidad y croma, así que todo lo que cuelga
+     del primario conserva su contraste: 6.12:1 antes, 6.06:1 ahora. */
+  --color-primary: oklch(52.015% 0.2475 273.64);
+  --color-primary-content: oklch(100% 0 0);          /* 6.06:1 */
 
   /* El hilo de IA. Era violeta (#7c3aed) y ahora el primario TAMBIÉN es
      violeta: dos violetas a 8° de distancia no distinguen «acción» de
@@ -107,19 +109,24 @@
   --color-secondary-content: oklch(100% 0 0);        /* 5.86:1 */
 
   /* El shell oscuro que arma la tarea 5. */
-  --color-neutral: oklch(21.5% 0.028 285.9);
-  --color-neutral-content: oklch(78.5% 0.024 286.3); /* 8.90:1 */
+  --color-neutral: oklch(21.500% 0.0280 247.88);
+  --color-neutral-content: oklch(78.5% 0.024 247.88);
 
-  /* DaisyUI no acepta que falten. `accent` no tiene un tercer color de marca
-     detrás: apunta al primario en vez de inventar uno. `info` es el mismo
-     azul acero de la IA. */
-  --color-accent: oklch(52.249% 0.2549 280.33);
-  --color-accent-content: oklch(100% 0 0);
+  /* #8520bd exacto: el morado con que el Figma pinta la pestaña activa. El
+     acento DEJA de apuntar al primario —ya tiene un color de marca propio
+     detrás—. Queda a 35° del primario: holgado contra los 8° que en su momento
+     obligaron a correr `--color-secondary` al azul acero. */
+  --color-accent: oklch(48.894% 0.2246 309.04);
+  --color-accent-content: oklch(100% 0 0);           /* 7.15:1 */
   --color-info: oklch(50% 0.0996 230);
   --color-info-content: oklch(100% 0 0);
 
-  --color-error: oklch(58.4% 0.201 27.3);
-  --color-error-content: oklch(100% 0 0);            /* 4.65:1 */
+  /* #f06653 exacto. INNK lo usa con texto BLANCO y eso mide 3.12:1, que no
+     pasa. Oscurecerlo hasta 4,5:1 lo convierte en otro color (#ce1d0d), así
+     que se conserva el color y se da vuelta el texto —el mismo patrón que la
+     hoja ya usa para `success` y `warning`—. */
+  --color-error: oklch(67.909% 0.1741 30.12);
+  --color-error-content: oklch(15% 0.03 285.9);      /* 6.32:1 — blanco da 3.12 */
   --color-success: oklch(62.6% 0.1507 156.4);
   --color-success-content: oklch(15% 0.03 285.9);    /* 5.94:1 — blanco da 3.32 */
   --color-warning: oklch(72.9% 0.1501 82.4);
@@ -152,27 +159,30 @@
   prefersdark: true;
   color-scheme: dark;
 
-  --color-base-100: oklch(21.5% 0.028 285.9);
-  --color-base-200: oklch(18.2% 0.026 285.9);
-  --color-base-300: oklch(26.4% 0.030 285.9);
-  --color-base-content: oklch(92.8% 0.012 286.3);
+  --color-base-100: oklch(21.5% 0.028 247.88);
+  --color-base-200: oklch(18.2% 0.026 247.88);
+  --color-base-300: oklch(26.4% 0.030 247.88);
+  --color-base-content: oklch(92.8% 0.012 247.88);
 
-  --color-primary: oklch(66.5% 0.1816 280.33);       /* el máximo que entra: 0.181639 */
-  --color-primary-content: oklch(15% 0.03 285.9);    /* 6.15:1 — blanco da 3.21 */
+  /* El croma está CLAMPEADO: a L=66.5% y H=273.64 el gamut sRGB corta en
+     0.1780, por debajo del 0.2475 del tema claro. Declarar el del claro acá
+     sería declarar algo que el navegador recorta. */
+  --color-primary: oklch(66.5% 0.1780 273.64);
+  --color-primary-content: oklch(15% 0.03 285.9);    /* 6.22:1 */
 
   --color-secondary: oklch(70% 0.115 230);
   --color-secondary-content: oklch(15% 0.03 285.9);  /* 7.58:1 */
 
-  --color-neutral: oklch(15.5% 0.024 285.9);
-  --color-neutral-content: oklch(78.5% 0.024 286.3); /* 9.91:1 */
+  --color-neutral: oklch(15.5% 0.024 247.88);
+  --color-neutral-content: oklch(78.5% 0.024 247.88);
 
-  --color-accent: oklch(66.5% 0.1816 280.33);
-  --color-accent-content: oklch(15% 0.03 285.9);
+  --color-accent: oklch(70% 0.2098 309.04);
+  --color-accent-content: oklch(15% 0.03 285.9);     /* 6.74:1 */
   --color-info: oklch(70% 0.115 230);
   --color-info-content: oklch(15% 0.03 285.9);
 
-  --color-error: oklch(66% 0.19 25);
-  --color-error-content: oklch(15% 0.03 285.9);      /* 5.80:1 — blanco da 3.40 */
+  --color-error: oklch(66% 0.19 30.12);
+  --color-error-content: oklch(15% 0.03 285.9);      /* 5.82:1 */
   --color-success: oklch(70% 0.15 156);
   --color-success-content: oklch(15% 0.03 285.9);    /* 7.88:1 */
   --color-warning: oklch(78% 0.15 82);
@@ -379,7 +389,16 @@
      sobre su propio tinte —los chips de hoy—, y así quedan arriba de 4.5:1. */
   --ok: color-mix(in oklab, var(--color-success) 70%, var(--color-base-content));
   --warn: color-mix(in oklab, var(--color-warning) 60%, var(--color-base-content));
-  --danger: color-mix(in oklab, var(--color-error) 85%, var(--color-base-content));
+  /* 65% y no 85%: con el coral de INNK (#f06653, más claro que el rojo que
+     había) el 85% medía 4.06:1 sobre la superficie clara. `--danger` se usa
+     como TEXTO, así que el piso es 4,5:1. Sobre blanco el 75% daba 4.88 y el
+     65% da 5.88; sobre base-200, 4.54 y 5.47; pero el fondo que manda NO es la
+     superficie plana: es la PASTILLA TEÑIDA (`--danger-soft`, o el 4% de
+     currentColor de `.badge-soft`/`.alert-soft`), donde el 75% medía 4.32 —4.30
+     en `make screens`— y NO pasaba, y el 65% da 5.22. Medí siempre contra la
+     pastilla. También lo usan `.diff-kind--removed` y `.setup__mark`
+     bloqueado, que ninguna guarda mira. */
+  --danger: color-mix(in oklab, var(--color-error) 65%, var(--color-base-content));
   /* El acento y la IA ya se leen crudos (6.12:1 y 5.84:1 sobre blanco, 5.46
      y 6.72 en oscuro): no se mezclan, así el violeta de un enlace es EL
      violeta de la marca. */

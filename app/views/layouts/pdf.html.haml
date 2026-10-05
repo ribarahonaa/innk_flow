@@ -10,26 +10,26 @@
     -# y circula.
     -#
     -# Los cinco salen de convertir el tema claro de `application.css`:
-    -#   #181826  --color-base-content    (17.5:1 sobre el papel)
-    -#   #5d5d67  el 70% del texto sobre blanco, que es lo que da `--muted`
-    -#            (6.5:1) — acá compuesto a mano, porque un alfa impreso
+    -#   #0f1b26  --color-base-content    (17.49:1 sobre el papel)
+    -#   #575f67  el 70% del texto sobre blanco, que es lo que da `--muted`
+    -#            (6.48:1) — acá compuesto a mano, porque un alfa impreso
     -#            depende del papel
-    -#   #e5e5ea  --color-base-300, el borde
-    -#   #f3f3f6  --color-base-200, la línea entre filas
-    -#   #5b3df5  --color-primary, el violeta de la marca (6.1:1)
+    -#   #e2e6eb  --color-base-300, el borde
+    -#   #f4f7fa  --color-base-200, la línea entre filas
+    -#   #4747f3  --color-primary, el indigo de la marca INNK (6.06:1)
     -#
     -# La tipografía NO se cambia: la display y la Inter viven en
     -# `public/fonts` y wkhtmltopdf no las carga. El PDF se imprime con la
     -# fuente del sistema a propósito.
     :css
-      body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #181826; }
+      body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #0f1b26; }
       h1 { font-size: 20px; margin: 0 0 4px; }
-      h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #5d5d67; margin: 22px 0 8px; }
-      .muted { color: #5d5d67; }
+      h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #575f67; margin: 22px 0 8px; }
+      .muted { color: #575f67; }
       table { width: 100%; border-collapse: collapse; }
-      th { text-align: left; font-size: 9px; text-transform: uppercase; color: #5d5d67;
-           border-bottom: 1px solid #e5e5ea; padding: 5px 6px; }
-      td { padding: 6px; border-bottom: 1px solid #f3f3f6; }
-      .cover { border-bottom: 2px solid #5b3df5; padding-bottom: 12px; margin-bottom: 8px; }
+      th { text-align: left; font-size: 9px; text-transform: uppercase; color: #575f67;
+           border-bottom: 1px solid #e2e6eb; padding: 5px 6px; }
+      td { padding: 6px; border-bottom: 1px solid #f4f7fa; }
+      .cover { border-bottom: 2px solid #4747f3; padding-bottom: 12px; margin-bottom: 8px; }
   %body
     = yield
