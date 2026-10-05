@@ -1,174 +1,168 @@
-# Handoff — la sala de la mesa (2026-10-03)
+# Handoff — el rediseño INNK (2026-10-05)
 
-## Empezá por acá: B, el guardado automático como versión
+## 1. Objetivo
 
-Lo de abajo está cerrado y pusheado. Lo que sigue es **B**, la segunda de las
-cuatro partes del pedido original (la lista completa está más abajo, en «Lo que
-queda abierto»).
+Que `innk_flow` se reconozca como el producto de INNK —marca, cromo y lenguaje
+de superficie— sobre las pantallas que ya existen, sin agregar ninguna. El
+insumo es el Figma «General Rediseño» (`3xc9srW7XlOlM9jzZ3lGjC`, página «Vistas
+aprobadas», 485 frames en 15 secciones).
 
-**Qué pidió Raúl, textual:** «todos los cambios que vayan haciendo, la idea es
-que se vayan guardando de forma automática y como se hace en la idea normal, que
-cuando se hace un cambio de idea se guarda como una nueva versión».
+La spec está en `docs/superpowers/specs/2026-10-05-rediseno-innk-design.md` y el
+plan en `docs/superpowers/plans/2026-10-05-rediseno-innk.md`.
 
-**La decisión que hay que tomar antes de escribir una línea, y es de producto:**
-hoy, en la sala de evolución, la mesa **propone** y el autor acepta o rechaza
-(`WorkshopProposal`, nace `pending`). Un guardado automático que publique una
-`idea_version` directa borra esa regla —«nadie reescribe la idea de otro»— y hay
-que decidir qué pasa con las propuestas pendientes y con `WorkshopProposal`
-entero. En la conversación de diseño de A se eligió **no** tocarlo, justamente
-para decidirlo completo acá y no de costado. Las tres salidas que se ven:
+## 2. Estado actual
 
-1. El autosave escribe **sobre la propuesta** (`workshop_proposals.payload`), y
-   aceptar sigue siendo del autor. Conserva la regla; el autosave deja de ser
-   «como en la idea normal».
-2. El autosave publica **versión directa** cuando quien edita participa de la
-   idea, y propuesta cuando no. Dos caminos de escritura en la misma pantalla.
-3. El autosave publica versión directa para toda la mesa, y `WorkshopProposal`
-   queda sólo para lo que venga de afuera de la mesa. Es la más simple y la que
-   más cambia el dominio.
+Rama `rediseno-innk`, **10 commits, árbol limpio, nada pusheado**. Suite en
+**1628 ejemplos, 0 fallas** (eran 1612 al empezar). `make screens` verde, con
+71 pantallas con riel y 71 con banda.
 
-**Lo que ya está medido y no hay que volver a averiguar:**
+**Seis de nueve tareas cerradas**, cada una con revisión independiente y, donde
+hubo hallazgos, ronda de arreglo y re-revisión:
 
-- `Flow::Ideas::PublishVersion` es el único camino para publicar una versión, y
-  toma `payload:`, `author:`, `source_step:`, `title:`, `files:` y
-  `enqueue_embedding:`. Publicar encola `EmbedVersionJob` **fuera** de la
-  transacción: adentro, un worker que tome el job antes del commit no encuentra
-  la versión y falla en silencio.
-- **Una versión por tecla es inviable**: hay que decidir el debounce y qué
-  cuenta como «un cambio». `idea_versions` es contenido inmutable y cada una
-  calcula su vector.
-- `IdeaPolicy#update?` ya abre la edición a quien participa de la idea mientras
-  está en borrador **o** hay una ronda de evolución abierta. Esa ventana es la
-  que el autosave de la mesa tendría que respetar o ensanchar a propósito.
-- La sala de evolución ya tiene el payload vigente precargado en el formulario
-  (`workshop_rooms/_evolution`), así que el lugar donde enganchar el autosave ya
-  existe.
-- **Turbo con debounce alcanza**: no hace falta una isla Vue. Las cuatro que hay
-  son todas de configuración, y en A se descartó una quinta por lo mismo.
-- Ojo con el morph: un POST que redirige a la misma URL morfea el DOM, y este
-  repo ya pagó que un `<dialog>` abierto no sobrevive un morph y que un
-  `<details>` se cerraba solo. Un formulario que se guarda solo mientras alguien
-  escribe es la misma familia de problema — ahí está el riesgo real de B.
+| | Tarea | Commits |
+|---|---|---|
+| ✓ | 1. La red: spec de navegación global | `e936cde` · `33bf85e` |
+| ✓ | 2. La paleta INNK en los dos temas | `c742519` |
+| ✓ | 3. Open Sans | `8e457c9` |
+| ✓ | 4. El control de tema | `b7d5c29` · `4ed1ba2` |
+| ✓ | 5. El riel de navegación | `252c60f` |
+| ✓ | 6. La banda de título | `d2301e9` · `ed484dd` |
+| | **7. Superficies y radios** | ← **acá se sigue** |
+| | 8. Los formularios | |
+| | 9. CLAUDE.md | |
+| | + revisión final de toda la rama | |
 
-**Lo primero que haría:** invocar la skill de brainstorming y cerrar la decisión
-de arriba con Raúl, antes de tocar código. B no es acotado: cambia el modelo de
-escritura.
+**El ledger de la ejecución vive en
+`.superpowers/sdd/2026-10-05-rediseno-innk/progress.md`** (gitignoreado) con los
+briefs, los reportes y los transcriptos de mutación. Si se perdiera, el registro
+real es `git log`.
 
-## Qué se hizo
+### Las catorce decisiones que se tomaron sin preguntar
 
-El trabajo de una mesa de taller dejó de ser una pila de formularios en la
-pantalla del taller. Mergeado a `master` en `8579e87`, once commits de la rama
-`sala-de-la-mesa` más el de `CLAUDE.md`.
+Están completas en el ledger con qué cuesta si cada una está mal. Las que
+cambian el código:
 
-- `workshops#show` es un **selector**: una fila por vínculo, con el `brief` del
-  desafío y «Entrar». Los no trabajables se listan con su motivo y sin botón.
-- El trabajo vive en `GET /workshops/:workshop_id/salas/:id` →
-  `WorkshopRoomsController#show`. Dos caras: **idear** (las ideas de la mesa +
-  el formulario) y **evolución** (selector de ideas de la mesa con la
-  participación de cada integrante, el contenido de la elegida, un formulario de
-  propuesta, y lo que la mesa ya propuso).
-- Columna de referencia: el `brief` del desafío y **«Tu mesa»** —que es lo que
-  empezó todo: con quiénes estás sentado no se veía en ninguna pantalla—.
-- Con un solo vínculo el taller redirige a la sala, y el breadcrumb pregunta lo
-  mismo (`Flow::Workshops::Rooms#redirects?`) para no hacer bucle.
+1. **El ejemplo del gestor en T1 no podía fallar** — derivaba su expectativa de
+   `manages_challenges?`, el mismo método que la vista consulta. Pasa a aseverar
+   `false` literal.
+2. **Los iconos del riel van inline, no por `image_tag`** — un `<img>` no hereda
+   `currentColor` y el icono habría quedado gris con la entrada activa.
+3. **Los pisos de las guardas nuevas se calibran con la primera corrida limpia**,
+   no con los números que inventé en el plan.
+4. **`make screens` corre con el proveedor real** y se deja así: el gasto es de
+   centavos y ninguna guarda nueva depende de lo que conteste la IA.
+5. **`--danger` va a 65%, no 75%** — mi cálculo era contra la superficie plana;
+   el fondo que manda es la pastilla teñida.
+6. **El PDF se actualiza entero**, no sólo el primario.
+7. **El chequeo de «fuente variable» del plan no servía** (`fvar` no aparece como
+   bytes literales en woff2); la señal confiable es el CSS de Google.
+8. **El Critical de T4 se verificó en navegador antes de arreglarlo.**
+9. **Dos Minor de T4 y siete de T5 entraron en la ronda** porque eran de una
+   línea o defectos visibles, y la ronda ya iba a ocurrir.
+10. **El «desvío» del mapeo de iconos era falso positivo mío** — el revisor sólo
+    recibe el brief, no mis correcciones del despacho.
+11. **Faltaban seis vistas en T6** — grepeé `.page-head` cuando el alcance era
+    `.page-title`.
+12. **El piso de `[BANDA]` va exacto**, no al 92%.
+13. **El flake de JS queda anotado y no bloquea.**
 
-**No se agregó ningún camino de escritura**: en evolución la mesa sigue
-proponiendo y el autor sigue decidiendo.
+## 3. Archivos y cambios
 
-## Verificación
+**Tokens y hoja** (`app/assets/stylesheets/application.css`): los 20 colores de
+DaisyUI en los dos temas con la paleta INNK; `--danger` al 65%; una familia
+tipográfica donde había dos; las reglas del riel, de la banda y del control de
+tema; `.app-nav` borrada.
 
-- `make spec` sobre `master`: **1612 ejemplos, 0 fallas** (baseline antes de la
-  rama: 1558).
-- `make yarn-build && make screens`: **76 capturas, sin errores de JS ni
-  respuestas >= 400**. `[RITMO] 39/76 · [RELLENO] 290 · [PASTILLA] 643 ·
-  [CRITERIO] 195 · [LIVE] 1`.
-- Cinco hallazgos Important se arreglaron y **se probaron por mutación**, no por
-  reporte. En uno la mutación la corrí yo, porque la evidencia que llegó no
-  alcanzaba.
+**Fuentes** (`public/fonts/`): `open-sans-latin.woff2` (48.320 B) reemplaza a
+Bricolage Grotesque e Inter (125.144 B entre las dos). `OFL.txt` es el de Open
+Sans.
 
-## Lo que queda abierto, y es decisión no deuda
+**Layouts**: `application.html.haml` gana el envoltorio `.app-frame`, el riel y
+la banda; `auth.html.haml` y `application.html.haml` escriben `data-theme` sólo
+si hay cookie. `pdf.html.haml` lleva los cinco colores nuevos a mano.
 
-Esto era **A de cuatro**. Las otras tres piden spec propia, en este orden:
+**Nuevo**: `app/controllers/themes_controller.rb`, `app/lib/flow/themes.rb`,
+`app/views/shared/_theme_switch.html.haml`, `app/views/layouts/_rail.html.haml`
+y los cinco `app/views/layouts/rail/_*.html.erb` con los SVG del Figma inline.
 
-1. **B — guardado automático como versión nueva.** Choca de frente con
-   `WorkshopProposal`: hoy la mesa propone y el autor decide. Autosave directo
-   borra esa regla, y hay que decidir qué pasa con las propuestas pendientes.
-2. **C — dictado por voz y resumen de la reunión con IA.** Necesita un tercer
-   eje de proveedor: **no hay speech-to-text en el repo y Anthropic no lo
-   expone**. Las opciones medidas: Web Speech API del navegador (gratis, sólo
-   Chrome, calidad floja), un proveedor nuevo (Whisper/Deepgram/AssemblyAI, con
-   su credencial y su costo), o notas tipeadas + resumen con el chat que ya está.
-3. **D — videollamada.** WebRTC/SFU o embed de un tercero. Cero infraestructura
-   de esto en el repo: no hay `getUserMedia`, ni `MediaRecorder`, ni WebRTC.
+**26 vistas** publican `content_for :banda`. `workshop_checkins/show` NO, y lleva
+el comentario que dice por qué.
 
-Diferidos de la revisión final que se decidió dejar (ninguno bloquea):
+**Specs nuevos**: `spec/requests/navegacion_global_spec.rb`,
+`spec/requests/theme_spec.rb`.
 
-- **`[REFERENCIA]` no mide la sala**: `revisarReferencia` se llama sólo en
-  pantallas de módulo, así que la columna nueva —pegada, `max-height: 100vh`—
-  no está medida en ninguna captura, y su límite declarado es justamente que una
-  mesa muy grande queda detrás de su propio scroll.
-- El `closed_reason` del selector nombra la fase del desafío a un gestor que no
-  alcanza ese desafío. Se dejó: es el motivo por el que esa sala no se puede
-  trabajar, y esconderlo volvería muda la pantalla justo en lo que el selector
-  existe para decir. También se muestra sin gatear en `workshop_rooms/show:34`.
-- Varios ejemplos con una mitad floja (una aserción negativa sin control
-  positivo, un conteo que pasa con una sola ocurrencia). En todos la mitad
-  fuerte sí discrimina.
-- Los asientos no llevan `order`, ni en `_my_group` ni en `_group_body`.
-- La cara de idear no tiene estado vacío; evolución sí.
-- `workshops/_assembly:34` linkea el desafío sin guarda: el mismo link muerto
-  para el gestor que la rama arregló en la referencia. Es anterior a la rama,
-  pero ahora conviven los dos patrones.
+**Guardas nuevas en `script/capture_screens.js`**: `[TEMA]`, `[RIEL]`, `[BANDA]`
+—las tres probadas por mutación, con transcripto—. Los dos lint de
+`spec/lint/` se ensancharon a `.erb`.
 
-## Los intentos fallidos, que es lo que más vale de esta sesión
+## 4. Intentos fallidos
 
-- **Un hallazgo de la revisión final era FALSO, y lo descubrió el implementador
-  midiendo en vez de obedecer.** La revisión dijo que el aviso del check-in se
-  perdía en la cadena de dos redirects, razonando sobre
-  `FlashHash.from_session_value` y `discard`. El aviso ya llegaba: Rails sólo
-  marca para descartar las claves que se **cargaron**, y esa rama del redirect
-  no instancia el flash. La línea de `flash.keep` se quedó igual, pero el
-  comentario dice la verdad medida y no la del informe.
-- **El arreglo obvio del N+1 habría introducido un bug invisible.**
-  `includes(workshop_group_members: :user)` dentro de `Workshop#group_of` deja
-  la asociación con **sólo el asiento de quien mira** —su `find_by` filtra por
-  `workshop_group_members.user_id` y Rails pasa a `eager_load`— y todos los
-  specs del panel seguirían verdes, porque todos miran a quien está logueado.
-  Está escrito en `CLAUDE.md` y en el código.
-- **Un ejemplo que no podía fallar.** «No lista la propuesta de otra mesa»
-  aseveraba la ausencia de un texto que la vista nunca dibuja: pasaba igual con
-  el filtro ensanchado. Hubo que reescribirlo contra lo que la vista **sí**
-  dibuja, y probarlo con mutación.
-- **Tres de mis propios briefs tenían errores**, los tres encontrados por los
-  implementadores: dos leían un atributo del dominio fuera de `as_company`
-  (`MissingTenant`), uno usaba `t(...)` en un request spec, uno pedía un test
-  imposible (al completarse la ronda, `MaterializeClosures` cierra el vínculo y
-  la cara de evolución deja de dibujarse, así que el aviso de «venció» no se
-  puede ver por ese camino), y uno inventaba el nombre de un desafío del seed.
-- **La spec mandaba `policy_scope(Idea)` pelado**, y para quien administra ese
-  scope es `all`: el bloque listaba las ideas de otras mesas bajo un título que
-  decía que eran de la mesa. El filtro por integrantes va **adentro** del scope.
-- **El preflight encontró que ninguna tarea dejaba la suite verde**: la del
-  selector rompía las aserciones de los dos specs de sala y las arreglaban las
-  dos tareas siguientes, o sea que el revisor de esa tarea no podía distinguir
-  el rojo esperado de uno nuevo.
-- **Un bloque que ninguna captura dibujaba.** La participación de idear quedó
-  al costado del título en vez de debajo, y `taller-idear` no tenía ideas
-  sembradas: la captura `25` fotografió el bloque ausente, con `[CLASES]` en
-  verde porque las cuatro clases sí tienen regla. Mismo patrón que la tarjeta
-  del QR. Se arregló con la indentación **y** sembrando el borrador.
+Lo que más vale de esta sesión. **Cinco defectos del plan se encontraron antes de
+costar una vuelta, y cuatro guardas o tests resultaron incapaces de fallar.**
 
-## Dónde seguir
+- **El control de tema pasaba todos los tests y estaba roto.** Nueve ejemplos de
+  request en verde, la guarda `[TEMA]` en verde, el recorrido en verde — y
+  apretar «Oscuro» no cambiaba nada hasta recargar a mano. Tres cosas fallaron a
+  la vez: mi spec razonó contra el peligro equivocado (defendí que el morph
+  *borrara* el atributo; el problema es que nunca lo *aplica*, porque Turbo
+  morfea el `<body>` y del `<html>` sólo sincroniza `lang` y `dir`); un request
+  spec no puede verlo porque pide la página de nuevo; y **la guarda medía la
+  única pantalla donde el bug no ocurre** —corre tras limpiar cookies, cae en
+  `/login`, y ése resulta ser el único layout sin bundle—. Arreglado con
+  `turbo: false` en los tres `button_to`.
+- **El piso de `[BANDA]` al 92% no cazaba lo único que la guarda existe para
+  cazar.** Borrar el `content_for :banda` de una vista bajaba el conteo de 63 a
+  60 sin cruzar el piso de 58. Va exacto.
+- **Tres mutaciones de T6 no probaban nada**: una no cruzaba el piso, otra moría
+  antes en un `waitForSelector`, y **otra mutaba la guarda misma** (subir el
+  piso) en vez del código — eso demuestra que el mensaje se imprime, no que
+  detecte una regresión.
+- **El chequeo de fuente variable del plan daba falso negativo.** `b'fvar' in d`
+  sobre el woff2 devuelve `False` aunque la fuente sea variable: woff2 codifica
+  las tablas conocidas como índices de 5 bits. Un implementador siguiéndolo al
+  pie habría salido a buscar otra fuente.
+- **El token `--danger-soft-text` era el arreglo equivocado.** Tapaba sólo lo que
+  `[CONTRASTE]` mira y dejaba el mismo defecto en `.diff-kind--removed` y
+  `.setup__mark`, que ninguna guarda ve. La respuesta era corregir el 75%.
+- **`[RIEL]` medía a 1100px cuando el corte de la hoja es 1023px** — a 1100 el
+  riel sigue vertical por diseño, así que la primera corrida falló en 71
+  pantallas por nada.
+- **Mi advertencia sobre el `fill="white"` de `recursos.svg` estaba equivocada**:
+  era el rect del `clipPath`, no un calado. El implementador lo verificó en vez
+  de aplicarla a ciegas.
+- **Un falso positivo que es defecto de mi proceso**: el revisor marcó el mapeo
+  de iconos como desvío porque **sólo recibe el brief extraído del plan, no mis
+  correcciones del despacho**. Cuando corrijo un brief al despachar, la
+  corrección tiene que viajar también al revisor.
 
-- El plan ejecutado: `docs/superpowers/plans/2026-10-02-sala-de-la-mesa.md`.
-- La spec, con el alcance de las cuatro partes:
-  `docs/superpowers/specs/2026-10-02-sala-de-la-mesa-design.md`.
-- `CLAUDE.md` ya está actualizado: la sección «El taller» describe el
-  comportamiento nuevo, y están escritas las trampas de `group_of`, de las dos
-  fuentes de ideas, del `links.one?` del redirect y del bloque que sólo se
-  dibuja con datos.
-- **Pusheado.** `origin/master` quedó en el mismo commit que el local; el merge
-  es `8579e87`. Lo subió Raúl a mano: el push desde la sesión lo frena el
-  clasificador de auto mode, y la regla de permiso angosta —si alguna vez se
-  quiere habilitar— es `"Bash(git push https://github.com/ribarahonaa/innk_flow.git:*)"`
-  en `.claude/settings.local.json`.
+## 5. Próximos pasos
+
+En orden. El brief de cada tarea se genera con
+`bash ~/.claude/plugins/cache/claude-plugins-official/superpowers/6.4.1/skills/subagent-driven-development/scripts/task-brief docs/superpowers/plans/2026-10-05-rediseno-innk.md N`
+
+1. **Tarea 7 — superficies y radios.** Es la única con riesgo de cambiar de
+   enfoque a mitad: su **primer paso verifica que `light-dark()` exista en el
+   Chromium del recorrido**, y si no está hay que caer al plan B (declarar
+   `--shadow` y `--borde-superficie` dentro de cada bloque
+   `@plugin "daisyui/theme"`). Tiene una consecuencia que conviene tener
+   presente: la sombra pasa a ser **lo único que define la tarjeta en tema
+   claro**, porque el borde se vuelve transparente — de ahí la guarda
+   `[SOMBRA]`, cuyo piso también hay que calibrar con la corrida limpia.
+2. **Tarea 8 — los formularios.** Una sola regla de CSS mueve las 154 `.field` a
+   etiqueta-izquierda sin tocar un HAML. Tres excepciones: `.app-aside`, abajo de
+   1024px, y las islas Vue. Incluye un paso de mirar capturas a ojo, que ninguna
+   guarda reemplaza.
+3. **Tarea 9 — `CLAUDE.md`.** Lo más importante: la regla de `data-theme`
+   **cambió** —ahora el atributo va, pero sólo si hay cookie— y hoy el archivo
+   dice lo contrario. Sumar las cuatro guardas nuevas, que son **dos layouts** y
+   no uno, que el PDF no tiene cobertura de tests, y los tres lugares que siguen
+   sin vigilancia (`--card-fs`, `[REFERENCIA]` en la sala de la mesa, el riel a
+   414px).
+4. **Revisión final de toda la rama**, en el modelo más capaz, apuntándola a los
+   Minor diferidos del ledger para que triage cuáles bloquean el merge.
+5. **Después**, `superpowers:finishing-a-development-branch`. El push lo hace
+   Raúl a mano: desde la sesión lo frena el clasificador de auto mode.
+
+**Al reanudar:** el ledger en
+`.superpowers/sdd/2026-10-05-rediseno-innk/progress.md` dice qué tareas tienen
+línea `complete` — ésas no se re-despachan. Se retoma en la primera sin ella.
