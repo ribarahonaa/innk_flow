@@ -1,8 +1,8 @@
 - content_for :title, "Llamada de IA"
+- content_for :banda, t("flow.ai_purposes.#{@run.purpose}", default: @run.purpose.humanize)
 .page-head
   %div
     %p.breadcrumb= link_to "Auditoría de IA", ai_runs_path
-    %h1.page-title= t("flow.ai_purposes.#{@run.purpose}", default: @run.purpose.humanize)
     %p.muted
       %span{ class: chip_de_corrida_de_ia(@run) }= t("flow.ai_run_statuses.#{@run.status}")
       %span= " · #{t("flow.ai_modes.#{@run.mode}")} · #{@run.provider}/#{@run.model} · #{@run.latency_ms} ms · #{@run.tokens_total} tokens"

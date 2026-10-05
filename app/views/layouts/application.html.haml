@@ -80,6 +80,12 @@
           - if desafio
             = render "layouts/flow_drawer", desafio: desafio
           %main.app-main
+            -# La banda de título: ancho completo, el color de la marca, el nombre
+            -# de la pantalla en blanco. La publica cada vista con
+            -# `content_for :banda`, así que una pantalla que se olvide no dibuja
+            -# una banda vacía: no dibuja ninguna, y `[BANDA]` lo dice.
+            - if content_for?(:banda)
+              %h1.page-banner= yield :banda
             - flash.each do |type, message|
               -# `:ia` no se pinta acá: es el popup de respuesta y lo arma
               -# `shared/_ia_respuesta`. Su valor además es un hash, así que

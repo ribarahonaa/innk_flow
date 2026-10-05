@@ -1,8 +1,8 @@
 - content_for :title, "Editar set"
+- content_for :banda, @set.name
 .page-head
   %div
     %p.breadcrumb= origen_del_set(@set)
-    %h1.page-title= @set.name
     %p.muted Con qué se puntúa o se filtra una idea.
 
 = render "form", set: @set

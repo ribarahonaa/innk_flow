@@ -1,8 +1,8 @@
 - content_for :title, "Cambios · #{@idea.title}"
+- content_for :banda, "Cambios entre versiones"
 .page-head
   %div
     %p.breadcrumb= link_to @idea.title, challenge_idea_path(@challenge, @idea)
-    %h1.page-title Cambios entre versiones
     %p.muted= @diff.summary
 
 .card

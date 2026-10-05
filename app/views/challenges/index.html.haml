@@ -1,7 +1,7 @@
 - content_for :title, "Desafíos"
+- content_for :banda, "Desafíos"
 .page-head
   %div
-    %h1.page-title Desafíos
     %p.muted Cada desafío arma su propio flujo de módulos.
   - if policy(Challenge).create?
     = link_to "Nuevo desafío", new_challenge_path, class: "btn btn-primary"

@@ -467,7 +467,7 @@ async function revisarReferencia(page, name) {
   await page.setViewportSize({ width: 1100, height: 900 });
   const titulo = await page.evaluate(() => {
     window.scrollTo(0, 0);
-    return document.querySelector('.page-title')?.getBoundingClientRect().top ?? null;
+    return document.querySelector('.page-banner')?.getBoundingClientRect().top ?? null;
   });
   await page.setViewportSize(tamano);
   // La mitad de la pantalla: el título y el arranque del trabajo tienen que
@@ -1409,6 +1409,48 @@ async function revisarRiel(page, name) {
   }
 }
 
+// `[BANDA]` — que la banda se dibuje y su texto se lea sobre ella.
+//
+// Dos cosas distintas. Que se dibuje caza la vista que se olvidó el
+// `content_for :banda` en la mudanza de las veinte —es edición repetida, que
+// es donde más fácil se cuela una—. Y el contraste la mantiene honesta si
+// alguna vez se vuelve a tocar el primario: hoy mide 6,06:1, pero nada más lo
+// vigila (`[CONTRASTE]` sólo mira `.badge` y `.alert`).
+//
+let bandasMedidas = 0;
+// Medido: 63 pantallas con banda de 76 (71 con riel), SIEMPRE las mismas: depende
+// de qué vistas publican `content_for :banda`, no de los datos, así que el
+// contador es determinista. Por eso el piso va ajustado (58, 92%, como `[RIEL]`
+// y `[RELLENO]`) y no flojo como `[PASTILLA]`. Cinco de margen: las pantallas
+// con banda que podrían perderse sin que se note una sola; un renombre de
+// `.page-banner` o del `if` del layout lo lleva a cero.
+const PISO_DE_BANDAS = 58;
+
+// El contraste se mide con `medirContraste`, que es el ÚNICO medidor del
+// script y el que tiene autotest (`probarMedidorDeContraste`). No hay un
+// `contraste(a, b)` llamable desde acá: esa función vive adentro del
+// `page.evaluate` de `medirContraste`. Y además `medirContraste` compone la
+// cadena de fondos hasta el primer opaco, que es lo que hay que hacer si
+// alguna vez la banda lleva alfa.
+async function revisarBanda(page, name) {
+  const medidos = await medirContraste(page, '.page-banner');
+  if (!medidos.length) return;
+  bandasMedidas += medidos.length;
+
+  // `medirContraste` ya devuelve `texto` trimeado y cortado a 40.
+  for (const m of medidos) {
+    if (!m.texto) {
+      failures++;
+      console.error(`[BANDA] ${name}: la banda se dibuja vacía`);
+      continue;
+    }
+    if (m.ratio < 4.5) {
+      failures++;
+      console.error(`[BANDA] ${name}: «${m.texto}» mide ${m.ratio.toFixed(2)}:1 sobre la banda, y el piso es 4,5:1`);
+    }
+  }
+}
+
 async function capturar(page, name) {
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
   await revisarTexto(page, name);
@@ -1418,6 +1460,7 @@ async function capturar(page, name) {
   await revisarCardSinBody(page, name);
   await revisarRellenoDeTarjeta(page, name);
   await revisarRiel(page, name);
+  await revisarBanda(page, name);
   // UNA sola medición para las dos guardas: `medirContraste` recorre el DOM y
   // compone la cadena de fondos de cada elemento, y se estaba haciendo dos veces
   // por pantalla sobre el mismo selector.
@@ -2817,7 +2860,7 @@ async function revisarTema(page, pantalla, url) {
       page.waitForURL(/\/workshops$/, { timeout: 15000 }),
       page.click('.app-rail__item:has-text("Talleres")')
     ]);
-    await page.waitForSelector('h1.page-title:has-text("Talleres")', { timeout: 10000 });
+    await page.waitForSelector('h1.page-banner:has-text("Talleres")', { timeout: 10000 });
     const workshopLink = page.locator('table.table a', { hasText: workshopName });
     if (!(await workshopLink.count())) {
       failures++;
@@ -2853,7 +2896,7 @@ async function revisarTema(page, pantalla, url) {
       entrar.first().click()
     ]);
     // Señal determinista de que la sala pintó: su propio título.
-    await page.waitForSelector(`h1.page-title:has-text("${challengeName}")`, { timeout: 10000 });
+    await page.waitForSelector(`h1.page-banner:has-text("${challengeName}")`, { timeout: 10000 });
     return true;
   };
 
@@ -3189,7 +3232,7 @@ async function revisarTema(page, pantalla, url) {
   // pero deja la URL en `/` —`root "challenges#index"`—: `waitForURL` a
   // `/challenges` nunca dispara. Se espera el título de la pantalla.
   await page.click('.company-list button:has-text("Otra Empresa")');
-  await page.waitForSelector('h1.page-title:has-text("Desafíos")');
+  await page.waitForSelector('h1.page-banner:has-text("Desafíos")');
   await capturar(page, '18b-desafios-vacio');
   await revisarEstadoVacio(page, '18b-desafios-vacio');
 
@@ -3361,7 +3404,7 @@ async function revisarTema(page, pantalla, url) {
   // verde y es indistinguible de una que funciona, que es el modo de falla que
   // este script ya pagó dos veces (la pasada oscura del muestrario, y `[MONO]`
   // después del arreglo).
-  console.log(`[RITMO] ${pantallasConRitmo} de ${shots.length} pantallas tuvieron dos tarjetas que comparar · [RELLENO] ${cardBodiesMedidos} \`card-body\` medidos · [PASTILLA] ${pastillasMedidas} chips y avisos medidos · [CRITERIO] ${criteriosMedidos} nombres medidos · [LIVE] ${liveMeasurements} pantalla(s) medida(s) · [RIEL] ${rielesMedidos} pantallas con riel`);
+  console.log(`[RITMO] ${pantallasConRitmo} de ${shots.length} pantallas tuvieron dos tarjetas que comparar · [RELLENO] ${cardBodiesMedidos} \`card-body\` medidos · [PASTILLA] ${pastillasMedidas} chips y avisos medidos · [CRITERIO] ${criteriosMedidos} nombres medidos · [LIVE] ${liveMeasurements} pantalla(s) medida(s) · [RIEL] ${rielesMedidos} pantallas con riel · [BANDA] ${bandasMedidas} pantallas con banda`);
   if (pantallasConRitmo < PISO_DE_RITMO) {
     failures++;
     console.error(`[RITMO] sólo ${pantallasConRitmo} de ${shots.length} pantallas tuvieron un par de tarjetas que comparar, y el piso es ${PISO_DE_RITMO}: la guarda dejó de ver las tarjetas`);
@@ -3385,6 +3428,10 @@ async function revisarTema(page, pantalla, url) {
   if (rielesMedidos < PISO_DE_RIEL) {
     failures++;
     console.error(`[RIEL] sólo ${rielesMedidos} pantallas tuvieron riel y el piso es ${PISO_DE_RIEL}: la guarda dejó de verlo`);
+  }
+  if (bandasMedidas < PISO_DE_BANDAS) {
+    failures++;
+    console.error(`[BANDA] sólo ${bandasMedidas} pantallas dibujaron banda y el piso es ${PISO_DE_BANDAS}`);
   }
   if (cardBodiesMedidos < PISO_DE_CARD_BODY) {
     failures++;

@@ -1,5 +1,6 @@
 -# Cabecera de la cara de configuración. La de ejecución es `steps/_header`:
 -# son dos cosas distintas y compartir una las volvía condicional adentro.
+- content_for :banda, step.name
 .page-head
   %div
     %p.breadcrumb
@@ -13,7 +14,6 @@
       - if policy(step.challenge).builder?
         = " › "
         = link_to "Flujo", builder_challenge_path(step.challenge)
-    %h1.page-title= step.name
     %p.muted
       %span{ class: chip_de_estado(step.status) }= t("flow.statuses.#{step.status}")
       %span= " · #{t("flow.kinds.#{step.kind}")}"

@@ -1,11 +1,11 @@
 - content_for :title, "Evaluar · #{@idea.title}"
+- content_for :banda, @idea.title
 .page-head
   %div
     %p.breadcrumb
       = link_to @challenge.name, challenge_path(@challenge)
       = " › "
       = link_to @step.name, challenge_step_path(@challenge, @step)
-    %h1.page-title= @idea.title
     %p.muted
       = "Evaluando la versión "
       %span{ class: chip("version") }= @idea.current_version&.label

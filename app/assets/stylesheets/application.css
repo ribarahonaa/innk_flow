@@ -1094,6 +1094,21 @@ input:focus, textarea:focus, select:focus {
 }
 .page-head__actions { display: flex; gap: 8px; }
 .page-title { margin: 0 0 4px; font-size: 22px; letter-spacing: -.02em; }
+/* La banda de título. El `%h1` vive ACÁ y no en `.page-head`: en el diseño el
+   breadcrumb y las acciones van debajo de la banda, no adentro. Meterlas
+   adentro dejaría los `btn btn-primary` sobre un fondo del mismo color, donde
+   desaparecen, y obligaría a inventar una variante clara que el diseño no
+   define. */
+.page-banner {
+  margin: 0;
+  padding: 10px 24px;
+  border-radius: var(--radius-field);
+  background: var(--color-primary);
+  color: var(--color-primary-content);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
 .section-title {
   margin: 0 0 14px;
   font-size: 15px;

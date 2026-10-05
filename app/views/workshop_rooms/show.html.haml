@@ -4,6 +4,7 @@
 -# el estado que alguien agregue mañana se ve.
 - content_for :title, @link.challenge.name
 
+- content_for :banda, @link.challenge.name
 .page-head
   %div
     %p.breadcrumb
@@ -14,7 +15,6 @@
       - unless @rooms.redirects?(can_assemble: policy(@workshop).update?)
         = " › "
         = link_to @workshop.name, workshop_path(@workshop)
-    %h1.page-title= @link.challenge.name
 
 - case @link.room_state
 - when :ideation

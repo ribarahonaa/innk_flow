@@ -1,7 +1,7 @@
 - content_for :title, "Avisos"
+- content_for :banda, "Avisos"
 .page-head
   %div
-    %h1.page-title Avisos
     %p.muted Lo que pasó mientras no estabas mirando.
   - if @unread.positive?
     = button_to "Marcar todo como leído", read_all_notifications_path, class: "btn btn-ghost"

@@ -1,11 +1,11 @@
 - content_for :title, @idea.title
+- content_for :banda, @idea.title
 .page-head
   %div
     %p.breadcrumb
       = link_to @challenge.name, challenge_path(@challenge)
       = " › "
       = link_to "Ideas", challenge_ideas_path(@challenge)
-    %h1.page-title= @idea.title
     %p.muted
       -# Cómo le fue, arriba de todo. Antes había que bajar hasta la sexta fila
       -# de «Cómo le fue» para enterarse de que la idea quedó afuera.

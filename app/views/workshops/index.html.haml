@@ -1,8 +1,8 @@
 - content_for :title, "Talleres"
 
+- content_for :banda, "Talleres"
 .page-head
   %div
-    %h1.page-title Talleres
     %p.muted Sesiones de trabajo que abarcan varios desafíos.
   - if policy(Workshop).create?
     = link_to "Nuevo taller", new_workshop_path, class: "btn btn-primary"

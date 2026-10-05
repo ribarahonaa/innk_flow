@@ -1,8 +1,8 @@
 - content_for :title, "Ideas · #{@challenge.name}"
+- content_for :banda, "Ideas"
 .page-head
   %div
     %p.breadcrumb= link_to @challenge.name, challenge_path(@challenge)
-    %h1.page-title Ideas
     %p.muted= "#{@alive.size} en carrera · #{@eliminated.size} no avanzaron"
   - ideacion = @challenge.pipeline.ideation_step
   - if ideacion&.active?

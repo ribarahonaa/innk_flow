@@ -1,8 +1,8 @@
 - content_for :title, @set.name
+- content_for :banda, @set.name
 .page-head
   %div
     %p.breadcrumb= origen_del_set(@set)
-    %h1.page-title= @set.name
   = link_to "Editar", edit_criteria_set_path(@set), class: "btn btn-ghost"
 .card
   .card-body

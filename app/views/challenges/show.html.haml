@@ -3,10 +3,10 @@
 -# cosas: el aviso del control de cerrar —que nombra el módulo que va a quedar
 -# salteado— y el encabezado de la tarjeta «Flujo».
 - actual = @challenge.steps.find(&:active?)
+- content_for :banda, @challenge.name
 .page-head
   %div
     %p.breadcrumb= link_to "Desafíos", challenges_path
-    %h1.page-title= @challenge.name
     %p.muted
       %span{ class: chip_de_estado(@challenge.status) }= t("flow.challenge_statuses.#{@challenge.status}")
       %span= " · modo IA: #{t("flow.ai_modes.#{@challenge.ai_default_mode}")}"
