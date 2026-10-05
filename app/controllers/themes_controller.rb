@@ -17,7 +17,7 @@ class ThemesController < ApplicationController
       # quedaría muerto para siempre, en silencio.
       cookies.delete(:theme)
     elsif Flow::Themes::NAMES.include?(params[:theme])
-      cookies.permanent[:theme] = { value: params[:theme], same_site: :lax }
+      cookies.permanent[:theme] = { value: params[:theme], same_site: :lax, httponly: true }
     end
     # Un valor fuera de la lista no hace nada: ni escribe ni borra.
 

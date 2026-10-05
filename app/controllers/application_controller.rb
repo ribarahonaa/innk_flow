@@ -45,8 +45,9 @@ class ApplicationController < ActionController::Base
     action_name == "index" ? verify_policy_scoped : verify_authorized
   end
 
-  # Ninguno de los dos tiene qué autorizar: en el login todavía no hay membresía
-  # con la cual, y en el check-in por link la autorización ES el token.
+  # Ninguno de los tres tiene qué autorizar: en el login todavía no hay membresía
+  # con la cual, en el check-in por link la autorización ES el token, y el tema
+  # es una preferencia del navegador que no toca nada del dominio.
   def skip_pundit?
     is_a?(SessionsController) || is_a?(WorkshopCheckinsController) || is_a?(ThemesController)
   end

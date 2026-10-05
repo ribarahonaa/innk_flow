@@ -1432,35 +1432,55 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
 // Se mide el fondo computado del <body>, que es lo que el token mueve, y no el
 // atributo: el atributo es la causa, no el efecto.
 //
+// Se mide en DOS pantallas, y la que importa es la CON sesión: el login no
+// carga Turbo, así que su POST es una recarga completa y el atributo siempre
+// se aplica. En la app Turbo morfea el body y NO toca el `data-theme` del
+// <html> (sólo sincroniza `lang` y `dir`): por eso los botones del control
+// llevan `turbo: false`, y sólo acá se ve si lo pierden.
+//
+// La espera NO es `networkidle` —Turbo se calma antes de pintar el body
+// nuevo—: es que el botón elegido tenga la clase de activo, que sólo existe
+// con el estado nuevo pintado.
+//
 // Una guarda que no corrió es indistinguible de una que pasó.
-let temaMedido = false;
-async function revisarTema(page) {
+let temaMedido = 0;
+async function revisarTema(page, pantalla, url) {
   const fondo = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const elegir = async (n) => {
+    await page.click(`.theme-switch form:nth-child(${n}) button`);
+    // Si no se ilumina no es un cuelgue: es un hallazgo, y la medición de
+    // abajo tiene que seguir para decir QUÉ quedó mal.
+    try {
+      await page.waitForSelector(`.theme-switch form:nth-child(${n}) .theme-switch__btn--on`, { timeout: 5000 });
+    } catch (e) {
+      failures++;
+      console.error(`[TEMA] (${pantalla}) el botón ${n} del control no quedó activo tras apretarlo`);
+    }
+  };
 
   await page.emulateMedia({ colorScheme: 'dark' });
-  await page.context().clearCookies();
-  await page.goto(BASE + '/', { waitUntil: 'networkidle' });
+  // Sólo la cookie del tema: con sesión, `clearCookies()` a secas la cerraría.
+  await page.context().clearCookies({ name: 'theme' });
+  await page.goto(BASE + url, { waitUntil: 'networkidle' });
   const automatico = await fondo();
 
-  await page.click('.theme-switch form:nth-child(2) button');  // Claro
-  await page.waitForLoadState('networkidle');
+  await elegir(2);  // Claro
   const forzadoClaro = await fondo();
 
-  await page.click('.theme-switch form:nth-child(1) button');  // Auto
-  await page.waitForLoadState('networkidle');
+  await elegir(1);  // Auto
   const devuelto = await fondo();
 
+  await page.context().clearCookies({ name: 'theme' });
   await page.emulateMedia({ colorScheme: 'light' });
-  await page.context().clearCookies();
 
-  temaMedido = true;
+  temaMedido++;
   if (forzadoClaro === automatico) {
     failures++;
-    console.error(`[TEMA] elegir «Claro» con el sistema en oscuro no cambió nada (${automatico})`);
+    console.error(`[TEMA] (${pantalla}) elegir «Claro» con el sistema en oscuro no cambió nada (${automatico})`);
   }
   if (devuelto !== automatico) {
     failures++;
-    console.error(`[TEMA] volver a «Auto» no devolvió el tema del sistema: ${devuelto} en vez de ${automatico} — ¿«Auto» escribe la cookie en vez de borrarla?`);
+    console.error(`[TEMA] (${pantalla}) volver a «Auto» no devolvió el tema del sistema: ${devuelto} en vez de ${automatico} — ¿«Auto» escribe la cookie en vez de borrarla?`);
   }
 }
 
@@ -3262,8 +3282,11 @@ async function revisarTema(page) {
   }
   await page.emulateMedia({ colorScheme: 'light' });
 
-  // Al final: limpia las cookies, o sea que cierra la sesión del recorrido.
-  await revisarTema(page);
+  // Con sesión primero —es donde el mecanismo puede fallar— y después sin ella
+  // (el login). La segunda cierra la sesión del recorrido, así que va al final.
+  await revisarTema(page, 'con sesión', '/challenges');
+  await page.context().clearCookies();
+  await revisarTema(page, 'login', '/');
 
   await browser.close();
 
@@ -3289,9 +3312,9 @@ async function revisarTema(page) {
     failures++;
     console.error('[LIVE] no se midió ninguna pantalla con la llegada en vivo');
   }
-  if (!temaMedido) {
+  if (temaMedido < 2) {
     failures++;
-    console.error('[TEMA] la guarda no llegó a correr');
+    console.error(`[TEMA] la guarda midió ${temaMedido} pantalla(s) y son 2: con sesión y el login`);
   }
   if (cardBodiesMedidos < PISO_DE_CARD_BODY) {
     failures++;

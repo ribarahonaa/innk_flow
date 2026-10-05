@@ -142,9 +142,10 @@
 
    `prefersdark: true` lo engancha a
    `@media (prefers-color-scheme: dark) { :root:not([data-theme]) }`, así que
-   los layouts NO pueden declarar `data-theme` —ni con el nombre del tema
-   claro—: el atributo hace que ese selector no matchee nunca y deja el modo
-   oscuro muerto. Medido en Chromium con los dos esquemas del sistema. */
+   los layouts escriben `data-theme` SÓLO si hay una cookie con la elección
+   (`tema_elegido`). Sin cookie no va —ni con el nombre del tema claro—: con el
+   atributo presente ese selector no matchea nunca y el modo oscuro automático
+   queda muerto. Medido en Chromium con los dos esquemas del sistema. */
 @plugin "daisyui/theme" {
   name: "flow-oscuro";
   prefersdark: true;

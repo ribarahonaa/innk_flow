@@ -57,8 +57,19 @@ RSpec.describe "control de tema", type: :request do
   # un atributo del <html>.
   it "ignora un valor que no está en la lista blanca" do
     patch theme_path, params: { theme: "flow-inventado" }
+    # El tarro y no el body: `tema_elegido` también filtra, así que mirando
+    # sólo el body, sacar la lista del controller no ponía nada en rojo.
+    expect(cookies[:theme]).to be_blank
     get root_path
     expect(response.body).not_to include("data-theme")
+  end
+
+  # Control positivo del de abajo: si la cookie puesta a mano no llegara al
+  # servidor, las dos negativas pasarían por el motivo equivocado.
+  it "una cookie válida puesta a mano sí llega al layout" do
+    cookies[:theme] = "flow"
+    get root_path
+    expect(response.body).to include(%(data-theme="flow"))
   end
 
   it "ignora una cookie forjada a mano" do
