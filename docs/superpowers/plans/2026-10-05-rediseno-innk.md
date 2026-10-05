@@ -458,7 +458,8 @@ Borrar los bloques `@font-face` de Bricolage Grotesque y de Inter y poner:
    UNA familia donde había dos. Open Sans es la de INNK —el propio código que
    exporta su Figma trae `fontVariationSettings: '"wdth" 100'`—, y usarla para
    títulos y cuerpo es lo que hace el diseño. Pesa MENOS que las dos que
-   reemplaza: 125 KB entre Bricolage e Inter contra ~37 KB de ésta.
+   reemplaza: 125.144 B entre Bricolage (76.888) e Inter (48.256) contra
+   48.320 B de ésta, o sea 61% menos.
 
    Es VARIABLE (tiene `fvar`), así que un archivo cubre todos los pesos y
    `font-weight: 300 800` es un rango y no una lista.
@@ -514,7 +515,9 @@ make screens
 Expected: sin errores. Después, confirmar que la familia servida es la nueva:
 
 ```bash
-grep -c 'Bricolage\|Inter' app/assets/builds/application-build.css
+# Acotado a `font-family`: `Inter` a secas matchea «Internal», «Intl» y
+# «Interval» del bundle y da un falso positivo.
+grep -c "font-family[^;]*\(Bricolage\|Inter[^a-z]\)" app/assets/builds/application-build-css.css
 ```
 
 Expected: `0`. Si da distinto de 0, quedó una referencia y la hoja está
