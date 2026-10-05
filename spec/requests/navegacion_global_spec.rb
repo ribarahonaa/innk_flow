@@ -12,7 +12,7 @@ require "rails_helper"
 # Las aserciones van por TEXTO y `href`, no por clase: así el riel la hereda
 # sin editarla.
 RSpec.describe "navegación global", type: :request do
-  let!(:company) { without_tenant { create(:company, slug: "acme") } }
+  let!(:company) { without_tenant { create(:company, slug: "acme", name: "Acme SA") } }
 
   def member(role, email)
     without_tenant do
@@ -22,12 +22,16 @@ RSpec.describe "navegación global", type: :request do
     end
   end
 
-  # Un link se busca por su `href` Y su texto: sólo por texto, «IA» matchea
-  # cualquier mención; sólo por href, un link escondido en otra parte de la
-  # pantalla lo daría por presente.
+  # Un link se busca por su `href` EXACTO y por su texto visible: sólo por texto,
+  # «IA» matchea cualquier mención; sólo por href, «Desafíos» apuntando a otra
+  # ruta pasaría por bueno. El texto se toma del contenido entero del `<a>` sin
+  # sus tags, así no depende del markup de adentro (un svg, un span): el riel
+  # lo hereda sin editar el spec.
   def nav_link?(texto, path)
-    response.body.include?(%(href="#{path}")) &&
-      response.body.match?(/<a[^>]+href="#{Regexp.escape(path)}"[^>]*>\s*#{Regexp.escape(texto)}\s*</)
+    response.body.scan(/<a\s[^>]*>.*?<\/a>/m).any? do |a|
+      a.match?(/href="#{Regexp.escape(path)}"/) &&
+        a.gsub(/<[^>]*>/, "").strip == texto
+    end
   end
 
   context "quien participa" do
@@ -90,11 +94,15 @@ RSpec.describe "navegación global", type: :request do
     u = without_tenant do
       user = create(:user, email: "multi@test.dev")
       create(:membership, :participant, company: company, user: user)
-      create(:membership, :participant, company: create(:company, slug: "otra"), user: user)
+      create(:membership, :participant, company: create(:company, slug: "otra", name: "Otra Empresa"), user: user)
       user
     end
     sign_in u
     get select_company_path
+    # Control positivo: sin esto pasaría igual si la ruta redirige, da 500 o
+    # devuelve un body vacío.
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to include("Elegí una empresa", "Acme SA", "Otra Empresa")
     expect(nav_link?("Desafíos", challenges_path)).to be false
   end
 end
