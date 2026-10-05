@@ -1,8 +1,8 @@
 - content_for :title, "Postular una idea"
+- content_for :banda, "Postular una idea"
 .card.narrow
   .card-body
     %p.breadcrumb= link_to @challenge.name, challenge_path(@challenge)
-    %h1.page-title Postular una idea
     %p.muted Se guarda como borrador. Podés seguir editándola hasta postularla.
 
     = form_with url: challenge_ideas_path(@challenge), method: :post, multipart: true do

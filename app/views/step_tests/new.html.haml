@@ -1,8 +1,8 @@
 - content_for :title, "Testear · #{@idea.title}"
+- content_for :banda, "Testear «#{@idea.title}»"
 
 .card
   .card-body
-    %h1.page-title= "Testear «#{@idea.title}»"
     %p.muted
       = "Planteá al menos #{Flow::Texto.contar(@handler.min_situations, "situación")} con esta idea ya funcionando, y probá dónde se rompe."
 

@@ -7,10 +7,10 @@
 -# Igual para las salas: `can_work` se calcula UNA vez y gobierna el bloque.
 - can_work = policy(@workshop).work?
 - content_for :title, @workshop.name
+- content_for :banda, @workshop.name
 
 .card
   .card-body
-    %h1.page-title= @workshop.name
     %p.muted= t("flow.workshop_statuses.#{@workshop.status}")
 
 - if can_assemble

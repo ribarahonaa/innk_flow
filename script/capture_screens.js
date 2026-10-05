@@ -1418,13 +1418,14 @@ async function revisarRiel(page, name) {
 // vigila (`[CONTRASTE]` sólo mira `.badge` y `.alert`).
 //
 let bandasMedidas = 0;
-// Medido: 63 pantallas con banda de 76 (71 con riel), SIEMPRE las mismas: depende
-// de qué vistas publican `content_for :banda`, no de los datos, así que el
-// contador es determinista. Por eso el piso va ajustado (58, 92%, como `[RIEL]`
-// y `[RELLENO]`) y no flojo como `[PASTILLA]`. Cinco de margen: las pantallas
-// con banda que podrían perderse sin que se note una sola; un renombre de
-// `.page-banner` o del `if` del layout lo lleva a cero.
-const PISO_DE_BANDAS = 58;
+// Medido: 71 pantallas con banda de 76, SIEMPRE las mismas. El piso va EXACTO
+// (71) y no al 92% como `[RIEL]` y `[RELLENO]`: esos cuentan ELEMENTOS, que
+// varían con los datos, y necesitan holgura. Éste cuenta VISTAS que publican
+// `content_for :banda`, un número fijo, y lo único que esta guarda existe para
+// cazar es la vista olvidada: con un piso flojo, borrar el `content_for` de una
+// sola bajaba el conteo (63 -> 60 medido) y la guarda seguía en verde. Si se
+// suma una pantalla con banda, el piso sube con ella.
+const PISO_DE_BANDAS = 71;
 
 // El contraste se mide con `medirContraste`, que es el ÚNICO medidor del
 // script y el que tiene autotest (`probarMedidorDeContraste`). No hay un
@@ -2871,7 +2872,7 @@ async function revisarTema(page, pantalla, url) {
       page.waitForURL(/\/workshops\/[^/]+$/, { timeout: 15000 }),
       workshopLink.first().click()
     ]);
-    await page.waitForSelector('h1.page-title', { timeout: 10000 });
+    await page.waitForSelector('h1.page-banner', { timeout: 10000 });
     return true;
   };
 

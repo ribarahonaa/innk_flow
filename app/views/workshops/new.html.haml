@@ -1,8 +1,8 @@
 - content_for :title, "Nuevo taller"
+- content_for :banda, "Nuevo taller"
 
 .card
   .card-body
-    %h1.page-title Nuevo taller
     %p.muted Una sesión de trabajo que abarca varios desafíos. Los sumás desde la pantalla del taller, una vez creado.
 
     = form_with model: @workshop, url: workshops_path, class: "form-doble" do |f|

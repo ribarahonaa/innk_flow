@@ -1,4 +1,5 @@
 - content_for :title, "Nuevo desafío"
+- content_for :banda, "Nuevo desafío"
 = render "shared/setup_outline"
 
 -# Dos columnas y no una: el subtítulo nombra tres cosas y las dos primeras son
@@ -7,7 +8,6 @@
 -# quedaban apretadas al lado de un paso a paso que mide la pantalla entera.
 .card
   .card-body
-    %h1.page-title Nuevo desafío
     %p.muted Qué se pregunta, quién trabaja, y con qué flujo arranca. Todo se edita después.
 
     = form_with model: @challenge, class: "form-doble" do |f|

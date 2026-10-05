@@ -6,6 +6,7 @@
 -# vea en vez de dejar la pantalla muda.
 - content_for :title, @workshop.name
 
+-# Sin banda: va en el layout `auth`, que no tiene `.app-main` y es mínimo a propósito.
 %h1.page-title= @workshop.name
 
 - case @workshop.checkin_state

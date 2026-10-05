@@ -1,8 +1,8 @@
 - content_for :title, "Editar idea"
+- content_for :banda, "Editar idea"
 .card.narrow
   .card-body
     %p.breadcrumb= link_to @idea.title, challenge_idea_path(@challenge, @idea)
-    %h1.page-title Editar idea
     .alert.alert-soft.alert-warning
       %div
         Guardar no pisa el contenido: publica la versión
