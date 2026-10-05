@@ -1,6 +1,17 @@
 # frozen_string_literal: true
 
 module ApplicationHelper
+  # El tema elegido a mano, o `nil` si no hay ninguno.
+  #
+  # `nil` es la respuesta importante: los dos layouts lo pasan como valor de
+  # `data: { theme: ... }` y HAML OMITE el atributo cuando es nil. Sin atributo,
+  # `:root:not([data-theme])` matchea y `prefersdark` sigue vivo. Cualquier
+  # cosa fuera de la lista blanca se trata como ausente, no como error.
+  def tema_elegido
+    valor = cookies[:theme]
+    valor if Flow::Themes::NAMES.include?(valor)
+  end
+
   # Lo que dejó el último pedido a la IA, listo para el popup de respuesta.
   #
   # La propuesta se busca ACÁ y no en un controller porque el partial se

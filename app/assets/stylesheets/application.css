@@ -475,6 +475,19 @@ body {
   border-bottom: 1px solid var(--borde);
 }
 
+.theme-switch { display: inline-flex; gap: 2px; }
+.theme-switch form { display: contents; }
+.theme-switch__btn {
+  padding: 4px 9px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radius-selector);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.theme-switch__btn--on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 .app-header__brand { font-weight: 650; letter-spacing: -.01em; }
 .app-header__spacer { flex: 1; }
 

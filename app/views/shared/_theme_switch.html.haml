@@ -1,0 +1,14 @@
+-# Tres estados, no dos. El servidor no sabe qué prefiere el sistema de quien
+-# mira, así que un control de dos posiciones obliga a elegir un default y mata
+-# `prefersdark` para todo el que nunca lo toque. «Auto» borra la cookie.
+-#
+-# Las clases van literales: Tailwind escanea texto y una clase interpolada no
+-# llega a la hoja (spec/lint/clases_interpoladas_spec.rb).
+- actual = tema_elegido
+%div.theme-switch{ role: "group", "aria-label": "Tema" }
+  = button_to "Auto", theme_path, method: :patch, params: { theme: "auto" },
+              class: actual.nil? ? "theme-switch__btn theme-switch__btn--on" : "theme-switch__btn"
+  = button_to "Claro", theme_path, method: :patch, params: { theme: "flow" },
+              class: actual == "flow" ? "theme-switch__btn theme-switch__btn--on" : "theme-switch__btn"
+  = button_to "Oscuro", theme_path, method: :patch, params: { theme: "flow-oscuro" },
+              class: actual == "flow-oscuro" ? "theme-switch__btn theme-switch__btn--on" : "theme-switch__btn"

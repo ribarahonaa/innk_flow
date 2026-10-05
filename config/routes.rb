@@ -5,6 +5,13 @@ Rails.application.routes.draw do
   post   "login",  to: "sessions#create"
   delete "logout", to: "sessions#destroy", as: :logout
 
+  # El tema elegido a mano. Es una cookie y no una columna: el login es
+  # público, así que una preferencia en `users` no serviría ahí; y es el
+  # SERVIDOR el que la traduce a `data-theme`, con lo cual no hay parpadeo del
+  # tema equivocado en la primera pintura y el morph no se lo puede llevar
+  # —que es la misma familia del <details> que se cerraba solo—.
+  resource :theme, only: :update
+
   # La ÚNICA ruta pública que escribe datos del dominio sin que nadie haya
   # probado quién es (el login también se sirve sin sesión, pero parte de alguien
   # que se autenticó con su clave; `up` no pasa por `ApplicationController`). Se

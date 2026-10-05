@@ -1421,6 +1421,49 @@ const MODULOS_SOLO_AJUSTES = [/Corte a top|Finalistas/i];
 const PUNTOS_DE_SALTEADO = 3; // `con-salteado`: idear, evolución, evaluación
 const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
 
+// `[TEMA]` — que la elección a mano funcione SIN matar el modo automático.
+//
+// Un request spec prueba que `data-theme` se escribe; no prueba que el
+// navegador pinte otro tema. Y el caso que importa no es «elegir oscuro
+// funciona»: es que elegir CLARO con el sistema en oscuro gane, y que volver a
+// Auto devuelva el automático. Si «Auto» escribiera "flow" en vez de borrar la
+// cookie, los dos primeros casos pasarían igual y el tercero no.
+//
+// Se mide el fondo computado del <body>, que es lo que el token mueve, y no el
+// atributo: el atributo es la causa, no el efecto.
+//
+// Una guarda que no corrió es indistinguible de una que pasó.
+let temaMedido = false;
+async function revisarTema(page) {
+  const fondo = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.context().clearCookies();
+  await page.goto(BASE + '/', { waitUntil: 'networkidle' });
+  const automatico = await fondo();
+
+  await page.click('.theme-switch form:nth-child(2) button');  // Claro
+  await page.waitForLoadState('networkidle');
+  const forzadoClaro = await fondo();
+
+  await page.click('.theme-switch form:nth-child(1) button');  // Auto
+  await page.waitForLoadState('networkidle');
+  const devuelto = await fondo();
+
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.context().clearCookies();
+
+  temaMedido = true;
+  if (forzadoClaro === automatico) {
+    failures++;
+    console.error(`[TEMA] elegir «Claro» con el sistema en oscuro no cambió nada (${automatico})`);
+  }
+  if (devuelto !== automatico) {
+    failures++;
+    console.error(`[TEMA] volver a «Auto» no devolvió el tema del sistema: ${devuelto} en vez de ${automatico} — ¿«Auto» escribe la cookie en vez de borrarla?`);
+  }
+}
+
 (async () => {
   // Se limpia antes de empezar: una captura que dejó de tomarse queda en disco
   // como si siguiera siendo el estado actual, y eso es peor que no tenerla.
@@ -3219,6 +3262,9 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   }
   await page.emulateMedia({ colorScheme: 'light' });
 
+  // Al final: limpia las cookies, o sea que cierra la sesión del recorrido.
+  await revisarTema(page);
+
   await browser.close();
 
   // Los dos pisos van acá porque son de la CORRIDA, no de una pantalla: lo que
@@ -3242,6 +3288,10 @@ const PUNTOS_DE_MERMA = 7;    // `merma-bodega`, el desafío del recorrido
   if (!liveMeasurements) {
     failures++;
     console.error('[LIVE] no se midió ninguna pantalla con la llegada en vivo');
+  }
+  if (!temaMedido) {
+    failures++;
+    console.error('[TEMA] la guarda no llegó a correr');
   }
   if (cardBodiesMedidos < PISO_DE_CARD_BODY) {
     failures++;

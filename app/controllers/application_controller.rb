@@ -48,6 +48,6 @@ class ApplicationController < ActionController::Base
   # Ninguno de los dos tiene qué autorizar: en el login todavía no hay membresía
   # con la cual, y en el check-in por link la autorización ES el token.
   def skip_pundit?
-    is_a?(SessionsController) || is_a?(WorkshopCheckinsController)
+    is_a?(SessionsController) || is_a?(WorkshopCheckinsController) || is_a?(ThemesController)
   end
 end

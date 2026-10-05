@@ -1,10 +1,12 @@
 !!!
--# Sin `data-theme`: DaisyUI resuelve el tema solo. El claro es `default: true`
--# y el oscuro es `prefersdark: true`, que engancha
--# `@media (prefers-color-scheme: dark) { :root:not([data-theme]) }`. Poner el
--# atributo acá —aunque sea con el nombre del tema claro— hace que ese selector
--# no matchee NUNCA y deja el modo oscuro muerto. Está medido en el reporte.
-%html{ lang: I18n.locale }
+-# `data-theme` SÓLO si hay una elección explícita. `tema_elegido` devuelve nil
+-# cuando no hay cookie, y HAML omite el atributo con valor nil: sin atributo,
+-# `:root:not([data-theme])` matchea y `prefersdark` resuelve el tema por el
+-# sistema. Con el atributo presente ese selector no matchea NUNCA, así que
+-# escribirlo siempre —aunque fuera con el nombre del tema claro— mataría el
+-# modo oscuro automático. Lo escribe el SERVIDOR y no el cliente: así no hay
+-# parpadeo en la primera pintura y el morph no se lo lleva.
+%html{ lang: I18n.locale, data: { theme: tema_elegido } }
   %head
     %title= content_for(:title) || "innk flow"
     %meta{ name: "viewport", content: "width=device-width,initial-scale=1" }
@@ -51,6 +53,7 @@
       = yield :header_right
       - if signed_in?
         .app-header__session
+          = render "shared/theme_switch"
           = link_to notifications_path, class: "bell", title: "Avisos" do
             %svg.bell__icon{ viewBox: "0 0 16 16", "aria-hidden": true }
               %path{ fill: "currentColor", d: "M8 1.5a3.5 3.5 0 0 0-3.5 3.5v2.2L3.3 9.4a.6.6 0 0 0 .5.9h8.4a.6.6 0 0 0 .5-.9l-1.2-2.2V5A3.5 3.5 0 0 0 8 1.5Zm0 12a1.8 1.8 0 0 0 1.7-1.2H6.3A1.8 1.8 0 0 0 8 13.5Z" }
