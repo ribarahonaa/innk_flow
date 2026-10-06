@@ -25,7 +25,18 @@
     .card-body
       %p.muted Podés acompañar a la mesa, pero no proponer ideas propias: es conflicto de interés.
 - else
-  - if mesa_ideas.any?
+  -# La sección se dibuja SIEMPRE, vacía incluida. Dibujarla sólo con datos la
+  -# hacía invisible —se fotografía ausente y da verde, que es el agujero que
+  -# pagó la captura `25`— y dejaba a la mesa sin saber si no hay ideas o si la
+  -# lista no se está cargando. A diferencia de la cara de evolución, acá el
+  -# vacío NO reemplaza el trabajo: el formulario va abajo igual, porque crear
+  -# la primera es justamente lo que hay que hacer.
+  - if mesa_ideas.empty?
+    .card
+      .card-body.empty-state
+        %h2 Ninguna idea en esta mesa todavía
+        %p.muted La primera la creás con el formulario de abajo: nace compartida con el resto de la mesa.
+  - else
     .card
       .card-body
         .section-head

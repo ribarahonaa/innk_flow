@@ -317,12 +317,32 @@ RSpec.describe "sala del taller: idear", type: :request do
       expect(response.body).not_to include(challenge_idea_path(setup[:challenge], ajena))
     end
 
+    # El nombre de este ejemplo prometía «dice que no hay nada» y sólo miraba
+    # el formulario: la cara de idear no dibujaba NADA cuando la mesa no tenía
+    # ideas, así que la sección se fotografiaba ausente y daba verde —el mismo
+    # agujero que la captura `25` pagó con la lista de participación—. La cara
+    # de evolución sí tiene su `empty-state`.
     it "sin nada creado dice que no hay nada y ofrece el formulario igual" do
       sign_in(ana, company: company)
       sala
 
+      vacio = Nokogiri::HTML(response.body).at_css(".card-body.empty-state")
+      expect(vacio).not_to be_nil
+      expect(vacio.text).to include("Ninguna idea en esta mesa todavía")
       expect(response.body).to include("Crear un borrador")
       expect(response.body).to include(%(name="payload[#{setup[:field].key}]"))
+    end
+
+    # El control POSITIVO del `empty-state` de arriba: con una idea creada la
+    # sección es la LISTA y no el vacío. Sin este ejemplo se puede dibujar el
+    # `empty-state` siempre y los dos pasan.
+    it "con algo creado la sección es la lista y no el vacío" do
+      sign_in(ana, company: company)
+      post_draft("Lo que hizo la mesa")
+      sala
+
+      expect(Nokogiri::HTML(response.body).at_css(".card-body.empty-state")).to be_nil
+      expect(response.body).to include("Las ideas de tu mesa")
     end
 
     it "con algo creado el formulario dice «Crear otro borrador»" do
