@@ -29,7 +29,14 @@
   %ul.field-list
     -# Los ASIENTOS y no `group.members`: `attended` vive en el asiento, y
     -# `members` es un `has_many through` que devuelve los `User`.
-    - group.workshop_group_members.each do |seat|
+    -# Por NOMBRE, y el orden va en Ruby: sin él Postgres devuelve los asientos
+    -# como le da la gana, y esta lista se recarga sola cada cinco segundos, o
+    -# sea que se reordenaba en la cara de quien la estaba mirando. Un `order`
+    -# de SQL sobre la asociación dispara otra consulta y descarta el
+    -# `includes(workshop_group_members: :user)` que traen las DOS rutas que
+    -# renderizan este partial, que es precisamente lo que ese `includes`
+    -# existe para evitar.
+    - group.workshop_group_members.sort_by { |seat| seat.user.name }.each do |seat|
       %li.field-list__item
         %span
           = seat.user.name

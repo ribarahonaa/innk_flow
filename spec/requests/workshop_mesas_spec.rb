@@ -367,4 +367,68 @@ RSpec.describe "armar las mesas", type: :request do
       end
     end
   end
+  # Los asientos de una mesa salían en el orden que le diera la gana a
+  # Postgres: ninguno de los dos partials pedía orden. No es cosmético — la
+  # mesa de llegada se recarga sola cada cinco segundos, así que la lista se
+  # reordenaba sola en la cara de quien la estaba mirando.
+  #
+  # Se afirma sobre el HTML SERVIDO y no sobre el scope: lo que falla es que el
+  # partial no pida orden, y un spec de modelo sobre un scope nuevo pasa igual
+  # con las dos vistas sin tocar.
+  describe "el orden de los asientos" do
+    def persona(nombre, email, role = :participant)
+      without_tenant do
+        u = create(:user, name: nombre, email: email)
+        create(:membership, role.to_sym, company: company, user: u)
+        u
+      end
+    end
+
+    # Ni el orden de inserción ni el de id coinciden con el alfabético, así que
+    # una lista sin orden explícito no puede acertar por casualidad.
+    let!(:zoe)   { persona("Zoe Zeta", "zoe@test.dev") }
+    let!(:ana2)  { persona("Ana Alfa", "ana-alfa@test.dev") }
+    let!(:mario) { persona("Mario Medio", "mario@test.dev", :admin) }
+
+    def orden_de(texto)
+      texto.scan(/Zoe Zeta|Ana Alfa|Mario Medio/).uniq
+    end
+
+    # El endpoint de la llegada es el que más importa: es el único que se pide
+    # solo cada pocos segundos.
+    it "la mesa de llegada los lista por nombre" do
+      taller = as_company(company) { create(:workshop, status: "open") }
+      as_company(company) do
+        llegada = create(:workshop_group, :arrival, workshop: taller)
+        [ zoe, ana2, mario ].each { |u| WorkshopGroupMember.create!(workshop_group: llegada, user: u) }
+      end
+      sign_in(mario, company: company)
+
+      get arrival_workshop_path(taller)
+
+      expect(response).to have_http_status(:ok)
+      frame = Nokogiri::HTML(response.body).at_css("turbo-frame#arrival")
+      expect(frame).not_to be_nil
+      expect(orden_de(frame.text)).to eq([ "Ana Alfa", "Mario Medio", "Zoe Zeta" ])
+    end
+
+    # «Tu mesa» es el OTRO partial: dibuja el asiento con su propio markup, así
+    # que arreglar uno no arregla el otro.
+    it "«Tu mesa» los lista por nombre" do
+      as_company(company) do
+        mesa = create(:workshop_group, workshop: taller, name: "Mesa Uno")
+        [ zoe, ana2, mario ].each { |u| WorkshopGroupMember.create!(workshop_group: mesa, user: u) }
+      end
+      sign_in(mario, company: company)
+
+      get workshop_path(taller)
+
+      expect(response).to have_http_status(:ok)
+      tarjeta = Nokogiri::HTML(response.body).css(".card").find do |card|
+        card.at_css(".section-title")&.text&.strip == "Tu mesa"
+      end
+      expect(tarjeta).not_to be_nil
+      expect(orden_de(tarjeta.text)).to eq([ "Ana Alfa", "Mario Medio", "Zoe Zeta" ])
+    end
+  end
 end

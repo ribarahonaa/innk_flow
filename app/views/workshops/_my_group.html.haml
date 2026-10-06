@@ -21,7 +21,10 @@
         -# filtra por `workshop_group_members.user_id`, así que Rails pasaría a
         -# `eager_load` y la asociación quedaría cargada con SÓLO el asiento de
         -# quien mira: el panel listaría una persona en vez de la mesa.
-        - group.workshop_group_members.includes(:user).each do |seat|
+        -# Por NOMBRE y en Ruby, igual que `_group_body`: un `order` de SQL
+        -# descartaría el `includes(:user)` de la línea, que es lo único que
+        -# evita una consulta por asiento.
+        - group.workshop_group_members.includes(:user).sort_by { |seat| seat.user.name }.each do |seat|
           %li.field-list__item
             %span
               = seat.user.name
