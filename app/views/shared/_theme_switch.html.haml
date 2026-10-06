@@ -12,11 +12,17 @@
 -#
 -# Las clases van literales: Tailwind escanea texto y una clase interpolada no
 -# llega a la hoja (spec/lint/clases_interpoladas_spec.rb).
+-#
+-# `aria-pressed` y no sólo la clase: el elegido se distinguía SÓLO por color
+-# —fondo, texto y borde del acento—, así que quien navega con lector de
+-# pantalla no tenía cómo saber cuál está puesto. Es el mismo defecto que
+-# `[CONTRASTE]` vigila del lado del color, en el eje que ninguna guarda mide.
 - actual = tema_elegido
+- clase = ->(on) { on ? "theme-switch__btn theme-switch__btn--on" : "theme-switch__btn" }
 %div.theme-switch{ role: "group", "aria-label": "Tema" }
   = button_to "Auto", theme_path, method: :patch, params: { theme: "auto" }, form: { data: { turbo: false } },
-              class: actual.nil? ? "theme-switch__btn theme-switch__btn--on" : "theme-switch__btn"
+              class: clase.(actual.nil?), "aria-pressed": actual.nil?.to_s
   = button_to "Claro", theme_path, method: :patch, params: { theme: "flow" }, form: { data: { turbo: false } },
-              class: actual == "flow" ? "theme-switch__btn theme-switch__btn--on" : "theme-switch__btn"
+              class: clase.(actual == "flow"), "aria-pressed": (actual == "flow").to_s
   = button_to "Oscuro", theme_path, method: :patch, params: { theme: "flow-oscuro" }, form: { data: { turbo: false } },
-              class: actual == "flow-oscuro" ? "theme-switch__btn theme-switch__btn--on" : "theme-switch__btn"
+              class: clase.(actual == "flow-oscuro"), "aria-pressed": (actual == "flow-oscuro").to_s

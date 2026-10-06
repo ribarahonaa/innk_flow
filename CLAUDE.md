@@ -73,8 +73,13 @@ en `capturar()`—.
 
 **Pero `[CLASES]` mira una lista FIJA de familias de componentes**
 —`[class*="badge"]`, `[class*="btn"]`, `[class*="alert"]`, el punto del drawer,
-`.steps`, `.panel`, `.card` y las celdas de `.table`—, así que **un elemento hecho
-sólo de utilidades de Tailwind es invisible para ella**. La tarjeta del QR del
+`.steps`, `.panel`, `.card`, `.page-banner`, `.app-rail__item` y las celdas de
+`.table`—, así que **un elemento hecho sólo de utilidades de Tailwind es
+invisible para ella**. Las dos últimas las sumó la ronda de arreglos de la
+revisión final: sin `.page-banner` ahí, perder la regla entera de la banda dejaba
+al `h1` heredando `--text` sobre `--surface` —unos 17:1—, así que `[BANDA]`
+seguía verde, el conteo seguía en 71 y nadie se enteraba. `.theme-switch__btn` no
+hace falta: ya entra por la subcadena de `[class*="btn"]`. La tarjeta del QR del
 check-in (`.bg-white.p-4.rounded-box.w-60`) no matchea ninguna, y por eso
 sobrevivió a SEIS corridas verdes sin que ninguna de sus cuatro clases existiera
 en la hoja: el QR salía sin ancho —llenaba la tarjeta entera—, sin fondo blanco,
@@ -161,9 +166,16 @@ causa, y lo que se rompe es el efecto en el navegador. No tiene piso: falla si
 no midió las dos.
 `[RIEL]` mira el riel de navegación global —la columna de íconos que vive
 afuera de `.app-shell`—: que exista, que tenga al menos dos entradas (todo rol
-ve Desafíos y Talleres), que no marque DOS activas a la vez —cero pasa, porque
-sólo falla con más de una— y, sobre todo, que abajo de 1024px se vuelva fila en
-vez de esconderse. Eso último se mide a **1000px** y no a 1100, porque el corte
+ve Desafíos y Talleres), que marque **exactamente una** activa y, sobre todo, que
+abajo de 1024px se vuelva fila en vez de esconderse. Lo de «exactamente una» es
+de la ronda de arreglos de la revisión final: antes sólo fallaba con más de una,
+así que **cero activas daba verde**, que es justo lo que pasaba en `step_tests` y
+`previews` —dos pantallas que están adentro de Desafíos y faltaban en la lista de
+`controller_name`—: cinco iconos grises y nadie avisando. Hay **una** excepción
+declarada por nombre de captura (`SIN_ENTRADA_ACTIVA`, hoy sólo `09-13-avisos`):
+`/notifications` es global y no es ninguna de las cinco secciones del riel, así
+que no tiene qué marcar. Sumar una pantalla a esa lista es una decisión, no un
+arreglo. Eso último se mide a **1000px** y no a 1100, porque el corte
 de la hoja es `max-width: 1023px` y a 1100 el riel todavía es vertical por
 diseño.
 `[BANDA]` caza la vista que se olvidó el `content_for :banda` en una mudanza de
@@ -176,9 +188,13 @@ las pantallas oscuras. Existe porque la sombra dejó de ser decorativa: en tema
 claro el borde de la tarjeta es transparente y la sombra es lo único que la
 define.
 `[CAMPO]` compone el borde en reposo de un campo sobre el primer fondo opaco
-que tenga detrás y exige 3:1 —el 1.4.11 de WCAG, el mismo piso de `[PUNTOS]`—,
+que tenga detrás —y **sólo si ese borde tiene ancho**: con `border-style: none`
+el ancho computa 0 pero `borderTopColor` sigue devolviendo `currentColor`, o sea
+`--text`, que sobre blanco mide ~17:1, y la guarda daba VERDE con el campo sin
+ningún contorno, que es exactamente la regresión para la que existe; sin ancho el
+borde ES el fondo y mide 1,00:1— y exige 3:1 —el 1.4.11 de WCAG, el mismo piso de `[PUNTOS]`—,
 **sólo en claro**, y no porque en oscuro no importe: ahí el campo conserva el
-`--borde` de siempre, que mide 1,05:1, y eso es deuda anterior a esta rama y
+`--borde` de siempre, que mide 1,13:1, y eso es deuda anterior a esta rama y
 fuera de su alcance (queda anotada abajo, con las superficies). Extender
 `[CAMPO]` a oscuro «total allá es cosmético» pone en rojo todas las pantallas el
 primer día. Lo cosmético en oscuro es perder la SOMBRA, que es el motivo de
@@ -1403,15 +1419,36 @@ sin borde contra la tarjeta que lo contiene daba **1,09–1,12:1** — su fondo 
 borde transparente. El 1.4.11 de WCAG pide 3:1 para el límite de un control, y
 este repo ya hace valer ese piso para los puntos del drawer; una sombra blanda
 no llega a 3:1 sobre blanco. Así que el campo conserva un hilo: `--borde-campo`
-es `--tenue` (3,38:1) en claro y `--borde` en oscuro. Lo único en discusión fue
-el reposo — `input:focus` le devuelve el borde del acento más un anillo de 3px.
+es `--tenue` (3,36:1 medido en el campo de `/challenges/new`) en claro y
+`--borde` en oscuro. Lo único en discusión fue el reposo — `input:focus` le
+devuelve el borde del acento más un anillo de 3px. De paso ese fallo no sólo
+evitó una regresión: el borde del campo claro medía **1,25:1 ANTES** de esta
+rama y mide **3,36:1** ahora, así que arregló algo que ya estaba mal.
+
+**`--color-accent` está declarado y NO pinta un pixel.** Es el morado `#8520BD`
+de INNK, y es lo que el Figma usa para la pestaña activa, pero nada lo lee: no
+hay un `btn-accent`, `badge-accent`, `alert-accent`, `text-accent` ni `bg-accent`
+en toda la app, y la hoja no lo referencia fuera de su propia declaración. Lo que
+pinta es el `--accent` de la app, que sigue siendo `var(--color-primary)` —el
+índigo— en 35 usos directos más 16 de su escalera, `a { color: … }` incluido.
+Está declarado porque un tema propio de DaisyUI emite sólo lo que declara y los
+20 colores van completos en los dos temas; borrarlo rompe el tema. **Adoptar el
+morado es una decisión abierta que nadie tomó**, no un pendiente: repuntar
+`--accent` repinta el producto entero. El comentario al lado del token lo dice
+igual; la spec del rediseño, en cambio, afirma que el acento «gana un color
+propio», que es cierto del token y falso de lo que se ve.
 
 **Deuda medida y deliberadamente NO arreglada acá:** en tema OSCURO el campo
-mide 1,05:1 contra su ancestro. Ese borde es `--borde`, o sea `base-300`, el
-mismo que tenía antes del rediseño, así que no es una regresión de las
-superficies — pero la paleta nueva le corrió el tono a `base-100` y a
-`base-300` del tema oscuro (a la misma luminosidad y croma), y nadie volvió a
-medir el número después de eso. Queda abierto, no resuelto.
+mide **1,13:1** contra su ancestro. Ese borde es `--borde`, o sea `base-300`, el
+mismo que tenía antes del rediseño, y la pregunta que quedaba abierta —la paleta
+nueva le corrió el TONO a `base-100` y a `base-300` del oscuro, a la misma
+luminosidad y croma— ya está contestada: **no es una regresión**. En flotante el
+par daba 1,1395 con el tono viejo (285,9°) y da 1,1420 con el nuevo (247,88°),
+o sea +0,0025 a favor. El número que se mide en el navegador es 1,134, más bajo
+que el flotante porque el canvas cuantiza a 8 bits y estos dos colores están
+pegados; con dos decimales, **1,13:1**. Lo que NO es, y lo dijo este archivo
+hasta la ronda de arreglos de la revisión final, es 1,05:1: ese número no lo
+reprodujo nadie.
 
 **`[CARD]` se retiró, y `[RELLENO]` y `[SOMBRA]` ocupan DOS TERCERAS PARTES de
 su lugar: la que queda sin cubrir es `--card-fs`.**

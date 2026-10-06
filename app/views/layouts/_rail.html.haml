@@ -8,8 +8,14 @@
 -# Las clases van literales y el estado activo también: Tailwind escanea texto
 -# y una clase interpolada no llega a la hoja.
 %nav.app-rail{ "aria-label": "Navegación principal" }
+  -# `step_tests` y `previews` entran a esta lista aunque no sean obvias: la
+  -# pantalla de testeo de un módulo y la vista previa del formulario están
+  -# adentro de Desafíos y se llega a las dos desde un desafío. Sin ellas el riel
+  -# no marcaba NADA en esas pantallas —cinco iconos grises, visible en
+  -# `22b-testeo-nuevo`—, que con una pestaña en la barra se notaba poco y con
+  -# una columna de 80px se nota mucho.
   = rail_link "Desafíos", challenges_path, "challenges",
-              activo: controller_name.in?(%w[challenges steps ideas assessments])
+              activo: controller_name.in?(%w[challenges steps ideas assessments step_tests previews])
   -# Sin condicionar a `manages_challenges?`: a un taller se entra por
   -# convocatoria, y quien participa en una mesa es quien más lo necesita.
   = rail_link "Talleres", workshops_path, "workshops",

@@ -511,7 +511,16 @@ async function revisarClasesDescartadas(page, name) {
     // `--punto`: si ese token se rompe o se renombra, el `color-mix()` queda
     // inválido, el fondo cae a transparente y el punto se vuelve invisible
     // sin dejar rastro en el DOM.
-    for (const el of document.querySelectorAll('[class*="badge"],[class*="btn"],[class*="alert"],[class*="flow-drawer__punto"],.steps,.panel,.card,.table :is(th,td)')) {
+    //
+    // Las tres familias que suma el rediseño INNK: `.page-banner`,
+    // `.app-rail__item` y —ya cubierta— `.theme-switch__btn`. La banda importa
+    // concretamente: si la regla `.page-banner` entera desapareciera, el `h1`
+    // heredaría `--text` sobre `--surface`, o sea ~17:1, así que `[BANDA]`
+    // seguiría verde, el conteo seguiría en 71 y nadie más se enteraría. El
+    // botón del control de tema NO se agrega porque ya entra por
+    // `[class*="btn"]`, que matchea la subcadena «btn» de `theme-switch__btn`:
+    // sumarlo sería un selector redundante.
+    for (const el of document.querySelectorAll('[class*="badge"],[class*="btn"],[class*="alert"],[class*="flow-drawer__punto"],.steps,.panel,.card,.page-banner,.app-rail__item,.table :is(th,td)')) {
       // Única excepción: la celda de `tr.cut-line` (línea de corte del
       // ranking, `steps/selection.html.haml`) anula padding y borde a
       // propósito con `!important` (`.cut-line td` en application.css) — no
@@ -1360,6 +1369,15 @@ async function revisarAnchoDeCriterio(page, name) {
 const PISO_DE_RIEL = 66;
 let rielesMedidos = 0;
 
+// Las pantallas que legítimamente no marcan ninguna entrada, declaradas una por
+// una y a propósito: el riel tiene cinco secciones y una pantalla global que no
+// es ninguna de ellas no tiene qué marcar. Hoy es sólo `/notifications`, que no
+// cuelga de ningún desafío ni de ningún taller. La lista va angosta —por nombre
+// de captura, no por patrón— porque es lo que sostiene la regla: perdonar «cero
+// activas» a secas deja la guarda ciega justo para lo que existe. Sumar una
+// pantalla acá es una decisión, no un arreglo.
+const SIN_ENTRADA_ACTIVA = new Set(['09-13-avisos']);
+
 async function revisarRiel(page, name) {
   const medir = () => page.evaluate(() => {
     const riel = document.querySelector('.app-rail');
@@ -1395,10 +1413,27 @@ async function revisarRiel(page, name) {
     failures++;
     console.error(`[RIEL] ${name}: ${r.activas} entradas marcadas como activas a la vez`);
   }
+  // Y que marque ALGUNA. La spec le pide a `[RIEL]` tres cosas —que exista, que
+  // MARQUE EL ACTIVO y que abajo de 1024 se vuelva fila— y la del medio no
+  // estaba cubierta: la guarda sólo fallaba con más de una activa, así que cero
+  // activas daba verde. No era hipotético: `step_tests` y `previews` faltaban en
+  // la lista de Desafíos y esas pantallas salían con los cinco iconos grises.
+  if (r.activas === 0 && !SIN_ENTRADA_ACTIVA.has(name)) {
+    failures++;
+    console.error(`[RIEL] ${name}: ninguna entrada marcada como activa; el riel no dice dónde estás`);
+  }
 
   // En el angosto: sigue visible y cambió de orientación. A 1000px y no a
   // 1100: el corte de la hoja es `max-width: 1023px`, así que a 1100 el riel
   // TODAVÍA es vertical por diseño y la guarda fallaría en todas las pantallas.
+  //
+  // Sí, son DOS `setViewportSize` por pantalla, y se quedan. Medido en esta
+  // misma imagen de Playwright contra la app corriendo: 71 pares de resize
+  // cuestan 2,4 s en total (33,5 ms por pantalla) sobre una corrida de varios
+  // minutos que además le pide cosas a la IA de verdad. Hacerlo una sola vez por
+  // corrida ahorraría esos 2,4 s y bajaría la cobertura del cambio a fila de 71
+  // pantallas a UNA, que es exactamente la clase de recorte que este repo paga
+  // caro. No es prolijidad pendiente: está medido y decidido.
   const tamano = page.viewportSize();
   await page.setViewportSize({ width: 1000, height: 900 });
   const angosto = await medir();
@@ -1439,12 +1474,15 @@ async function revisarBanda(page, name) {
   bandasMedidas += medidos.length;
 
   // `medirContraste` ya devuelve `texto` trimeado y cortado a 40.
+  //
+  // Acá había una rama para «la banda se dibuja vacía» y era código muerto:
+  // `medirContraste` filtra con `.filter(el => … && el.textContent.trim())`,
+  // así que una `.page-banner` sin texto NUNCA llega a este bucle y el mensaje
+  // no se podía imprimir jamás. La banda vacía la caza el piso exacto de 71 —no
+  // publicar el `content_for` baja el conteo—, que es la misma regresión por
+  // otro lado. Una rama que aparenta cubrir lo que cubre otro chequeo es
+  // exactamente la forma de ceguera que esta rama viene arrastrando.
   for (const m of medidos) {
-    if (!m.texto) {
-      failures++;
-      console.error(`[BANDA] ${name}: la banda se dibuja vacía`);
-      continue;
-    }
     if (m.ratio < 4.5) {
       failures++;
       console.error(`[BANDA] ${name}: «${m.texto}» mide ${m.ratio.toFixed(2)}:1 sobre la banda, y el piso es 4,5:1`);
@@ -1469,7 +1507,12 @@ async function revisarBanda(page, name) {
 // así `capturar()` corre también en las pantallas oscuras (94 a 99 y las demás
 // `oscuro-*`), así que el chequeo de sombra las mide en los dos esquemas; el de
 // contorno `[CAMPO]` es SÓLO de claro, porque en oscuro el campo conserva su
-// `--borde` de siempre (1,05:1 medido, anterior a esta rama y fuera de su alcance).
+// `--borde` de siempre: 1,13:1 medido con ESTE mismo medidor sobre el textarea de
+// `/challenges/new` con `prefers-color-scheme: dark`. Es deuda anterior a esta
+// rama y fuera de su alcance. El 1,05:1 que decía acá antes no lo reprodujo
+// nadie; el valor exacto en flotante es 1,142 y el navegador, que cuantiza a 8
+// bits, mide 1,134 — la diferencia es la cuantización, no dos mediciones
+// distintas.
 //
 // Cuenta cuántas midió y falla si midió de menos, por el mismo motivo que
 // `[RELLENO]` y `[PASTILLA]`: una guarda que mide cero da verde y es
@@ -1553,7 +1596,20 @@ async function revisarSombra(page, name) {
       if (!sombra(el)) sinCampo.push(label);
       const cs = getComputedStyle(el);
       const fondo = fondoDetras(el);
-      const borde = compuesto(fondo, cs.borderTopColor);
+      // El borde SÓLO cuenta si tiene ancho, y es el mismo patrón que
+      // `medirContraste`. Sin esta pregunta la guarda no cazaba la regresión
+      // para la que existe: con `border-style: none` —lo que queda si alguien
+      // borra la línea `border: 1px solid var(--borde-campo)` del bloque de
+      // campos, o escribe `border: none` para volver al campo SIN contorno del
+      // Figma— el ancho computa 0, pero `borderTopColor` sigue devolviendo un
+      // color (`currentColor`, o sea `--text`), que sobre blanco mide ~17:1 y
+      // dejaba la guarda VERDE con el campo sin ningún contorno. Las dos
+      // mutaciones que sí se cazaban —borrar la sombra, `--borde-campo:
+      // transparent`— dejan el ancho en 1px; la tercera, que es la más natural,
+      // pasaba. Sin ancho el borde ES el fondo y mide 1.00:1, o sea rojo.
+      const borde = parseFloat(cs.borderTopWidth) > 0
+        ? compuesto(fondo, cs.borderTopColor)
+        : rgba(fondo);
       const m = ratio(borde, rgba(fondo));
       if (!oscuro && m < 3) flojos.push(`${label} ${m.toFixed(2)}:1`);
     }

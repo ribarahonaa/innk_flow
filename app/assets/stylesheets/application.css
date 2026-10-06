@@ -96,8 +96,11 @@
      que lo separa, y MEDIDO (borde mínimo del campo en reposo, en
      `/challenges/new`) no pasa de 1,09:1; una sombra blanda no puede llegar a
      3:1 contra blanco. El piso es el 1.4.11 de WCAG, el mismo de `[PUNTOS]`.
-     Por eso `--borde-campo` es `--tenue` (3,38:1) y la sombra queda de adorno.
-     En oscuro no se toca: sigue siendo `--borde`. Lo mide `[CAMPO]`. */
+     Por eso `--borde-campo` es `--tenue`, que en el campo real de
+     `/challenges/new` mide 3,36:1, y la sombra queda de adorno. En oscuro no se
+     toca: sigue siendo `--borde`, y ahí el campo mide 1,13:1 contra la tarjeta
+     —deuda anterior al rediseño, medida y NO arreglada acá—. Lo mide `[CAMPO]`,
+     que es de claro. */
   --shadow: 0 2px 20px rgba(0, 0, 0, .1);
   --borde-superficie: transparent;
   --borde-campo: var(--tenue);
@@ -131,12 +134,31 @@
 
   /* El shell oscuro que arma la tarea 5. */
   --color-neutral: oklch(21.500% 0.0280 247.88);
-  --color-neutral-content: oklch(78.5% 0.024 247.88);
+  --color-neutral-content: oklch(78.5% 0.024 247.88); /* 8.89:1 */
 
-  /* #8520bd exacto: el morado con que el Figma pinta la pestaña activa. El
-     acento DEJA de apuntar al primario —ya tiene un color de marca propio
-     detrás—. Queda a 35° del primario: holgado contra los 8° que en su momento
-     obligaron a correr `--color-secondary` al azul acero. */
+  /* #8520bd exacto: el morado con que el Figma pinta la pestaña activa, o sea
+     el acento de la marca INNK. Queda a 35° del primario: holgado contra los 8°
+     que en su momento obligaron a correr `--color-secondary` al azul acero.
+
+     OJO, y es lo primero que alguien va a leer mal: ESTE TOKEN NO PINTA NADA.
+     `--color-accent` está declarado porque un tema propio de DaisyUI emite SÓLO
+     lo que declara —los 20 colores van completos en los dos temas, como dice el
+     comentario del tema oscuro—, pero nadie lo lee: no hay un solo `btn-accent`,
+     `badge-accent`, `alert-accent`, `text-accent` ni `bg-accent` en vistas,
+     islas o helpers, y la hoja tampoco lo referencia fuera de estas dos líneas.
+     El acento que SÍ pinta es el de la app, `--accent`, que más abajo sigue
+     siendo `var(--color-primary)` —el índigo— y se usa 35 veces directas más 16
+     de su escalera (`--accent-soft`, `--accent-borde`): entre ellas
+     `a { color: … }`, o sea TODOS los enlaces, cada hover, el anillo de foco, el
+     relleno de la barra de progreso, cada estado marcado y la entrada activa del
+     riel.
+
+     Adoptar el morado es una decisión QUE NO SE TOMÓ. No es un olvido ni un
+     pendiente: repuntar `--accent` repintaría el producto entero en esos 51
+     lugares, y nadie lo pidió. Pintar sólo la entrada activa del riel tampoco es
+     «una regla»: `.app-rail__item--on` también usa `--accent-soft`, así que
+     haría falta una escalera nueva para una familia de color que no usa nada
+     más. Queda como está hasta que alguien decida lo contrario. */
   --color-accent: oklch(48.894% 0.2246 309.04);
   --color-accent-content: oklch(100% 0 0);           /* 7.15:1 */
   --color-info: oklch(50% 0.0996 230);
@@ -196,7 +218,7 @@
   --color-secondary-content: oklch(15% 0.03 285.9);  /* 7.58:1 */
 
   --color-neutral: oklch(15.5% 0.024 247.88);
-  --color-neutral-content: oklch(78.5% 0.024 247.88);
+  --color-neutral-content: oklch(78.5% 0.024 247.88); /* 9.97:1 */
 
   --color-accent: oklch(70% 0.2098 309.04);
   --color-accent-content: oklch(15% 0.03 285.9);     /* 6.74:1 */
@@ -386,8 +408,8 @@
   --radius: var(--radius-box);
 
   /* `--muted` es alfa sobre el texto, no un gris propio: así sigue al tema en
-     los dos modos sin una segunda lista. 70% mide 6.57:1 sobre la superficie
-     y 6.27:1 sobre el fondo de página en claro, 7.43 y 7.76 en oscuro. Se usa 178
+     los dos modos sin una segunda lista. 70% mide 6.49:1 sobre la superficie
+     y 6.27:1 sobre el fondo de página en claro, 7.48 y 7.82 en oscuro. Se usa 178
      veces: subirlo acá lo sube en toda la app, que es más barato y más parejo
      que discutir usos. */
   --muted: color-mix(in oklab, var(--color-base-content) 70%, transparent);
@@ -425,8 +447,8 @@
      pastilla. También lo usan `.diff-kind--removed` y `.setup__mark`
      bloqueado, que ninguna guarda mira. */
   --danger: color-mix(in oklab, var(--color-error) 65%, var(--color-base-content));
-  /* El acento y la IA ya se leen crudos (6.12:1 y 5.84:1 sobre blanco, 5.46
-     y 6.72 en oscuro): no se mezclan, así el violeta de un enlace es EL
+  /* El acento y la IA ya se leen crudos (6.06:1 y 5.84:1 sobre blanco, 5.51
+     y 6.68 en oscuro): no se mezclan, así el violeta de un enlace es EL
      violeta de la marca. */
   --ia: var(--color-secondary);
 
@@ -466,8 +488,8 @@
 
   /* Los glifos que no son texto —la flecha entre módulos, el asa de arrastre,
      el guion de «todavía no se decidió»— estaban pintados con `--borde`, que
-     mide 1.26:1 contra la superficie: se veía la línea de una tabla, no un
-     símbolo. Con esto quedan en 3.38:1 en claro y 4.43:1 en oscuro, arriba del
+     mide 1.25:1 contra la superficie: se veía la línea de una tabla, no un
+     símbolo. Con esto quedan en 3.35:1 en claro y 4.43:1 en oscuro, arriba del
      3:1 que pide un control. */
   --tenue: color-mix(in oklab, var(--color-base-content) 50%, transparent);
 }
@@ -663,7 +685,7 @@ body {
    (#11101d) dan 1,04:1 —o sea, no se distinguen— y la barra deja de leerse
    como una región. Va con `--tenue` y no con `--color-base-300`: ese daba
    1,22:1 contra la página, o sea que no era una mitigación, era una línea
-   invisible. `--tenue` mide 3,38:1 en claro y 4,43:1 en oscuro. */
+   invisible. `--tenue` mide 3,35:1 en claro y 4,43:1 en oscuro. */
 .flow-drawer { grid-row: 1 / span 2; border-right: 1px solid var(--tenue); }
 .flow-drawer__panel {
   position: sticky;
