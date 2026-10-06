@@ -12,13 +12,11 @@ plan en `docs/superpowers/plans/2026-10-05-rediseno-innk.md`.
 
 ## 2. Estado actual
 
-Rama `rediseno-innk`, **15 commits, árbol limpio**. **Ojo, el handoff anterior
-decía «nada pusheado» y era falso: `origin/rediseno-innk` apunta a `4f04cab`,
-así que 11 de los 15 YA están en el remoto y los últimos 4 son locales**
-(`cbde0b0`, `172c543`, `51fa668` y la ronda de arreglos). Lo cazó la
-re-revisión de la ronda de arreglos; nadie lo había vuelto a verificar en dos
-sesiones. Suite en
-**1628 ejemplos, 0 fallas** (eran 1612 al empezar). `make screens` verde: 76
+**Mergeado y cerrado.** La rama `rediseno-innk` entró a `master` por
+fast-forward —16 commits, `163925a..50daebf`— y ya no existe: ni en local ni en
+el remoto. `master` está pusheado, local y `origin/master` los dos en `50daebf`.
+Suite en **1628 ejemplos, 0 fallas** (eran 1612 al empezar), corrida sobre el
+resultado MERGEADO y no sólo sobre la rama. `make screens` verde: 76
 capturas, sin errores de JS ni respuestas >= 400, con 71 pantallas con riel, 71
 con banda, 299 tarjetas y 289 campos medidos.
 
@@ -42,22 +40,34 @@ arreglos**, el commit 15.
 | ✓ | 9. `CLAUDE.md` | `51fa668` |
 | ✓ | + revisión final de toda la rama | ronda de arreglos (commit 15) |
 
-`4f04cab` es la versión anterior de este archivo, de cuando iban seis tareas.
+`4f04cab` es la versión anterior de este archivo, de cuando iban seis tareas, y
+`50daebf` la que lo cerró.
 
 **La re-revisión de esa ronda cerró: los once hallazgos ADDRESSED, sin roturas
 nuevas, veredicto «listo para mergear».** Verificó por su cuenta —sin navegador
 y sin la app— los diez contrastes de la hoja recalculando oklab → sRGB lineal →
 WCAG, y dio con el valor embarcado a cuatro decimales en ocho de diez. El único
-defecto que introdujo la propia ronda era el «nada pusheado» de acá arriba.
+defecto que introdujo la propia ronda fue el «nada pusheado» que este archivo
+repetía, y que se explica dos párrafos más abajo.
 
-**No queda ningún hallazgo abierto.** Lo que falta es decidir cómo se integra,
-y eso es de Raúl.
+**No queda ningún hallazgo abierto ni trabajo de implementación.** Lo único
+pendiente es una decisión de diseño, la de acá abajo.
+
+**Una nota de proceso que vale más que el dato:** este archivo afirmó «nada
+pusheado» durante dos sesiones y era falso —`origin/rediseno-innk` estaba en
+`4f04cab`, o sea 11 commits ya en el remoto—. Lo cazó la re-revisión de la ronda
+de arreglos, que fue a mirar el remoto en vez de creerle al handoff. El estado
+de pusheo es el tipo de dato que se hereda sin verificar de un handoff al
+siguiente; **se chequea con `git rev-parse origin/<rama>`, no se copia.**
 
 **El ledger de la ejecución vive en
 `.superpowers/sdd/2026-10-05-rediseno-innk/progress.md`** (gitignoreado) con los
 briefs, los reportes, los transcriptos de mutación, el reporte de la ronda de
 arreglos (`fix-wave-report.md`) y su mutación (`fix-wave-mutacion.txt`). Si se
-perdiera, el registro real es `git log`.
+perdiera, el registro real es `git log`. **Se conserva a propósito**: la skill
+manda borrarlo al mergear, pero está gitignoreado y es la única copia de los
+transcriptos de mutación, que son la evidencia de que cada guarda nueva puede
+fallar de verdad — y eso no está en `git log`.
 
 ### La decisión de diseño que queda ABIERTA
 
@@ -375,19 +385,19 @@ costar una vuelta, y OCHO guardas o tests resultaron incapaces de fallar**
 
 ## 5. Próximos pasos
 
-**No queda trabajo de implementación.** Las nueve tareas, la revisión final y la
-re-revisión de su ronda de arreglos están cerradas, sin hallazgos abiertos.
+**El trabajo está terminado, mergeado y pusheado.** Queda una sola cosa, y es
+una decisión, no una tarea:
 
-1. **Cómo se integra es decisión de Raúl**, y hay un dato que cambia las
-   opciones: **la rama ya está parcialmente pusheada**. `origin/rediseno-innk`
-   apunta a `4f04cab`, o sea los primeros 11 commits; los últimos 4 son locales.
-   Así que no es «pushear una rama nueva», es un `push` que adelanta una rama que
-   ya existe en el remoto.
-2. **El push y el merge los hace Raúl a mano.** Desde la sesión los frena el
-   clasificador de auto mode, y además son efectos fuera del repo.
-3. **La decisión del morado queda para Raúl** (sección 2). No hay nada que
-   implementar hasta que la tome: si la respuesta es «no», el estado de hoy es el
-   correcto y el comentario de la hoja ya lo explica.
+1. **El morado de INNK** (sección 2). No hay nada que implementar hasta que se
+   tome: si la respuesta es «no», el estado de hoy es el correcto y el
+   comentario al lado del token ya lo explica. Si es «sí», lo más chico que
+   cumple la spec es pintar la entrada activa del riel, y eso pide una escalera
+   nueva para la familia del acento más re-medir dos contrastes; repuntar
+   `--accent` entero toca ~51 lugares, `a { color: … }` incluido.
+
+Si alguna vez hay que volver sobre esto: el merge fue fast-forward, así que
+`163925a..50daebf` en `master` es exactamente la rama, commit por commit, y cada
+uno de los dieciséis mensajes explica su porqué.
 
 **Lo que queda sin vigilancia**, y está anotado en `CLAUDE.md` con los otros
 huecos: `--card-fs` y la sombra de `card`, `[REFERENCIA]` en la sala de la mesa,
