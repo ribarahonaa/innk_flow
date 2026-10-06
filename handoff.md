@@ -12,7 +12,12 @@ plan en `docs/superpowers/plans/2026-10-05-rediseno-innk.md`.
 
 ## 2. Estado actual
 
-Rama `rediseno-innk`, **15 commits, árbol limpio, nada pusheado**. Suite en
+Rama `rediseno-innk`, **15 commits, árbol limpio**. **Ojo, el handoff anterior
+decía «nada pusheado» y era falso: `origin/rediseno-innk` apunta a `4f04cab`,
+así que 11 de los 15 YA están en el remoto y los últimos 4 son locales**
+(`cbde0b0`, `172c543`, `51fa668` y la ronda de arreglos). Lo cazó la
+re-revisión de la ronda de arreglos; nadie lo había vuelto a verificar en dos
+sesiones. Suite en
 **1628 ejemplos, 0 fallas** (eran 1612 al empezar). `make screens` verde: 76
 capturas, sin errores de JS ni respuestas >= 400, con 71 pantallas con riel, 71
 con banda, 299 tarjetas y 289 campos medidos.
@@ -39,8 +44,14 @@ arreglos**, el commit 15.
 
 `4f04cab` es la versión anterior de este archivo, de cuando iban seis tareas.
 
-**Falta una sola cosa antes del merge: la re-revisión acotada de la ronda de
-arreglos.** Está agendada y lee ese commit como su propio rango.
+**La re-revisión de esa ronda cerró: los once hallazgos ADDRESSED, sin roturas
+nuevas, veredicto «listo para mergear».** Verificó por su cuenta —sin navegador
+y sin la app— los diez contrastes de la hoja recalculando oklab → sRGB lineal →
+WCAG, y dio con el valor embarcado a cuatro decimales en ocho de diez. El único
+defecto que introdujo la propia ronda era el «nada pusheado» de acá arriba.
+
+**No queda ningún hallazgo abierto.** Lo que falta es decidir cómo se integra,
+y eso es de Raúl.
 
 **El ledger de la ejecución vive en
 `.superpowers/sdd/2026-10-05-rediseno-innk/progress.md`** (gitignoreado) con los
@@ -101,6 +112,98 @@ cambian el código:
 16. **El doble `setViewportSize` de `[RIEL]` se queda**, medido: 71 pares cuestan
     2,4 s (33,5 ms por pantalla) en una corrida de varios minutos, y hacerlo una
     vez por corrida bajaría la cobertura del cambio a fila de 71 pantallas a una.
+
+### Las 36 decisiones, por número de ruling
+
+La lista de arriba son las que cambian el código. Ésta es **completa**, en el
+orden en que se tomaron, y existe porque el ledger que las tenía enteras se
+borra con el workspace. Una por línea, con qué cuesta si está mal.
+
+1. El ejemplo del gestor en T1 asevera `false` literal y no consulta
+   `manages_challenges?` — *si algún día el gestor sí ve Criterios, el ejemplo
+   falla y se actualiza a mano.*
+2. Los iconos del riel van inline y no por `image_tag` — *el partial queda más
+   largo; se extrae a un helper si molesta.*
+3. Los tres pisos nuevos se calibran con la primera corrida limpia — *un piso
+   mal calibrado da falso rojo o deja pasar una regresión.*
+4. `make screens` sigue corriendo con el proveedor real — *unos dólares de API.*
+5. `--danger` va a 65% y `--danger-soft-text` se borra — *el rojo del texto
+   queda un escalón más oscuro que el del Figma; el color de marca no cambia.*
+6. El PDF se actualiza entero y no sólo el primario — *estético y reversible.*
+7. El chequeo de «fuente variable» del plan se reemplaza por el CSS de Google —
+   *si Google cambia el formato, el chequeo deja de discriminar.*
+8. El Critical de T4 se verifica en navegador antes de arreglarlo — *dos
+   minutos de verificación.*
+9. Dos Minor de T4 entran en la ronda — *dos líneas de más en un commit.*
+10. El «desvío» del mapeo de iconos era falso positivo mío — *descartar un
+    hallazgo real; se re-revisó.*
+11. Siete Minor de T5 entran en la ronda — *un commit más grande.*
+12. Faltaban seis vistas en T6 (grepeé `.page-head` y el alcance era
+    `.page-title`) — *seis ediciones mecánicas de más.*
+13. El piso de `[BANDA]` va EXACTO y no al 92% — *sumar una pantalla obliga a
+    subir el piso a mano, que es deliberado y no un falso rojo.*
+14. El flake `[JS ERROR] «The user aborted a request.»` se anota y no bloquea —
+    *corridas intermitentes que obligan a repetir, que es lo que ya pasa.*
+15. **El Step 1 de T7 verificaba la variante equivocada de `light-dark()`** (el
+    caso color, no el box-shadow que gobernaba) — *una verificación de más, de
+    un minuto.* Resultó portante: el gate original habría dado verde con la
+    sombra borrada en los dos temas.
+16. El plan B de T7 tampoco estaba verificado, y se le dio un plan C — *dos
+    selectores en vez de una declaración.*
+17. **«Las islas Vue no usan `.field`» era falso** y estaba en el mensaje de
+    commit — *un selector de exclusión de más.*
+18. Dos formas más de `.field` que el brief no contemplaba, verificadas en
+    navegador — *dos capturas más que mirar.*
+19. El Step 3 de T9 no tenía nada que hacer: su premisa era falsa — *nada; el
+    paso queda verificado en vez de ejecutado.*
+20. El grep de la verificación final de T9 **no puede volver vacío** y se
+    reescribe contra la lista real — *hay que actualizar la lista si alguien
+    toca esos comentarios.*
+21. `[SOMBRA]` se ensancha a los campos aunque la spec la escriba sólo sobre
+    `.card` — *un selector más largo y un contador más.*
+22. El censo de `--shadow` se corrige a seis — *nada; es exactitud de un
+    comentario que sostiene una decisión de diseño.*
+23. **El canto del campo se mide, y si no llega a 3:1 se arregla** — *el campo
+    queda con un canto que el Figma no dibuja, visible en todos los
+    formularios, y se revierte cambiando un token.* Medido 1,09–1,12:1, así que
+    se arregló. Es el único desvío deliberado del diseño.
+24. Los campos en tema oscuro quedan parkeados para la revisión final — *el
+    tema oscuro queda con campos sin canto discernible.* Resuelto en el 33.
+25. El Important de T8 entra: la tarjeta de auth se arregla — *dos pantallas
+    conservan la etiqueta arriba, que es como estaban.*
+26. El Minor del band 1024–1280px se mide antes de descartarlo — *una medición
+    de un minuto.* Dio 239px: no había nada que arreglar.
+27. Que nada vigile la regla de los formularios NO se contesta con una guarda
+    nueva: se escribe en «sin vigilancia» — *la regla queda sin red y se rompe
+    en silencio alguna vez.*
+28. La corrección del ruling 20 va al PLAN y no sólo al brief generado — *dos
+    párrafos editados en un plan ya ejecutado.*
+29. **`CLAUDE.md` describía el morph como si todavía rompiera el control de tema
+    y nunca nombraba `turbo: false`** — *una cláusula de más en un párrafo.* Sin
+    esto, la próxima sesión limpia los tres formularios y rompe el tema.
+30. `[CAMPO]` tenía puesta la razón de `[SOMBRA]` para ser sólo-claro — *quien
+    lo extienda a oscuro se come un rojo en todas las pantallas.*
+31. Cinco Minor de T9 entran en la misma ronda, incluido documentar el riel en
+    la sección del shell — *unas líneas en una sección que nadie pidió tocar.*
+32. El PDF entra a «sin vigilancia» — *ninguno; la cobertura no existe igual.*
+33. **El ruling 24 queda resuelto: deuda vieja, la rama no la empeoró** (1,1395
+    antes, 1,1420 después) — *y aparece que el 1,05:1 que decían los archivos no
+    lo reprodujo nadie; se midió y da 1,13:1.*
+34. **Sobre `--color-accent`: NO se repunta `--accent`, se arregla el
+    comentario** — *el morado de INNK sigue sin pintar nada hasta que Raúl
+    decida, y queda escrito donde se mira.* Es la decisión abierta de arriba.
+35. El Important de `[CAMPO]` entra entero con su mutación — *ninguno; cierra
+    una guarda que daba permiso.*
+36. Ocho Minor entran en la ola única y uno se difiere (el `font-weight: 600`
+    del label contra el «bold» de la spec) — *un peso de letra cosmético.*
+
+**Y una que tomó el implementador, no yo, y la acepté:** `[RIEL]` exige
+exactamente una entrada activa con **una excepción declarada por nombre de
+captura** (`/notifications`, que no es ninguna de las cinco secciones del riel).
+Era una tercera salida que yo no había ofrecido, sigue el precedente de
+`shotConEstado`, y la re-revisión la verificó mejor que las dos que sí ofrecí:
+«exigir al menos una» habría fallado en esa pantalla y «dejarla como estaba» la
+dejaba ciega en las 71.
 
 ## 3. Archivos y cambios
 
@@ -272,11 +375,16 @@ costar una vuelta, y OCHO guardas o tests resultaron incapaces de fallar**
 
 ## 5. Próximos pasos
 
-1. **La re-revisión acotada de la ronda de arreglos** (el commit 15). Es lo único
-   que falta y ya está agendada; lee ese commit como su propio rango, con este
-   handoff, `fix-wave-report.md` y `fix-wave-mutacion.txt` como insumo.
-2. **Después**, `superpowers:finishing-a-development-branch`. El push lo hace
-   Raúl a mano: desde la sesión lo frena el clasificador de auto mode.
+**No queda trabajo de implementación.** Las nueve tareas, la revisión final y la
+re-revisión de su ronda de arreglos están cerradas, sin hallazgos abiertos.
+
+1. **Cómo se integra es decisión de Raúl**, y hay un dato que cambia las
+   opciones: **la rama ya está parcialmente pusheada**. `origin/rediseno-innk`
+   apunta a `4f04cab`, o sea los primeros 11 commits; los últimos 4 son locales.
+   Así que no es «pushear una rama nueva», es un `push` que adelanta una rama que
+   ya existe en el remoto.
+2. **El push y el merge los hace Raúl a mano.** Desde la sesión los frena el
+   clasificador de auto mode, y además son efectos fuera del repo.
 3. **La decisión del morado queda para Raúl** (sección 2). No hay nada que
    implementar hasta que la tome: si la respuesta es «no», el estado de hoy es el
    correcto y el comentario de la hoja ya lo explica.
