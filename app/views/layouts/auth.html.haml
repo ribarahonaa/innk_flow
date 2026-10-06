@@ -12,8 +12,9 @@
     %meta{ name: "viewport", content: "width=device-width,initial-scale=1" }
     = csrf_meta_tags
     = csp_meta_tag
-    -# Las dos familias del carácter NO vienen de acá: se auto-hospedan en
-    -# `public/fonts` y las declara la hoja con `@font-face`. Un
+    -# La familia del carácter NO viene de acá: Open Sans —una sola, para
+    -# títulos y cuerpo— se auto-hospeda en `public/fonts` y la declara la hoja
+    -# con `@font-face`. Un
     -# <link rel="stylesheet"> a un tercero bloquea el render, y medido: con la
     -# petición colgada 20s —proxy corporativo, portal cautivo—
     -# `DOMContentLoaded` no llega nunca y la pantalla queda EN BLANCO. Abortada

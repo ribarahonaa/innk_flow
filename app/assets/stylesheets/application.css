@@ -1174,8 +1174,11 @@ input:focus, textarea:focus, select:focus {
   .form-doble { grid-template-columns: minmax(0, 1fr); }
 }
 /* Etiqueta a la izquierda, campo a la derecha: es como lo dibuja INNK.
-   Son 154 ocurrencias en 43 vistas HAML, más tres en islas Vue
-   (`config_field.vue`, `criteria_editor.vue`), y no se edita ninguna.
+   MEDIDO: 29 `.field` en 12 vistas HAML, más 3 en las islas Vue, y no se
+   edita ninguna. El plan decía «154 en 43 vistas», cinco veces de más, porque
+   contaba también `.field-hint` y `.field-list*`. Y daba por hecho que las
+   islas no usaban `.field`: la usan las dos —`config_field.vue` y
+   `criteria_editor.vue`—, que es de donde sale la excepción de acá abajo.
 
    La columna se fija POR HIJO y no con una grilla de dos columnas a secas: un
    `.field` con tres hijos —label, campo y `.field-hint`— se desarmaría, porque

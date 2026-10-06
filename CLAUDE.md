@@ -141,14 +141,68 @@ error de maquetado. O si un `card-body` no tiene el relleno que fija la hoja
 la regla `.card` le devuelve sus 24px por default sin dejar rastro en el DOM;
 los `empty-state` se exceptúan por selector, porque ahí los 44px/20px los
 declara la hoja.
-**Cinco de las guardas cuentan cuánto midieron y fallan si midieron de menos**
+
+**Cinco guardas más llegaron con el rediseño INNK.** `[TEMA]` prueba que elegir
+el tema a mano no mató el automático: con el sistema en oscuro elige «Claro»
+—tiene que ganar— y después «Auto» —tiene que devolver el oscuro del sistema—,
+midiendo el fondo computado del `<body>` y no el atributo, que es la causa y no
+el efecto. Corre en dos pantallas y la que importa es la CON sesión: el login
+no carga Turbo, así que ahí el POST es una recarga entera y el atributo se
+aplica solo; en la app, en cambio, Turbo morfea el body y del `<html>` sólo
+sincroniza `lang` y `dir`, así que el `data-theme` se quedaría con el valor
+viejo —el botón se ilumina, porque está en el body, y los colores no se mueven
+hasta recargar—. **Lo que contesta eso es el `form: { data: { turbo: false } }`
+de los tres botones** (`shared/_theme_switch`): con él el PATCH es una recarga
+completa y el servidor sigue siendo quien escribe el atributo, sin parpadeo.
+Parece prolijidad y es lo único que hace andar el control adentro de la app, así
+que **no lo «limpies»** — y si se pierde, `[TEMA]` es lo único que se entera.
+Los specs de request no pueden: piden el atributo en el HTML servido, o sea la
+causa, y lo que se rompe es el efecto en el navegador. No tiene piso: falla si
+no midió las dos.
+`[RIEL]` mira el riel de navegación global —la columna de íconos que vive
+afuera de `.app-shell`—: que exista, que tenga al menos dos entradas (todo rol
+ve Desafíos y Talleres), que no marque DOS activas a la vez —cero pasa, porque
+sólo falla con más de una— y, sobre todo, que abajo de 1024px se vuelva fila en
+vez de esconderse. Eso último se mide a **1000px** y no a 1100, porque el corte
+de la hoja es `max-width: 1023px` y a 1100 el riel todavía es vertical por
+diseño.
+`[BANDA]` caza la vista que se olvidó el `content_for :banda` en una mudanza de
+veintiséis vistas, que es donde más fácil se cuela una, y de paso mide el
+contraste del título sobre la banda (6,06:1 hoy; `[CONTRASTE]` sólo mira
+`.badge` y `.alert`, así que nadie más lo vigila).
+`[SOMBRA]` falla si una `card` o un campo visible y sin foco se quedó sin
+`box-shadow`, y mide en los DOS esquemas, porque `capturar()` corre también en
+las pantallas oscuras. Existe porque la sombra dejó de ser decorativa: en tema
+claro el borde de la tarjeta es transparente y la sombra es lo único que la
+define.
+`[CAMPO]` compone el borde en reposo de un campo sobre el primer fondo opaco
+que tenga detrás y exige 3:1 —el 1.4.11 de WCAG, el mismo piso de `[PUNTOS]`—,
+**sólo en claro**, y no porque en oscuro no importe: ahí el campo conserva el
+`--borde` de siempre, que mide 1,05:1, y eso es deuda anterior a esta rama y
+fuera de su alcance (queda anotada abajo, con las superficies). Extender
+`[CAMPO]` a oscuro «total allá es cosmético» pone en rojo todas las pantallas el
+primer día. Lo cosmético en oscuro es perder la SOMBRA, que es el motivo de
+`[SOMBRA]` y no el de éste.
+
+**Nueve de las guardas cuentan cuánto midieron y fallan si midieron de menos**
 —en cuántas pantallas `[RITMO]` encontró dos tarjetas que comparar, cuántos
 `card-body` vio `[RELLENO]`, cuántos chips y avisos midió `[PASTILLA]`, cuántos
-nombres de criterio `[CRITERIO]` y en cuántas pantallas vio `[LIVE]` refrescarse
-sola la mesa de llegada—, porque una guarda que mide
-cero da verde y es indistinguible de una que funciona: es el mismo motivo por
-el que `[MONO]` tiene autotest y por el que el muestrario falla si mide menos
-muestras de las que declara. La corrida imprime los cinco números al terminar.
+nombres de criterio `[CRITERIO]`, en cuántas pantallas vio `[LIVE]` refrescarse
+sola la mesa de llegada, en cuántas hubo riel (`[RIEL]`) y banda (`[BANDA]`), y
+cuántas tarjetas (`[SOMBRA]`) y cuántos campos (`[CAMPO]`) midió—, porque una
+guarda que mide cero da verde y es indistinguible de una que funciona: es el
+mismo motivo por el que `[MONO]` tiene autotest y por el que el muestrario falla
+si mide menos muestras de las que declara. La corrida imprime los nueve números
+en una sola línea al terminar, y los pisos de hoy son 36, 250, 300, 100, «al
+menos una», 66, 71, 275 y 270, en ese orden.
+**`PISO_DE_BANDAS` es EXACTO y los demás van con holgura**, y la diferencia
+tiene motivo. Los demás cuentan cosas que se mueven —tarjetas, chips y campos
+con los datos; el riel, con las pantallas que podrían sumarse— y necesitan
+margen; `[BANDA]` cuenta VISTAS que publican `content_for :banda`, que es un
+número fijo, y lo único que esa guarda existe para cazar es la vista olvidada.
+Con un piso flojo no la caza: borrar el `content_for` de una sola bajaba el
+conteo (63 → 60, medido) y un piso al 92% no se enteraba. El precio es que
+sumar una pantalla con banda obliga a subir el piso con ella.
 **Y `[PASTILLA]` crece sola entre corridas sobre la misma siembra** —unos 4
 chips por vez (medido: 677 → 689 en cuatro corridas), y vuelve a bajar al
 resembrar—, porque el recorrido le pide cosas a la IA de verdad y después
@@ -1212,13 +1266,51 @@ propósito: son vocabulario de esta app.
 
 #### Lo que más fácil se rompe
 
-- **`data-theme` NO va en el `<html>`.** El tema oscuro es
-  `@plugin "daisyui/theme" { name: "flow-oscuro"; prefersdark: true; }`, y
+- **`data-theme` va en el `<html>`, pero SÓLO si hay cookie.** El tema oscuro
+  es `@plugin "daisyui/theme" { name: "flow-oscuro"; prefersdark: true; }`, y
   `prefersdark` engancha
-  `@media (prefers-color-scheme: dark) { :root:not([data-theme]) }`. Poner el
-  atributo —**aunque sea con el nombre del tema claro**— hace que ese selector
-  no matchee nunca y deja el modo oscuro muerto. Es lo primero que uno agrega
-  al ver un tema de DaisyUI.
+  `@media (prefers-color-scheme: dark) { :root:not([data-theme]) }`: con el
+  atributo presente —**aunque sea con el nombre del tema claro**— ese selector
+  no matchea NUNCA y el modo oscuro automático queda muerto. Eso no cambió; lo
+  que cambió es que ahora hay una elección a mano, y lo que la sostiene es que
+  el atributo se **omite** cuando no hay elección — `tema_elegido` devuelve
+  `nil` sin cookie y HAML omite un atributo `nil`. De ahí salen las dos cosas
+  que es fácil escribir al revés: «Auto» **borra** la cookie en vez de escribir
+  `"flow"` —escribirla dejaría pasar los dos casos obvios, «elegir oscuro
+  funciona» y «elegir claro funciona», y mataría el automático en silencio—, y
+  lo escribe el **servidor** y no el cliente, así no hay parpadeo en la primera
+  pintura y el morph no se lo lleva. Lo mide `[TEMA]`, que es lo único que
+  prueba el tercer caso.
+- **Son DOS layouts, no uno.** `auth.html.haml` tiene su propio `%html` y no
+  pasa por `application.html.haml`: lo usan el login y el check-in público.
+  Todo lo que se agregue al `<html>` o al `<head>` va en los dos —el
+  `data-theme` está escrito dos veces por eso, y el control de tema se
+  renderiza en los dos—, y el login es donde más se nota, porque es lo único
+  que ve quien todavía no entró.
+- **`light-dark()` es una función de COLOR, y cuando se la usa mal falla hacia
+  `none`.** CSS Color 5 la define `light-dark( <color>, <color> )`, y un
+  `box-shadow` entero no es un color. Una custom property acepta cualquier
+  flujo de tokens, así que `--shadow: light-dark(0 2px 20px …, 0 1px 3px …)`
+  declara sin un solo error; lo que revienta es la sustitución —
+  `box-shadow: var(--shadow)` queda inválida al computar y cae en **`none` en
+  los DOS temas**, medido en el Chromium del recorrido. El token de color de al
+  lado, `--borde-superficie: light-dark(transparent, var(--borde))`, **sí**
+  anda, porque ése es un color, y es justo lo que hace al error difícil de ver.
+  Lo que quedó es declarar los dos tokens **adentro de cada bloque
+  `@plugin "daisyui/theme"`**, con sus dos valores planos: DaisyUI pasa a la
+  hoja compilada una custom property que no conoce —verificado con una
+  propiedad sonda, después borrada—, y el bloque oscuro se emite bajo
+  `@media (prefers-color-scheme: dark) { :root:not([data-theme]) }` **y** bajo
+  `:root[data-theme=flow-oscuro]`, así que el token sigue a `prefersdark` y al
+  camino de la cookie por igual. Y una trampa que casi se lleva el cambio
+  puesto: hubo que **borrar el `--shadow` viejo del `:root` propio de la app**.
+  DaisyUI emite su tema default en `:where(:root)` —especificidad cero y sin
+  capa—, así que un `--shadow` sobreviviente en (0,1,0) le ganaba al valor
+  claro nuevo y todo habría dado verde sobre la sombra anterior.
+  La moraleja vale más que el bug: el paso de verificación del plan probaba
+  `background: light-dark(#fff, #000)`, o sea el caso de color. Una guarda que
+  mide una forma distinta de la que gobierna no es que no ayude — **da
+  permiso**.
 - **El token del color de borde es `--borde`, no `--border`.** DaisyUI usa
   `--border` para el **ancho** de los bordes de sus componentes
   (`border-width: var(--border)`): con el nombre en inglés el color se colaba
@@ -1292,7 +1384,37 @@ maquetado, no una tarjeta sin migrar. Y si aparece un `.panel` reintroducido
 —sin ninguna regla detrás, así que queda sin fondo, sin relleno y sin
 borde— lo caza `[CLASES]`.
 
-**`[CARD]` se retiró, y `[RELLENO]` ocupa UNA TERCERA PARTE de su lugar.**
+**La superficie se define con una SOMBRA y no con un borde, y eso son tres
+tokens.** Es como lo dibuja INNK. `--shadow` tiene **seis** consumidores
+—`.card`, `.auth-card`, `.builder__actions`, `.editor-actions`, `.setup-nav` y
+el bloque de campos (`input`, `textarea`, `select`)—, y ese censo es lo que
+justifica redefinir el token compartido en vez de agregar uno nuevo: quien lo
+retoque mueve cada campo de la app junto con las cinco superficies.
+`--borde-superficie` alimenta **sólo** a `.card` —`transparent` en claro,
+`--borde` en oscuro—. Los radios son `--radius-box: 1rem` (16px, las tarjetas)
+y `--radius-field: 0.625rem` (10px, campos y botones), en los dos bloques de
+tema; `--radius-selector` se quedó en `0.5rem`.
+
+**`--borde-campo` es nuevo, y es el único lugar donde esta rama se aparta del
+diseño de INNK a propósito.** El Figma no le dibuja borde al campo: sólo
+sombra. Medido en `/challenges/new` en claro, el contorno en reposo de un campo
+sin borde contra la tarjeta que lo contiene daba **1,09–1,12:1** — su fondo es
+`var(--surface)`, el MISMO token que el de la tarjeta, los dos blanco puro, y el
+borde transparente. El 1.4.11 de WCAG pide 3:1 para el límite de un control, y
+este repo ya hace valer ese piso para los puntos del drawer; una sombra blanda
+no llega a 3:1 sobre blanco. Así que el campo conserva un hilo: `--borde-campo`
+es `--tenue` (3,38:1) en claro y `--borde` en oscuro. Lo único en discusión fue
+el reposo — `input:focus` le devuelve el borde del acento más un anillo de 3px.
+
+**Deuda medida y deliberadamente NO arreglada acá:** en tema OSCURO el campo
+mide 1,05:1 contra su ancestro. Ese borde es `--borde`, o sea `base-300`, el
+mismo que tenía antes del rediseño, así que no es una regresión de las
+superficies — pero la paleta nueva le corrió el tono a `base-100` y a
+`base-300` del tema oscuro (a la misma luminosidad y croma), y nadie volvió a
+medir el número después de eso. Queda abierto, no resuelto.
+
+**`[CARD]` se retiró, y `[RELLENO]` y `[SOMBRA]` ocupan DOS TERCERAS PARTES de
+su lugar: la que queda sin cubrir es `--card-fs`.**
 `[CARD]` medía el ASPECTO de una `card` contra `.panel` —los 20px de
 `--card-p`, los 14px de `--card-fs` y la sombra— y se borró con ella, porque
 sin `.panel` no quedaba contra qué comparar. `[CLASES]` no cubre ese hueco:
@@ -1307,10 +1429,38 @@ ahí la hoja declara 44px/20px a propósito. Tiene que ser a mano — DaisyUI si
 relleno cae solo a 24px y leer `--card-p` del elemento devolvería ese mismo
 1.5rem: la comparación se cumpliría sola. Si la hoja cambia esos números, el
 script cambia con ella.
-**Lo que sigue sin vigilancia son los otros dos tercios: `--card-fs` y la
-sombra.** No los mira nadie más —`[CLASES]` mira fondo, relleno y borde;
-`[CONTRASTE]`, color—, así que una `card` puede perder la letra de 14px o la
-sombra y las 74 capturas seguir en verde. Que nadie lo dé por cubierto.
+**La sombra la mide `[SOMBRA]`** desde que pasó a ser portante, así que de los
+tres tercios del viejo `[CARD]` queda **`--card-fs`**, la letra de 14px, que no
+la mira nadie —`[CLASES]` mira fondo, relleno y borde; `[RELLENO]`, relleno;
+`[CONTRASTE]`, color—: una `card` puede perder su tamaño de letra y las 76
+capturas seguir en verde.
+
+**Y hay cuatro cosas más que ninguna guarda ve, anotadas acá para que nadie
+las dé por cubiertas:**
+
+- **`[REFERENCIA]` no mide la sala de la mesa.** `revisarReferencia` se llama
+  desde la rama de `[ZONAS]` y desde la de testing, o sea sólo en las pantallas
+  de módulo, y la sala es la única otra pantalla que llena
+  `content_for :referencia`. Su límite declarado es ése: una mesa muy grande
+  queda detrás de su propio scroll.
+- **El riel a 414px no lo mira ninguna captura.** `[RIEL]` prueba el cambio de
+  columna a fila a 1000px, que es lo que la hoja declara, pero el recorrido no
+  fotografía anchos de teléfono: lo que la fila horizontal haga a 414px —si
+  desborda, si se corta, si tapa el contenido— no está medido.
+- **La regla de la etiqueta a la izquierda tampoco.** Ninguna guarda la ve:
+  `[CLASES]` mira una lista fija de familias y además sólo salta si el elemento
+  no tiene ninguna regla detrás; `[CAMPO]` mide el borde del campo, no en qué
+  columna cayó; y `spec/lint/reglas_sin_elemento_spec.rb` compara NOMBRES de
+  clase, no selectores. Si `.field-check` quedara mal escrita en la hoja,
+  `make screens` y los 1.628 ejemplos seguirían en verde y el único testigo
+  sería alguien abriendo `05e-config-evolucion.png`.
+- **El PDF de reportería no lo ejercita NINGÚN test.** Su layout
+  (`layouts/pdf.html.haml`) tiene un solo consumidor,
+  `Flow::Reports::GenerateJob#render_pdf`, y no hay spec que lo renderice;
+  `make screens` tampoco lo abre, porque el archivo lo arma un job y no una
+  pantalla. O sea que el único lugar donde la paleta llega a un usuario en algo
+  que se descarga es justo el que nadie mira: un error ahí sale impreso y no
+  sale en ningún rojo.
 
 **Dos grillas con el mismo aspecto y mecánica distinta.** En
 `challenges/index` las tarjetas son `.challenge-card`, que declara
@@ -1364,9 +1514,19 @@ traducción faltante al lado, sin que nada se pusiera rojo. Hoy es
 #### El shell de tres regiones
 
 `.app-shell` es una grilla: el flujo del desafío a la izquierda (232px), el
-trabajo en el medio y la referencia a la derecha (280px). **Las dos laterales
-son opcionales y la grilla se acomoda sola con `:has()`**, así que ninguna
-pantalla declara su layout.
+trabajo en el medio y la referencia a la derecha (`--referencia`, 320px).
+**Las dos laterales son opcionales y la grilla se acomoda sola con `:has()`**,
+así que ninguna pantalla declara su layout.
+
+**Y el shell entero vive adentro de OTRA grilla.** `.app-frame` es la de
+afuera, de dos columnas: el riel de navegación global en 80px a la izquierda y
+todo lo demás —barra oscura incluida— a la derecha. Por eso el riel arranca
+arriba de todo y abarca la barra, y por eso `.app-shell` ni se entera de que
+existe. Sólo se dibuja con sesión Y empresa elegida
+(`.app-frame--con-riel`): sin eso no hay a dónde navegar y una columna de 80px
+vacía se lee como un error. Abajo de 1024px vuelve a una sola columna y el riel
+pasa a ser una fila horizontal arriba del contenido — **no se esconde**, que es
+lo que `[RIEL]` existe para cuidar.
 
 - La regla de qué va dónde: **el centro es lo que se hace; la derecha es lo que
   se consulta y no se edita** en el curso normal del trabajo. En la cara de
@@ -1440,16 +1600,59 @@ Un `turbo-frame` que siempre se renderiza pero casi siempre está vacío —el d
 sugerencias de IA— necesita `display: contents`, o como hijo flex se lleva dos
 gaps y abre un hueco de la nada.
 
+#### El formulario: la etiqueta a la izquierda
+
+`.field` es una grilla de dos columnas —`minmax(120px, 190px)` para la etiqueta,
+el resto para el control—, que es como lo dibuja INNK. La columna se fija **por
+hijo** (`.field > label` a la 1, `.field > :not(label)` a la 2) y no con una
+grilla de dos columnas a secas: un `.field` con etiqueta, control y
+`.field-hint` mandaría el hint a la columna de la etiqueta. El alcance medido
+son **29 `.field` en 12 vistas HAML**, más 3 en las islas — el plan decía «154
+en 43 vistas», cinco veces de más, porque contaba también `.field-hint` y
+`.field-list*`.
+
+Cinco excepciones. Las tres últimas estaban previstas; las dos primeras
+salieron de medir, y la primera además desmiente algo que estaba escrito:
+
+1. **`label.field-check`.** Estaba escrito que «las islas Vue no usan `.field`».
+   La usan: `step_settings/config_field.vue` y
+   `criteria_editor/criteria_editor.vue`. Y `config_field.vue` pone un
+   `label.field-check` como **hermana** de la etiqueta que lleva el nombre del
+   campo, no como su rótulo: sin la excepción las dos etiquetas se apilan en la
+   columna de 190px y la 2 queda vacía. `.field-check` no aparece en ningún
+   HAML — es sólo de Vue.
+2. **`fieldset.field { display: block }`.** `step_tests/new.html.haml` es el
+   único `fieldset.field` del repo, y en grilla los `.field` de adentro caían en
+   la columna 2 del agrupador, con sus etiquetas ~200px a la derecha de las
+   demás.
+3. **`.app-aside`**: dos columnas no entran en los 320px de la referencia
+   (`--referencia`).
+4. **Abajo de 1024px**: apilado, como lo dibujan los frames de teléfono del
+   diseño.
+5. **`.auth-card`**: mide 380px y con 32px de relleno a cada lado quedan 316,
+   así que entre la columna de la etiqueta (190px) y el `column-gap` (16px) al
+   control le sobraban 110px de cuenta —108 medidos en el navegador—, contra
+   los 314px que mide apilado; el hint de la clave caía en seis líneas al lado
+   de un canal vacío de 190px. Va por `.auth-card` y no por `.auth-form`,
+   porque el formulario del check-in no tiene esa clase.
+
 #### Las fuentes se auto-hospedan
 
-Bricolage Grotesque (solo títulos) e Inter (todo lo demás) viven en
-`public/fonts` y las declara la hoja con `@font-face`. **No entran por Google
-Fonts**: una hoja de un tercero bloquea el render y, medido, con la petición
-colgada `DOMContentLoaded` no llega nunca y la pantalla queda **en blanco**
-—abortada rendía bien; colgada, no, y `preconnect` no ayuda contra un agujero
-negro—. Son los mismos dos archivos variables del subconjunto latin que el
-navegador ya bajaba (125 KB), con `font-display: swap` y la pila de respaldo
-intacta. La licencia OFL acompaña a los archivos, que es lo que pide.
+**Open Sans, UNA familia donde había dos.** Vive en `public/fonts` y la declara
+la hoja con `@font-face`. **No entra por Google Fonts**: una hoja de un tercero
+bloquea el render y, medido, con la petición colgada `DOMContentLoaded` no llega
+nunca y la pantalla queda **en blanco** —abortada rendía bien; colgada, no, y
+`preconnect` no ayuda contra un agujero negro—. Esa razón no cambió.
+
+Lo que cambió es que títulos y cuerpo son ahora la misma familia, que es lo que
+hace el diseño de INNK: `--font-display` y `--font-sans` apuntan las dos a Open
+Sans, y la primera se conserva como token nada más que por si alguna vez vuelve
+a entrar una display. Es un archivo **variable** del subconjunto latin: un solo
+`@font-face` con `font-weight: 300 800` y `font-stretch: 100%` cubre todos los
+pesos, así que el rango no es una lista de archivos. Y pesa menos que lo que
+reemplaza —48.320 B contra los 125.144 B de Bricolage Grotesque (76.888) más
+Inter (48.256), un 61% menos—, con `font-display: swap` y la pila de respaldo
+intacta. La licencia OFL acompaña al archivo, que es lo que pide.
 
 El PDF de reportería es la excepción y **no** cuelga de los tokens: lo arma
 wkhtmltopdf sin la hoja de la app y sin nadie que resuelva `var()`, así que

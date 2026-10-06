@@ -1724,15 +1724,30 @@ los dos, y el login es donde más se nota porque es público.
 
 - [ ] **Step 3: Anotar el PDF**
 
-La nota del PDF ya existe —«si el tema cambia, ese archivo se actualiza a
-mano»— pero menciona `#5b3df5`. Actualizarla a `#4747f3`.
+**Corregido al ejecutar: este paso no tenía nada que hacer, porque su premisa
+era falsa.** Decía que la nota del PDF «menciona `#5b3df5`» y que había que
+actualizarla a `#4747f3`. Medido: `grep -n 5b3df5 CLAUDE.md` no devuelve nada
+—la nota dice «lleva los cinco colores como literales» y no nombra ninguno— y
+`app/views/layouts/pdf.html.haml` ya está en `#4747f3` con su contraste medido
+desde la tarea 2. Se cierra verificando, sin inventar la edición.
+
+Lo que SÍ estaba viejo en ese archivo es otra cosa: el comentario de la
+tipografía (`pdf.html.haml:21`) decía «la display y la Inter viven en
+`public/fonts`», y desde la tarea 3 hay UNA familia. Eso es lo que se arregla.
 
 - [ ] **Step 4: Las guardas nuevas**
 
-En la sección de `make screens`, sumar `[TEMA]`, `[RIEL]`, `[BANDA]` y
-`[SOMBRA]` a la lista, con una línea cada una de qué cazan y por qué existen.
-Y actualizar la frase «Cinco de las guardas cuentan cuánto midieron»: ahora son
-ocho.
+En la sección de `make screens`, sumar las guardas nuevas a la lista, con una
+línea cada una de qué cazan y por qué existen. Y actualizar la frase «Cinco de
+las guardas cuentan cuánto midieron».
+
+**Corregido al ejecutar: son CINCO guardas y NUEVE contadores, no cuatro y
+ocho.** Este paso se escribió antes de la tarea 7, y la ronda de arreglo de esa
+tarea agregó `[CAMPO]` —el contorno del campo en reposo— al lado de `[SOMBRA]`.
+Las cinco son `[TEMA]`, `[RIEL]`, `[BANDA]`, `[SOMBRA]` y `[CAMPO]`; los nueve
+que cuentan, `[RITMO]`, `[RELLENO]`, `[PASTILLA]`, `[CRITERIO]`, `[LIVE]`,
+`[RIEL]`, `[BANDA]`, `[SOMBRA]` y `[CAMPO]`, que la corrida imprime en una sola
+línea al terminar.
 
 - [ ] **Step 5: Lo que sigue sin vigilancia**
 
@@ -1772,11 +1787,27 @@ tres lugares que siguen sin vigilancia para que nadie los dé por cubiertos."
       ejemplos. Después tiene que haber **más**, no los mismos: las tareas 1 y
       4 agregan specs.
 - [ ] `make yarn-build && make screens` — sin errores de JS, sin HTTP >= 400, y
-      los contadores por encima de sus pisos. Ahora son ocho: `[RITMO]`,
-      `[RELLENO]`, `[PASTILLA]`, `[CRITERIO]`, `[LIVE]`, `[RIEL]`, `[BANDA]`,
-      `[SOMBRA]`, más `[TEMA]` que no cuenta sino que corre una vez.
+      los contadores por encima de sus pisos. **Son NUEVE y no ocho**: este
+      paso se escribió antes de que la ronda de arreglo de la tarea 7 sumara
+      `[CAMPO]`. `[RITMO]` (piso 36), `[RELLENO]` (250), `[PASTILLA]` (300),
+      `[CRITERIO]` (100), `[LIVE]` («al menos una»), `[RIEL]` (66), `[BANDA]`
+      (71, exacto porque cuenta vistas), `[SOMBRA]` (275) y `[CAMPO]` (270),
+      más `[TEMA]`, que no cuenta sino que tiene que haber corrido sus dos
+      pantallas.
 - [ ] `grep -rn '5b3df5\|Bricolage\|Inter\b' app/ public/ --include='*.css' --include='*.haml'`
-      → sin resultados. Cualquiera de los tres es un resto de la paleta o la
-      tipografía anterior.
+      → **NO vuelve vacío, y exigir que vuelva vacío le deja un rojo falso a
+      quien lo corra.** Daba tres, y dos de los tres son correctos y
+      deliberados: `application.css:24` nombra a Bricolage y a Inter para dejar
+      registrado qué reemplazó Open Sans y con cuánto peso, y
+      `application.css:67` nombra `#5b3df5` para dejar registrado que
+      `oklch(52.8% 0.253 288.1)` NO es ese hex —la medición de la tarea 2—. Los
+      dos son el registro de por qué la hoja es como es, el mismo motivo por el
+      que la tarea 3 no reescribió el spec del 2026-09-08. El tercero
+      (`pdf.html.haml:21`) sí era un resto y la tarea 9 lo arregló, así que
+      **hoy devuelve DOS y no tres: esas dos líneas de `application.css`, las
+      dos en comentarios que registran el cambio y ninguna en un valor que
+      pinte**. Se compara contra esa lista, no contra el vacío — un chequeo
+      cuyo verde es imposible se desactiva solo la primera vez que alguien lo
+      corre.
 - [ ] Las capturas, a ojo, en los dos temas. Las guardas miden reglas; que la
       pantalla se vea bien no lo contesta ninguna.
