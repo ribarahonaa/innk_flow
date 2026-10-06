@@ -188,8 +188,14 @@ un reemplazo listo para producción.
 Fuera de alcance: migración de datos desde `innk_r5` y SSO real (la costura
 está — tabla `identities` desde el día 1).
 
-Lo único que queda abierto no es deuda: **`pgvector` espera un proveedor de
-embeddings con crédito**. Hoy no hace falta —sin vectores los duplicados los
-juzga el modelo—; haría falta para escalar más allá de
-`DetectDuplicates::MAX_CANDIDATES`, cuando mandar la lista entera en el prompt
-deje de ser razonable.
+Lo único que queda abierto no es deuda: **`pgvector` está construido y espera un
+proveedor de embeddings con crédito.** La columna `vector(1024)` con su índice
+HNSW, el job que la llena al publicar una versión y los dos adapters (Voyage,
+OpenAI) están embarcados, y `DetectDuplicates` ya elige el camino solo: con
+vectores compara por coseno local, sin ellos le pregunta al modelo —que además
+explica el parecido—. Lo que falta es la cuenta: Voyage autentica y no tiene
+inferencia habilitada, y Anthropic no expone embeddings.
+
+Hoy no hace falta. El atajo por vector es un mecanismo de **escala**, no de
+calidad: entra sólo arriba de `DetectDuplicates::NEIGHBOURS`, cuando mandar la
+lista entera en el prompt deje de ser razonable.

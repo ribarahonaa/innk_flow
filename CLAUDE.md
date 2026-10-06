@@ -1747,12 +1747,29 @@ Maqueta funcional para validar modelo de datos e infraestructura, no un
 reemplazo listo para producción.
 
 Pendiente: nada del backlog original. Lo que sigue son decisiones abiertas, no
-deuda: **pgvector queda a la espera de un proveedor de embeddings.** Hoy no hace
-falta: sin vectores los duplicados los juzga el modelo. Haría falta para
-escalar más allá de `DetectDuplicates::MAX_CANDIDATES`, cuando mandar la lista
-entera en el prompt deje de ser razonable — ahí el orden es proveedor de
-embeddings primero (Anthropic no tiene), columna `vector` después. Agregar la
-columna antes sería guardar algo que nada puede llenar.
+deuda: **pgvector está construido y espera un proveedor de embeddings con
+crédito.** Lo embarcado es todo el camino —`idea_versions.embedding
+vector(1024)`, el índice HNSW `index_idea_versions_on_embedding`,
+`Flow::Ideas::EmbedVersionJob` encolado al publicar, `Providers::Voyage` y
+`Providers::Openai` sobre `HttpEmbeddings`, y `make embeddings`—, y
+`DetectDuplicates` ya elige el camino solo (`local?`): con vectores compara por
+coseno local, sin ellos le pregunta al modelo por `#complete`. Lo que falta es
+la cuenta: Voyage autentica y **no tiene inferencia habilitada** —500 en todo
+pedido, está arriba en la capa de IA— y Anthropic no expone embeddings, que es
+el motivo de que haya dos variables.
+
+Hoy no hace falta: sin vectores los duplicados los juzga el modelo, y además
+los **explica**, que es lo que una persona necesita para decidir si fusiona. El
+atajo por vector es un mecanismo de **escala**, no de calidad: entra sólo
+arriba de `DetectDuplicates::NEIGHBOURS` (10), y el techo del camino del modelo
+es `MAX_CANDIDATES` (40).
+
+Ojo: hasta el 2026-10-06 este párrafo —y el de `README.md`— decían que el orden
+era «proveedor de embeddings primero, columna `vector` después» y que agregarla
+antes sería guardar algo que nada puede llenar. La columna, el índice, el job y
+los dos adapters ya estaban. Es la misma familia de defecto que la rama del
+rediseño pagó dos veces, al revés: **un texto que da permiso a creer que algo
+no está hecho.**
 
 El plan vigente y el backlog completo están en
 `~/.claude/plans/tu-ya-sabes-como-dazzling-cat.md`.
