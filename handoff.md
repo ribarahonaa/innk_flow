@@ -148,8 +148,14 @@ de cuatro**; faltan las otras tres, en este orden de dificultad:
 1. **B — guardado automático como versión nueva.** Es la única de las tres que
    NO necesita infraestructura nueva. Choca de frente con `WorkshopProposal`:
    hoy la mesa propone y el autor decide, y un autosave directo borra esa regla.
-   La decisión que hay que tomar antes de escribir una línea es qué pasa con las
-   propuestas pendientes cuando el autosave publica.
+   Son **dos** las decisiones que hay que tomar antes de escribir una línea, y
+   la segunda es la que es fácil no ver:
+   - qué pasa con las propuestas pendientes cuando el autosave publica;
+   - y el **coalescing de versiones**. `idea_versions` es contenido INMUTABLE
+     con un `embedding vector(1024)` por fila, y publicar encola un
+     `EmbedVersionJob`: un autosave ingenuo escribe una versión por tanda de
+     tecleo y un job de embeddings por cada una. Sin decidir cómo se agrupan,
+     B llena la tabla y la cola.
 2. **C — dictado por voz y resumen de la reunión con IA.** Pide un TERCER eje de
    proveedor: no hay speech-to-text en el repo y Anthropic no lo expone. Las
    opciones ya medidas: Web Speech API del navegador (gratis, sólo Chrome,
@@ -157,10 +163,66 @@ de cuatro**; faltan las otras tres, en este orden de dificultad:
    (Whisper/Deepgram/AssemblyAI), o notas tipeadas más resumen con el chat que
    ya está. Si se elige proveedor nuevo, el patrón es el de embeddings:
    capacidad aparte con su propia variable, no un `FLOW_AI_PROVIDER` más.
-3. **D — videollamada.** WebRTC/SFU propio o embed de un tercero. Cero
-   infraestructura: no hay `getUserMedia`, ni `MediaRecorder`, ni WebRTC en el
-   repo. Es la más grande y la que menos se parece a lo que la app ya sabe
-   hacer.
+3. **D — videollamada.** Se parte en DOS respuestas de órdenes distintos, y la
+   diferencia es una decisión y no un problema técnico. **Embed de un tercero**
+   (Jitsi, Daily, Whereby en un iframe): un iframe, un endpoint de token si las
+   salas son privadas, y elegir proveedor. **WebRTC propio:** eje de
+   infraestructura nuevo, porque **este repo no tiene websockets** —verificado:
+   no hay `app/channels`, y lo único de ActionCable en `config/` son las líneas
+   comentadas que dejó el generador de Rails; `cable.yml` existe y nadie lo
+   usa—. Es exactamente por eso que la lista de llegada se refresca con un
+   `turbo-frame` que se pide solo cada cinco segundos y no por un canal. La
+   señalización WebRTC exige ese canal, más un TURN server, y cambia el
+   despliegue. Tampoco hay `getUserMedia` ni `MediaRecorder` en el repo.
+
+### Cuánto cuestan, con la tasa medida de este repo
+
+La base no es una corazonada: son las seis tandas del taller ya entregadas,
+medidas con `git`. Cada una es **una jornada de sesión**, y los días pico
+fueron 64, 55 y 53 commits.
+
+| Tanda entregada | Commits | Archivos | Líneas + |
+|---|---|---|---|
+| El check-in por QR (`ac6110d`) | 31 | 42 | 5.339 |
+| La mesa de llegada en vivo (`cd943eb`) | 18 | 15 | 1.501 |
+| La sala de la mesa, o sea A (`8579e87`) | 17 | 34 | 1.848 |
+| El taller arma sus mesas (`415a7b9`) | 10 | 30 | 1.251 |
+| Borrar una mesa (`ff9184d`) | 2 | 7 | 228 |
+| Nombres a inglés (`f3c01e4`) | 1 | 12 | 168 |
+
+Contra esa tasa, y **con las decisiones ya tomadas**:
+
+| | Estimación | Commits |
+|---|---|---|
+| B autosave | 2–4 h, una sesión | 15–25 |
+| C voz + resumen | 4–8 h, dos sesiones | 35–50 |
+| D embed de un tercero | 1–2 h | 5–10 |
+| D WebRTC propio | sin estimar: días, y sería adivinar | — |
+
+**B + C + D por el embed: 7 a 14 horas, dos a cuatro sesiones.**
+
+Tres cosas que explican el número mejor que el número:
+
+- **Lo que no se puede comprimir es la verificación.** `make spec` tarda 2m25s
+  y `make screens` entre 5 y 8 minutos; B y C juntas necesitan 15–25 corridas.
+  Son 1 a 2 horas de espera pura, y están incluidas.
+- **Lo que no se puede predecir es cuántas guardas aparecen incapaces de
+  fallar**, y en este repo ése es el costo real: la rama del rediseño encontró
+  ocho, cuatro de ellas sólo en la revisión final, y esta misma sesión encontró
+  dos más (sección 4). Nada de eso estaba en ninguna estimación previa.
+- **Dónde es más probable pasarse de largo: C.** `getUserMedia` y
+  `MediaRecorder` no tienen UN precedente en el repo, ningún spec de Ruby ve un
+  bug de captura de audio, y darle una guarda a `make screens` pide flags de
+  medios falsos en Chromium que nunca se usaron acá. Si algo se va al doble, es
+  eso. Lo que sí está es ActiveStorage (`has_one_attached` en `Report` y
+  `IdeaAttachment`), así que subir el audio tiene camino hecho.
+
+**C muy probablemente cruza un límite de contexto**, así que esas 4–8 horas
+llegan partidas en dos con un handoff en el medio. No cambia el total.
+
+Y el tiempo que NO está en ninguno de esos números: las decisiones. Mientras B
+no tenga su regla de propuestas pendientes y su coalescing, y C y D no tengan
+proveedor elegido con credencial y costo, el tiempo de implementación es cero.
 
 Y tres decisiones abiertas que no son tareas:
 
