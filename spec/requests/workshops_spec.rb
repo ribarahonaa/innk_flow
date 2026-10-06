@@ -200,6 +200,44 @@ RSpec.describe "talleres", type: :request do
   # `Flow::Texto.contar` acuerda el sustantivo y la frase trae su propio verbo:
   # «1 desafío quedaron afuera» es literalmente el bug que `Flow::Texto`
   # documenta para que no vuelva a pasar.
+  # El bloque de armado se sirve detrás de `update?`, que para el gestor es
+  # `administers_any?`: alcanza administrar ALGUNO de los desafíos del taller.
+  # La lista, en cambio, los enumera TODOS, así que linkeaba también el que le
+  # da 404 — el mismo link muerto que la rama de la sala ya había arreglado en
+  # `workshop_rooms/_referencia` y en `workshops/_room_picker`, y que acá
+  # sobrevivió porque el partial se sirve detrás de un permiso del TALLER y
+  # nadie volvió a preguntar por cada desafío.
+  describe "la lista de desafíos del armado" do
+    let!(:propio) { as_company(company) { create(:challenge, name: "El que administra") } }
+    let!(:ajeno)  { as_company(company) { create(:challenge, name: "El que no alcanza") } }
+    let!(:gestor) { member("gestor-armado@test.dev", :gestor) }
+
+    before do
+      as_company(company) do
+        ChallengeGestor.create!(challenge: propio, user: gestor)
+        create(:workshop_challenge, workshop: workshop, challenge: propio)
+        create(:workshop_challenge, workshop: workshop, challenge: ajeno)
+      end
+      sign_in(gestor, company: company)
+      get workshop_path(workshop)
+    end
+
+    # El control POSITIVO de la guarda de abajo. Sin esto se puede dejar la
+    # rama sin link para todo el mundo y la suite sigue en verde: el único
+    # ejemplo que mira ese bloque sería el negativo.
+    it "linkea el desafío que el gestor sí alcanza" do
+      expect(response).to have_http_status(:ok)
+      as_company(company) { expect(response.body).to include(challenge_path(propio)) }
+    end
+
+    # El NOMBRE se sigue mostrando: es lo que dice de qué vínculo se trata, y
+    # esconderlo volvería muda la lista. Lo que se va es el link.
+    it "nombra pero no linkea el desafío que el gestor no alcanza" do
+      expect(response.body).to include(ajeno.name)
+      as_company(company) { expect(response.body).not_to include(challenge_path(ajeno)) }
+    end
+  end
+
   describe "abrir" do
     it "dice en singular cuando quedó UN desafío afuera" do
       as_company(company) do
