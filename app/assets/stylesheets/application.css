@@ -1173,7 +1173,62 @@ input:focus, textarea:focus, select:focus {
 @media (max-width: 900px) {
   .form-doble { grid-template-columns: minmax(0, 1fr); }
 }
-.field { margin-bottom: 16px; }
+/* Etiqueta a la izquierda, campo a la derecha: es como lo dibuja INNK.
+   Son 154 ocurrencias en 43 vistas HAML, más tres en islas Vue
+   (`config_field.vue`, `criteria_editor.vue`), y no se edita ninguna.
+
+   La columna se fija POR HIJO y no con una grilla de dos columnas a secas: un
+   `.field` con tres hijos —label, campo y `.field-hint`— se desarmaría, porque
+   el tercero caería en la columna de la etiqueta. Así, todo lo que no sea
+   `label` apila en la columna 2, sean dos hijos o cinco.
+
+   Excepción: `label.field-check`, que sólo existe en `config_field.vue`. Es la
+   etiqueta de un checkbox y es HERMANA de la que lleva el nombre del campo, no
+   su rótulo: con `.field > label` iría a la columna 1, debajo del nombre, y la
+   columna 2 quedaría vacía. Es un control, así que va a la 2 como cualquiera. */
+.field {
+  margin-bottom: 16px;
+  display: grid;
+  grid-template-columns: minmax(120px, 190px) minmax(0, 1fr);
+  column-gap: 16px;
+  align-items: start;
+}
+.field > label:not(.field-check) {
+  grid-column: 1;
+  margin: 0;
+  text-align: right;
+  font-size: 13px;
+  /* El color sube de `--muted` a `--text`: en el diseño la etiqueta es parte
+     del contenido y no una anotación. */
+  color: var(--text);
+}
+.field > :not(label),
+.field > label.field-check { grid-column: 2; }
+
+/* Otra excepción: `fieldset.field` (una «Situación» del testeo) no es un campo
+   sino un agrupador de campos, con un `legend` de título y `.field` adentro. En
+   grilla, esos `.field` caían en la columna 2 del agrupador y sus etiquetas
+   quedaban corridas ~200px a la derecha de las del resto del formulario. En
+   bloque, el título va arriba y cada campo interior hace su propia grilla. */
+fieldset.field { display: block; }
+
+/* Dos columnas no entran en la referencia, que mide 320px. Se scopea igual que
+   el `.app-aside .card { --card-p: 16px }` que ya está. */
+.app-aside .field { display: block; }
+.app-aside .field > label:not(.field-check) { text-align: left; margin-bottom: 5px; }
+
+/* La tarjeta de auth mide 380px: con la columna de la etiqueta el control
+   queda en 110px y el hint de la clave en seis líneas. Va por `.auth-card` y no
+   por `.auth-form` porque el check-in público no tiene esa clase. */
+.auth-card .field { display: block; }
+.auth-card .field > label:not(.field-check) { text-align: left; margin-bottom: 5px; }
+
+/* Y abajo de 1024px vuelve a apilarse, como en los frames de teléfono del
+   diseño. */
+@media (max-width: 1023px) {
+  .field { display: block; }
+  .field > label:not(.field-check) { text-align: left; margin-bottom: 5px; }
+}
 .field-hint { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
 .field-hint--warn { color: var(--warn); }
 .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
