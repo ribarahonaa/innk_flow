@@ -1452,6 +1452,129 @@ async function revisarBanda(page, name) {
   }
 }
 
+// `[SOMBRA]` — la sombra pasó a ser portante y nadie la medía.
+//
+// Antes la tarjeta se definía por su BORDE y la sombra era decorativa: perderla
+// era cosmético. Ahora, en tema claro, el borde de la tarjeta es transparente y
+// la sombra es lo ÚNICO que la define, así que perderla la deja sin contorno.
+// Y está escrito que nadie la mira: `[CLASES]` mira fondo, relleno y borde;
+// `[RELLENO]`, relleno; `[CONTRASTE]`, color.
+//
+// Mide DOS superficies: la `card` y el campo (`input`, `textarea`, `select`).
+// El campo es el caso grave: pinta el mismo `--surface` que la tarjeta que lo
+// contiene, así que perder la sombra no deja un borde tonal, lo deja sin borde.
+//
+// La sombra es portante SÓLO en claro: en oscuro `--borde-superficie` le
+// devuelve un borde real a la tarjeta y perderla vuelve a ser cosmético. Aun
+// así `capturar()` corre también en las pantallas oscuras (94 a 99 y las demás
+// `oscuro-*`), así que el chequeo de sombra las mide en los dos esquemas; el de
+// contorno `[CAMPO]` es SÓLO de claro, porque en oscuro el campo conserva su
+// `--borde` de siempre (1,05:1 medido, anterior a esta rama y fuera de su alcance).
+//
+// Cuenta cuántas midió y falla si midió de menos, por el mismo motivo que
+// `[RELLENO]` y `[PASTILLA]`: una guarda que mide cero da verde y es
+// indistinguible de una que funciona.
+let sombrasMedidas = 0;
+// Medido en la primera corrida limpia: 299 tarjetas en 76 pantallas. El piso deja
+// ~24 de holgura (una pantalla cargada) y está muy por encima del cero al que
+// lo lleva un renombre de `.card`.
+const PISO_DE_SOMBRAS = 275;
+let camposMedidos = 0;
+// Medido en la primera corrida limpia: 291 campos visibles y sin foco, en los dos
+// esquemas. Piso en 270: holgura de una pantalla cargada.
+const PISO_DE_CAMPOS = 270;
+
+// `[CAMPO]` mide el contorno del campo EN REPOSO contra lo que tiene detrás: el
+// primer fondo opaco de sus ancestros. 3:1, el 1.4.11 de WCAG —el mismo piso de
+// `[PUNTOS]`—. Medido a mano: con borde transparente y sólo la sombra, 1,09:1.
+// Los colores se resuelven con un canvas, que entiende cualquier sintaxis que
+// el navegador computa (oklch, color-mix) y compone el alfa sobre el fondo.
+async function revisarSombra(page, name) {
+  const r = await page.evaluate(() => {
+    const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+    const rgba = (c) => {
+      ctx.clearRect(0, 0, 1, 1);
+      ctx.fillStyle = '#000';
+      ctx.fillStyle = c;
+      ctx.fillRect(0, 0, 1, 1);
+      return Array.from(ctx.getImageData(0, 0, 1, 1).data);
+    };
+    const lum = ([r, g, b]) => {
+      const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+    };
+    const ratio = (a, b) => {
+      const x = lum(a), y = lum(b);
+      return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+    };
+    // El borde, compuesto sobre el fondo de atrás: se pinta el fondo y encima el borde.
+    const compuesto = (fondo, borde) => {
+      ctx.clearRect(0, 0, 1, 1);
+      ctx.fillStyle = fondo;
+      ctx.fillRect(0, 0, 1, 1);
+      ctx.fillStyle = borde;
+      ctx.fillRect(0, 0, 1, 1);
+      return Array.from(ctx.getImageData(0, 0, 1, 1).data);
+    };
+    const fondoDetras = (el) => {
+      for (let p = el.parentElement; p; p = p.parentElement) {
+        const bg = getComputedStyle(p).backgroundColor;
+        if (rgba(bg)[3] === 255) return bg;
+      }
+      return 'rgb(255, 255, 255)';
+    };
+    const visible = (el) => {
+      const b = el.getBoundingClientRect();
+      return b.width > 0 && b.height > 0 && getComputedStyle(el).visibility !== 'hidden';
+    };
+    const sombra = (el) => {
+      const s = getComputedStyle(el).boxShadow;
+      return !!s && s !== 'none';
+    };
+
+    let tarjetas = 0;
+    const sinTarjeta = [];
+    for (const card of document.querySelectorAll('.card')) {
+      tarjetas++;
+      if (!sombra(card)) sinTarjeta.push(card.className);
+    }
+
+    const oscuro = getComputedStyle(document.documentElement).colorScheme === 'dark';
+    let campos = 0;
+    const sinCampo = [];
+    const flojos = [];
+    const sel = 'input[type="text"], input[type="email"], input[type="password"], ' +
+      'input[type="number"], input[type="date"], input[type="file"], textarea, select';
+    for (const el of document.querySelectorAll(sel)) {
+      if (!visible(el)) continue;
+      if (el === document.activeElement) continue; // enfocado: el borde es el acento
+      campos++;
+      const label = `${el.tagName.toLowerCase()}${el.name ? `[${el.name}]` : ''}`;
+      if (!sombra(el)) sinCampo.push(label);
+      const cs = getComputedStyle(el);
+      const fondo = fondoDetras(el);
+      const borde = compuesto(fondo, cs.borderTopColor);
+      const m = ratio(borde, rgba(fondo));
+      if (!oscuro && m < 3) flojos.push(`${label} ${m.toFixed(2)}:1`);
+    }
+    return { tarjetas, sinTarjeta, campos, sinCampo, flojos };
+  });
+  sombrasMedidas += r.tarjetas;
+  camposMedidos += r.campos;
+  if (r.sinTarjeta.length) {
+    failures++;
+    console.error(`[SOMBRA] ${name}: ${r.sinTarjeta.length} \`card\` sin sombra · ${r.sinTarjeta.slice(0, 4).join(' · ')}`);
+  }
+  if (r.sinCampo.length) {
+    failures++;
+    console.error(`[SOMBRA] ${name}: ${r.sinCampo.length} campo(s) sin sombra · ${r.sinCampo.slice(0, 4).join(' · ')}`);
+  }
+  if (r.flojos.length) {
+    failures++;
+    console.error(`[CAMPO] ${name}: ${r.flojos.length} campo(s) con el contorno en reposo bajo 3:1 contra lo de atrás · ${r.flojos.slice(0, 4).join(' · ')}`);
+  }
+}
+
 async function capturar(page, name) {
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
   await revisarTexto(page, name);
@@ -1462,6 +1585,7 @@ async function capturar(page, name) {
   await revisarRellenoDeTarjeta(page, name);
   await revisarRiel(page, name);
   await revisarBanda(page, name);
+  await revisarSombra(page, name);
   // UNA sola medición para las dos guardas: `medirContraste` recorre el DOM y
   // compone la cadena de fondos de cada elemento, y se estaba haciendo dos veces
   // por pantalla sobre el mismo selector.
@@ -3405,7 +3529,7 @@ async function revisarTema(page, pantalla, url) {
   // verde y es indistinguible de una que funciona, que es el modo de falla que
   // este script ya pagó dos veces (la pasada oscura del muestrario, y `[MONO]`
   // después del arreglo).
-  console.log(`[RITMO] ${pantallasConRitmo} de ${shots.length} pantallas tuvieron dos tarjetas que comparar · [RELLENO] ${cardBodiesMedidos} \`card-body\` medidos · [PASTILLA] ${pastillasMedidas} chips y avisos medidos · [CRITERIO] ${criteriosMedidos} nombres medidos · [LIVE] ${liveMeasurements} pantalla(s) medida(s) · [RIEL] ${rielesMedidos} pantallas con riel · [BANDA] ${bandasMedidas} pantallas con banda`);
+  console.log(`[RITMO] ${pantallasConRitmo} de ${shots.length} pantallas tuvieron dos tarjetas que comparar · [RELLENO] ${cardBodiesMedidos} \`card-body\` medidos · [PASTILLA] ${pastillasMedidas} chips y avisos medidos · [CRITERIO] ${criteriosMedidos} nombres medidos · [LIVE] ${liveMeasurements} pantalla(s) medida(s) · [RIEL] ${rielesMedidos} pantallas con riel · [BANDA] ${bandasMedidas} pantallas con banda · [SOMBRA] ${sombrasMedidas} tarjetas medidas · [CAMPO] ${camposMedidos} campos medidos`);
   if (pantallasConRitmo < PISO_DE_RITMO) {
     failures++;
     console.error(`[RITMO] sólo ${pantallasConRitmo} de ${shots.length} pantallas tuvieron un par de tarjetas que comparar, y el piso es ${PISO_DE_RITMO}: la guarda dejó de ver las tarjetas`);
@@ -3433,6 +3557,14 @@ async function revisarTema(page, pantalla, url) {
   if (bandasMedidas < PISO_DE_BANDAS) {
     failures++;
     console.error(`[BANDA] sólo ${bandasMedidas} pantallas dibujaron banda y el piso es ${PISO_DE_BANDAS}`);
+  }
+  if (sombrasMedidas < PISO_DE_SOMBRAS) {
+    failures++;
+    console.error(`[SOMBRA] sólo ${sombrasMedidas} tarjetas medidas y el piso es ${PISO_DE_SOMBRAS}: la guarda dejó de verlas`);
+  }
+  if (camposMedidos < PISO_DE_CAMPOS) {
+    failures++;
+    console.error(`[CAMPO] sólo ${camposMedidos} campos medidos y el piso es ${PISO_DE_CAMPOS}: la guarda dejó de verlos`);
   }
   if (cardBodiesMedidos < PISO_DE_CARD_BODY) {
     failures++;

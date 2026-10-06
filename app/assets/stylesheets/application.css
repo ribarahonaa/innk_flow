@@ -72,6 +72,36 @@
   default: true;
   color-scheme: light;
 
+  /* INNK no usa bordes: la tarjeta y el campo se definen con una sombra. Pero
+     una sombra negra al 10% SOBRE UNA SUPERFICIE OSCURA no existe, y el diseño
+     no lo resuelve porque no tiene tema oscuro. Así que el tratamiento depende
+     del tema y no de la clase: estos dos tokens van en los DOS bloques.
+
+     No es `light-dark()`: ese sólo vale para <color>. Medido en el Chromium
+     del recorrido, `--shadow: light-dark(<sombra>, <sombra>)` declara sin error
+     pero `box-shadow: var(--shadow)` computa `none` en los dos esquemas.
+     Declararlos acá viaja con `prefersdark` y no puede divergir del tema.
+
+     `--shadow` se REDEFINE en vez de agregar un token: sus SEIS usos son
+     todos superficies —`.card`, `.auth-card`, tres barras pegadas y el bloque
+     de campos—. Ojo con el sexto: retocar `--shadow` mueve también cada
+     `input`, `textarea` y `select` de la app; el campo comparte la sombra de la
+     superficie A PROPÓSITO, no por descuido.
+     `--borde-superficie` es sólo para el borde de la tarjeta; `--borde` no se
+     toca: lo usan divisores y celdas de tabla.
+
+     DESVÍO DELIBERADO DEL FIGMA, y se declara acá para que nadie lo tome por
+     un error: el campo NO es «sin borde». En claro el campo pinta el mismo
+     `--surface` que la tarjeta que lo contiene, así que la sombra es lo único
+     que lo separa, y MEDIDO (borde mínimo del campo en reposo, en
+     `/challenges/new`) no pasa de 1,09:1; una sombra blanda no puede llegar a
+     3:1 contra blanco. El piso es el 1.4.11 de WCAG, el mismo de `[PUNTOS]`.
+     Por eso `--borde-campo` es `--tenue` (3,38:1) y la sombra queda de adorno.
+     En oscuro no se toca: sigue siendo `--borde`. Lo mide `[CAMPO]`. */
+  --shadow: 0 2px 20px rgba(0, 0, 0, .1);
+  --borde-superficie: transparent;
+  --borde-campo: var(--tenue);
+
   --color-base-100: oklch(100% 0 0);
   --color-base-200: oklch(97.470% 0.0051 247.88);
   --color-base-300: oklch(92.400% 0.0080 247.88);
@@ -123,8 +153,8 @@
   --color-warning: oklch(72.9% 0.1501 82.4);
   --color-warning-content: oklch(15% 0.03 285.9);    /* 8.10:1 — blanco da 2.43 */
 
-  --radius-box: 0.8125rem;   /* 13px: las tarjetas */
-  --radius-field: 0.5625rem; /*  9px: campos y botones */
+  --radius-box: 1rem;        /* 16px: las tarjetas */
+  --radius-field: 0.625rem;  /* 10px: campos y botones */
   --radius-selector: 0.5rem;
 
   --border: 1px;
@@ -180,9 +210,13 @@
   --color-warning: oklch(78% 0.15 82);
   --color-warning-content: oklch(15% 0.03 285.9);    /* 9.72:1 */
 
-  --radius-box: 0.8125rem;
-  --radius-field: 0.5625rem;
+  --radius-box: 1rem;
+  --radius-field: 0.625rem;
   --radius-selector: 0.5rem;
+
+  --shadow: 0 1px 3px rgba(0, 0, 0, .4);
+  --borde-superficie: var(--borde);
+  --borde-campo: var(--borde);
 
   /* Los tres escalares van en los DOS temas: el plan solo los declaraba en el
      claro, y un tema sin `--depth` rompe el borde de todos los botones. */
@@ -436,10 +470,6 @@
      símbolo. Con esto quedan en 3.38:1 en claro y 4.43:1 en oscuro, arriba del
      3:1 que pide un control. */
   --tenue: color-mix(in oklab, var(--color-base-content) 50%, transparent);
-
-  /* La sombra es negro con alfa, no un color del tema: teñirla con el texto
-     la volvería un halo BLANCO en el tema oscuro. */
-  --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
 }
 
 * { box-sizing: border-box; }
@@ -895,7 +925,7 @@ body {
   --card-p: 20px;
   --card-fs: 14px;
   background: var(--surface);
-  border: 1px solid var(--borde);
+  border: 1px solid var(--borde-superficie);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
@@ -958,9 +988,10 @@ input[type="text"], input[type="email"], input[type="password"],
 input[type="number"], input[type="date"], input[type="file"], textarea, select {
   width: 100%;
   padding: 9px 11px;
-  border: 1px solid var(--borde);
-  /* El mismo radio que `.btn`: un campo de 8px al lado de un botón de 9px se
-     ve como un error de alineación, no como una jerarquía. */
+  border: 1px solid var(--borde-campo);
+  box-shadow: var(--shadow);
+  /* El mismo radio que `.btn`: un campo de 10px al lado de un botón de otro
+     radio se ve como un error de alineación, no como una jerarquía. */
   border-radius: var(--radius-field);
   background: var(--surface);
   color: var(--text);
