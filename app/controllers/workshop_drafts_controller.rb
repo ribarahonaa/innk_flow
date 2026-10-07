@@ -30,7 +30,7 @@ class WorkshopDraftsController < ApplicationController
     # secas devolvería `{}` y pisaría el texto de la mesa con nada: pérdida
     # silenciosa de datos, y la puede causar el propio JS con un cuerpo mal
     # armado. No hay nada que guardar, así que no se guarda.
-    return head :no_content unless params.key?(:payload)
+    return no_op unless params.key?(:payload)
 
     # La fase la decide la SALA y no el cliente: un `idea_id` mandado a una sala
     # de idear se ignora. Si se aceptara, el cliente crearía una fila con idea en
@@ -46,7 +46,7 @@ class WorkshopDraftsController < ApplicationController
     # mismo pisado que el no-op de arriba evita, entrando por la otra puerta.
     # Vaciar un campo a propósito manda la clave PRESENTE con valor vacío, que
     # sí pasa el filtro.
-    return head :no_content if payload.empty?
+    return no_op if payload.empty?
 
     # El payload REEMPLAZA al guardado y la sala lo prellena entero, sin merge:
     # el cliente tiene que mandar el formulario COMPLETO en cada PATCH. Si manda
@@ -57,6 +57,16 @@ class WorkshopDraftsController < ApplicationController
   end
 
   private
+
+  # 204 es correcto para «guardé» y para «no había nada que guardar»: no hay
+  # cuerpo que devolver. Pero el cliente tiene que poder distinguirlos, o el sello
+  # dice «Guardado ahora.» sobre un pedido que no escribió nada (por ejemplo, si
+  # renombraron las claves del formulario con la sala abierta). Los códigos no se
+  # tocan; la cabecera lo dice.
+  def no_op
+    response.headers["X-Draft-Saved"] = "0"
+    head :no_content
+  end
 
   def set_link
     @workshop = policy_scope(Workshop).find_by!(id: params[:workshop_id])

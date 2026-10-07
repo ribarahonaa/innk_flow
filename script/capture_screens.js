@@ -22,6 +22,9 @@ let liveMeasurements = 0;
 // En cuántas de las dos caras de la sala `[DRAFT]` midió que el texto vuelve
 // después de recargar. Las dos, o la guarda dejó de ver una.
 let draftMeasurements = 0;
+// EXACTO y no flojo: son las dos caras de la sala, idear y evolución, y no hay
+// una tercera. Un piso flojo no cazaría que una dejó de medirse.
+const PISO_DE_BORRADORES = 2;
 
 // Un módulo por su TIPO, no por su nombre: el nombre es editable y una
 // propuesta de la IA lo reescribe entero.
@@ -1371,9 +1374,6 @@ async function revisarAnchoDeCriterio(page, name) {
 // sin riel que podrían sumarse; un renombre de `.app-rail` lo lleva a cero.
 const PISO_DE_RIEL = 66;
 
-// EXACTO y no flojo: son las dos caras de la sala, idear y evolución, y no hay
-// una tercera. Un piso flojo no cazaría que una dejó de medirse.
-const PISO_DE_BORRADORES = 2;
 let rielesMedidos = 0;
 
 // Las pantallas que legítimamente no marcan ninguna entrada, declaradas una por
@@ -1469,12 +1469,6 @@ let bandasMedidas = 0;
 // suma una pantalla con banda, el piso sube con ella.
 const PISO_DE_BANDAS = 71;
 
-// El contraste se mide con `medirContraste`, que es el ÚNICO medidor del
-// script y el que tiene autotest (`probarMedidorDeContraste`). No hay un
-// `contraste(a, b)` llamable desde acá: esa función vive adentro del
-// `page.evaluate` de `medirContraste`. Y además `medirContraste` compone la
-// cadena de fondos hasta el primer opaco, que es lo que hay que hacer si
-// alguna vez la banda lleva alfa.
 // Lo único que un spec de Ruby no puede ver: el bundle, el temporizador y el
 // endpoint pueden estar los tres en verde y el texto no volver.
 //
@@ -1482,21 +1476,37 @@ const PISO_DE_BANDAS = 71;
 // punto: sin ella se estaría probando que el navegador conserva lo que acabás de
 // escribir, que es cierto sin autoguardado.
 //
-// Un MISMO selector para tipear y para leer, y acotado a lo que se puede tipear:
-// un `fill` sobre un checkbox o un file revienta, y dos selectores distintos
-// podrían medir un campo que no es el que se escribió.
-const SELECTOR_DE_CAMPO = 'form[data-draft-url] input[type="text"], form[data-draft-url] textarea';
+// Un MISMO selector para tipear y para leer, y acotado a lo que se puede tipear
+// Y a lo que `cuerpo()` manda: un `fill` sobre un checkbox o un file revienta, y
+// un campo que no empieza con `payload[` (una nota de cambio, por ejemplo) no
+// viaja, así que acusaría a un autoguardado sano.
+const SELECTOR_DE_CAMPO = 'form[data-draft-url] input[type="text"][name^="payload["], form[data-draft-url] textarea[name^="payload["]';
+
+// Se escribe una marca distinta en CADA campo y se verifica cada uno después de
+// recargar. Medir uno solo no cazaría que `cuerpo()` mande sólo el campo sucio:
+// el endpoint reemplaza el hash entero, los demás volverían en blanco, y el
+// campo medido estaría ahí con su marca. Por eso hace falta más de uno.
+const MINIMO_DE_CAMPOS_POR_CARA = 2;
 
 async function revisarBorrador(page, nombre) {
-  const campo = page.locator(SELECTOR_DE_CAMPO).first();
-  if (!(await campo.count())) {
+  const campos = page.locator(SELECTOR_DE_CAMPO);
+  const total = await campos.count();
+  if (!total) {
     failures++;
     console.error(`[DRAFT] ${nombre}: el formulario de la sala no tiene campo con autoguardado`);
     return;
   }
+  if (total < MINIMO_DE_CAMPOS_POR_CARA) {
+    failures++;
+    console.error(`[DRAFT] ${nombre}: el formulario tiene ${total} campo(s) y hacen falta ${MINIMO_DE_CAMPOS_POR_CARA}: con uno solo la guarda no puede cazar que se mande sólo el campo sucio`);
+    return;
+  }
   const marca = `borrador-${Date.now()}`;
-  const previo = await campo.inputValue();
-  await campo.fill(marca);
+  const previos = [];
+  for (let i = 0; i < total; i++) {
+    previos.push(await campos.nth(i).inputValue());
+    await campos.nth(i).fill(`${marca}-${i}`);
+  }
   const espera = Number(await page.locator('form[data-draft-url]').first().getAttribute('data-debounce')) || 2000;
   await page.waitForTimeout(espera + 1500);
 
@@ -1513,15 +1523,27 @@ async function revisarBorrador(page, nombre) {
   }
 
   await page.reload({ waitUntil: 'domcontentloaded' });
-  const vuelto = await page.locator(SELECTOR_DE_CAMPO).first().inputValue();
-  if (vuelto !== marca) {
-    failures++;
-    console.error(`[DRAFT] ${nombre}: después de recargar el campo dice «${vuelto}» y la mesa había escrito «${marca}» (antes decía «${previo}»)`);
-    return;
+  const despues = page.locator(SELECTOR_DE_CAMPO);
+  const totalDespues = await despues.count();
+  let fallo = false;
+  for (let i = 0; i < total; i++) {
+    const vuelto = i < totalDespues ? await despues.nth(i).inputValue() : '(el campo no está)';
+    if (vuelto !== `${marca}-${i}`) {
+      fallo = true;
+      failures++;
+      console.error(`[DRAFT] ${nombre}: después de recargar el campo ${i + 1} de ${total} dice «${vuelto}» y la mesa había escrito «${marca}-${i}» (antes decía «${previos[i]}»)`);
+    }
   }
+  if (fallo) return;
   draftMeasurements++;
 }
 
+// El contraste se mide con `medirContraste`, que es el ÚNICO medidor del
+// script y el que tiene autotest (`probarMedidorDeContraste`). No hay un
+// `contraste(a, b)` llamable desde acá: esa función vive adentro del
+// `page.evaluate` de `medirContraste`. Y además `medirContraste` compone la
+// cadena de fondos hasta el primer opaco, que es lo que hay que hacer si
+// alguna vez la banda lleva alfa.
 async function revisarBanda(page, name) {
   const medidos = await medirContraste(page, '.page-banner');
   if (!medidos.length) return;
@@ -3085,9 +3107,11 @@ async function revisarTema(page, pantalla, url) {
   // evolución viven en talleres distintos. Se entra por el link «Talleres» del
   // nav y de ahí todo va por link.
   //
-  // Read-only a propósito: no se abre, no se propone ni se acepta nada, así
-  // que `make screens` corrido dos veces sin volver a sembrar encuentra el
-  // mismo estado.
+  // No se abre, no se propone ni se acepta nada, pero `[DRAFT]` SÍ escribe: deja
+  // dos filas de `workshop_drafts` por corrida (una por cara de la sala), y la
+  // captura `25` de la corrida siguiente sale con ese texto en el campo. El seed
+  // borra los borradores sobrantes (Tarea 6); hasta entonces dos corridas sin
+  // resembrar no encuentran el mismo estado.
   const goToWorkshop = async (workshopName) => {
     // Desde donde esté la pantalla: el nav está en todas. El listado se
     // espera por su título, no por la red.

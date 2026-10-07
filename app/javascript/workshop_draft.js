@@ -13,6 +13,8 @@
 let timer = null;
 let form = null;
 let sucio = false;
+// El pedido en vuelo, para cancelarlo si sale uno más nuevo.
+let enVuelo = null;
 
 // Sólo hay timeouts acá, nunca un interval: `alTeclear` reinicia la espera en
 // cada tecla. Un `clearInterval` haría creer que hay un ciclo que no existe.
@@ -55,24 +57,50 @@ function cuerpo() {
 async function guardar({ keepalive = false } = {}) {
   if (!form || !sucio) return;
   sucio = false;
+  // Dos PATCH solapados con wifi lento pueden llegar al revés y dejar el
+  // borrador con texto que la mesa ya había borrado. Abortar el anterior achica
+  // esa ventana y NO la cierra: si el servidor ya recibió el viejo, cancelar del
+  // lado del cliente no lo deshace. El orden fuerte pediría un número de
+  // secuencia en el servidor, que para «el último que escribe gana» no se
+  // justifica.
+  if (enVuelo) enVuelo.abort();
+  const control = new AbortController();
+  enVuelo = control;
+  // El formulario desde el que salió el pedido: la respuesta puede llegar con
+  // otra pantalla ya pintada, y el acuse no es de ahí.
+  const enviadoDesde = form;
   const token = document.querySelector('meta[name="csrf-token"]')?.content;
   try {
-    const res = await fetch(form.dataset.draftUrl, {
+    const res = await fetch(enviadoDesde.dataset.draftUrl, {
       method: 'PATCH',
       headers: { 'X-CSRF-Token': token, 'Content-Type': 'application/x-www-form-urlencoded' },
       body: cuerpo(),
-      keepalive
+      keepalive,
+      signal: control.signal
     });
     // Un fallo se DICE, no se traga. Un autoguardado que falla en silencio es
     // peor que no tenerlo: la mesa confía y pierde todo.
     if (!res.ok) throw new Error(res.status);
+    if (form !== enviadoDesde) return;
+    // «0» es un 204 de «no había nada que guardar»: no es un fallo, pero decir
+    // «Guardado» sería mentir.
+    if (res.headers.get('X-Draft-Saved') === '0') return;
     const s = sello();
     if (s) s.textContent = s.dataset.savedText;
-  } catch {
+  } catch (err) {
+    // Lo cancelamos nosotros por uno más nuevo: no es un fallo, y escribir el
+    // texto de error sería contradecir al pedido que lo reemplazó.
+    if (err.name === 'AbortError') return;
+    if (form !== enviadoDesde) return;
+    // El fallo se dice y se REINTENTA en la tecla siguiente: un parpadeo de wifi
+    // no apaga el autoguardado el resto de la tarde. El texto de fallo se queda
+    // en el sello hasta que un guardado exitoso lo reemplace. Nada de
+    // `form = null`: el listener cuelga del nodo y no de esta variable.
     const s = sello();
     if (s) s.textContent = s.dataset.failedText;
     stop();
-    form = null;
+  } finally {
+    if (enVuelo === control) enVuelo = null;
   }
 }
 
@@ -96,9 +124,20 @@ function start() {
   form.addEventListener('input', alTeclear);
   // Mandar es publicar: el borrador lo borra el servidor en la misma
   // transacción, así que un guardado en vuelo no tiene que pisarlo después.
+  //
+  // NO cubre el envío FALLIDO: los caminos de rechazo redirigen con un `alert:`
+  // (302 → 200), así que `turbo:submit-end` da `success: true` igual y no hay
+  // cómo distinguirlos del exitoso. Ahí el morph devuelve el valor del servidor
+  // y se pierde lo tecleado desde la última pausa de dos segundos. Se acepta:
+  // guardar siempre recrearía, tras cada envío exitoso, el borrador que el
+  // servidor acaba de borrar, y la sala volvería prellenada con lo ya mandado.
   form.addEventListener('submit', () => { sucio = false; stop(); });
 }
 
+// Este camino NO lo mide ninguna guarda ni ningún spec: la guarda espera el
+// debounce, así que el temporizador normal ya guardó. Borrar `descargar()`, el
+// `keepalive` y el `visibilitychange` no pone nada en rojo.
+//
 // Irse de la pantalla no puede llevarse los últimos dos segundos. `keepalive`
 // deja el pedido en vuelo aunque el documento se vaya.
 function descargar() {
