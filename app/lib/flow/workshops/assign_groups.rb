@@ -140,6 +140,14 @@ module Flow
       # no toma ninguno. Si una propuesta entra a mitad del reparto y deja a su
       # mesa vacía, borrarla se llevaría la propuesta por el CASCADE. Una mesa
       # que sobrevive sólo por eso es un sobrante inocuo; perder la propuesta no.
+      #
+      # El borrador se suma por lo mismo y con una diferencia: su escritor
+      # (`WorkshopDraftsController#update`) no sólo no toma lock, además se
+      # dispara SOLO cada dos segundos, así que la ventana es mucho más ancha.
+      # Lo que NO se toca es el guarda de arriba: negarse a repartir porque
+      # alguien tecleó una palabra bloquearía una operación común por texto sin
+      # mandar. Ese guarda existe por la procedencia de versiones publicadas, y
+      # un borrador no la tiene.
       def seat!(tables)
         # La mesa de llegada NO es reusable: es la primera creada, así que
         # `existentes[0]` la convertiría en «Mesa 1» conservando `arrival: true`
@@ -160,7 +168,8 @@ module Flow
         end
 
         @workshop.workshop_groups.reload.each do |mesa|
-          mesa.destroy! if mesa.workshop_group_members.empty? && mesa.workshop_proposals.empty?
+          mesa.destroy! if mesa.workshop_group_members.empty? && mesa.workshop_proposals.empty? &&
+            mesa.workshop_drafts.empty?
         end
       end
 

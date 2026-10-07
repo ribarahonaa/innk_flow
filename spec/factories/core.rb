@@ -102,4 +102,11 @@ FactoryBot.define do
     payload { {} }
     status { "pending" }
   end
+
+  factory :workshop_draft do
+    workshop_group
+    workshop_challenge
+    payload { {} }
+    updated_by factory: :user
+  end
 end

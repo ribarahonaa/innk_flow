@@ -8,6 +8,10 @@ class WorkshopGroup < ApplicationRecord
   belongs_to :workshop
   has_many :workshop_group_members, dependent: :destroy
   has_many :workshop_proposals, dependent: :destroy
+  # `dependent: :destroy` crea un peligro que `AssignGroups` tiene que conocer:
+  # su barrido de mesas vacías se llevaría el texto de la mesa. Ver la cláusula
+  # de `seat!`.
+  has_many :workshop_drafts, dependent: :destroy
   has_many :members, through: :workshop_group_members, source: :user
 
   validates :name, presence: true

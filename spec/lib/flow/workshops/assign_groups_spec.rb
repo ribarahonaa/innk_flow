@@ -294,6 +294,28 @@ RSpec.describe Flow::Workshops::AssignGroups do
         expect(WorkshopProposal.exists?(proposal.id)).to be(true)
       end
     end
+
+    # El barrido de vacías borra con `mesa.destroy!`, y `dependent: :destroy`
+    # se llevaría el borrador. A diferencia de las propuestas, acá NO se anula
+    # ningún guarda: el reparto corre igual con un borrador, y lo que se fija es
+    # que la mesa sobrevive. Perder el texto de la mesa no es un sobrante inocuo.
+    it "no borra una mesa que queda vacía pero tiene un borrador, ni el borrador" do
+      m1, m2 = mesas(2)
+      draft = as_company(company) do
+        [paula, pedro].each { |u| create(:membership, company: company, user: u, role: "participant") }
+        seat(taller, paula, m1)
+        create(:workshop_draft, workshop_group: m2, workshop_challenge: taller.workshop_challenges.first,
+                                updated_by: ana, payload: { "resumen" => "a medio escribir" })
+      end
+
+      result = as_company(company) { described_class.new(taller, size: 4).call }
+
+      expect(result).to be_ok
+      as_company(company) do
+        expect(WorkshopGroup.exists?(m2.id)).to be(true)
+        expect(WorkshopDraft.exists?(draft.id)).to be(true)
+      end
+    end
   end
 
   describe "un vínculo cuyo módulo ya terminó" do
