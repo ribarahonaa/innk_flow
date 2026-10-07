@@ -42,6 +42,12 @@ class CreateWorkshopDrafts < ActiveRecord::Migration[7.1]
               unique: true, where: "idea_id IS NOT NULL",
               name: "index_workshop_drafts_evolution_uniq"
 
+    # Planos además de los parciales: el planner no los une para un
+    # `workshop_group_id = x` pelado, y `mesa.workshop_drafts.empty?` corre por
+    # mesa en el barrido del reparto. `idea_id` por la FK con cascade.
+    add_index :workshop_drafts, :workshop_group_id
+    add_index :workshop_drafts, :idea_id
+
     add_tenant_fk :workshop_drafts, :workshop_groups,     column: :workshop_group_id
     add_tenant_fk :workshop_drafts, :workshop_challenges, column: :workshop_challenge_id
     add_tenant_fk :workshop_drafts, :ideas,               column: :idea_id

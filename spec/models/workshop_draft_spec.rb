@@ -41,6 +41,7 @@ RSpec.describe WorkshopDraft do
       draft = WorkshopDraft.new(workshop_group: group, workshop_challenge: link,
                                 idea: idea, updated_by: autora, payload: {})
       expect(draft).not_to be_valid
+      expect(draft.errors[:idea_id].join).to include("sólo")
     end
   end
 
@@ -58,6 +59,40 @@ RSpec.describe WorkshopDraft do
       draft = WorkshopDraft.new(workshop_group: group, workshop_challenge: link,
                                 idea: nil, updated_by: autora, payload: {})
       expect(draft).to be_valid
+    end
+  end
+
+  # El caso que DISCRIMINA el `return if kind.nil?`: con la idea presente, sin
+  # ese `return` la rama de «no es evolución» rechazaría. Con la idea nil el
+  # ejemplo de arriba pasa igual con o sin la línea.
+  it "sin módulo resuelto no opina ni con la idea presente" do
+    as_company(company) do
+      challenge = create(:challenge)
+      workshop = create(:workshop, status: "draft")
+      link = create(:workshop_challenge, workshop: workshop, challenge: challenge,
+                                         challenge_step: nil)
+      group = create(:workshop_group, workshop: workshop)
+      idea = create(:idea, challenge: challenge, author: autora)
+      draft = WorkshopDraft.new(workshop_group: group, workshop_challenge: link,
+                                idea: idea, updated_by: autora, payload: {})
+      expect(draft).to be_valid
+    end
+  end
+
+  it "rechaza una mesa y una sala de talleres distintos" do
+    as_company(company) do
+      link, = sala("ideation")
+      _, otra_mesa, = sala("ideation")
+      draft = WorkshopDraft.new(workshop_group: otra_mesa, workshop_challenge: link,
+                                updated_by: autora, payload: {})
+      expect(draft).not_to be_valid
+      expect(draft.errors[:workshop_challenge_id].join).to include("otro taller")
+    end
+  end
+
+  it "la factoría produce un registro válido" do
+    as_company(company) do
+      expect(build(:workshop_draft, updated_by: autora)).to be_valid
     end
   end
 

@@ -105,7 +105,9 @@ FactoryBot.define do
 
   factory :workshop_draft do
     workshop_group
-    workshop_challenge
+    # Del MISMO taller que la mesa: dos factorías sueltas armarían un registro
+    # que el modelo rechaza.
+    workshop_challenge { association :workshop_challenge, workshop: workshop_group.workshop }
     payload { {} }
     updated_by factory: :user
   end

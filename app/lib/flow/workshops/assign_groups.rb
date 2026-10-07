@@ -141,9 +141,11 @@ module Flow
       # mesa vacía, borrarla se llevaría la propuesta por el CASCADE. Una mesa
       # que sobrevive sólo por eso es un sobrante inocuo; perder la propuesta no.
       #
-      # El borrador se suma por lo mismo y con una diferencia: su escritor
-      # (`WorkshopDraftsController#update`) no sólo no toma lock, además se
-      # dispara SOLO cada dos segundos, así que la ventana es mucho más ancha.
+      # El borrador se suma por lo mismo y con dos diferencias. Su escritor
+      # (`WorkshopDraftsController#update`) tampoco toma lock y se dispara SOLO
+      # cada dos segundos, lo que sube la PROBABILIDAD de caer en la ventana (no
+      # su ancho). Y acá la cláusula no tapa un hueco que otro chequeo cubre: es
+      # el ÚNICO chequeo, porque el guarda de arriba no mira borradores.
       # Lo que NO se toca es el guarda de arriba: negarse a repartir porque
       # alguien tecleó una palabra bloquearía una operación común por texto sin
       # mandar. Ese guarda existe por la procedencia de versiones publicadas, y

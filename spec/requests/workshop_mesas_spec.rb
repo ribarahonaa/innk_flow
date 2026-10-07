@@ -249,6 +249,23 @@ RSpec.describe "armar las mesas", type: :request do
       expect(as_company(company) { WorkshopGroup.where(workshop_id: taller.id, arrival: true).exists? }).to be(false)
     end
 
+    # No se niega (ninguna pantalla borra un borrador, así que sería sin salida),
+    # pero el aviso no puede decir «Mesa eliminada.» a secas.
+    it "borrar una mesa con borrador la borra y el aviso nombra el borrador" do
+      mesa = as_company(company) { create(:workshop_group, workshop: taller) }
+      as_company(company) do
+        create(:workshop_draft, workshop_group: mesa, workshop_challenge: taller.workshop_challenges.first,
+                                updated_by: admin, payload: { "resumen" => "sin mandar" })
+      end
+      sign_in(admin, company: company)
+
+      delete workshop_workshop_group_path(taller, mesa)
+
+      expect(flash[:notice]).to include("borrador")
+      expect(table_exists?(mesa)).to be(false)
+      expect(as_company(company) { WorkshopDraft.count }).to eq(0)
+    end
+
     it "en modo individual se borra como siempre: cada persona es su mesa" do
       individual = workshop_with(mode: "individual")
       mesa = as_company(company) { create(:workshop_group, workshop: individual) }

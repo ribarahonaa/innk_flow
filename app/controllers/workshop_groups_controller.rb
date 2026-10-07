@@ -36,6 +36,7 @@ class WorkshopGroupsController < ApplicationController
     # se iría por la cascada sin ruido —y las aceptadas son la procedencia de
     # versiones publicadas—. Va antes de pedir la llegada para no crear una
     # que después la guarda rechaza.
+    had_draft = false
     refused = group.with_lock do
       # Misma regla que `AssignGroups` (no rearmar con propuestas), para que
       # borrar a mano y repartir no se contradigan.
@@ -57,6 +58,13 @@ class WorkshopGroupsController < ApplicationController
       # Recargar: la asociación pudo cargarse antes de mudar los asientos, y
       # `destroy!` los borraría por `dependent: :destroy`.
       group.workshop_group_members.reset
+      # A diferencia del reparto, acá el borrador SÍ se va con la mesa, y el
+      # aviso lo dice. En `AssignGroups` la mesa queda vacía por un efecto del
+      # reparto y nadie eligió perderla; acá alguien eligió ESTA mesa por su
+      # nombre. Tampoco se niega como con las propuestas: ninguna pantalla borra
+      # un borrador, así que una mesa con texto tecleado quedaría imposible de
+      # borrar para siempre. Se lee antes del `destroy!`, que lo borra.
+      had_draft = group.workshop_drafts.exists?
       group.destroy!
       nil
     end
@@ -65,7 +73,8 @@ class WorkshopGroupsController < ApplicationController
       return redirect_to workshop_path(@workshop),
                          alert: "Esta mesa ya tiene propuestas: no se elimina. Las mesas con trabajo hecho se mueven a mano."
     end
-    redirect_to workshop_path(@workshop), notice: "Mesa eliminada."
+    notice = had_draft ? "Mesa eliminada, con el borrador que tenía sin mandar." : "Mesa eliminada."
+    redirect_to workshop_path(@workshop), notice: notice
   end
 
   def assign

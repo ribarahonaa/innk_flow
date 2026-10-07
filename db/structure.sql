@@ -1,4 +1,4 @@
-\restrict EAY4r9OEjG4XDGpKWHeod70JF2xzutbwBFOSCYURhLS42womb2mUlxHi3HBPhiG
+\restrict ppa8SsG7IG8cIqG6fH7HMF3ADVFmfkyKAKqm0Tp75t8BH4PfevNPtnwcDFAA2d2
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -2174,10 +2174,24 @@ CREATE INDEX index_workshop_drafts_on_company_id ON public.workshop_drafts USING
 
 
 --
+-- Name: index_workshop_drafts_on_idea_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_drafts_on_idea_id ON public.workshop_drafts USING btree (idea_id);
+
+
+--
 -- Name: index_workshop_drafts_on_updated_by_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX index_workshop_drafts_on_updated_by_id ON public.workshop_drafts USING btree (updated_by_id);
+
+
+--
+-- Name: index_workshop_drafts_on_workshop_group_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_drafts_on_workshop_group_id ON public.workshop_drafts USING btree (workshop_group_id);
 
 
 --
@@ -3257,7 +3271,7 @@ ALTER TABLE ONLY public.workshop_proposals
 -- PostgreSQL database dump complete
 --
 
-\unrestrict EAY4r9OEjG4XDGpKWHeod70JF2xzutbwBFOSCYURhLS42womb2mUlxHi3HBPhiG
+\unrestrict ppa8SsG7IG8cIqG6fH7HMF3ADVFmfkyKAKqm0Tp75t8BH4PfevNPtnwcDFAA2d2
 
 SET search_path TO "$user", public;
 

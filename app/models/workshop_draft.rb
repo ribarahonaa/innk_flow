@@ -16,10 +16,21 @@ class WorkshopDraft < ApplicationRecord
   belongs_to :based_on_version, class_name: "IdeaVersion", optional: true
   belongs_to :updated_by, class_name: "User"
 
+  validate :group_and_room_share_workshop
   validate :idea_matches_room
   validate :version_belongs_to_idea
 
   private
+
+  # La mesa y la sala tienen que ser del mismo taller. Hoy sólo el servidor
+  # puede romperlo, y por eso mismo es lo que un copy-paste rompe sin que nada
+  # se queje: las FK compuestas sólo atan a la misma EMPRESA.
+  def group_and_room_share_workshop
+    return if workshop_group.nil? || workshop_challenge.nil?
+    return if workshop_group.workshop_id == workshop_challenge.workshop_id
+
+    errors.add(:workshop_challenge_id, "la sala es de otro taller que la mesa")
+  end
 
   # No puede ser un CHECK de Postgres: el `kind` está tres tablas más allá
   # (`workshop_challenges` → `challenge_steps` → `kind`).
