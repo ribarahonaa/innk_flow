@@ -6,6 +6,8 @@ import '@hotwired/turbo-rails';
 import './ia_popups';
 // La mesa de llegada de un taller se refresca sola mientras el check-in está abierto.
 import './arrival_live';
+// Lo que la mesa teclea en la sala de un taller se guarda solo.
+import './workshop_draft';
 
 // Conservar el scroll cuando la pantalla se actualiza sin recargarse.
 //

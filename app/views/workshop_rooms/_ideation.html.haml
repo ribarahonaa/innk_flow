@@ -74,7 +74,11 @@
       - mates = group.members.reject { |person| person.id == current_user.id }
       - if mates.any?
         %p.muted= "El borrador se comparte con #{mates.map(&:name).to_sentence}: es de la mesa, no solo tuyo."
-      = form_with url: workshop_sala_ideas_path(workshop, link), multipart: true do
+      -# `data-draft-url` es lo que enciende el autoguardado: el JS no sabe ni
+      -# tiene que saber si esta sala admite trabajo. Mismo principio que
+      -# `data-live` en `arrival_live.js`.
+      = form_with url: workshop_sala_ideas_path(workshop, link), multipart: true,
+                  data: { draft_url: workshop_sala_draft_path(workshop, link), debounce: 2000 } do
         -# Sin `id_prefix`: existía porque dos salas se renderizaban en la misma
         -# pantalla y las dos emitían `id="payload_<clave>"`, así que el
         -# `<label for>` de la segunda enfocaba el campo de la primera. Con una

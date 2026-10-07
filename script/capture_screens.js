@@ -19,6 +19,9 @@ const shots = [];
 let failures = 0;
 // En cuántas pantallas `[LIVE]` midió que la mesa de llegada se refresca sola.
 let liveMeasurements = 0;
+// En cuántas de las dos caras de la sala `[DRAFT]` midió que el texto vuelve
+// después de recargar. Las dos, o la guarda dejó de ver una.
+let draftMeasurements = 0;
 
 // Un módulo por su TIPO, no por su nombre: el nombre es editable y una
 // propuesta de la IA lo reescribe entero.
@@ -1367,6 +1370,10 @@ async function revisarAnchoDeCriterio(page, name) {
 // o `[CRITERIO]`, que varían entre corridas. Cinco de margen son las pantallas
 // sin riel que podrían sumarse; un renombre de `.app-rail` lo lleva a cero.
 const PISO_DE_RIEL = 66;
+
+// EXACTO y no flojo: son las dos caras de la sala, idear y evolución, y no hay
+// una tercera. Un piso flojo no cazaría que una dejó de medirse.
+const PISO_DE_BORRADORES = 2;
 let rielesMedidos = 0;
 
 // Las pantallas que legítimamente no marcan ninguna entrada, declaradas una por
@@ -1468,6 +1475,48 @@ const PISO_DE_BANDAS = 71;
 // `page.evaluate` de `medirContraste`. Y además `medirContraste` compone la
 // cadena de fondos hasta el primer opaco, que es lo que hay que hacer si
 // alguna vez la banda lleva alfa.
+// Lo único que un spec de Ruby no puede ver: el bundle, el temporizador y el
+// endpoint pueden estar los tres en verde y el texto no volver.
+//
+// Tipea, espera el debounce, RECARGA, y mira que el texto esté. La recarga es el
+// punto: sin ella se estaría probando que el navegador conserva lo que acabás de
+// escribir, que es cierto sin autoguardado.
+//
+// Un MISMO selector para tipear y para leer, y acotado a lo que se puede tipear:
+// un `fill` sobre un checkbox o un file revienta, y dos selectores distintos
+// podrían medir un campo que no es el que se escribió.
+const SELECTOR_DE_CAMPO = 'form[data-draft-url] input[type="text"], form[data-draft-url] textarea';
+
+async function revisarBorrador(page, nombre) {
+  const campo = page.locator(SELECTOR_DE_CAMPO).first();
+  if (!(await campo.count())) {
+    failures++;
+    console.error(`[DRAFT] ${nombre}: el formulario de la sala no tiene campo con autoguardado`);
+    return;
+  }
+  const marca = `borrador-${Date.now()}`;
+  const previo = await campo.inputValue();
+  await campo.fill(marca);
+  const espera = Number(await page.locator('form[data-draft-url]').first().getAttribute('data-debounce')) || 2000;
+  await page.waitForTimeout(espera + 1500);
+
+  // El sello tiene que haber cambiado: es el acuse de que el PATCH respondió.
+  const sello = (await page.locator('#draft-stamp').first().innerText()).trim();
+  if (!sello) {
+    failures++;
+    console.error(`[DRAFT] ${nombre}: el sello quedó vacío, así que el autoguardado no acusó nada`);
+  }
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const vuelto = await page.locator(SELECTOR_DE_CAMPO).first().inputValue();
+  if (vuelto !== marca) {
+    failures++;
+    console.error(`[DRAFT] ${nombre}: después de recargar el campo dice «${vuelto}» y la mesa había escrito «${marca}» (antes decía «${previo}»)`);
+    return;
+  }
+  draftMeasurements++;
+}
+
 async function revisarBanda(page, name) {
   const medidos = await medirContraste(page, '.page-banner');
   if (!medidos.length) return;
@@ -3183,6 +3232,7 @@ async function revisarTema(page, pantalla, url) {
         }
       }
       await capturar(page, '25-taller-sala-idear');
+      await revisarBorrador(page, 'sala de idear');
       await goToWorkshop('Taller de mejora continua');
     }
 
@@ -3233,6 +3283,7 @@ async function revisarTema(page, pantalla, url) {
           console.error(`[TALLER] con una idea elegida hay ${forms} formularios de propuesta y se esperaba 1`);
         }
         await capturar(page, '26b-taller-idea-elegida');
+        await revisarBorrador(page, 'sala de evolución');
       } else {
         failures++;
         console.error('[TALLER] ninguna idea del selector se puede elegir');
@@ -3585,7 +3636,7 @@ async function revisarTema(page, pantalla, url) {
   // verde y es indistinguible de una que funciona, que es el modo de falla que
   // este script ya pagó dos veces (la pasada oscura del muestrario, y `[MONO]`
   // después del arreglo).
-  console.log(`[RITMO] ${pantallasConRitmo} de ${shots.length} pantallas tuvieron dos tarjetas que comparar · [RELLENO] ${cardBodiesMedidos} \`card-body\` medidos · [PASTILLA] ${pastillasMedidas} chips y avisos medidos · [CRITERIO] ${criteriosMedidos} nombres medidos · [LIVE] ${liveMeasurements} pantalla(s) medida(s) · [RIEL] ${rielesMedidos} pantallas con riel · [BANDA] ${bandasMedidas} pantallas con banda · [SOMBRA] ${sombrasMedidas} tarjetas medidas · [CAMPO] ${camposMedidos} campos medidos`);
+  console.log(`[RITMO] ${pantallasConRitmo} de ${shots.length} pantallas tuvieron dos tarjetas que comparar · [RELLENO] ${cardBodiesMedidos} \`card-body\` medidos · [PASTILLA] ${pastillasMedidas} chips y avisos medidos · [CRITERIO] ${criteriosMedidos} nombres medidos · [LIVE] ${liveMeasurements} pantalla(s) medida(s) · [RIEL] ${rielesMedidos} pantallas con riel · [BANDA] ${bandasMedidas} pantallas con banda · [SOMBRA] ${sombrasMedidas} tarjetas medidas · [CAMPO] ${camposMedidos} campos medidos · [DRAFT] ${draftMeasurements} caras medidas`);
   if (pantallasConRitmo < PISO_DE_RITMO) {
     failures++;
     console.error(`[RITMO] sólo ${pantallasConRitmo} de ${shots.length} pantallas tuvieron un par de tarjetas que comparar, y el piso es ${PISO_DE_RITMO}: la guarda dejó de ver las tarjetas`);
@@ -3597,6 +3648,10 @@ async function revisarTema(page, pantalla, url) {
   if (pastillasMedidas < PISO_DE_PASTILLAS) {
     failures++;
     console.error(`[PASTILLA] sólo se midieron ${pastillasMedidas} chips y avisos en ${shots.length} pantallas, y el piso es ${PISO_DE_PASTILLAS}: la guarda dejó de ver los chips`);
+  }
+  if (draftMeasurements < PISO_DE_BORRADORES) {
+    failures++;
+    console.error(`[DRAFT] sólo ${draftMeasurements} de ${PISO_DE_BORRADORES} caras de la sala midieron el autoguardado: la guarda dejó de ver una`);
   }
   if (!liveMeasurements) {
     failures++;
