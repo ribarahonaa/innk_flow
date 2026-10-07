@@ -820,8 +820,13 @@ la última tecla, sin publicar nada**: vive en `workshop_drafts` y mandarlo sigu
 botón. Lo que decidió la spec y no se lee del código:
 
 - **El borrador es de la MESA y no de cada persona** (último que escribe gana,
-  del lado del servidor). Es lo que la pantalla ya promete —«el borrador se
-  comparte con…: es de la mesa, no solo tuyo»— y es lo único que sobrevive al
+  del lado del servidor). Concuerda con cómo la pantalla ya trata el
+  trabajo de la mesa, pero no es una promesa que ella hiciera: la línea «el
+  borrador se comparte con…: es de la mesa, no solo tuyo» es preexistente y habla
+  de la `Idea` que crea «Crear borrador», no del autoguardado. En ese card
+  «borrador» significa ahora TRES cosas (esa `Idea` en `draft`, el
+  `WorkshopDraft` y `Workshop#draft?`) y nada anuncia el autoguardado: el
+  `#draft-stamp` nace vacío. Es lo único que sobrevive al
   caso que esto existe para evitar: que al que escribe se le muera la máquina o
   se vaya, y el texto quede para el resto.
 - **Gana el borrador sobre la versión vigente, CON aviso.** Las otras dos

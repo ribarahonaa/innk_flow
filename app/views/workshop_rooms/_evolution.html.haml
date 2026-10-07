@@ -88,7 +88,8 @@
           %h2.section-title Proponer cambios
         = form_with url: workshop_sala_proposals_path(workshop, link),
                     data: { draft_url: workshop_sala_draft_path(workshop, link),
-                            draft_idea: selected.id, debounce: 2000 } do
+                            draft_idea: selected.id,
+                            draft_base: selected.current_version_id, debounce: 2000 } do
           = hidden_field_tag :idea_id, selected.id
           -# El borrador le gana a la versión vigente: es el texto de la mesa. Si
           -# la versión avanzó desde que se guardó, el aviso de arriba lo dice.

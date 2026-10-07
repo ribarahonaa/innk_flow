@@ -16,10 +16,15 @@ class WorkshopDraftsController < ApplicationController
 
   def update
     authorize @workshop, :work?
-    # Las mismas cuatro guardas que `WorkshopIdeasController` y
-    # `WorkshopProposalsController`, en el mismo orden. Repetidas y no
-    # reescritas: divergir es cómo se abrió la fuga que esos dos documentan
-    # —`work?` da true por `administers_any?` SIN mesa—.
+    # Las guardas de `WorkshopIdeasController` y `WorkshopProposalsController`,
+    # en el mismo orden, con UNA diferencia: aquéllos piden `@link.workable? &&
+    # @link.kind == "ideation"` (o `"evolution"`) y éste sólo `workable?`. Con un
+    # `kind` fuera de los trabajables el ternario de abajo cae en la rama de idear
+    # y escribe una fila que ninguna pantalla puede renderizar. Se tolera porque
+    # hace falta un PATCH armado a mano —ninguna sala ofrece ese formulario— y
+    # el daño es una fila huérfana de la propia mesa. Lo que se repite y no se
+    # reescribe es el resto: divergir es cómo se abrió la fuga que esos dos
+    # documentan —`work?` da true por `administers_any?` SIN mesa—.
     return head :conflict unless @link.workable?
 
     group = @workshop.group_of(current_user)
@@ -36,7 +41,7 @@ class WorkshopDraftsController < ApplicationController
     # La fase la decide la SALA y no el cliente: un `idea_id` mandado a una sala
     # de idear se ignora. Si se aceptara, el cliente crearía una fila con idea en
     # esa cara y escaparía al índice de unicidad pensado para ella.
-    idea = @link.kind == "evolution" ? workable_idea : nil
+    idea = @link.kind == "evolution" ? workable_idea(group) : nil
 
     payload = payload_params
     # `?payload=x`: un escalar en vez de un hash. Es un cuerpo mal formado y
@@ -79,10 +84,10 @@ class WorkshopDraftsController < ApplicationController
   # comparte, y la mesa trabaja la idea de CUALQUIERA de sus integrantes. El 404
   # se conserva: una idea fuera del conjunto no se distingue de una inexistente,
   # así que no confirma que exista.
-  def workable_idea
-    @workshop.group_of(current_user)
-             .workable_ideas(@link.challenge)
-             .find_by!(id: params[:idea_id])
+  # Recibe la mesa que `update` ya resolvió: «cuál es mi mesa» vive en
+  # `Workshop#group_of` y no se vuelve a preguntar acá.
+  def workable_idea(group)
+    group.workable_ideas(@link.challenge).find_by!(id: params[:idea_id])
   end
 
   # Contra el formulario declarado: una clave que no es de un campo se descarta.
@@ -109,7 +114,19 @@ class WorkshopDraftsController < ApplicationController
     # autoguardado movería la base a la versión nueva y el aviso de base vieja
     # nunca dispararía. Al mandar, el borrador se borra y el próximo nace con la
     # versión de ese momento.
-    draft.based_on_version_id = idea&.current_version_id if draft.new_record?
+    #
+    # La versión la dice el CLIENTE (`base_version_id`: contra la que la vista
+    # prellenó el formulario) y no la base al primer PATCH: entre el render y la
+    # primera tecla la versión puede avanzar, y sellar la nueva sobre contenido de
+    # la vieja apagaba el aviso para siempre. No se confía a ciegas: se busca entre
+    # las versiones DE ESA idea (una ajena o inexistente cae a la vigente; el
+    # modelo además rechaza una de otra idea con `version_belongs_to_idea`), y si el cliente
+    # miente con una vieja de la MISMA idea lo peor que logra es que el aviso
+    # dispare de más, que es el lado seguro. Sin la clave (un cliente viejo, un
+    # PATCH a mano) se cae a leer `current_version_id` de la base.
+    if draft.new_record?
+      draft.based_on_version_id = idea && (idea.versions.find_by(id: params[:base_version_id])&.id || idea.current_version_id)
+    end
     draft.update!(payload: payload, updated_by: current_user)
   rescue ActiveRecord::RecordNotUnique
     raise if intento > 1

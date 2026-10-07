@@ -2,9 +2,13 @@
 
 # El borrador de trabajo de una mesa: lo tecleado que todavía no se mandó.
 #
-# Es de la MESA y no de cada persona, que es lo que la pantalla ya promete («es
-# de la mesa, no solo tuyo») y lo único que sobrevive al caso que esto existe
-# para prevenir: al escribiente se le muere la máquina o se va, y el texto sigue
+# Es de la MESA y no de cada persona, y concuerda con cómo la pantalla ya trata el
+# trabajo de la mesa (la `Idea` que crea «Crear borrador» nace con la mesa entera
+# como `idea_contributors`). Esa línea de la pantalla NO prometía esto: habla de
+# la `Idea`, no del autoguardado. En ese card «borrador» ya significa TRES cosas
+# —la `Idea` en `draft`, este modelo y `Workshop#draft?`— y nada anuncia el
+# autoguardado: el sello nace vacío. Es lo único que sobrevive al caso que esto
+# existe para prevenir: al escribiente se le muere la máquina o se va, y el texto sigue
 # ahí para el resto. El precio es última-escritura-gana, y la señal de colisión
 # es `updated_by` en el sello.
 class WorkshopDraft < ApplicationRecord

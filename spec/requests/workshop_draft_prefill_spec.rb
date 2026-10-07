@@ -256,6 +256,20 @@ RSpec.describe "sala del taller: el borrador se prellena", type: :request do
     # que lo escribe: el endpoint sella SÓLO al crear la fila, y si eso se rompiera
     # —resellando en cada autoguardado— el aviso no podría dispararse nunca y los
     # cuatro ejemplos de arriba seguirían verdes.
+    # Literales a propósito: son lo único que la mesa lee para saber si su trabajo
+    # está a salvo. Si la clave del locale desaparece el acuse pasa a ser un
+    # `translation missing` y la guarda de capturas no se entera, porque compara
+    # el atributo contra lo que el JS copió de ese mismo atributo.
+    it "el sello trae los textos de guardado y de fallo, literales" do
+      sign_in(ana, company: company)
+      get workshop_sala_path(evolucion[:workshop], evolucion[:link], idea: evolucion[:idea].id)
+
+      expect(response.body).to include('data-saved-text="Guardado ahora."')
+      expect(response.body).to include(
+        'data-failed-text="No se pudo guardar: copiá el texto antes de salir."'
+      )
+    end
+
     it "de extremo a extremo: la mesa autoguarda, la versión avanza, la mesa autoguarda de nuevo y el aviso aparece" do
       sign_in(ana, company: company)
       patch workshop_sala_draft_path(evolucion[:workshop], evolucion[:link]),

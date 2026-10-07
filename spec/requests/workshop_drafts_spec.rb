@@ -46,6 +46,11 @@ RSpec.describe "sala del taller: el borrador de la mesa", type: :request do
     it "sin sesión no entra" do
       patch_draft(idear, payload: { idear[:field].key => "x" })
       expect(response).to have_http_status(:found)
+      # El `fetch` del autoguardado SIGUE ese 302 y lo lee como 200: por eso el JS
+      # exige 204 y no `res.ok`. Este ejemplo fija la premisa: el rechazo no es 204
+      # y no escribe nada.
+      expect(response).not_to have_http_status(:no_content)
+      expect(drafts).to be_empty
     end
 
     # Un taller es por convocatoria: a quien participa y no está sentado el scope
@@ -298,6 +303,35 @@ RSpec.describe "sala del taller: el borrador de la mesa", type: :request do
       draft = drafts.sole
       expect(draft.payload[evolucion[:field].key]).to eq("dos")
       expect(draft.based_on_version_id).to eq(evolucion[:version].id)
+    end
+
+    # El formulario se prellena al RENDERIZAR y la mesa puede tardar en teclear: el
+    # sello es contra la versión del render, no la de la base al primer PATCH.
+    it "el sello usa la versión con la que se prellenó, aunque la idea avanzara antes del primer PATCH" do
+      sign_in(ana, company: company)
+      get workshop_sala_path(evolucion[:workshop], evolucion[:link], idea: evolucion[:idea].id)
+      expect(response.body).to include(%(data-draft-base="#{evolucion[:version].id}"))
+      as_company(company) do
+        Flow::Ideas::PublishVersion.new(
+          evolucion[:idea], payload: { evolucion[:field].key => "v2" }, author: ana
+        ).call
+      end
+
+      patch_draft(evolucion, payload: { evolucion[:field].key => "uno" },
+                             idea_id: evolucion[:idea].id,
+                             base_version_id: evolucion[:version].id)
+      expect(drafts.sole.based_on_version_id).to eq(evolucion[:version].id)
+
+      get workshop_sala_path(evolucion[:workshop], evolucion[:link], idea: evolucion[:idea].id)
+      expect(response.body).to include("la versión vigente ya es v2")
+    end
+
+    it "una versión inexistente cae a la vigente, sin reventar" do
+      sign_in(ana, company: company)
+      patch_draft(evolucion, payload: { evolucion[:field].key => "x" },
+                             idea_id: evolucion[:idea].id, base_version_id: 999_999_999)
+      expect(response).to have_http_status(:no_content)
+      expect(drafts.sole.based_on_version_id).to eq(evolucion[:version].id)
     end
 
     # No se agrega tope: `WorkshopProposal.payload` ya acepta el mismo contenido

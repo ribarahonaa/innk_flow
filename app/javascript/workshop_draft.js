@@ -42,6 +42,10 @@ function cuerpo(form) {
   const datos = new URLSearchParams();
   const idea = form.dataset.draftIdea;
   if (idea) datos.append('idea_id', idea);
+  // Contra qué versión se prellenó el formulario: el servidor la sella al crear la
+  // fila (ver `WorkshopDraftsController#write!`).
+  const base = form.dataset.draftBase;
+  if (base) datos.append('base_version_id', base);
   for (const campo of form.querySelectorAll('[name^="payload["]')) {
     if (campo.type === 'file') continue;
     if ((campo.type === 'checkbox' || campo.type === 'radio') && !campo.checked) continue;
@@ -87,7 +91,14 @@ async function guardar({ keepalive = false } = {}) {
     });
     // Un fallo se DICE, no se traga. Un autoguardado que falla en silencio es
     // peor que no tenerlo: la mesa confía y pierde todo.
-    if (!res.ok) throw new Error(res.status);
+    //
+    // `!== 204` y NO `!res.ok`: el endpoint sólo contesta 204 (guardó, no había
+    // `payload` o no sobrevivió ninguna clave). `res.ok` es cierto para cualquier
+    // 2xx, y un `before_action` que redirige —sesión caída, membresía revocada—
+    // llega como 200 después de que el `fetch` sigue el 302 y convierte el método
+    // en GET: con `!res.ok` el sello diría «Guardado ahora.» sobre un guardado que
+    // nunca ocurrió.
+    if (res.status !== 204) throw new Error(res.status);
     if (form !== enviadoDesde) return;
     // «0» es un 204 de «no había nada que guardar»: no es un fallo, pero decir
     // «Guardado» sería mentir. Tras un fallo previo el «No se pudo guardar» se

@@ -3110,8 +3110,10 @@ async function revisarTema(page, pantalla, url) {
   // No se abre, no se propone ni se acepta nada, pero `[DRAFT]` SÍ escribe: deja
   // dos filas de `workshop_drafts` por corrida (una por cara de la sala), y la
   // captura `25` de la corrida siguiente sale con ese texto en el campo. El seed
-  // borra los borradores sobrantes (Tarea 6); hasta entonces dos corridas sin
-  // resembrar no encuentran el mismo estado.
+  // borra los borradores al resembrar (el `destroy_all` del taller se los lleva
+  // por cascada); resembrar no es parte de `make screens`, así que dos corridas
+  // seguidas SIN resembrar no encuentran el mismo estado: `25` y `26b` salen con
+  // el texto de la anterior.
   const goToWorkshop = async (workshopName) => {
     // Desde donde esté la pantalla: el nav está en todas. El listado se
     // espera por su título, no por la red.
