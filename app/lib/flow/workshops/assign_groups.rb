@@ -142,9 +142,11 @@ module Flow
       # que sobrevive sólo por eso es un sobrante inocuo; perder la propuesta no.
       #
       # El borrador se suma por lo mismo y con dos diferencias. Su escritor
-      # (`WorkshopDraftsController#update`) tampoco toma lock y se dispara SOLO
-      # cada dos segundos, lo que sube la PROBABILIDAD de caer en la ventana (no
-      # su ancho). Y acá la cláusula no tapa un hueco que otro chequeo cubre: es
+      # (`WorkshopDraftsController#update`) tampoco toma lock y se dispara como
+      # mucho una vez cada dos segundos MIENTRAS alguien teclea —es un debounce
+      # y no un ciclo: quieta la mesa, no se dispara nunca—, lo que sube la
+      # PROBABILIDAD de caer en la ventana (no su ancho). Y acá la cláusula no
+      # tapa un hueco que otro chequeo cubre: es
       # el ÚNICO chequeo, porque el guarda de arriba no mira borradores.
       # Lo que NO se toca es el guarda de arriba: negarse a repartir porque
       # alguien tecleó una palabra bloquearía una operación común por texto sin

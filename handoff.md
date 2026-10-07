@@ -35,9 +35,28 @@ Plan: `docs/superpowers/plans/2026-10-07-borrador-de-mesa.md` (seis tareas).
 
 ## 2. Estado actual
 
-Rama **`borrador-de-mesa`**, 14 commits sobre `master`. **Nada pusheado**:
-`master` está en `acda95a` local y remoto (verificado con `gh api`, no con
-`git rev-parse origin/master`, que lee una foto local).
+Rama **`borrador-de-mesa`**, 16 commits sobre `master`. **Ocho de ellos ya están
+en el remoto**: `origin/borrador-de-mesa` está en `40d9318` y lo local va 8
+adelante. `master` sigue en `acda95a` local y remoto.
+
+Ese push **no lo hizo esta sesión a propósito**: la actividad del remoto muestra
+un único evento, `branch_creation` en `40d9318` —el commit de la Tarea 4—, con
+la credencial del repo. Lo más probable es que lo haya hecho el implementador de
+esa tarea: el despacho le prohibía `rebase` y `reset`, y **no** le prohibía
+pushear. Consecuencia práctica para quien siga: **no hagas `force-push`** sobre
+esa rama sin mirar primero, y asumí que `259718d`…`40d9318` son públicos.
+
+Verificado así, que es el punto:
+
+```bash
+git branch -vv                                                   # ahead/behind
+gh api repos/ribarahonaa/innk_flow/branches/borrador-de-mesa --jq .commit.sha
+```
+
+**Preguntá por la RAMA, no por `master`.** La primera versión de este handoff
+decía «nada pusheado, verificado con `gh api`», y la verificación era real pero
+medía el ref de al lado: el sha de `master` no dice nada sobre si la rama se
+publicó. Es la misma familia de error que el handoff anterior ya había pagado.
 
 - `make spec`: **1682 ejemplos, 0 fallas** — corrido por mí y no declarado por un
   subagente, porque el verde declarado de una ronda resultó falso y la rama
@@ -164,7 +183,8 @@ nueva** — así que el `WorkshopDraft.delete_all` que el plan pedía era redund
 y, bajo `bypass!`, habría borrado los borradores de todas las empresas.
 
 **Lo de siempre, que vuelve a aparecer**: `db:migrate:redo` aborta porque
-`tenant_table` usa `execute` en tres lugares y no es reversible (13 migraciones
+`tenant_table` no es reversible: usa `execute` (el helper tiene tres, uno
+en cada método) (13 migraciones
 del repo la usan; se deshace con `DROP TABLE` más borrar la fila de
 `schema_migrations`). Y un commit salió con las líneas de atribución que el dueño
 del repo no quiere; se enmendó antes de pushear.

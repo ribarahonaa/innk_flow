@@ -216,7 +216,8 @@ menos una», 66, 71, 275, 270 y 2, en ese orden.
 excepción, `[DRAFT]`, que sigue más abajo—, y la diferencia tiene motivo. Los
 demás cuentan cosas que se mueven —tarjetas, chips y campos con los datos; el
 riel, con las pantallas que podrían sumarse— y necesitan margen; `[BANDA]`
-cuenta VISTAS que publican `content_for :banda`, que es un número fijo, y lo único que esa guarda existe para cazar es la vista olvidada.
+cuenta VISTAS que publican `content_for :banda`, que es un número fijo, y
+lo único que esa guarda existe para cazar es la vista olvidada.
 Con un piso flojo no la caza: borrar el `content_for` de una sola bajaba el
 conteo (63 → 60, medido) y un piso al 92% no se enteraba. El precio es que
 sumar una pantalla con banda obliga a subir el piso con ella.
@@ -243,7 +244,9 @@ lo único que ve el camino completo —el bundle, el temporizador y el endpoint
 pueden estar los tres en verde y el texto no volver—. **Mide todos los campos
 del formulario y no el primero**, con un piso de 2 campos por cara: con uno solo
 no podría cazar que el JS mande sólo el campo que cambió, que es la invariante
-que todo el borrador protege. Está probada con dos mutaciones que fallan
+que todo el borrador protege: sin ese piso, bajar el seed a un campo tipeable
+dejaría la verificación midiendo uno y en silencio; con él, falla a los
+gritos. Está probada con dos mutaciones que fallan
 distinto: rompiendo el JS fallan las dos caras; rompiendo el prellenado del
 servidor de UNA sola cara falla esa y no la otra, que es lo que prueba que mide
 cada una por separado.

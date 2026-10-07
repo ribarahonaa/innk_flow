@@ -8,8 +8,9 @@
 #
 # Responde con códigos pelados y NUNCA con un redirect. Los otros dos POST de la
 # sala redirigen con flash porque los dispara una persona apretando un botón;
-# esto lo dispara un temporizador cada dos segundos, y un `redirect_to` haría que
-# el `fetch` siga la redirección y traiga la pantalla entera cada vez.
+# esto lo dispara un temporizador dos segundos después de la última tecla, y un
+# `redirect_to` haría que el `fetch` siga la redirección y traiga la pantalla
+# entera cada vez.
 class WorkshopDraftsController < ApplicationController
   before_action :set_link
 
