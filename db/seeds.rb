@@ -761,6 +761,19 @@ Flow::Tenant.bypass! do
     # ellos, y `workshop_group_members.user_id` es una FK sin `ON DELETE`, así
     # que con el asiento en pie Postgres no deja borrar la fila de `users`.
     User.where(email: "llegada@taller.example").destroy_all
+    # El recorrido también deja datos que ningún seed produce: la guarda
+    # `[DRAFT]` teclea en las dos caras de la sala y deja un `workshop_draft` por
+    # cara. A diferencia de Lucía Llegada, eso NO necesita borrado propio: ella es
+    # un `User`, que no cuelga de ningún taller, mientras el borrador cuelga de la
+    # mesa y de la sala, y las dos se destruyen con el taller (el
+    # `dependent: :destroy` de Rails y, debajo, las FK compuestas con
+    # `ON DELETE CASCADE`). El `destroy_all` de arriba ya lo deja en cero.
+    #
+    # No agregar un `WorkshopDraft.delete_all`: bajo `bypass!` se llevaría los
+    # borradores de TODAS las empresas. Lo que sí queda es que dos corridas
+    # seguidas SIN resembrar dejan la captura `25-taller-sala-idear` con el texto
+    # de la corrida anterior en el campo, porque `revisarBorrador` corre DESPUÉS
+    # de `capturar`. Resembrar lo limpia, igual que a Lucía Llegada.
     %w[taller-idear taller-evolucion taller-avanzado].each { |slug| Challenge.where(slug: slug).destroy_all }
 
     workshop_admin = User.find_by!(email: "admin@demo.test")

@@ -200,25 +200,30 @@ fuera de su alcance (queda anotada abajo, con las superficies). Extender
 primer día. Lo cosmético en oscuro es perder la SOMBRA, que es el motivo de
 `[SOMBRA]` y no el de éste.
 
-**Nueve de las guardas cuentan cuánto midieron y fallan si midieron de menos**
+**Diez de las guardas cuentan cuánto midieron y fallan si midieron de menos**
 —en cuántas pantallas `[RITMO]` encontró dos tarjetas que comparar, cuántos
 `card-body` vio `[RELLENO]`, cuántos chips y avisos midió `[PASTILLA]`, cuántos
 nombres de criterio `[CRITERIO]`, en cuántas pantallas vio `[LIVE]` refrescarse
-sola la mesa de llegada, en cuántas hubo riel (`[RIEL]`) y banda (`[BANDA]`), y
-cuántas tarjetas (`[SOMBRA]`) y cuántos campos (`[CAMPO]`) midió—, porque una
+sola la mesa de llegada, en cuántas hubo riel (`[RIEL]`) y banda (`[BANDA]`),
+cuántas tarjetas (`[SOMBRA]`) y cuántos campos (`[CAMPO]`) midió, y cuántas
+caras de la sala (`[DRAFT]`) vio recuperar lo tecleado—, porque una
 guarda que mide cero da verde y es indistinguible de una que funciona: es el
 mismo motivo por el que `[MONO]` tiene autotest y por el que el muestrario falla
-si mide menos muestras de las que declara. La corrida imprime los nueve números
+si mide menos muestras de las que declara. La corrida imprime los diez números
 en una sola línea al terminar, y los pisos de hoy son 36, 250, 300, 100, «al
-menos una», 66, 71, 275 y 270, en ese orden.
-**`PISO_DE_BANDAS` es EXACTO y los demás van con holgura**, y la diferencia
-tiene motivo. Los demás cuentan cosas que se mueven —tarjetas, chips y campos
+menos una», 66, 71, 275, 270 y 2, en ese orden.
+**`PISO_DE_BANDAS` es EXACTO y los demás van con holgura** —con una segunda
+excepción, `[DRAFT]`, de la que hablo abajo—, y la diferencia tiene motivo. Los demás cuentan cosas que se mueven —tarjetas, chips y campos
 con los datos; el riel, con las pantallas que podrían sumarse— y necesitan
 margen; `[BANDA]` cuenta VISTAS que publican `content_for :banda`, que es un
 número fijo, y lo único que esa guarda existe para cazar es la vista olvidada.
 Con un piso flojo no la caza: borrar el `content_for` de una sola bajaba el
 conteo (63 → 60, medido) y un piso al 92% no se enteraba. El precio es que
 sumar una pantalla con banda obliga a subir el piso con ella.
+**El piso de `[DRAFT]` también es EXACTO (2), por un motivo del mismo tipo pero
+no el mismo:** `[BANDA]` cuenta vistas, un número fijo; `[DRAFT]` cuenta las dos
+caras de la sala —idear y evolución— y no hay una tercera, así que un piso flojo
+no cazaría que una dejó de medirse.
 **Y `[PASTILLA]` crece sola entre corridas sobre la misma siembra** —unos 4
 chips por vez (medido: 677 → 689 en cuatro corridas), y vuelve a bajar al
 resembrar—, porque el recorrido le pide cosas a la IA de verdad y después
@@ -230,6 +235,18 @@ Falla si la mesa de llegada de un taller con el check-in abierto no se
 refresca sola en el tiempo que declara su intervalo (`[LIVE]`): el frame, el
 temporizador y el endpoint pueden estar cada uno en verde y la lista quedarse
 quieta, y sólo un navegador corriendo lo ve.
+Falla si lo que la mesa teclea en la sala no vuelve tras recargar (`[DRAFT]`):
+tipea en las dos caras, espera el debounce del autoguardado, **recarga** y mira
+que el texto esté. La recarga es el punto: sin ella la guarda probaría que el
+navegador conserva lo que acabás de escribir, que es cierto sin autoguardado. Es
+lo único que ve el camino completo —el bundle, el temporizador y el endpoint
+pueden estar los tres en verde y el texto no volver—. **Mide todos los campos
+del formulario y no el primero**, con un piso de 2 campos por cara: con uno solo
+no podría cazar que el JS mande sólo el campo que cambió, que es la invariante
+que todo el borrador protege. Está probada con dos mutaciones que fallan
+distinto: rompiendo el JS fallan las dos caras; rompiendo el prellenado del
+servidor de UNA sola cara falla esa y no la otra, que es lo que prueba que mide
+cada una por separado.
 Falla también si aparece monoespaciada donde no hay código
 ni un identificador (`[MONO]`): el texto propio de un elemento mono tiene que
 ser un identificador pelado —«v3», «reduccion_merma»—, y «veredicto por idea» o
@@ -788,6 +805,42 @@ resembrar la muestra sentada — y por eso el seed la BORRA, al lado de los
 talleres: si no, `12-miembros` la lista en toda corrida posterior a la primera.
 Sentar a alguien a mano en ese taller rompe `29`; reusarlo para otra cosa,
 también.
+
+**Lo que la mesa teclea se autoguarda en el SERVIDOR cada 2 segundos, sin
+publicar nada**: vive en `workshop_drafts` y mandarlo sigue siendo apretar el
+botón. Lo que decidió la spec y no se lee del código:
+
+- **El borrador es de la MESA y no de cada persona** (último que escribe gana,
+  del lado del servidor). Es lo que la pantalla ya promete —«el borrador se
+  comparte con…: es de la mesa, no solo tuyo»— y es lo único que sobrevive al
+  caso que esto existe para evitar: que al que escribe se le muera la máquina o
+  se vaya, y el texto quede para el resto.
+- **Gana el borrador sobre la versión vigente, CON aviso.** Las otras dos
+  opciones estaban mal: que ganara la versión tira el trabajo de la mesa sin
+  preguntar —el autor aceptando algo desde su teléfono le borraría el texto en
+  medio de la sesión—, y que ganara en silencio hace que la mesa mande una
+  propuesta que revierte la versión nueva sin enterarse.
+- **El sello de la versión se escribe SÓLO al crear la fila**
+  (`based_on_version_id`). Si se reescribiera en cada autoguardado, el aviso de
+  base vieja no podría dispararse nunca. Es una línea de una palabra
+  (`if draft.new_record?`) de la que depende toda la feature del aviso, y el
+  único test que la cubre es el de extremo a extremo.
+- **Un `PATCH` sin `payload` es un no-op a propósito**, y lo mismo si después de
+  filtrar no sobrevive ninguna clave: con `fetch(:payload, {})` un bug del
+  cliente pisaría el texto de la mesa con nada. Los tres caminos responden 204,
+  así que el endpoint manda la cabecera `X-Draft-Saved: "0"` en los dos que NO
+  escriben — sin eso el sello diría «Guardado ahora.» sobre un guardado que no
+  ocurrió.
+- **La fase la decide la SALA**: un `idea_id` mandado a la cara de idear se
+  ignora.
+- **La cláusula nueva del barrido de mesas vacías de
+  `Flow::Workshops::AssignGroups#seat!` acompaña a la de propuestas por la MISMA
+  razón de carrera**, mientras el guarda de arriba —el que se niega a repartir
+  si ya hay propuestas— **no** se extendió a borradores a propósito: ninguna
+  pantalla borra un borrador, así que una mesa con texto tecleado se volvería
+  imposible de borrar para siempre. Una propuesta se resuelve; un borrador no
+  tiene ese camino. Por eso borrar una mesa a mano se lleva el borrador, y el
+  aviso lo dice.
 
 ### Multi-tenancy: cuatro capas
 
@@ -1472,7 +1525,7 @@ la mira nadie —`[CLASES]` mira fondo, relleno y borde; `[RELLENO]`, relleno;
 `[CONTRASTE]`, color—: una `card` puede perder su tamaño de letra y las 76
 capturas seguir en verde.
 
-**Y hay cuatro cosas más que ninguna guarda ve, anotadas acá para que nadie
+**Y hay siete cosas más que ninguna guarda ve, anotadas acá para que nadie
 las dé por cubiertas:**
 
 - **`[REFERENCIA]` no mide la sala de la mesa.** `revisarReferencia` se llama
@@ -1498,6 +1551,28 @@ las dé por cubiertas:**
   pantalla. O sea que el único lugar donde la paleta llega a un usuario en algo
   que se descarga es justo el que nadie mira: un error ahí sale impreso y no
   sale en ningún rojo.
+- **El autoguardado no avisa en vivo que otra persona de la mesa está
+  escribiendo.** Lo más cercano es el sello al recargar. Es a propósito —un push
+  pediría el canal autenticado y scopeado por empresa que la spec de la lista de
+  llegada ya descartó—, pero que nadie lo dé por cubierto.
+- **El flush al irse de la pantalla no lo mide nada.** `descargar()`, el
+  `keepalive` y el `visibilitychange` de `app/javascript/workshop_draft.js`
+  cubren «la mesa escribe la última frase y medio segundo después cambia de
+  pestaña o se va a otra sala». `[DRAFT]` espera el debounce completo antes de
+  recargar, así que el temporizador normal ya guardó y ese camino **nunca se
+  ejercita**: borrar esas dos líneas deja los 1682 ejemplos y `[DRAFT] 2` en
+  verde. No se le puso guarda a propósito: medirlo pide tipear y navegar
+  inmediatamente, y una guarda que depende de ganarle a una carrera cuesta más
+  en fallas intermitentes de lo que ahorra.
+- **Un envío FALLIDO pierde lo tecleado desde la última pausa de dos
+  segundos.** El listener de `submit` pone `sucio = false` —tiene que hacerlo:
+  si no, cada envío exitoso recrearía el borrador con lo que el servidor acaba
+  de publicar y borrar en la misma transacción, y la mesa lo mandaría de
+  nuevo—, y los caminos de rechazo de la sala redirigen con un `alert:`, o sea
+  302 → 200, así que `turbo:submit-end` informa `success: true` y el cliente
+  **no puede distinguirlos**. Encima el morph pisa lo tecleado: Turbo 8 llama a
+  `morphElements` sin `ignoreActiveValue`, así que `syncInputValue` le devuelve
+  al campo el valor del servidor, incluso al que tiene el foco.
 
 **Dos grillas con el mismo aspecto y mecánica distinta.** En
 `challenges/index` las tarjetas son `.challenge-card`, que declara
