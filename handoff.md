@@ -35,16 +35,9 @@ Plan: `docs/superpowers/plans/2026-10-07-borrador-de-mesa.md` (seis tareas).
 
 ## 2. Estado actual
 
-Rama **`borrador-de-mesa`**, 16 commits sobre `master`. **Ocho de ellos ya están
-en el remoto**: `origin/borrador-de-mesa` está en `40d9318` y lo local va 8
-adelante. `master` sigue en `acda95a` local y remoto.
-
-Ese push **no lo hizo esta sesión a propósito**: la actividad del remoto muestra
-un único evento, `branch_creation` en `40d9318` —el commit de la Tarea 4—, con
-la credencial del repo. Lo más probable es que lo haya hecho el implementador de
-esa tarea: el despacho le prohibía `rebase` y `reset`, y **no** le prohibía
-pushear. Consecuencia práctica para quien siga: **no hagas `force-push`** sobre
-esa rama sin mirar primero, y asumí que `259718d`…`40d9318` son públicos.
+Rama **`borrador-de-mesa`**, 17 commits sobre `master`, **toda pusheada y en
+sincronía**: `origin/borrador-de-mesa` está en `36d0ff1`. `master` sigue en
+`acda95a`, local y remoto, así que **la rama está publicada pero sin mergear**.
 
 Verificado así, que es el punto:
 
@@ -54,9 +47,15 @@ gh api repos/ribarahonaa/innk_flow/branches/borrador-de-mesa --jq .commit.sha
 ```
 
 **Preguntá por la RAMA, no por `master`.** La primera versión de este handoff
-decía «nada pusheado, verificado con `gh api`», y la verificación era real pero
-medía el ref de al lado: el sha de `master` no dice nada sobre si la rama se
-publicó. Es la misma familia de error que el handoff anterior ya había pagado.
+decía «nada pusheado, verificado con `gh api`»: la verificación era real pero
+medía el ref de al lado —el sha de `master` no dice nada sobre si la rama se
+publicó— y en ese momento ya había ocho commits allá. Es la misma familia de
+error que el handoff anterior ya había pagado.
+
+Y un hueco de método que vale para la próxima: la rama apareció en el remoto a
+mitad de la sesión (`branch_creation` en `40d9318`, el commit de la Tarea 4) sin
+que ningún paso lo pidiera. **Los despachos a los implementadores prohibían
+`rebase` y `reset` y no prohibían pushear.** Prohibilo explícito.
 
 - `make spec`: **1682 ejemplos, 0 fallas** — corrido por mí y no declarado por un
   subagente, porque el verde declarado de una ronda resultó falso y la rama
