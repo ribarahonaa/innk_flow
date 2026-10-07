@@ -66,7 +66,9 @@ RSpec.describe WorkshopDraft do
       link, group, challenge = sala("evolution")
       mia = create(:idea, challenge: challenge, author: autora)
       ajena = create(:idea, challenge: challenge, author: autora)
-      version = IdeaVersion.create!(idea: ajena, number: 1, payload: { "titulo" => "x" })
+      version = Flow::Ideas::PublishVersion.new(
+        ajena, payload: { "titulo" => "x" }, author: autora
+      ).call.version
       draft = WorkshopDraft.new(workshop_group: group, workshop_challenge: link,
                                 idea: mia, based_on_version: version,
                                 updated_by: autora, payload: {})
