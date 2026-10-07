@@ -78,7 +78,11 @@
         = form_with url: workshop_sala_proposals_path(workshop, link) do
           = hidden_field_tag :idea_id, selected.id
           -# El borrador le gana a la versión vigente: es el texto de la mesa. Si
-          -# la versión avanzó desde que se guardó, el aviso de arriba lo dice.
+          -# la versión avanzó desde que se guardó, un aviso lo dirá (llega en la
+          -# tarea siguiente; hoy no existe).
+          -# OJO: el borrador REEMPLAZA el hash entero, sin merge. Quien lo escriba
+          -# tiene que mandar el formulario completo, o los campos no tecleados
+          -# vuelven en blanco.
           = render "ideas/form_fields", fields: fields, payload: draft&.payload || selected.payload
           .form-actions
             = submit_tag "Proponer", class: "btn btn-primary"

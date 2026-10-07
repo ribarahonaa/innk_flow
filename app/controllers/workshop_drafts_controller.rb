@@ -48,6 +48,10 @@ class WorkshopDraftsController < ApplicationController
     # sí pasa el filtro.
     return head :no_content if payload.empty?
 
+    # El payload REEMPLAZA al guardado y la sala lo prellena entero, sin merge:
+    # el cliente tiene que mandar el formulario COMPLETO en cada PATCH. Si manda
+    # sólo lo tecleado, los demás campos vuelven en blanco y la propuesta
+    # publica vacío lo que estaba escrito. No «optimizar» mandando menos.
     write!(group, idea, payload)
     head :no_content
   end

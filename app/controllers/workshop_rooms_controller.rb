@@ -93,7 +93,8 @@ class WorkshopRoomsController < ApplicationController
       end
 
     # La precarga va acá, en el punto de uso: el sello nombra a quien tocó
-    # último y el aviso compara la versión.
+    # último y el aviso compara la versión. Esos dos lectores llegan en la
+    # tarea siguiente; hoy nadie lee `updated_by` ni `based_on_version`.
     @draft =
       if @group && !@group.arrival? && @selected_idea
         @group.workshop_drafts.includes(:updated_by, :based_on_version)

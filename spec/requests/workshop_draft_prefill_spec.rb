@@ -84,6 +84,23 @@ RSpec.describe "sala del taller: el borrador se prellena", type: :request do
 
       expect(as_company(company) { WorkshopDraft.count }).to eq(0)
     end
+
+    # La invariante de la transacción: con el borrado afuera, un fallo de
+    # publicación se llevaba el texto de la mesa.
+    it "si la publicación falla, el borrador sigue ahí" do
+      as_company(company) do
+        create(:workshop_draft, workshop_group: idear[:group], workshop_challenge: idear[:link],
+                                updated_by: ana, payload: { idear[:field].key => "a medio escribir" })
+      end
+      allow_any_instance_of(Flow::Ideas::PublishVersion).to receive(:call).and_return(
+        Flow::Ideas::PublishVersion::Result.new(ok: false, version: nil, errors: [ "Título en blanco" ])
+      )
+      sign_in(ana, company: company)
+      post workshop_sala_ideas_path(idear[:workshop], idear[:link]),
+           params: { payload: { idear[:field].key => "ya está" } }
+
+      expect(as_company(company) { WorkshopDraft.count }).to eq(1)
+    end
   end
 
   describe "en evolución" do
@@ -91,7 +108,10 @@ RSpec.describe "sala del taller: el borrador se prellena", type: :request do
       sign_in(ana, company: company)
       get workshop_sala_path(evolucion[:workshop], evolucion[:link], idea: evolucion[:idea].id)
 
-      expect(response.body).to include("lo publicado")
+      # El atributo del campo y no la presencia del texto: «lo publicado» también
+      # sale en el título de la idea y en la tarjeta «Contenido», así que
+      # `include("lo publicado")` pasaba con el prellenado roto.
+      expect(response.body).to include('value="lo publicado"')
     end
 
     # El borrador GANA sobre la versión: es el texto que la mesa escribió.
@@ -106,6 +126,10 @@ RSpec.describe "sala del taller: el borrador se prellena", type: :request do
       get workshop_sala_path(evolucion[:workshop], evolucion[:link], idea: evolucion[:idea].id)
 
       expect(response.body).to include("lo de la mesa")
+      # Sólo discrimina porque el fixture usa `field_type: "text"`: en un
+      # `textarea` o `rich_text` el valor va como contenido del elemento y no
+      # como atributo, y esta aserción pasaría siempre. Si cambiás el tipo del
+      # fixture, cambiá también ésta.
       expect(response.body).not_to include('value="lo publicado"')
     end
 
