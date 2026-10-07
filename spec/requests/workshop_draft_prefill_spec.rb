@@ -171,5 +171,114 @@ RSpec.describe "sala del taller: el borrador se prellena", type: :request do
       expect(response.body).to include("lo publicado")
       expect(otra).to be_present
     end
+
+    # La trampa que el handoff no tenía: la mesa teclea sobre v1, el autor acepta
+    # otra propuesta y la idea pasa a v2, y alguien de la mesa recarga. Gana el
+    # borrador, pero el aviso lo dice: en silencio, la mesa mandaría una
+    # propuesta que revierte v2 sin saberlo.
+    it "avisa cuando la versión vigente avanzó desde que la mesa guardó" do
+      as_company(company) do
+        create(:workshop_draft, workshop_group: evolucion[:group],
+                                workshop_challenge: evolucion[:link], idea: evolucion[:idea],
+                                based_on_version: evolucion[:version], updated_by: ana,
+                                payload: { evolucion[:field].key => "lo de la mesa" })
+        Flow::Ideas::PublishVersion.new(
+          evolucion[:idea], payload: { evolucion[:field].key => "lo nuevo" },
+          author: ana, title: "La mía"
+        ).call
+      end
+      sign_in(ana, company: company)
+      get workshop_sala_path(evolucion[:workshop], evolucion[:link], idea: evolucion[:idea].id)
+
+      expect(response.body).to include("v1")
+      expect(response.body).to include("v2")
+      # Lo que hace útil al aviso: decir CUÁL de los dos se está viendo.
+      expect(response.body).to include("lo que tecleó tu mesa")
+      # Y el formulario sigue trayendo el texto de la mesa.
+      expect(response.body).to include("lo de la mesa")
+    end
+
+    # La otra mitad: una guarda que siempre dispara no discrimina.
+    it "no avisa cuando la versión no se movió" do
+      as_company(company) do
+        create(:workshop_draft, workshop_group: evolucion[:group],
+                                workshop_challenge: evolucion[:link], idea: evolucion[:idea],
+                                based_on_version: evolucion[:version], updated_by: ana,
+                                payload: { evolucion[:field].key => "lo de la mesa" })
+      end
+      sign_in(ana, company: company)
+      get workshop_sala_path(evolucion[:workshop], evolucion[:link], idea: evolucion[:idea].id)
+
+      expect(response.body).not_to include("lo que tecleó tu mesa")
+    end
+
+    # Review Focus: una idea sin versión vigente deja `based_on_version_id` en
+    # NULL. El aviso no aparece —no hay contra qué comparar— y nada revienta.
+    # Sin este ejemplo, el día que alguien vuelva `based_on_version` NOT NULL, el
+    # borrador de una idea sin versión falla al guardar.
+    it "una idea sin versión vigente no avisa y no revienta" do
+      sin_version = as_company(company) do
+        i = create(:idea, challenge: evolucion[:challenge], author: ana, status: "active")
+        create(:workshop_draft, workshop_group: evolucion[:group],
+                                workshop_challenge: evolucion[:link], idea: i,
+                                based_on_version: nil, updated_by: ana,
+                                payload: { evolucion[:field].key => "sobre nada" })
+        i
+      end
+      sign_in(ana, company: company)
+      get workshop_sala_path(evolucion[:workshop], evolucion[:link], idea: sin_version.id)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("sobre nada")
+      expect(response.body).not_to include("lo que tecleó tu mesa")
+    end
+
+    it "el sello nombra a quien guardó último" do
+      as_company(company) do
+        create(:workshop_draft, workshop_group: evolucion[:group],
+                                workshop_challenge: evolucion[:link], idea: evolucion[:idea],
+                                based_on_version: evolucion[:version], updated_by: ana,
+                                payload: { evolucion[:field].key => "lo de la mesa" })
+      end
+      sign_in(ana, company: company)
+      get workshop_sala_path(evolucion[:workshop], evolucion[:link], idea: evolucion[:idea].id)
+
+      # El nombre solo aparece en otros lados (integrantes, autor): se asevera la
+      # frase completa del sello.
+      expect(response.body).to include("Guardado por #{ana.name}")
+    end
+
+    # El único que prueba la cadena COMPLETA. Los de arriba arman el borrador con la
+    # factoría, así que le ponen `based_on_version` a mano y nunca ejecutan el código
+    # que lo escribe: el endpoint sella SÓLO al crear la fila, y si eso se rompiera
+    # —resellando en cada autoguardado— el aviso no podría dispararse nunca y los
+    # cuatro ejemplos de arriba seguirían verdes.
+    it "de extremo a extremo: la mesa autoguarda, la versión avanza, la mesa autoguarda de nuevo y el aviso aparece" do
+      sign_in(ana, company: company)
+      patch workshop_sala_draft_path(evolucion[:workshop], evolucion[:link]),
+            params: { idea_id: evolucion[:idea].id,
+                      payload: { evolucion[:field].key => "lo de la mesa" } }
+      expect(response).to have_http_status(:no_content)
+
+      as_company(company) do
+        Flow::Ideas::PublishVersion.new(
+          evolucion[:idea], payload: { evolucion[:field].key => "lo nuevo" },
+          author: ana, title: "La mía"
+        ).call
+      end
+
+      # El segundo autoguardado NO vuelve a sellar: por eso el aviso sobrevive.
+      patch workshop_sala_draft_path(evolucion[:workshop], evolucion[:link]),
+            params: { idea_id: evolucion[:idea].id,
+                      payload: { evolucion[:field].key => "lo de la mesa, con otra letra" } }
+      expect(response).to have_http_status(:no_content)
+
+      get workshop_sala_path(evolucion[:workshop], evolucion[:link], idea: evolucion[:idea].id)
+
+      expect(response.body).to include("lo que tecleó tu mesa")
+      expect(response.body).to include("v1")
+      expect(response.body).to include("v2")
+      expect(response.body).to include("lo de la mesa, con otra letra")
+    end
   end
 end

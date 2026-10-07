@@ -71,6 +71,18 @@
         - una = file_fields.size == 1
         %div= "#{una ? 'El campo de archivo' : 'Los campos de archivo'} #{file_fields.map(&:label).to_sentence} #{una ? 'no se propone' : 'no se proponen'} desde el taller, por eso #{una ? 'no está' : 'no están'} en el formulario."
 
+    -# Gana el borrador, y el aviso lo dice. Que ganara la versión tiraría trabajo
+    -# de la mesa sin preguntar —el autor aceptando algo desde su teléfono le
+    -# borraría el texto en medio de la sesión—, y que ganara en silencio haría
+    -# que la mesa mande una propuesta que revierte la versión nueva sin saberlo.
+    -# Sin link a la ficha: la mesa trabaja ideas de cualquier integrante y quien
+    -# participa no ve las ajenas (404); la tarjeta «Contenido» ya está arriba.
+    - if draft&.based_on_version && draft.based_on_version_id != selected.current_version_id
+      -# `alert` es display:grid con grid-auto-flow:column: todo dentro de UN
+      -# `%div`, o los hijos se reparten en columnas.
+      .alert.alert-soft.alert-warning
+        %div= "El formulario muestra lo que tecleó tu mesa sobre #{draft.based_on_version.label}, pero la versión vigente ya es #{selected.current_version.label}: mirá «Contenido» más arriba antes de proponer."
+
     .card
       .card-body
         .section-head
@@ -78,13 +90,13 @@
         = form_with url: workshop_sala_proposals_path(workshop, link) do
           = hidden_field_tag :idea_id, selected.id
           -# El borrador le gana a la versión vigente: es el texto de la mesa. Si
-          -# la versión avanzó desde que se guardó, un aviso lo dirá (llega en la
-          -# tarea siguiente; hoy no existe).
+          -# la versión avanzó desde que se guardó, el aviso de arriba lo dice.
           -# OJO: el borrador REEMPLAZA el hash entero, sin merge. Quien lo escriba
           -# tiene que mandar el formulario completo, o los campos no tecleados
           -# vuelven en blanco.
           = render "ideas/form_fields", fields: fields, payload: draft&.payload || selected.payload
           .form-actions
+            = render "workshop_rooms/draft_stamp", draft: draft
             = submit_tag "Proponer", class: "btn btn-primary"
 
     - if proposals.any?

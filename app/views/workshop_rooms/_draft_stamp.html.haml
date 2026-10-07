@@ -1,0 +1,16 @@
+-# El sello del autoguardado: al lado del botón, porque es donde se mira antes de
+-# mandar.
+-#
+-# UN partial para las dos caras: dos copias del mismo markup divergen y nadie se
+-# entera. El nombre de quien tocó último es lo que hace honesto el caso de dos
+-# personas tecleando: sin websockets no hay aviso en vivo, pero quien recarga ve
+-# que no está solo.
+-#
+-# Los dos `data-*` son lo que el JS escribe cuando guarda o cuando falla. Van en
+-# la VISTA y no en el JS, igual que `data-live` en `arrival_live.js`: las
+-# palabras viven en el locale y el JS no sabe de talleres.
+%p.field-hint#draft-stamp{ data: { saved_text: t("flow.workshop_draft.saved"),
+                                   failed_text: t("flow.workshop_draft.failed") } }
+  - if draft
+    = t("flow.workshop_draft.stamp", name: draft.updated_by.name,
+                                     ago: time_ago_in_words(draft.updated_at))
