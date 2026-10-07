@@ -38,7 +38,7 @@ function sello() {
 // del borrador entero, sin merge; si un PATCH mandara un solo campo, al recargar
 // los demás volverían en blanco, y mandar eso publicaría el vacío. No lo
 // «optimices» a un diff.
-function cuerpo() {
+function cuerpo(form) {
   const datos = new URLSearchParams();
   const idea = form.dataset.draftIdea;
   if (idea) datos.append('idea_id', idea);
@@ -63,9 +63,16 @@ async function guardar({ keepalive = false } = {}) {
   // lado del cliente no lo deshace. El orden fuerte pediría un número de
   // secuencia en el servidor, que para «el último que escribe gana» no se
   // justifica.
-  if (enVuelo) enVuelo.abort();
+  //
+  // Un pedido `keepalive` ni aborta ni se registra: es el de despedida de
+  // `descargar()`, y si quedara en `enVuelo` el primer guardado de la pantalla
+  // siguiente cancelaría justo lo que no se podía perder. No hay nadie después
+  // que lo reemplace.
   const control = new AbortController();
-  enVuelo = control;
+  if (!keepalive) {
+    if (enVuelo) enVuelo.abort();
+    enVuelo = control;
+  }
   // El formulario desde el que salió el pedido: la respuesta puede llegar con
   // otra pantalla ya pintada, y el acuse no es de ahí.
   const enviadoDesde = form;
@@ -74,7 +81,7 @@ async function guardar({ keepalive = false } = {}) {
     const res = await fetch(enviadoDesde.dataset.draftUrl, {
       method: 'PATCH',
       headers: { 'X-CSRF-Token': token, 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: cuerpo(),
+      body: cuerpo(enviadoDesde),
       keepalive,
       signal: control.signal
     });
@@ -83,7 +90,8 @@ async function guardar({ keepalive = false } = {}) {
     if (!res.ok) throw new Error(res.status);
     if (form !== enviadoDesde) return;
     // «0» es un 204 de «no había nada que guardar»: no es un fallo, pero decir
-    // «Guardado» sería mentir.
+    // «Guardado» sería mentir. Tras un fallo previo el «No se pudo guardar» se
+    // queda a propósito: no se guardó nada, y el autoguardado está roto de verdad.
     if (res.headers.get('X-Draft-Saved') === '0') return;
     const s = sello();
     if (s) s.textContent = s.dataset.savedText;
@@ -96,9 +104,11 @@ async function guardar({ keepalive = false } = {}) {
     // no apaga el autoguardado el resto de la tarde. El texto de fallo se queda
     // en el sello hasta que un guardado exitoso lo reemplace. Nada de
     // `form = null`: el listener cuelga del nodo y no de esta variable.
+    // Sin `stop()` a propósito: a esta altura el temporizador que dispararía
+    // este guardado ya venció, y uno vivo sería de una tecla MÁS NUEVA que no hay
+    // por qué cancelar.
     const s = sello();
     if (s) s.textContent = s.dataset.failedText;
-    stop();
   } finally {
     if (enVuelo === control) enVuelo = null;
   }

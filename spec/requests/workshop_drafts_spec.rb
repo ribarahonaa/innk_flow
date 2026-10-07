@@ -101,6 +101,10 @@ RSpec.describe "sala del taller: el borrador de la mesa", type: :request do
 
       expect(response).to have_http_status(:no_content)
       expect(response.body).to be_empty
+      # La cabecera es lo único que distingue «guardé» de «no había nada que
+      # guardar»: si se filtrara al camino real, el sello dejaría de acusar los
+      # guardados buenos.
+      expect(response.headers["X-Draft-Saved"]).to be_nil
       draft = drafts.sole
       expect(draft.payload).to eq(idear[:field].key => "a medio escribir")
       expect(draft.idea_id).to be_nil
@@ -143,6 +147,7 @@ RSpec.describe "sala del taller: el borrador de la mesa", type: :request do
     patch_draft(idear, {})
 
     expect(response).to have_http_status(:no_content)
+    expect(response.headers["X-Draft-Saved"]).to eq("0")
     expect(drafts.sole.payload[idear[:field].key]).to eq("lo que la mesa escribió")
   end
 
@@ -165,6 +170,7 @@ RSpec.describe "sala del taller: el borrador de la mesa", type: :request do
     patch_draft(idear, payload: { "inventada" => "x" })
 
     expect(response).to have_http_status(:no_content)
+    expect(response.headers["X-Draft-Saved"]).to eq("0")
     expect(drafts.sole.payload).to eq(idear[:field].key => "lo que la mesa escribió")
   end
 
