@@ -1500,11 +1500,16 @@ async function revisarBorrador(page, nombre) {
   const espera = Number(await page.locator('form[data-draft-url]').first().getAttribute('data-debounce')) || 2000;
   await page.waitForTimeout(espera + 1500);
 
-  // El sello tiene que haber cambiado: es el acuse de que el PATCH respondió.
-  const sello = (await page.locator('#draft-stamp').first().innerText()).trim();
-  if (!sello) {
+  // El sello tiene que decir lo que el JS escribe al guardar, y NO «algo».
+  // Pedir que no esté vacío no discrimina: esta guarda deja un borrador en la
+  // base, así que en la corrida siguiente el servidor ya renderiza «Guardado por
+  // … hace …» antes de que el JS toque nada.
+  const elSello = page.locator('#draft-stamp').first();
+  const esperado = (await elSello.getAttribute('data-saved-text')) || '';
+  const dice = (await elSello.innerText()).trim();
+  if (dice !== esperado.trim()) {
     failures++;
-    console.error(`[DRAFT] ${nombre}: el sello quedó vacío, así que el autoguardado no acusó nada`);
+    console.error(`[DRAFT] ${nombre}: el sello dice «${dice}» y el autoguardado tendría que haber escrito «${esperado}»`);
   }
 
   await page.reload({ waitUntil: 'domcontentloaded' });

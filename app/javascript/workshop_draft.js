@@ -83,12 +83,14 @@ function alTeclear() {
 }
 
 function start() {
-  stop();
   const encontrado = document.querySelector('form[data-draft-url]');
   // Turbo 8 morfea: después de un POST que vuelve a la misma URL el NODO del
-  // formulario es el mismo y `turbo:load` corre de nuevo. Sin esta comparación
-  // cada navegación suma un listener más sobre el mismo elemento.
+  // formulario es el mismo y `turbo:load` corre de nuevo. Si es el mismo nodo ya
+  // está cableado, y además puede tener un guardado pendiente: pararlo acá lo
+  // cancelaría sin reprogramarlo hasta la tecla siguiente.
   if (encontrado && encontrado === form) return;
+  // El nodo cambió (o no hay formulario): el temporizador del anterior se para.
+  stop();
   form = encontrado;
   if (!form) return;
   form.addEventListener('input', alTeclear);
