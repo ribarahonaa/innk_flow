@@ -21,10 +21,14 @@ las propuestas; y un borrador es mutable, así que se pisa en vez de coalescerse
 Las otras dos decisiones de producto, las dos del dueño del repo:
 
 - **El borrador es de la MESA, no de cada persona** (servidor, último que escribe
-  gana). Es lo que la pantalla ya promete («el borrador se comparte con…: es de
-  la mesa, no solo tuyo») y es la única opción que sobrevive al caso que B existe
-  para evitar: que al que escribe se le muera la máquina o se vaya, y el texto
-  quede para el resto.
+  gana). Es la única opción que sobrevive al caso que B existe para evitar: que
+  al que escribe se le muera la máquina o se vaya, y el texto quede para el
+  resto. **Ojo con un argumento que usé mal durante toda la sesión**: la línea
+  «el borrador se comparte con…: es de la mesa, no solo tuyo» NO es una promesa
+  del autoguardado. Es preexistente (`_ideation.html.haml:76`) y habla de la
+  `Idea` que crea el botón, que nace con la mesa entera como
+  `idea_contributors`. La decisión concuerda con cómo la pantalla ya trata el
+  trabajo de la mesa; no la prometía nadie.
 - **Si la versión vigente avanzó desde que la mesa guardó, gana el borrador CON
   aviso.** Que ganara la versión tira el trabajo de la mesa sin preguntar; que
   ganara en silencio hace que la mesa mande una propuesta que revierte la versión
@@ -187,6 +191,18 @@ en cada método) (13 migraciones
 del repo la usan; se deshace con `DROP TABLE` más borrar la fila de
 `schema_migrations`). Y un commit salió con las líneas de atribución que el dueño
 del repo no quiere; se enmendó antes de pushear.
+
+- **El borrador de idear puede cambiar de dueños, y se aceptó a propósito.** En
+  idear su única llave es la FILA de la mesa, y `seat!` reusa esas filas por
+  índice: después de volver a repartir, «Mesa 1» puede tener gente distinta y
+  recibe prellenado el texto de quien ya no está — y si lo manda, se publica a
+  su nombre, mientras quien escribió no lo encuentra en su mesa nueva. La
+  revisión final lo encontró y la decisión fue **aceptarlo y documentarlo**: es
+  el precio de «nunca perder el borrador». Las propuestas no tienen el problema
+  porque ahí el guarda de arriba sí se niega a repartir. Si alguna vez molesta
+  en un taller real, la dirección menos mala es borrar el borrador en `seat!`
+  sólo cuando los ocupantes nuevos no comparten NINGUNA persona con los
+  anteriores.
 
 ## 5. Próximos pasos
 

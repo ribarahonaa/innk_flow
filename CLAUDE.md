@@ -1577,24 +1577,50 @@ las dé por cubiertas:**
   escribiendo.** Lo más cercano es el sello al recargar. Es a propósito —un push
   pediría el canal autenticado y scopeado por empresa que la spec de la lista de
   llegada ya descartó—, pero que nadie lo dé por cubierto.
-- **El flush al irse de la pantalla no lo mide nada.** `descargar()`, el
-  `keepalive` y el `visibilitychange` de `app/javascript/workshop_draft.js`
-  cubren «la mesa escribe la última frase y medio segundo después cambia de
-  pestaña o se va a otra sala». `[DRAFT]` espera el debounce completo antes de
-  recargar, así que el temporizador normal ya guardó y ese camino **nunca se
-  ejercita**: borrar esas dos líneas deja los 1.682 ejemplos y `[DRAFT] 2` en
-  verde. No se le puso guarda a propósito: medirlo pide tipear y navegar
-  inmediatamente, y una guarda que depende de ganarle a una carrera cuesta más
-  en fallas intermitentes de lo que ahorra.
+- **El camino CONCURRENTE del autoguardado no lo mide nada, y es más de lo que
+  parece.** `[DRAFT]` llena los campos seguidos —cada `fill` reinicia el
+  debounce— y recién después espera, así que dispara **un solo** `guardar()` por
+  cara y nunca hay dos en vuelo. Por lo tanto nada ejercita el `AbortController`
+  ni `enVuelo`, ni los dos `form !== enviadoDesde` que impiden que un acuse
+  aterrice en el sello de otra idea, ni el `finally` que limpia, ni
+  `descargar()`, el `keepalive` y el `visibilitychange` —que cubren «la mesa
+  escribe la última frase y medio segundo después cambia de pestaña»—. O sea:
+  **todo lo que las dos rondas de arreglo de esa tarea agregaron al camino
+  concurrente es exactamente lo que ninguna verificación toca**; borrarlo deja
+  la suite y `[DRAFT] 2` en verde. No se le puso guarda a propósito: medirlo
+  pide tipear y navegar inmediatamente, y una guarda que depende de ganarle a
+  una carrera cuesta más en fallas intermitentes de lo que ahorra.
+- **En idear el borrador cuelga de la FILA de la mesa, y el reparto REUSA esas
+  filas por índice**, así que puede cambiar de dueños. `seat!` toma
+  `workshop_groups.where(arrival: false).order(:created_at)` y le asigna el
+  reparto nuevo, de modo que «Mesa 1» puede quedar con gente completamente
+  distinta — y en idear el borrador no tiene idea a la cual colgarse: su única
+  llave es esa fila. Quien escribió entra a su mesa nueva y no encuentra su
+  texto; quien cae en la fila vieja lo recibe prellenado, y si aprieta «Crear
+  borrador» se publica una versión con ese texto **a su nombre**. El sello, que
+  nombra a quien escribió, mitiga y no arregla. Está **aceptado a propósito**:
+  es el precio de «nunca perder el borrador», y las alternativas se miraron —
+  borrarlo al repartir pierde texto, y negar el reparto bloquearía una operación
+  común por texto sin mandar—. Las propuestas no tienen este problema porque ahí
+  el guarda de arriba SÍ se niega a repartir; el borrador es el primer artefacto
+  por fila de mesa sin ese guarda.
 - **Un envío FALLIDO pierde lo tecleado desde la última pausa de dos
   segundos.** El listener de `submit` pone `sucio = false` —tiene que hacerlo:
   si no, cada envío exitoso recrearía el borrador con lo que el servidor acaba
   de publicar y borrar en la misma transacción, y la mesa lo mandaría de
   nuevo—, y los caminos de rechazo de la sala redirigen con un `alert:`, o sea
-  302 → 200, así que `turbo:submit-end` informa `success: true` y el cliente
-  **no puede distinguirlos**. Encima el morph pisa lo tecleado: Turbo 8 llama a
-  `morphElements` sin `ignoreActiveValue`, así que `syncInputValue` le devuelve
-  al campo el valor del servidor, incluso al que tiene el foco.
+  302 → 200, así que `turbo:submit-end` informa `success: true`. Encima el morph
+  pisa lo tecleado: Turbo 8 llama a `morphElements` sin `ignoreActiveValue`, así
+  que `syncInputValue` le devuelve al campo el valor del servidor, incluso al
+  que tiene el foco — o sea que cuando el cliente se entera, el valor del DOM ya
+  se fue.
+  **No es que no haya salida: no hay salida barata.** El discriminador no es el
+  código de estado sino **si el borrador sobrevivió**: capturar el cuerpo en el
+  `submit`, y en el render siguiente mirar si `#draft-stamp` volvió NO vacío —el
+  servidor no lo borró, o sea que el envío fue rechazado— y recién ahí
+  reenviarlo. Cuesta un write por envío rechazado, le da significado semántico a
+  «el sello está vacío», que hoy es sólo presentación, y sólo recupera si ya
+  había borrador. No se hizo; que no se descarte creyendo que es imposible.
 
 **Dos grillas con el mismo aspecto y mecánica distinta.** En
 `challenges/index` las tarjetas son `.challenge-card`, que declara
