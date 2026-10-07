@@ -37,7 +37,18 @@ class WorkshopDraftsController < ApplicationController
     # esa cara y escaparía al índice de unicidad pensado para ella.
     idea = @link.kind == "evolution" ? workable_idea : nil
 
-    write!(group, idea)
+    payload = payload_params
+    # `?payload=x`: un escalar en vez de un hash. Es un cuerpo mal formado y
+    # contesta un código, no revienta en `permit!`.
+    return head :bad_request if payload.nil?
+    # Si no sobrevive NINGUNA clave (por ejemplo, el JS manda el id del campo en
+    # vez de su `key`) escribir `{}` pisaría el texto de la mesa con nada: el
+    # mismo pisado que el no-op de arriba evita, entrando por la otra puerta.
+    # Vaciar un campo a propósito manda la clave PRESENTE con valor vacío, que
+    # sí pasa el filtro.
+    return head :no_content if payload.empty?
+
+    write!(group, idea, payload)
     head :no_content
   end
 
@@ -65,7 +76,8 @@ class WorkshopDraftsController < ApplicationController
   def payload_params
     step = @link.challenge.pipeline.ideation_step
     keys = step ? step.form_fields.reject { |f| f.field_type == "file" }.map(&:key) : []
-    params.require(:payload).permit!.to_h.slice(*keys)
+    raw = params.require(:payload)
+    raw.respond_to?(:permit!) ? raw.permit!.to_h.slice(*keys) : nil
   end
 
   # La carrera es real: dos personas de la mesa guardando a la vez no encuentran
@@ -73,15 +85,20 @@ class WorkshopDraftsController < ApplicationController
   # reintenta una vez y ahí la fila ya existe. Un `upsert` sería una sentencia
   # sola, pero saltea las dos validaciones del modelo, que es justo lo que no se
   # quiere saltear.
-  def write!(group, idea, intento: 1)
+  def write!(group, idea, payload, intento: 1)
     draft = group.workshop_drafts.find_or_initialize_by(
       workshop_challenge: @link, idea_id: idea&.id
     )
-    draft.update!(payload: payload_params, updated_by: current_user,
-                  based_on_version_id: idea&.current_version_id)
+    # `based_on_version_id` es contra qué versión se tecleó, y la mesa empezó a
+    # teclear UNA vez: se sella sólo al crear la fila. Reescribirlo en cada
+    # autoguardado movería la base a la versión nueva y el aviso de base vieja
+    # nunca dispararía. Al mandar, el borrador se borra y el próximo nace con la
+    # versión de ese momento.
+    draft.based_on_version_id = idea&.current_version_id if draft.new_record?
+    draft.update!(payload: payload, updated_by: current_user)
   rescue ActiveRecord::RecordNotUnique
     raise if intento > 1
 
-    write!(group, idea, intento: 2)
+    write!(group, idea, payload, intento: 2)
   end
 end

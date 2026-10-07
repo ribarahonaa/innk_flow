@@ -107,9 +107,10 @@ RSpec.describe "sala del taller: el borrador de la mesa", type: :request do
       expect(draft.updated_by_id).to eq(ana.id)
     end
 
-    # Esto es lo que prueba el índice parcial, y no la intención de que haya uno
-    # solo: sin el `WHERE idea_id IS NULL`, Postgres trata los NULL como
-    # distintos y cada autoguardado deja una fila nueva.
+    # Prueba que queda UNA fila y gana la última escritura. Los índices parciales
+    # que garantizan la unicidad ante la carrera se prueban en
+    # `spec/models/workshop_draft_spec.rb`: acá los PATCH son secuenciales y el
+    # `find_or_initialize_by` encuentra la fila sin pasar por ellos.
     it "dos personas de la misma mesa dejan UNA fila, y gana la última" do
       sign_in(ana, company: company)
       patch_draft(idear, payload: { idear[:field].key => "lo de ana" })
@@ -155,6 +156,56 @@ RSpec.describe "sala del taller: el borrador de la mesa", type: :request do
 
     expect(response).to have_http_status(:no_content)
     expect(drafts.sole.idea_id).to be_nil
+  end
+
+
+  it "un payload con TODAS las claves inventadas no toca el borrador existente" do
+    sign_in(ana, company: company)
+    patch_draft(idear, payload: { idear[:field].key => "lo que la mesa escribió" })
+    patch_draft(idear, payload: { "inventada" => "x" })
+
+    expect(response).to have_http_status(:no_content)
+    expect(drafts.sole.payload).to eq(idear[:field].key => "lo que la mesa escribió")
+  end
+
+  it "vaciar un campo a propósito sí se guarda" do
+    sign_in(ana, company: company)
+    patch_draft(idear, payload: { idear[:field].key => "algo" })
+    patch_draft(idear, payload: { idear[:field].key => "" })
+    expect(drafts.sole.payload).to eq(idear[:field].key => "")
+  end
+
+  it "un payload escalar es un 400 y no un 500" do
+    sign_in(ana, company: company)
+    patch_draft(idear, payload: "x")
+    expect(response).to have_http_status(:bad_request)
+    expect(drafts).to be_empty
+  end
+
+  it "los campos de tipo file no se guardan" do
+    archivo = as_company(company) do
+      create(:form_field, challenge_step: idear[:link].challenge_step, label: "Adjunto",
+                          field_type: "file")
+    end
+    sign_in(ana, company: company)
+    patch_draft(idear, payload: { idear[:field].key => "ok", archivo.key => "x.pdf" })
+    expect(drafts.sole.payload.keys).to contain_exactly(idear[:field].key)
+  end
+
+  it "una sala de OTRO taller es 404" do
+    otra = as_company(company) do
+      ch = create(:challenge)
+      st = create(:challenge_step, challenge: ch, kind: "ideation", status: "active")
+      w = create(:workshop, status: "open")
+      l = create(:workshop_challenge, workshop: w, challenge: ch, challenge_step: st)
+      g = create(:workshop_group, workshop: w)
+      create(:workshop_group_member, workshop_group: g, user: ana)
+      l
+    end
+    sign_in(ana, company: company)
+    patch workshop_sala_draft_path(idear[:workshop], otra), params: { payload: { "x" => "y" } }
+    expect(response).to have_http_status(:not_found)
+    expect(drafts).to be_empty
   end
 
   context "en una sala de evolución" do
@@ -208,6 +259,39 @@ RSpec.describe "sala del taller: el borrador de la mesa", type: :request do
       patch_draft(evolucion, payload: { evolucion[:field].key => "x" }, idea_id: ajena.id)
       expect(response).to have_http_status(:not_found)
       expect(drafts).to be_empty
+    end
+
+    # Discrimina `workable_ideas` de `policy_scope(Idea)`: ana es participant y
+    # con ese scope no vería la idea de beto, que sí es de su mesa.
+    it "una idea de otro integrante de la mesa se puede trabajar: 204" do
+      group = as_company(company) { evolucion[:workshop].group_of(ana) }
+      de_beto = as_company(company) do
+        create(:workshop_group_member, workshop_group: group, user: beto)
+        create(:idea, challenge: evolucion[:challenge], author: beto, status: "active")
+      end
+      sign_in(ana, company: company)
+      patch_draft(evolucion, payload: { evolucion[:field].key => "x" }, idea_id: de_beto.id)
+      expect(response).to have_http_status(:no_content)
+      expect(drafts.sole.idea_id).to eq(de_beto.id)
+    end
+
+    # El sello es contra qué versión se tecleó: se escribe al crear la fila y los
+    # autoguardados siguientes no lo mueven, o el aviso de base vieja no dispara.
+    it "el sello de la versión no se reescribe en el autoguardado siguiente" do
+      sign_in(ana, company: company)
+      patch_draft(evolucion, payload: { evolucion[:field].key => "uno" },
+                             idea_id: evolucion[:idea].id)
+      as_company(company) do
+        Flow::Ideas::PublishVersion.new(
+          evolucion[:idea], payload: { evolucion[:field].key => "v2" }, author: ana
+        ).call
+      end
+      patch_draft(evolucion, payload: { evolucion[:field].key => "dos" },
+                             idea_id: evolucion[:idea].id)
+
+      draft = drafts.sole
+      expect(draft.payload[evolucion[:field].key]).to eq("dos")
+      expect(draft.based_on_version_id).to eq(evolucion[:version].id)
     end
 
     # No se agrega tope: `WorkshopProposal.payload` ya acepta el mismo contenido

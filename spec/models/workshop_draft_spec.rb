@@ -111,4 +111,30 @@ RSpec.describe WorkshopDraft do
       expect(draft.errors[:based_on_version_id].join).to include("otra idea")
     end
   end
+
+  # Los dos índices únicos parciales son lo que impide dos filas para la misma
+  # (mesa, sala[, idea]). Se salta la validación para llegar al constraint. Si se
+  # borra `index_workshop_drafts_evolution_uniq` (o el de idear) de la migración,
+  # el ejemplo correspondiente se pone rojo.
+  def insert_twice(link, group, idea)
+    attrs = { workshop_group: group, workshop_challenge: link, idea: idea,
+              updated_by: autora, payload: {} }
+    WorkshopDraft.new(attrs).save!
+    WorkshopDraft.new(attrs).save!(validate: false)
+  end
+
+  it "el índice de idear impide dos borradores de la misma mesa y sala" do
+    as_company(company) do
+      link, group, = sala("ideation")
+      expect { insert_twice(link, group, nil) }.to raise_error(ActiveRecord::RecordNotUnique)
+    end
+  end
+
+  it "el índice de evolución impide dos borradores de la misma mesa, sala e idea" do
+    as_company(company) do
+      link, group, challenge = sala("evolution")
+      idea = create(:idea, challenge: challenge, author: autora)
+      expect { insert_twice(link, group, idea) }.to raise_error(ActiveRecord::RecordNotUnique)
+    end
+  end
 end
