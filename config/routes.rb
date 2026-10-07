@@ -136,6 +136,11 @@ Rails.application.routes.draw do
                                     controller: "workshop_rooms" do
       resources :ideas, only: %i[create], controller: "workshop_ideas"
       resources :proposals, only: %i[create], controller: "workshop_proposals"
+      # Singular: una mesa tiene UN borrador por sala. El id de la idea viaja en
+      # el CUERPO y no en la ruta —igual que el `hidden_field_tag :idea_id` del
+      # formulario de propuesta—, porque el cliente no conoce el id del
+      # borrador: la identidad de la fila la arma el servidor.
+      resource :draft, only: %i[update], controller: "workshop_drafts"
     end
   end
 
