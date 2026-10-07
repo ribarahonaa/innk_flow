@@ -204,22 +204,47 @@ del repo no quiere; se enmendó antes de pushear.
   sólo cuando los ocupantes nuevos no comparten NINGUNA persona con los
   anteriores.
 
-## 5. Próximos pasos
+## 5. Lo que quedó SIN verificar
 
-1. **La revisión final de rama entera**, en el modelo más capaz, apuntada a lo
-   que quedó parkeado con ruling en
+**La re-revisión acotada de la última ronda no se corrió: se cortó a pedido.**
+La ronda (`ed7d871` + `93a6d95`) cerró el bloqueante de la revisión final y dos
+Important más, y está verificada en lo que yo pude medir —`make spec` 1685/0,
+`make screens` verde con `[DRAFT] 2`, el bundle con `base_version_id`, y una
+mutación propia que pone en rojo exacto el ejemplo nuevo del sello
+(`spec/requests/workshop_drafts_spec.rb:310`)—. Lo que **nadie revisó** es el
+diff de esa ronda con ojos frescos. Tres cosas que le iba a pedir y que quedan
+abiertas:
+
+1. **`base_version_id` ahora viene del CLIENTE**, y es el único lugar de la rama
+   donde un dato del navegador entra a una columna con FK. El código lo busca
+   entre las versiones de esa idea y cae a `current_version_id` si no aparece,
+   y `version_belongs_to_idea` rechaza una de otra idea — pero nadie verificó
+   independientemente que una cadena basura, una versión de otra empresa o la
+   clave ausente caigan todas en un camino sano.
+2. **`res.status !== 204`**: ¿queda algún camino de ÉXITO que responda algo
+   distinto de 204 y que ahora se lea como fallo? Los tres que conozco responden
+   204; no se auditó si hay un cuarto.
+3. **El ejemplo de «una versión inexistente cae a la vigente»** protege el
+   camino nuevo de reventar, pero —según el propio implementador— **no
+   distingue el arreglo**. Es candidato a número quince de la lista.
+
+## 6. Próximos pasos
+
+1. **Correr esa re-revisión acotada** sobre `f53594e..93a6d95`. Es lo primero.
+2. La revisión final de rama entera **ya se hizo** y sus hallazgos están
+   cerrados; lo que sigue parkeado, con ruling, está en
    `.superpowers/sdd/2026-10-07-borrador-de-mesa/progress.md` (34 rulings). Lo
    que más merece un segundo par de ojos:
    - **Un envío FALLIDO pierde lo tecleado desde la última pausa de dos
      segundos.** El listener de `submit` pone `sucio = false` y tiene que
      hacerlo: si no, cada envío exitoso recrearía el borrador con lo que el
-     servidor acaba de publicar y borrar en la misma transacción. Y el cliente no
-     puede distinguir éxito de rechazo, porque los rechazos redirigen con un
-     `alert:` —302 → 200— y `turbo:submit-end` informa `success: true`.
+     servidor acaba de publicar y borrar en la misma transacción. No hay salida
+     BARATA —los rechazos redirigen con un `alert:`, o sea 302 → 200, y
+     `turbo:submit-end` informa `success: true`— pero sí hay salida, y está
+     escrita en `CLAUDE.md`: el discriminador es si el borrador sobrevivió.
    - El `keepalive` y el pedido normal ahora conviven sin abortarse, así que en
      una carrera de red el viejo puede pisar al nuevo.
    - `MINIMO_DE_CAMPOS_POR_CARA` mide **2 de 2 sin margen** y su rama **nunca
      corrió**: el mensaje de esa falla no está probado.
-2. **Devolver la app a `anthropic`** (ver §2).
 3. **Quedan C y D** de la división de cuatro partes del taller. Nada de lo de
    acá los bloquea.
