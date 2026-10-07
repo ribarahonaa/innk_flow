@@ -77,7 +77,9 @@
           %h2.section-title Proponer cambios
         = form_with url: workshop_sala_proposals_path(workshop, link) do
           = hidden_field_tag :idea_id, selected.id
-          = render "ideas/form_fields", fields: fields, payload: selected.payload
+          -# El borrador le gana a la versión vigente: es el texto de la mesa. Si
+          -# la versión avanzó desde que se guardó, el aviso de arriba lo dice.
+          = render "ideas/form_fields", fields: fields, payload: draft&.payload || selected.payload
           .form-actions
             = submit_tag "Proponer", class: "btn btn-primary"
 

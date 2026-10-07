@@ -79,6 +79,8 @@
         -# pantalla y las dos emitían `id="payload_<clave>"`, así que el
         -# `<label for>` de la segunda enfocaba el campo de la primera. Con una
         -# sala por pantalla la colisión no puede existir.
-        = render "ideas/form_fields", fields: link.challenge_step.form_fields, payload: {}
+        -# El borrador de la mesa le gana al formulario vacío: es lo que alguien
+        -# ya escribió y todavía no mandó.
+        = render "ideas/form_fields", fields: link.challenge_step.form_fields, payload: draft&.payload || {}
         .form-actions
           = submit_tag "Crear borrador", class: "btn btn-primary"

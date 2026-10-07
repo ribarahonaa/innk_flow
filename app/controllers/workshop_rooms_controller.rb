@@ -57,6 +57,11 @@ class WorkshopRoomsController < ApplicationController
       else
         []
       end
+
+    # El borrador es de la MESA: se lee por `@group.workshop_drafts` y no por una
+    # búsqueda global. Así la mesa lo ata por construcción, igual que
+    # `@group.workshop_proposals`, y no hace falta una policy para el borrador.
+    @draft = @group.workshop_drafts.find_by(workshop_challenge: @link, idea_id: nil) if @group && !@group.arrival?
   end
 
   # Acá SÍ es `workable_ideas`: es el método que existe para esto —la unión
@@ -85,6 +90,14 @@ class WorkshopRoomsController < ApplicationController
               .includes(:challenge_step).order(created_at: :desc).to_a
       else
         []
+      end
+
+    # La precarga va acá, en el punto de uso: el sello nombra a quien tocó
+    # último y el aviso compara la versión.
+    @draft =
+      if @group && !@group.arrival? && @selected_idea
+        @group.workshop_drafts.includes(:updated_by, :based_on_version)
+              .find_by(workshop_challenge: @link, idea: @selected_idea)
       end
   end
 end

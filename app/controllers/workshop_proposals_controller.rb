@@ -23,10 +23,16 @@ class WorkshopProposalsController < ApplicationController
     # inexistente, así que no confirma que exista.
     idea = group.workable_ideas(@link.challenge).find_by!(id: params[:idea_id])
 
-    WorkshopProposal.create!(
-      workshop_group: group, idea: idea, challenge_step: @link.challenge_step,
-      payload: payload || {}, status: "pending"
-    )
+    # En transacción, que antes no hacía falta: borrar el borrador y crear la
+    # propuesta tienen que ser atómicos. Si la creación falla, el texto de la
+    # mesa no puede haberse ido.
+    ActiveRecord::Base.transaction do
+      WorkshopProposal.create!(
+        workshop_group: group, idea: idea, challenge_step: @link.challenge_step,
+        payload: payload || {}, status: "pending"
+      )
+      group.workshop_drafts.where(workshop_challenge: @link, idea_id: idea.id).delete_all
+    end
 
     redirect_to workshop_sala_path(@workshop, @link, idea: idea.id),
                 notice: "Propuesta enviada a quien es autor."

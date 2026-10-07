@@ -51,6 +51,11 @@ class WorkshopIdeasController < ApplicationController
       result = publish.call
       # Sin versión no hay borrador: no se deja una idea vacía colgada.
       raise ActiveRecord::Rollback unless result.ok?
+
+      # Mandado el borrador, el borrador se va. Si sigue prellenando el
+      # formulario, la mesa lo manda de nuevo. Va DENTRO de esta transacción: si
+      # la publicación falla y hace rollback, el texto no puede haberse ido.
+      group.workshop_drafts.where(workshop_challenge: @link, idea_id: nil).delete_all
     end
 
     publish.enqueue_embedding! if result.ok?
