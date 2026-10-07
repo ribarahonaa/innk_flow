@@ -190,10 +190,13 @@ RSpec.describe "sala del taller: el borrador se prellena", type: :request do
       sign_in(ana, company: company)
       get workshop_sala_path(evolucion[:workshop], evolucion[:link], idea: evolucion[:idea].id)
 
-      expect(response.body).to include("v1")
-      expect(response.body).to include("v2")
-      # Lo que hace útil al aviso: decir CUÁL de los dos se está viendo.
-      expect(response.body).to include("lo que tecleó tu mesa")
+      # Lo que hace útil al aviso: decir CUÁL de los dos se está viendo. Se pide
+      # la frase entera: «v2» suelto también sale del chip del selector y de
+      # «Versión vigente: v2», o sea que pasaría con el aviso borrado.
+      expect(response.body).to include("lo que tecleó tu mesa sobre v1, pero la versión vigente ya es v2")
+      # El copy dice «más arriba»: si la tarjeta «Contenido» se mudara abajo del
+      # formulario, el aviso mandaría al lado equivocado y nada se pondría rojo.
+      expect(response.body.index(">Contenido<")).to be < response.body.index("lo que tecleó tu mesa")
       # Y el formulario sigue trayendo el texto de la mesa.
       expect(response.body).to include("lo de la mesa")
     end
@@ -275,9 +278,7 @@ RSpec.describe "sala del taller: el borrador se prellena", type: :request do
 
       get workshop_sala_path(evolucion[:workshop], evolucion[:link], idea: evolucion[:idea].id)
 
-      expect(response.body).to include("lo que tecleó tu mesa")
-      expect(response.body).to include("v1")
-      expect(response.body).to include("v2")
+      expect(response.body).to include("lo que tecleó tu mesa sobre v1, pero la versión vigente ya es v2")
       expect(response.body).to include("lo de la mesa, con otra letra")
     end
   end

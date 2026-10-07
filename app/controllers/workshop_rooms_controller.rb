@@ -61,7 +61,7 @@ class WorkshopRoomsController < ApplicationController
     # El borrador es de la MESA: se lee por `@group.workshop_drafts` y no por una
     # búsqueda global. Así la mesa lo ata por construcción, igual que
     # `@group.workshop_proposals`, y no hace falta una policy para el borrador.
-    @draft = @group.workshop_drafts.find_by(workshop_challenge: @link, idea_id: nil) if @group && !@group.arrival?
+    @draft = @group.workshop_drafts.includes(:updated_by).find_by(workshop_challenge: @link, idea_id: nil) if @group && !@group.arrival?
   end
 
   # Acá SÍ es `workable_ideas`: es el método que existe para esto —la unión
@@ -93,8 +93,9 @@ class WorkshopRoomsController < ApplicationController
       end
 
     # La precarga va acá, en el punto de uso: el sello nombra a quien tocó
-    # último y el aviso compara la versión. Esos dos lectores llegan en la
-    # tarea siguiente; hoy nadie lee `updated_by` ni `based_on_version`.
+    # último (`workshop_rooms/_draft_stamp` lee `updated_by`) y el aviso compara
+    # la versión (`_evolution` lee `based_on_version`). Sacar este `includes`
+    # por peso muerto son dos consultas más por render sin que nada se ponga rojo.
     @draft =
       if @group && !@group.arrival? && @selected_idea
         @group.workshop_drafts.includes(:updated_by, :based_on_version)

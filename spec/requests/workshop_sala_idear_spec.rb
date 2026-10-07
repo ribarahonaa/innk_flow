@@ -363,12 +363,34 @@ RSpec.describe "sala del taller: idear", type: :request do
 
 
   describe "la sala" do
+    # El sello es de la MESA: nombra a quien tocó último, sea quien sea. Se
+    # asevera la frase entera porque el nombre de beto ya aparece en la pantalla
+    # (con quién se comparte) y `include(beto.name)` pasaría solo. Sin este
+    # elemento, el autoguardado de la cara de idear no tendría dónde acusar.
+    it "el sello nombra a quien guardó último, que puede ser otro de la mesa" do
+      as_company(company) do
+        group = setup[:workshop].workshop_groups.first
+        create(:workshop_draft, workshop_group: group, workshop_challenge: setup[:link],
+                                idea: nil, updated_by: beto,
+                                payload: { setup[:field].key => "a medio escribir" })
+      end
+      sign_in(ana, company: company)
+      get workshop_sala_path(setup[:workshop], setup[:link])
+
+      expect(response.body).to include("Guardado por #{beto.name}")
+    end
+
     it "ofrece a quien está en la mesa el formulario del módulo, diciendo con quién se comparte" do
       sign_in(ana, company: company)
       get workshop_sala_path(setup[:workshop], setup[:link])
 
-      # El submit va en `.form-actions`, igual que en `ideas/new`.
-      expect(response.body).to match(/class="form-actions">\s*<input[^>]*value="Crear borrador"/)
+      # El submit va en `.form-actions`, igual que en `ideas/new`. El sello del
+      # autoguardado se renderiza ANTES que él dentro del mismo bloque, así que
+      # el regex no puede pedir que el input sea el primer hijo — pide los dos,
+      # en orden.
+      expect(response.body).to match(
+        %r{class="form-actions">\s*<p[^>]*id="draft-stamp".*?<input[^>]*value="Crear borrador"}m
+      )
 
       expect(response.body).to include(%(name="payload[#{setup[:field].key}]"))
       expect(response.body).to include("Resumen")

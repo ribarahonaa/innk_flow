@@ -137,4 +137,42 @@ RSpec.describe WorkshopDraft do
       expect { insert_twice(link, group, idea) }.to raise_error(ActiveRecord::RecordNotUnique)
     end
   end
+
+  describe "#stale?" do
+    def publish(idea, text)
+      Flow::Ideas::PublishVersion.new(idea, payload: { "k" => text }, author: autora).call.version
+    end
+
+    it "un borrador de idear no tiene idea contra la cual estar viejo" do
+      as_company(company) do
+        link, group, = sala("ideation")
+        draft = WorkshopDraft.new(workshop_group: group, workshop_challenge: link,
+                                  idea: nil, updated_by: autora, payload: {})
+        expect(draft.stale?).to be(false)
+      end
+    end
+
+    it "sobre la versión vigente no está viejo" do
+      as_company(company) do
+        link, group, challenge = sala("evolution")
+        idea = create(:idea, challenge: challenge, author: autora, status: "active")
+        v1 = publish(idea, "uno")
+        draft = WorkshopDraft.new(workshop_group: group, workshop_challenge: link, idea: idea,
+                                  based_on_version: v1, updated_by: autora, payload: {})
+        expect(draft.stale?).to be(false)
+      end
+    end
+
+    it "sobre una versión anterior está viejo" do
+      as_company(company) do
+        link, group, challenge = sala("evolution")
+        idea = create(:idea, challenge: challenge, author: autora, status: "active")
+        v1 = publish(idea, "uno")
+        publish(idea, "dos")
+        draft = WorkshopDraft.new(workshop_group: group, workshop_challenge: link, idea: idea,
+                                  based_on_version: v1, updated_by: autora, payload: {})
+        expect(draft.stale?).to be(true)
+      end
+    end
+  end
 end

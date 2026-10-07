@@ -77,9 +77,8 @@
     -# que la mesa mande una propuesta que revierte la versión nueva sin saberlo.
     -# Sin link a la ficha: la mesa trabaja ideas de cualquier integrante y quien
     -# participa no ve las ajenas (404); la tarjeta «Contenido» ya está arriba.
-    - if draft&.based_on_version && draft.based_on_version_id != selected.current_version_id
-      -# `alert` es display:grid con grid-auto-flow:column: todo dentro de UN
-      -# `%div`, o los hijos se reparten en columnas.
+    - if draft&.stale?
+      -# Un solo `%div`, igual que el aviso de los campos de archivo (ver arriba).
       .alert.alert-soft.alert-warning
         %div= "El formulario muestra lo que tecleó tu mesa sobre #{draft.based_on_version.label}, pero la versión vigente ya es #{selected.current_version.label}: mirá «Contenido» más arriba antes de proponer."
 

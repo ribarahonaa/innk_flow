@@ -20,6 +20,11 @@ class WorkshopDraft < ApplicationRecord
   validate :idea_matches_room
   validate :version_belongs_to_idea
 
+  # Mismo predicado que `Assessment#stale?` y `FeedbackItem#stale?`: la regla de
+  # «se ancló a una versión y la idea avanzó» vive UNA vez, en `Idea`. En idear
+  # no hay idea contra la cual estar viejo.
+  def stale? = idea.present? && idea.stale_for?(based_on_version_id)
+
   private
 
   # La mesa y la sala tienen que ser del mismo taller. Hoy sólo el servidor
