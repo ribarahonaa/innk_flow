@@ -213,10 +213,10 @@ si mide menos muestras de las que declara. La corrida imprime los diez números
 en una sola línea al terminar, y los pisos de hoy son 36, 250, 300, 100, «al
 menos una», 66, 71, 275, 270 y 2, en ese orden.
 **`PISO_DE_BANDAS` es EXACTO y los demás van con holgura** —con una segunda
-excepción, `[DRAFT]`, de la que hablo abajo—, y la diferencia tiene motivo. Los demás cuentan cosas que se mueven —tarjetas, chips y campos
-con los datos; el riel, con las pantallas que podrían sumarse— y necesitan
-margen; `[BANDA]` cuenta VISTAS que publican `content_for :banda`, que es un
-número fijo, y lo único que esa guarda existe para cazar es la vista olvidada.
+excepción, `[DRAFT]`, que sigue más abajo—, y la diferencia tiene motivo. Los
+demás cuentan cosas que se mueven —tarjetas, chips y campos con los datos; el
+riel, con las pantallas que podrían sumarse— y necesitan margen; `[BANDA]`
+cuenta VISTAS que publican `content_for :banda`, que es un número fijo, y lo único que esa guarda existe para cazar es la vista olvidada.
 Con un piso flojo no la caza: borrar el `content_for` de una sola bajaba el
 conteo (63 → 60, medido) y un piso al 92% no se enteraba. El precio es que
 sumar una pantalla con banda obliga a subir el piso con ella.
@@ -247,6 +247,12 @@ que todo el borrador protege. Está probada con dos mutaciones que fallan
 distinto: rompiendo el JS fallan las dos caras; rompiendo el prellenado del
 servidor de UNA sola cara falla esa y no la otra, que es lo que prueba que mide
 cada una por separado.
+Ese piso de 2 campos mide hoy **2 de 2, sin margen**: el seed crea exactamente
+dos (`titulo` y `descripcion`), así que la rama que falla por «pocos campos»
+nunca corrió y su mensaje no está probado. Es un piso exacto contra una
+degradación concreta —bajarle el seed a un campo tipeable, o cambiarle el
+`field_type` a `titulo`, dejaría la verificación de «todos los campos» midiendo
+uno y en silencio—, no cobertura.
 Falla también si aparece monoespaciada donde no hay código
 ni un identificador (`[MONO]`): el texto propio de un elemento mono tiene que
 ser un identificador pelado —«v3», «reduccion_merma»—, y «veredicto por idea» o
@@ -806,8 +812,8 @@ talleres: si no, `12-miembros` la lista en toda corrida posterior a la primera.
 Sentar a alguien a mano en ese taller rompe `29`; reusarlo para otra cosa,
 también.
 
-**Lo que la mesa teclea se autoguarda en el SERVIDOR cada 2 segundos, sin
-publicar nada**: vive en `workshop_drafts` y mandarlo sigue siendo apretar el
+**Lo que la mesa teclea se autoguarda en el SERVIDOR dos segundos después de
+la última tecla, sin publicar nada**: vive en `workshop_drafts` y mandarlo sigue siendo apretar el
 botón. Lo que decidió la spec y no se lee del código:
 
 - **El borrador es de la MESA y no de cada persona** (último que escribe gana,
@@ -822,9 +828,14 @@ botón. Lo que decidió la spec y no se lee del código:
   propuesta que revierte la versión nueva sin enterarse.
 - **El sello de la versión se escribe SÓLO al crear la fila**
   (`based_on_version_id`). Si se reescribiera en cada autoguardado, el aviso de
-  base vieja no podría dispararse nunca. Es una línea de una palabra
-  (`if draft.new_record?`) de la que depende toda la feature del aviso, y el
-  único test que la cubre es el de extremo a extremo.
+  base vieja no podría dispararse nunca. De la condición
+  (`if draft.new_record?`) depende toda la feature del aviso, y la cubren DOS
+  ejemplos que prueban mitades distintas: el request spec «el sello de la
+  versión no se reescribe en el autoguardado siguiente»
+  (`spec/requests/workshop_drafts_spec.rb`) hace dos `PATCH` con una versión
+  publicada en el medio y asevera que el sello sigue siendo el de la primera; el
+  de extremo a extremo, que el sello que escribió el servidor llega al markup
+  del aviso. Sacar la condición pone en rojo el primero.
 - **Un `PATCH` sin `payload` es un no-op a propósito**, y lo mismo si después de
   filtrar no sobrevive ninguna clave: con `fetch(:payload, {})` un bug del
   cliente pisaría el texto de la mesa con nada. Los tres caminos responden 204,
@@ -836,11 +847,14 @@ botón. Lo que decidió la spec y no se lee del código:
 - **La cláusula nueva del barrido de mesas vacías de
   `Flow::Workshops::AssignGroups#seat!` acompaña a la de propuestas por la MISMA
   razón de carrera**, mientras el guarda de arriba —el que se niega a repartir
-  si ya hay propuestas— **no** se extendió a borradores a propósito: ninguna
-  pantalla borra un borrador, así que una mesa con texto tecleado se volvería
-  imposible de borrar para siempre. Una propuesta se resuelve; un borrador no
-  tiene ese camino. Por eso borrar una mesa a mano se lleva el borrador, y el
-  aviso lo dice.
+  si ya hay propuestas— **no** se extendió a borradores a propósito: negarse
+  a repartir porque alguien tecleó una palabra bloquearía una operación común
+  por texto sin mandar, y ese guarda existe por la procedencia de versiones
+  publicadas, que un borrador no tiene. Borrar una mesa a mano es otra decisión
+  y tampoco se niega (`WorkshopGroupsController`): ninguna pantalla borra un
+  borrador, así que una mesa con texto tecleado quedaría imposible de borrar
+  para siempre. Por eso borrar una mesa a mano se lleva el borrador, y el aviso
+  lo dice.
 
 ### Multi-tenancy: cuatro capas
 
@@ -1542,7 +1556,7 @@ las dé por cubiertas:**
   no tiene ninguna regla detrás; `[CAMPO]` mide el borde del campo, no en qué
   columna cayó; y `spec/lint/reglas_sin_elemento_spec.rb` compara NOMBRES de
   clase, no selectores. Si `.field-check` quedara mal escrita en la hoja,
-  `make screens` y los 1.628 ejemplos seguirían en verde y el único testigo
+  `make screens` y los 1.682 ejemplos seguirían en verde y el único testigo
   sería alguien abriendo `05e-config-evolucion.png`.
 - **El PDF de reportería no lo ejercita NINGÚN test.** Su layout
   (`layouts/pdf.html.haml`) tiene un solo consumidor,
@@ -1560,7 +1574,7 @@ las dé por cubiertas:**
   cubren «la mesa escribe la última frase y medio segundo después cambia de
   pestaña o se va a otra sala». `[DRAFT]` espera el debounce completo antes de
   recargar, así que el temporizador normal ya guardó y ese camino **nunca se
-  ejercita**: borrar esas dos líneas deja los 1682 ejemplos y `[DRAFT] 2` en
+  ejercita**: borrar esas dos líneas deja los 1.682 ejemplos y `[DRAFT] 2` en
   verde. No se le puso guarda a propósito: medirlo pide tipear y navegar
   inmediatamente, y una guarda que depende de ganarle a una carrera cuesta más
   en fallas intermitentes de lo que ahorra.

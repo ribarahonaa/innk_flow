@@ -767,13 +767,15 @@ Flow::Tenant.bypass! do
     # un `User`, que no cuelga de ningún taller, mientras el borrador cuelga de la
     # mesa y de la sala, y las dos se destruyen con el taller (el
     # `dependent: :destroy` de Rails y, debajo, las FK compuestas con
-    # `ON DELETE CASCADE`). El `destroy_all` de arriba ya lo deja en cero.
+    # `ON DELETE CASCADE`). El `Workshop.where(company: demo, …).destroy_all` de más
+    # arriba ya lo deja en cero.
     #
     # No agregar un `WorkshopDraft.delete_all`: bajo `bypass!` se llevaría los
     # borradores de TODAS las empresas. Lo que sí queda es que dos corridas
-    # seguidas SIN resembrar dejan la captura `25-taller-sala-idear` con el texto
-    # de la corrida anterior en el campo, porque `revisarBorrador` corre DESPUÉS
-    # de `capturar`. Resembrar lo limpia, igual que a Lucía Llegada.
+    # seguidas SIN resembrar dejan las capturas `25-taller-sala-idear` y
+    # `26b-taller-idea-elegida` con el texto de la corrida anterior en el campo
+    # (la de evolución prellena desde el borrador), porque `revisarBorrador` corre
+    # DESPUÉS de `capturar`. Resembrar lo limpia, igual que a Lucía Llegada.
     %w[taller-idear taller-evolucion taller-avanzado].each { |slug| Challenge.where(slug: slug).destroy_all }
 
     workshop_admin = User.find_by!(email: "admin@demo.test")
