@@ -26,5 +26,10 @@ module Flow
     # El proveedor de embeddings no pudo responder: falta credencial, la API
     # rechazó el pedido, o devolvió vectores de otra dimensión que la columna.
     class EmbeddingFailed < Error; end
+
+    # El proveedor de voz no pudo responder: falta credencial, la API rechazó
+    # el pedido, o contestó algo que no se puede normalizar. Hermana de
+    # `EmbeddingFailed` y por el mismo motivo: el job la reintenta.
+    class TranscriptionFailed < Error; end
   end
 end

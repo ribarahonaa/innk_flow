@@ -29,6 +29,18 @@ module Flow
         @embeddings_provider = value
       end
 
+      # El tercer eje. Mismo motivo que `embeddings_provider`: una capacidad que
+      # el proveedor de chat no tiene. Anthropic no transcribe, así que sin
+      # declarar nada esto cae al fixture y el camino entero corre sin
+      # credenciales ni gasto —que es lo que deja a `make screens` no facturar—.
+      def speech_provider
+        @speech_provider ||= build_speech_provider
+      end
+
+      def speech_provider=(value)
+        @speech_provider = value
+      end
+
       def provider=(value)
         @provider = value
       end
@@ -36,6 +48,7 @@ module Flow
       def reset_provider!
         @provider = nil
         @embeddings_provider = nil
+        @speech_provider = nil
       end
 
       private
@@ -51,6 +64,14 @@ module Flow
         declarado = ENV["FLOW_EMBEDDINGS_PROVIDER"].presence
         return resolve(declarado) if declarado
         return provider if provider.embeddings?
+
+        Flow::AI::Providers::Fixture.new
+      end
+
+      def build_speech_provider
+        declarado = ENV["FLOW_SPEECH_PROVIDER"].presence
+        return resolve(declarado) if declarado
+        return provider if provider.transcription?
 
         Flow::AI::Providers::Fixture.new
       end

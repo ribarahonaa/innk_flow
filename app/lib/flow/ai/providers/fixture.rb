@@ -51,6 +51,30 @@ module Flow
 
         def embedding_model = model_name
 
+        def transcription? = true
+
+        # Transcripción determinista, sin red y sin credenciales.
+        #
+        # DOS hablantes a propósito: con uno solo el aviso de diarización
+        # colapsada —«todas las utterances son del mismo hablante y hay dos o
+        # más sentados»— dispararía en toda corrida del recorrido, y la guarda
+        # que lo mide no podría distinguir «colapsó de verdad» de «así es el
+        # fixture».
+        #
+        # No depende del audio: los bytes del micrófono falso cambian con la
+        # duración de la grabación, y un fixture que variara con ellos dejaría
+        # de ser reproducible.
+        def transcribe(audio:, content_type:, language:)
+          [
+            { "speaker" => 0, "start" => 0.0, "end" => 4.2,
+              "transcript" => "Tenemos que bajar la merma de la bodega reusando las barricas.",
+              "confidence" => 0.99, "speaker_confidence" => 0.91 },
+            { "speaker" => 1, "start" => 5.1, "end" => 9.4,
+              "transcript" => "No estoy de acuerdo: el problema real es la inducción de los operarios nuevos.",
+              "confidence" => 0.97, "speaker_confidence" => 0.88 }
+          ]
+        end
+
         private
 
         def model_name = "fixture-v1"

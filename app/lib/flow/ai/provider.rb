@@ -34,6 +34,25 @@ module Flow
         raise NotImplementedError
       end
 
+      # ¿Este proveedor sabe transcribir audio?
+      #
+      # Tercera capacidad y tercer predicado, por el mismo motivo que
+      # `embeddings?`: ninguno de los proveedores tiene las tres. Anthropic no
+      # expone ni embeddings ni transcripción; Deepgram sólo transcribe.
+      def transcription? = false
+
+      # Audio → utterances con hablante. Devuelve un arreglo de hashes con
+      # claves string: "speaker", "start", "end", "transcript", "confidence",
+      # "speaker_confidence".
+      #
+      # NO devuelve la respuesta cruda del proveedor: normalizar es parte del
+      # adapter. Medido, la respuesta completa de Deepgram son 0,80 MB por 20
+      # minutos de reunión y esta forma 0,040 MB, veinte veces menos, sin
+      # perder nada que el dominio use.
+      def transcribe(audio:, content_type:, language:)
+        raise NotImplementedError
+      end
+
       def name = self.class.name.demodulize.underscore
 
       # Con qué modelo se calcularon los vectores. Se guarda junto al vector:
