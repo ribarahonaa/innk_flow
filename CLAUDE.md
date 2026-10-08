@@ -200,20 +200,21 @@ fuera de su alcance (queda anotada abajo, con las superficies). Extender
 primer día. Lo cosmético en oscuro es perder la SOMBRA, que es el motivo de
 `[SOMBRA]` y no el de éste.
 
-**Diez de las guardas cuentan cuánto midieron y fallan si midieron de menos**
+**Once de las guardas cuentan cuánto midieron y fallan si midieron de menos**
 —en cuántas pantallas `[RITMO]` encontró dos tarjetas que comparar, cuántos
 `card-body` vio `[RELLENO]`, cuántos chips y avisos midió `[PASTILLA]`, cuántos
 nombres de criterio `[CRITERIO]`, en cuántas pantallas vio `[LIVE]` refrescarse
 sola la mesa de llegada, en cuántas hubo riel (`[RIEL]`) y banda (`[BANDA]`),
 cuántas tarjetas (`[SOMBRA]`) y cuántos campos (`[CAMPO]`) midió, y cuántas
-caras de la sala (`[DRAFT]`) vio recuperar lo tecleado—, porque una
+caras de la sala (`[DRAFT]`) vio recuperar lo tecleado y en cuántas (`[GRABAR]`)
+vio grabar, subir y transcribir—, porque una
 guarda que mide cero da verde y es indistinguible de una que funciona: es el
 mismo motivo por el que `[MONO]` tiene autotest y por el que el muestrario falla
-si mide menos muestras de las que declara. La corrida imprime los diez números
+si mide menos muestras de las que declara. La corrida imprime los once números
 en una sola línea al terminar, y los pisos de hoy son 36, 250, 300, 100, «al
-menos una», 66, 71, 275, 270 y 2, en ese orden.
-**`PISO_DE_BANDAS` es EXACTO y los demás van con holgura** —con una segunda
-excepción, `[DRAFT]`, que sigue más abajo—, y la diferencia tiene motivo. Los
+menos una», 66, 71, 275, 270, 2 y 2, en ese orden.
+**`PISO_DE_BANDAS` es EXACTO y los demás van con holgura** —con dos excepciones
+más, `[DRAFT]` y `[GRABAR]`, que siguen más abajo—, y la diferencia tiene motivo. Los
 demás cuentan cosas que se mueven —tarjetas, chips y campos con los datos; el
 riel, con las pantallas que podrían sumarse— y necesitan margen; `[BANDA]`
 cuenta VISTAS que publican `content_for :banda`, que es un número fijo, y
@@ -225,6 +226,10 @@ sumar una pantalla con banda obliga a subir el piso con ella.
 no el mismo:** `[BANDA]` cuenta vistas, un número fijo; `[DRAFT]` cuenta las dos
 caras de la sala —idear y evolución— y no hay una tercera, así que un piso flojo
 no cazaría que una dejó de medirse.
+**El piso de `[GRABAR]` también es EXACTO (2), por el mismo motivo que el de
+`[DRAFT]`:** cuenta las dos caras de la sala que graban —idear y evolución— y no
+hay una tercera, así que un piso flojo no cazaría que una dejó de medirse (medido
+en la mutación que comenta una de las dos llamadas: cae de 2 a 1 y falla).
 **Y `[PASTILLA]` crece sola entre corridas sobre la misma siembra** —unos 4
 chips por vez (medido: 677 → 689 en cuatro corridas), y vuelve a bajar al
 resembrar—, porque el recorrido le pide cosas a la IA de verdad y después
@@ -764,13 +769,15 @@ revocar un link filtrado devolvería la asistencia a presumida en medio de la
 sesión. Rotar revoca; apagar el modo cambia cómo se cuenta.
 
 **La «Mesa de llegada» (`workshop_groups.arrival`, con índice UNIQUE parcial)
-es sala de espera, y hoy son SIETE los lugares que preguntan `arrival?` para no
+es sala de espera, y hoy son NUEVE los lugares que preguntan `arrival?` para no
 dejar trabajar desde ella** —el bloque de armado la pregunta cuatro veces más,
 por otras razones: no se borra a mano, y se sirve en el frame que se refresca
-solo—. Los siete: las
+solo—. Los nueve: las
 dos caras de la sala (`workshop_rooms/_ideation` y `_evolution`), que en vez del
-trabajo dicen que la mesa todavía no se armó; los dos controllers que escriben;
-el panel «Tu mesa» (`workshops/_my_group`); y las dos fuentes de ideas, que la
+trabajo dicen que la mesa todavía no se armó; los CUATRO controllers que
+escriben —`WorkshopIdeasController`, `WorkshopProposalsController`,
+`WorkshopDraftsController` y `WorkshopRecordingsController`, éste último desde
+la grabación—; el panel «Tu mesa» (`workshops/_my_group`); y las dos fuentes de ideas, que la
 vuelven a preguntar por su cuenta —la de evolución en el modelo
 (`WorkshopGroup#workable_ideas` devuelve `Idea.none`) y la de idear en el
 controller (`WorkshopRoomsController#load_ideation`)—. Esa última es
@@ -783,6 +790,18 @@ llegada de treinta personas nace con las treinta ESCRITAS y repartir no lo
 deshace. Y `AssignGroups#seat!` la excluye de las
 mesas reusables: es la primera creada, así que la habría convertido en «Mesa 1»
 con `arrival: true` puesto y su sala habría quedado muda para siempre.
+
+**Ojo: hasta el 2026-10-08 esta línea decía «siete», y la lista tampoco
+nombraba al autoguardado del borrador** (`WorkshopDraftsController`), que ya
+preguntaba lo mismo: el conteo estaba corto antes de que la grabación sumara el
+suyo. Dos comentarios del código repiten un número viejo —«los otros seis
+lugares» en `workshop_drafts_controller.rb` y en `workshop_rooms/_ideation`— y
+siguen ahí; el controller de grabaciones, en cambio, remite a este párrafo en
+vez de contar. Además de los nueve, la sala pregunta `arrival?` en
+tres LECTURAS (`load_recordings` y las dos del borrador, en
+`WorkshopRoomsController`) para no cargar lo que la vista no va a dibujar: no
+son un permiso, pero quien agregue un décimo lugar tiene que decidir a cuál de
+los dos grupos pertenece.
 
 **«Mi mesa en este taller» vive en `Workshop#group_of`, y en ningún otro lado.**
 Estaba escrito tres veces —el `group_of` privado de los dos controllers que
@@ -933,6 +952,85 @@ botón. Lo que decidió la spec y no se lee del código:
   para siempre. Por eso borrar una mesa a mano se lleva el borrador, y el aviso
   lo dice.
 
+**La mesa graba su conversación, y lo que sigue no se lee del código.** El
+audio sube de una vez, al parar (`WorkshopRecordingsController`), un job lo
+transcribe con `Flow::AI.speech_provider` y la tarjeta muestra las utterances
+con sus hablantes. Cada punto de abajo existe porque algo salió mal o estuvo a
+punto.
+
+**La línea de sonido va en barras del DOM y NUNCA en un `<canvas>`.** No hay un
+solo canvas en el repo, y el motivo de que siga así es que un canvas es una caja
+negra para todas las guardas —`[CLASES]`, `[CONTRASTE]` y `[SOMBRA]` no ven
+adentro— y una guarda que no puede ver **da permiso**. Las 40 barras nacen en el
+MARKUP y el JS sólo escribe su `height`: así Tailwind ve las clases, y un morph
+que borre los `style` en línea se arregla en el frame siguiente. El color sale de
+`--dato` / `--dato-fuerte` por la hoja —tinta de DATOS y no el acento: una barra
+pintada del color del botón de al lado se lee como un control—.
+
+**Lo que hace medible a la onda es `data-level`, y sin eso no habría testigo.**
+El bucle de dibujo publica ahí el RMS crudo, y `[GRABAR]` lo muestrea cada 100 ms
+para exigir dos cosas: un pico durante la voz, **y una corrida de muestras cerca
+de cero**. Sólo la segunda discrimina: una onda decorativa hecha con
+`Math.random()` pasa el umbral del pico de sobra y no produce nunca la corrida.
+Por eso `script/fake_audio.wav` está armado voz → SILENCIO → voz. Medido el
+2026-10-08: el hueco da 17 muestras seguidas bajo 0,01 contra un piso de 8, y la
+ventana de muestreo termina ADENTRO de la segunda voz, así que la corrida sale
+del hueco interior y no de una cola muda. Si alguien «simplifica» ese wav a una
+sola voz corrida, la guarda queda midiendo que algo se mueve y nada más.
+
+**La onda sigue moviéndose con `prefers-reduced-motion`**, igual que el spinner de
+la IA y por el mismo motivo: es la ÚNICA señal de que el micrófono está tomando
+algo, y quieta se lee como un micrófono tapado, que es justo el estado que tiene
+que poder distinguir. Un micrófono que entrega silencio (tapado, en mute por
+hardware, el equipo equivocado) deja la onda plana mientras el cronómetro sigue
+corriendo.
+
+**`workshop_recording.js` NO para ni descarga en `turbo:before-render`, y es a
+propósito, al revés de sus dos hermanos.** `arrival_live.js` para ahí y
+`workshop_draft.js` descarga ahí, pero ese evento dispara también en un morph, y
+un morph ocurre con cualquier POST a la misma URL: alguien apretando «Crear
+borrador» cortaría la reunión. Lo que lo permite es que el `MediaRecorder` y los
+trozos son variables de MÓDULO, así que un morph que reemplaza el botón y las
+barras no los toca. **Y `start()` tiene que REPINTAR en un morph, no sólo
+recablear:** el servidor renderiza el botón diciendo «Grabar» y el sello vacío,
+y con un retorno temprano el micrófono seguía abierto mientras el botón mentía;
+quien veía una onda moverse al lado de un «Grabar» lo apretaba y cortaba la
+grabación. Si alguien «arregla» el archivo copiando a los hermanos, se cortan
+grabaciones y ninguna suite se entera: el único testigo es `[GRABAR]`.
+
+**Una navegación en medio de la grabación PIERDE el audio, y `keepalive` no lo
+salva.** La despedida del borrador no se traslada: la spec de Fetch topa el
+cuerpo de un `keepalive` en 64 KB y el audio son megabytes. Sin subida
+progresiva lo único posible es avisar, que es lo que hace el `beforeunload`
+mientras graba. Si alguien lo saca por «limpieza», se pierden reuniones en
+silencio.
+
+**La tarjeta de grabaciones NO se refresca sola.** No hay frame, ni `data-live`,
+ni poller: el único intervalo es el cronómetro. La mesa sube, ve «en cola», y la
+tarjeta no se mueve hasta que navegue o recargue. La spec lleva una nota fechada
+porque antes afirmaba lo contrario. `[GRABAR]` pasa igual porque **re-visita a
+propósito** (su comentario lo dice): un `[GRABAR]` verde no es evidencia de que la
+tarjeta se actualice sola. El arreglo barato está descartado por una razón dura:
+Turbo 8 morfea llamando a `morphElements` sin `ignoreActiveValue`, así que
+`syncInputValue` le devuelve al campo enfocado el valor del servidor, y un poller
+de página completa le pisaría a la mesa lo que está tecleando en el borrador.
+
+**Y el riesgo de despliegue que ninguna guarda puede ver:** `getUserMedia` no
+existe fuera de un contexto seguro, y `docker-compose` publica el puerto en
+HTTP plano. Desde la máquina que corre Docker es `localhost` y anda; desde un
+teléfono de la red en `http://<ip>:3001`, `navigator.mediaDevices` es
+`undefined` y no hay grabación. La pantalla lo detecta y lo dice en vez de dejar
+un botón mudo. **`make screens` corre en `localhost`, que es contexto seguro
+SIEMPRE**: ninguna corrida verde dice nada sobre esto, y borrar la detección
+tampoco pone nada en rojo (medido: la mutación quedó verde, la rama es
+inalcanzable para el recorrido).
+
+**Los hablantes no están verificados con voces reales.** Las dos pruebas que hay
+usan voces sintéticas y las dos dieron un solo hablante; el español no se midió
+nunca. La spec lo detalla en «La diarización, sin verificar». Nada de C1 depende
+de eso —la tarjeta avisa cuando la mesa es de dos y la transcripción trae uno
+solo (`collapsed_diarization?`)—, pero C2 sí.
+
 ### Multi-tenancy: cuatro capas
 
 1. `Flow::Tenant.with(company)` para entrar. `bypass!` es la única válvula de
@@ -1037,11 +1135,21 @@ la cuenta autentica pero no tiene inferencia habilitada. Voyage contesta 500 en
 vez de un 402 que lo diga. La pista está en el mensaje del adapter para no
 volver a sondear.
 
-**Hay DOS proveedores, no uno.** `FLOW_AI_PROVIDER` (chat) y
-`FLOW_EMBEDDINGS_PROVIDER` (vectores) son capacidades distintas: Anthropic no
-expone embeddings, así que con una sola variable no se podía tener chat real y
-vectores reales a la vez. Sin declarar el segundo se usa el de chat si sabe
-hacerlos, y si no el fixture.
+**Hay TRES proveedores, no uno.** `FLOW_AI_PROVIDER` (chat),
+`FLOW_EMBEDDINGS_PROVIDER` (vectores) y `FLOW_SPEECH_PROVIDER` (voz: transcribir
+la grabación de la mesa) son capacidades distintas, y ningún proveedor tiene las
+tres: Anthropic no expone embeddings ni transcripción, Voyage sólo vectoriza y
+Deepgram sólo transcribe —su `complete` levanta `ProviderUnsupported`, igual que
+el de los adapters de embeddings—. Con una sola variable no se podía tener chat
+real y vectores reales a la vez, y con dos tampoco voz real. Sin declarar el
+segundo o el tercero se usa el de chat si sabe hacer lo que se le pide
+(`Provider#embeddings?`, `Provider#transcription?`), y si no el fixture.
+
+**`FLOW_SPEECH_PROVIDER` no está declarada en `.env` a propósito**, y es lo que
+hace que `make spec` y `make screens` no facturen: Anthropic no sabe
+transcribir, la cascada cae al fixture y el recorrido de la grabación corre sin
+red. `DEEPGRAM_API_KEY` sí está en `.env`, y anda. Declarar la variable es
+elegir que cada corrida cueste plata.
 
 Los adapters de embeddings (`Providers::Openai`, `Providers::Voyage`) heredan
 de `HttpEmbeddings`, que trae lo que es fácil hacer mal —respetar el índice de

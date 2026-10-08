@@ -1,200 +1,216 @@
-# Handoff — la re-revisión acotada del borrador de mesa, y diez mutaciones (2026-10-08)
+# Handoff — la grabación de la mesa (C1), y lo que quedó sin medir (2026-10-08)
 
 ## 1. Objetivo
 
-Correr la **re-revisión acotada** que la sesión anterior dejó pendiente como
-próximo paso número uno: el diff de `f53594e..93a6d95` —la última ronda del
-borrador de mesa, la que cerró el bloqueante de la revisión final y dos
-Important más—, que estaba verificado en lo que el ejecutor pudo medir pero
-**nadie había mirado con ojos frescos**.
+Construir **C1** de un sub-proyecto de tres: la mesa de un taller graba su
+conversación desde el navegador, el audio se transcribe con etiquetas de
+hablante, y la sala dibuja una línea de sonido en vivo mientras graba.
 
-No era construir nada nuevo. Era contestar tres preguntas abiertas y cerrar lo
-que apareciera.
+- **C1 (esta rama):** grabar, subir, transcribir, mostrar. Hecho.
+- **C2 (pendiente):** darle esa transcripción al modelo para que resuma/proponga.
+  Su premisa central son las **etiquetas de hablante**, y están **sin verificar
+  con voces reales** (ver §4).
+- **C3 (pendiente):** el tercero del sub-proyecto; no se diseñó.
+
+La última tarea (8) era sólo documentación: dejar `CLAUDE.md` y la spec contando
+la verdad. Sin cambios de código.
 
 ## 2. Estado actual
 
-Rama **`borrador-de-mesa`**, 20 commits sobre `master`, **pusheada y en
-sincronía**: `origin/borrador-de-mesa` está en el commit de este handoff.
-`master` sigue en `acda95a`, así que la rama está publicada y sin mergear.
+Rama **`grabacion-de-la-mesa`**, 29 commits sobre `master` antes de los de esta
+tarea. **No verifiqué el remoto:** el `ls-remote` por SSH da `Permission denied`
+(el push va por HTTPS con el helper de `gh`; preguntar por la RAMA, no por
+`master`: `gh api repos/ribarahonaa/innk_flow/branches/grabacion-de-la-mesa
+--jq .commit.sha`).
 
-Verificado preguntando **por la rama** y no por `master`, que es el error que
-esta cadena de handoffs ya pagó dos veces:
+- `make spec`: **1761 ejemplos, 0 fallas**.
+- `make screens` (tras `make seed` y `make yarn-build`): verde, "Sin errores de
+  JS ni respuestas >= 400". Las ONCE cifras:
+  `[RITMO] 40 · [RELLENO] 299 · [PASTILLA] 790 · [CRITERIO] 195 · [LIVE] 1 ·
+  [RIEL] 71 · [BANDA] 71 · [SOMBRA] 302 · [CAMPO] 289 · [DRAFT] 2 · [GRABAR] 2`.
 
-```bash
-git branch -vv                                                   # ahead/behind
-gh api repos/ribarahonaa/innk_flow/branches/borrador-de-mesa --jq .commit.sha
-```
+**Proveedores, tal como queda el stack:** `FLOW_AI_PROVIDER=anthropic` en `app` y
+en `sidekiq` (verificado), así que una corrida de `make screens` **cuesta plata de
+IA**. `FLOW_SPEECH_PROVIDER` está **sin declarar a propósito**: la cascada cae al
+fixture (Anthropic no transcribe), así que ni la suite ni el recorrido facturan
+voz. `DEEPGRAM_API_KEY` está en `.env` y **anda** (HTTP 200).
 
-Tres commits nuevos: `50741b6` (los dos testigos), `85cd1c3` (los documentos),
-`dbaa378` (la pasada de comentarios y el atributo honesto).
-
-- `make spec`: **1694 ejemplos, 0 fallas**. Venía de 1685: +7 en `50741b6` (6 del
-  lint nuevo, 1 del ejemplo discriminador) y +2 en `dbaa378`.
-- `make screens`: verde. Cuatro corridas, todas con `FLOW_AI_PROVIDER=fixture`,
-  o sea **cero costo de IA**. Última línea:
-  `[RITMO] 39 · [RELLENO] 296 · [PASTILLA] 813 · [CRITERIO] 195 · [LIVE] 1 ·
-  [RIEL] 71 · [BANDA] 71 · [SOMBRA] 299 · [CAMPO] 291 · [DRAFT] 2`.
-- **Diez mutaciones**, cada una pegando en el ejemplo que le toca. Están abajo
-  como tabla, porque es lo que más cuesta reconstruir.
-
-**OJO con el proveedor, y al revés de lo que decía el handoff anterior.** Ese
-decía «la app quedó en `fixture`»; al empezar esta sesión el stack llevaba dos
-horas arriba y `FLOW_AI_PROVIDER` decía **`anthropic`**. O sea que esa línea era
-falsa y se le habría creído. **Hoy queda en `anthropic`** —verificado en `app` y
-en `sidekiq`—, así que una corrida de `make screens` cuesta plata. Para bajarlo
-a fixture y devolverlo:
-
-```bash
-FLOW_AI_PROVIDER=fixture docker compose up -d --force-recreate app sidekiq
-docker compose up -d --force-recreate app sidekiq   # vuelve al .env
-```
-
-El recreate tiene que incluir `sidekiq` (`Flow::AI.provider` memoiza por
-proceso), y **no** sirve `make reup`: hace `down` del stack entero.
-
-### El veredicto de la revisión
-
-**Con arreglos, cero Critical.** Tres Important y nueve Minor, todos cerrados o
-descartados con motivo. Las nueve líneas de «declined to judge» quedaron
-revisadas: las dos decisiones ya aceptadas —el borrador que cambia de dueños al
-repartir, y el envío fallido que pierde lo tecleado— se verificaron contra
-`assign_groups.rb:160` y `:174-176` y siguen como estaban.
-
-Las tres preguntas abiertas, contestadas:
-
-1. **`base_version_id` del cliente: seguro**, y por un motivo que no estaba
-   escrito en ninguna parte. El `find_by` cuelga de `idea.versions`, que filtra
-   por `idea_id` **y** —vía `TenantScoped`— por `company_id`, así que una versión
-   de otra idea o de otra empresa queda excluida dos veces, independientemente. Y
-   la columna es **`uuid`** (`db/structure.sql:739`), así que `OID::Uuid#cast_value`
-   convierte basura, un no-entero, un array o la clave ausente en `nil` antes del
-   SQL. **Las dos últimas son portantes y no se leen del código**: si el tipo de
-   la columna cambiara, o si el `find_by` se mudara a `IdeaVersion`, se irían a la
-   vez la seguridad de tipo y el scope. Está escrito en `CLAUDE.md`.
-2. **`res.status !== 204`: no hay cuarto camino de éxito.** Se enumeraron los seis
-   del action más la capa de framework, y la ruta es `resource :draft, only:
-   %i[update]`, así que no hay otro verbo. El único 2xx no-204 alcanzable es el
-   200 del redirect seguido, que es el bug que se arregló.
-3. **El ejemplo del fallback no distingue el arreglo, confirmado — y ninguno
-   podría.** El fallback *es* el comportamiento viejo, así que sólo discrimina un
-   caso donde el valor del cliente y el de la base difieran.
-
-### Lo que queda sin verificar
-
-Nada de esta re-revisión. Lo que sigue abierto es lo de antes, y está anotado en
-`CLAUDE.md` con su tamaño real: el **camino concurrente** del autoguardado
-(`AbortController`, `enVuelo`, los dos `form !== enviadoDesde`, `descargar()` con
-su `keepalive`) no lo mide nada y borrarlo deja la suite y `[DRAFT] 2` en verde;
-el **borrador de idear puede cambiar de dueños** al repartir; un **envío fallido**
-pierde lo tecleado desde la última pausa de dos segundos; y
-`MINIMO_DE_CAMPOS_POR_CARA` mide **2 de 2 sin margen**, así que la rama que falla
-por «pocos campos» nunca corrió y su mensaje no está probado.
-
-Y una cosa de proceso: **los asientos de revisión de esta rama están gastados.**
-Hubo revisión final de rama entera, esta re-revisión acotada, y las dos están
-cerradas. Un tercer pase sobre lo mismo rinde poco.
+**Riesgo abierto que ningún documento cerraba:** la diarización colapsa en las dos
+mediciones que hay (§4) y el español no se midió nunca.
 
 ## 3. Archivos y cambios
 
-| Pieza | Dónde | Commit |
-|---|---|---|
-| La tercera fase de `[DRAFT]`: intercepta el PATCH, contesta 200 y exige el texto de fallo | `script/capture_screens.js` | `50741b6` |
-| El lint de los tres eslabones del sello, con autotest del stripper | `spec/lint/sello_del_borrador_spec.rb` (nuevo) | `50741b6` |
-| El ejemplo que separa `idea.versions` de `IdeaVersion` | `spec/requests/workshop_drafts_spec.rb` | `50741b6` |
-| La spec de diseño: el bloque de código y la línea en negrita, corregidos con un `Ojo:` fechado | `docs/superpowers/specs/2026-10-07-borrador-de-mesa-design.md` | `85cd1c3` |
-| El bullet del sello y uno nuevo sobre el dato del cliente | `CLAUDE.md` | `50741b6`, `85cd1c3` |
-| El atributo `draft_base` honesto, con su ejemplo | `app/views/workshop_rooms/_evolution.html.haml`, `spec/requests/workshop_draft_prefill_spec.rb` | `dbaa378` |
-| `base_version_id` por argumento; tres comentarios que prometían cotas falsas | `app/controllers/workshop_drafts_controller.rb`, `db/migrate/20261007120000_create_workshop_drafts.rb` | `dbaa378` |
+| Pieza | Dónde |
+|---|---|
+| El eje de voz: `Provider#transcription?`/`#transcribe`, `Flow::AI.speech_provider`, `Provider::Transcription` (Data), `TranscriptionFailed` | `app/lib/flow/ai.rb`, `ai/provider.rb`, `errors.rb` |
+| Adapter de Deepgram (normaliza; `transcription_from` público) y fixture | `app/lib/flow/ai/providers/deepgram.rb`, `fixture.rb`, `spec/fixtures/ai/` |
+| Tabla y modelo `workshop_recordings` (`collapsed_diarization?` cuenta sólo a los presentes) | `db/migrate`, `app/models/workshop_recording.rb`, `db/structure.sql` |
+| Subida y entrega (cuatro guardas, entre ellas `arrival?`) | `app/controllers/workshop_recordings_controller.rb`, `config/routes.rb` |
+| Servicio y job (idempotente: sale con `ready`, porque cada llamada se cobra) | `app/lib/flow/workshops/transcribe_recording.rb`, `app/jobs/flow/workshops/transcribe_recording_job.rb` |
+| Pantalla: partial, JS, onda en barras, chip, locale | `app/views/workshop_rooms/_recording.html.haml`, `app/javascript/workshop_recording.js`, `application.css` (`.waveform`), `EstilosHelper` |
+| La guarda `[GRABAR]` y el wav voz → silencio → voz | `script/capture_screens.js`, `script/fake_audio.wav` |
+| Los documentos (tarea 8) | `CLAUDE.md`, `docs/superpowers/specs/2026-10-08-grabacion-de-la-mesa-design.md`, este archivo |
 
-### El mapa de cobertura, medido
+### Lo que CLAUDE.md dice ahora (tarea 8)
 
-Esto es lo que más cuesta reconstruir y lo que ninguna lectura del código da.
-Qué eje caza qué:
+- Los lugares que preguntan `arrival?` son **NUEVE**, no siete ni ocho: el conteo
+  viejo ya no nombraba al autoguardado del borrador (`WorkshopDraftsController`),
+  y la grabación suma el suyo. Más tres LECTURAS (`load_recordings` y las dos del
+  borrador) que no son permiso.
+- **Tres** proveedores (`FLOW_AI_PROVIDER`, `FLOW_EMBEDDINGS_PROVIDER`,
+  `FLOW_SPEECH_PROVIDER`), y por qué la tercera no se declara.
+- **Once** guardas que cuentan; pisos `36, 250, 300, 100, «al menos una», 66, 71,
+  275, 270, 2, 2`. `[GRABAR]` es exacto, como `[DRAFT]`.
+- Una sección nueva en «El taller» con lo que no se lee del código (onda en DOM,
+  `data-level`, el JS que no para en `turbo:before-render`, la navegación que pierde
+  el audio, la tarjeta que no se refresca, el contexto seguro).
+
+### Números medidos (los que más cuesta reconstruir)
+
+- **Contrato de Deepgram:** `results.channels[0].alternatives[0]` →
+  `transcript`, `confidence`, `words[]` (`word`, `punctuated_word`, `start`, `end`,
+  `confidence`, `speaker`, `speaker_confidence`); `results.utterances[]` →
+  `speaker`, `start`, `end`, `transcript`, `confidence`, `words[]`;
+  `metadata` → `duration`, `request_id`, `model_info`. Con audio de duración cero
+  contesta **200 con texto vacío**. Query usada:
+  `model=nova-3&diarize=true&utterances=true&punctuate=true`.
+- **Tamaño de la transcripción:** utterances normalizadas **0,040 MB por 20 min**
+  contra **0,80 MB** crudas (veinte veces menos). `speaker_confidence` de la
+  utterance = mínimo de sus palabras.
+- **Bitrate:** Chromium graba a **115 kbps** por default (17,4 MB por 20 min); el
+  `MediaRecorder` va con **32 kbps** explícitos (~4,8 MB).
+- **Cuerpo subido por `[GRABAR]`:** ~**22,4 KB** (22.445 idear, 22.575 evolución)
+  contra un piso de **2000** bytes: unas diez veces de margen.
+- **Serie de la onda** (muestreo cada 100 ms, `data-level`): pico ~**0,605** contra
+  `VOZ_MINIMA = 0,05`; el hueco da **17** muestras seguidas bajo `SILENCIO_MAXIMO =
+  0,01` contra `MUESTRAS_DE_SILENCIO = 8`; ruido del opus en el hueco ≤ 0,006; la
+  voz de la cola arranca en 0,013. La ventana de muestreo **termina dentro de la
+  segunda voz**, así que la corrida sale del hueco interior y no de una cola muda.
+  El wav dura 6,50 s, 16 kHz mono: voz 2,5 s (`slt`) → 1,5 s de silencio → voz 2,5 s
+  (`awb`). La estimación teórica "~15 muestras" quedó en un comentario junto al
+  valor medido (17): las dos son ciertas, pero juntas confunden.
+- **Costo:** la única llamada real de la tarea 7 fue ~0,0006 USD.
+
+### Qué mutación puso en rojo a qué
 
 | Mutación | Rojo en |
 |---|---|
-| se saca `if draft.new_record?` | «el sello de la versión no se reescribe en el autoguardado siguiente» **y** «de extremo a extremo» |
-| la vista pierde `draft_base` | «el sello usa la versión con la que se prellenó» + el lint |
-| el servidor ignora al cliente y lee de la base | «el sello usa la versión con la que se prellenó» |
-| el JS deja de leer `dataset.draftBase`, o le cambia la clave | **sólo** el lint |
-| `IdeaVersion.find_by` en vez de `idea.versions.find_by` | el ejemplo de «otra idea de la misma empresa» |
-| `res.status !== 204` → `!res.ok` | las dos caras de `[DRAFT]`; cae de 2 a **0** |
-| el atributo vuelve a `selected.current_version_id` | el ejemplo de `data-draft-base` con borrador |
-| el stripper del lint deja de sacar los `//` | el autotest del stripper |
+| T1: se comenta `return resolve(declarado) if declarado` | speech_provider_spec, el ejemplo de la variable declarada (1 falla) |
+| T1: se comenta `return provider if provider.transcription?` | el ejemplo de identidad del proveedor de chat |
+| T2: `transcribe` con `duration`/`request_id`/`model` en nil | **verde** con el diseño inicial; tras extraer `transcription_from`, el ejemplo nuevo (`expected: 16.906187`) |
+| T3: `== 1` → `<= 1` en `collapsed_diarization?` | «la condición es una igualdad y no un `<=`» |
+| T3: `presentes` → `count` | sólo el ejemplo de "dos sentados, uno ausente"; los otros cuatro verdes |
+| T3: `return if true` en `idea_matches_room` | sólo el ejemplo de `errors[:idea]` |
+| T4: se borra `unless group` | "admin sin mesa 403" |
+| T4: se borra `group.arrival?` | "mesa de llegada 403" |
+| T4: se borra `workable?` | "vínculo cerrado 409" |
+| T4: se saca `split(";")` del content-type | el ejemplo agregado del `codecs` |
+| T4: `WorkshopRecording.unscoped.find_by!` / `find_by!` sin scope | el ejemplo de otra empresa (con audio adjunto) y el de otra sala |
+| T4: `where(workshop_group:)` fuera de `show` | el ejemplo de otra mesa (1 falla) |
+| T4: `find_by!` → `find_by` para `idea_id` | "bogus → 404 y sin fila" |
+| T5: se borra `return false if recording.status == "ready"` | "idempotente" (8 ejemplos, 1 falla) |
+| T5: `rescue TranscriptionFailed` → `rescue StandardError` | **verde** al principio (nada lo distinguía); con el ejemplo del `NoMethodError` rojo (`expected "transcribing" got "failed"`) |
+| T6: `load_recordings` sin el filtro de mesa | "no lista las grabaciones de OTRA mesa" |
+| T6: `%details{ open: i.zero? }` → `%details` | "la última grabación abre su transcripción sola" |
+| T7-B: `mismoNodo = false` (el `start()` no repinta en el morph) | `[GRABAR]`, **fase del morph**: «el botón dice "Grabar" (antes "Parar")»; cae de 2 a 0 |
+| T7-C: `nivel()` devuelve `Math.random() * 0.3` | `[GRABAR]`, **por la corrida de silencio** ("1 muestras y hacen falta 8"), NO por el pico |
+| T7-A (reemplazo): se borra `caja.dataset.level = ...` | `[GRABAR]`, **por el pico** ("0.000", "AnalyserNode no está leyendo"): espejo exacto de C |
+| T7-D: se comenta la llamada de evolución | `[GRABAR] sólo 1 de 2 caras`, cae de 2 a 1 |
 
-Tres decisiones de diseño de esta sesión que no se leen del código:
+A y C son independientes: C falla donde A pasa y al revés, que es lo que prueba que
+las dos aserciones de la onda miden cosas distintas.
 
-- **La fase de fallo de `[DRAFT]` no suma un contador nuevo.** Una cara cuenta
-  como medida sólo si pasaron las tres fases. `PISO_DE_BORRADORES` es exacto en 2
-  porque cuenta CARAS y no hay una tercera; un contador aparte lo volvería 4,
-  rompería esa semántica y sumaría un onceavo número a una línea que el doc dice
-  que tiene diez.
-- **La fase de fallo va al FINAL.** La de éxito ya dejó el borrador escrito y un
-  guardado que falla no escribe nada, así que no contamina lo medido; y
-  `guardar()` no restaura `sucio`, de modo que el texto de esa fase no se va
-  después en el `keepalive` de `descargar()`.
-- **El lint tiene autotest del STRIPPER y no de los patrones.** De los patrones
-  ya se encargan los tres ejemplos, que comparan contra el código sin
-  comentarios; lo que puede fallar en silencio es el stripper, porque uno que
-  devolviera el archivo entero los dejaría pasando sobre la prosa que explica
-  cada línea.
+## 4. Intentos fallidos (los que no funcionaron)
 
-## 4. Intentos fallidos
-
-**Una mutación mía no probaba nada y dio verde.** Para el autotest del stripper
-mutué el `gsub` de `/* */` — que el JS no usa, o sea un no-op— y la guarda siguió
-en verde. El trabajo real lo hace el `sub(%r{//.*})` de cada línea. Lo delató el
-propio verde: una mutación que no pone nada en rojo es sospechosa antes de ser
-tranquilizadora. Es la trampa exacta que esta rama lleva catorce casos cazando, y
-la pisé escribiendo la guarda que existe para eso.
-
-**Un `cp` de restauración me deshizo el arreglo, no la mutación.** El backup de
-`_evolution.html.haml` se había tomado al EMPEZAR la tanda C, o sea antes de
-aplicar el ítem 4; al restaurar la mutación, el `cp` devolvió el archivo a la
-versión pre-arreglo. Lo cazó un `grep -c` del arreglo que dio **0**. Sin eso, el
-commit habría salido sin el cambio que su ejemplo nuevo justifica. Es la misma
-familia que el `git checkout` ya anotado: **el backup va después del arreglo, y
-se verifica grepeando lo ARREGLADO y no lo mutado** —lo mutado ausente no
-distingue «restaurado» de «restaurado de más»—.
-
-**Escribí un autotest redundante y lo saqué.** El primer lint tenía un ejemplo
-«mira el código y no el comentario que lo explica», que no agregaba nada: como la
-guarda real ya compara contra el código sin comentarios, no puede vivir de su
-propio comentario, y el único efecto era que cada mutación diera dos fallas en
-vez de una. Lo reemplacé por el del stripper.
-
-**Una preocupación que resultó ya resuelta.** Al diseñar la fase de fallo noté
-que comparar `innerText` contra `data-failed-text` es el mismo agujero
-autorreferencial que la ronda anterior había cerrado para el texto de guardado:
-los dos lados salen del mismo lookup de locale. Resultó que **ya estaba cubierto
-para los dos textos** —`workshop_draft_prefill_spec.rb` asevera los dos literales
-desde afuera—, así que no hizo falta nada. Lo que faltaba era la RAMA, no el
-string.
-
-**El reviewer se equivocó en un punto, medido.** Afirmó que el ejemplo del sello
-(«el sello usa la versión con la que se prellenó») se pone rojo al sacar
-`if draft.new_record?`. No:
-hace un solo `PATCH`, así que resellar escribe el mismo valor. Los que sí caen son
-otros dos. Yo relayé esa afirmación sin medirla antes de corregirla; la lección es
-la de siempre en este repo, aplicada a un revisor en vez de a un test.
-
-**Lo que NO falló, para no buscarlo:** el `base_version_id` del cliente aguantó
-todo lo que le tiré —cadena basura, no-entero, versión de otra idea, versión de
-otra empresa, clave ausente— y ninguno llega a un 500, a una violación de FK ni a
-una lectura cruzada.
+- **Medir el español y la diarización con audio real: BLOQUEADO.** El archivo
+  (veinte segundos de dos personas hablando español) lo tenía que producir Raúl y
+  no llegó. No se sintetizó un sustituto ni se llamó a la API. El resultado está
+  escrito en la spec como un `Ojo:` fechado: las dos mediciones que hay (un sondeo
+  de diseño con dos voces `flite` y la llamada de la tarea 7 con el wav del repo)
+  dieron **un solo `speaker 0`** (`speaker_confidence` 0,196–0,687 y 0,69 / 0,0),
+  y las dos son **voces de síntesis**, que un diarizador no separa por razones que
+  no dicen nada del proveedor. **Inconcluso, riesgo 1 abierto.** El español nunca
+  se midió: `flite` no habla otro idioma.
+- **La mutación A original de la tarea 7 era imposible.** Borrar las dos líneas
+  `impedimento()` de `start()` quedó **verde**: el recorrido corre en `localhost`
+  (contexto seguro) con micrófono falso, y la rama nunca se alcanza. Se reemplazó
+  por borrar `caja.dataset.level`. La detección de contexto seguro **no tiene
+  testigo**.
+- **Un refresco que nunca existió.** La spec decía que la tarjeta se refrescaba con
+  "el mismo mecanismo de `arrival_live.js`". No se construyó (no hay frame, ni
+  `data-live`, ni poller). `[GRABAR]` pasaba igual porque su primera versión
+  esperaba una `details` en una página que nunca se refresca; se arregló
+  re-visitando con `Turbo.visit` (hasta 20 veces, ~2 s). Un `[GRABAR]` verde no
+  prueba el refresco. Hay una nota fechada en la spec.
+- **El `start()` que no repintaba.** Con retorno temprano en un morph, el servidor
+  devolvía el botón en «Grabar» y el micrófono seguía abierto: quien veía la onda
+  moverse apretaba "Grabar" y cortaba. Arreglado en dos rondas (`repintar()` desde
+  el estado del módulo; la bandera `subiendo`; la onda sólo si hay `analizador`).
+- **Mutación del `rescue` que no discriminaba** (T5): el único ejemplo de fallo
+  lanzaba `TranscriptionFailed`, que `StandardError` también atrapa. Hizo falta un
+  proveedor que lance `NoMethodError`.
+- **Estado compartido en el proveedor** (`last_metadata`): una carrera entre hilos.
+  Se reemplazó por un valor de retorno (`Data`).
+- **El helper de sesión del plan era inventado** y cuatro conteos estaban mal
+  (commit `3d9dd49`); la mutación B del plan nombraba código viejo.
+- **El conteo de `arrival?` del brief (ocho) no cierra** contra el código: son
+  nueve. Si algún día alguien quiere volver a contarlos: `grep -rn "arrival?" app`.
 
 ## 5. Próximos pasos
 
-1. **Quedan C y D** de la división de cuatro partes del taller. Nada de esta rama
-   los bloquea, y la rama está lista para mergear en lo que a esta revisión
-   respecta.
-2. Si se toca el borrador otra vez, el candidato con mejor relación
-   valor/esfuerzo es el **envío fallido**: hoy pierde lo tecleado desde la última
-   pausa de dos segundos, y la salida está escrita en `CLAUDE.md` —el
-   discriminador no es el código de estado sino **si el borrador sobrevivió**:
-   capturar el cuerpo en el `submit` y, en el render siguiente, mirar si
-   `#draft-stamp` volvió NO vacío—. Cuesta un write por envío rechazado y le da
-   significado semántico a «el sello está vacío», que hoy es sólo presentación.
-3. Antes de cualquier `make screens`, decidir el proveedor a conciencia: el stack
-   queda en **`anthropic`** y cada corrida factura. Los comandos están en la
-   sección 2.
+1. **Conseguir los veinte segundos de audio real** (dos personas, español) y correr
+   el comando del paso 1 de la tarea 8 (`curl` a `/v1/listen?...&language=es`, ver
+   el brief). Es lo único que cierra el riesgo 1, y **decide si C2 vale la pena
+   como está diseñada**. Escribir el resultado como un `Ojo:` fechado encima del de
+   hoy.
+2. **La revisión final de la rama entera** (la dispara el orquestador). Triar los
+   *minors* diferidos de abajo.
+3. **Dos comentarios del código con el número viejo**, sin editar (esta tarea sólo
+   toca documentos): `app/controllers/workshop_drafts_controller.rb:35` y
+   `app/views/workshop_rooms/_ideation.html.haml:17` dicen «los otros seis
+   lugares». Mejor que cambiar el número: remitir a CLAUDE.md, como ya hace el
+   controller de grabaciones.
+4. **C2 y C3 siguen pendientes.** C2 no puede diseñarse con confianza mientras las
+   etiquetas de hablante estén sin verificar.
+5. Antes de mostrar la grabación desde un teléfono: **HTTPS**. Hoy no hay
+   grabación fuera de `localhost` y ninguna corrida verde lo dice.
+6. Retención del audio: se conserva a propósito (re-transcribir es cómo se arregla
+   una diarización colapsada) y **nadie escribió la política**.
+
+### *Minors* diferidos (de `progress.md`, líneas «minor (deferred)»)
+
+- T2: «canneada» en un comentario de `fixture.rb` no es español estándar (viene del
+  plan y está en los dos lados).
+- T3: `speakers` devuelve `[nil]` si una utterance no trae `"speaker"` y se
+  anunciaría como «diarización colapsada». Teórico: Deepgram con `diarize=true`
+  siempre manda `speaker`.
+- T3: `db/structure.sql` churnea dos líneas por migración (`\restrict` /
+  `\unrestrict` de pg_dump 17+): ruido.
+- T3: el CHECK de Postgres no está ejercitado (el ejemplo del status inválido
+  prueba la validación de Ruby).
+- T3: nada prueba el `SET NULL` a nivel base (borrar una idea y ver la grabación
+  sobrevivir con `idea_id` nil).
+- T4: el job stub no llevaba `frozen_string_literal` (la tarea 5 lo restauró).
+- T4: los dos comentarios «los otros seis lugares» están viejos (ver §5.3).
+- T6: si la mesa navega a una pantalla SIN el contenedor mientras graba, `caja`
+  queda en null y la grabación sigue corriendo (Turbo no dispara `pagehide`); al
+  volver, `subir()` descarta el audio porque `url` es null. Preexistente.
+- T6: tras un morph las barras quedan en blanco un instante (idiomorph resetea sus
+  `height` en línea) y el historial se rellena en los frames siguientes.
+- T7: una segunda corrida de `make screens` sin `make seed` falla `[CHECKIN]`
+  (Lucía Llegada queda sentada). Preexistente y documentado.
+- T7: el sello del morph es testigo débil (el tick de 1 s reescribe el cronómetro
+  dentro de la espera); el texto del botón es la única aserción fuerte de esa fase.
+- T7: `Math.max` sobre una serie con NaN devuelve NaN y `NaN < VOZ_MINIMA` es
+  false, así que el chequeo del pico se saltea; la corrida de silencio sí lo caza.
+- T7: la ruta interceptada del POST queda registrada tras un `return` temprano,
+  por el resto de la corrida (sólo continúa pedidos).
+- T7: en el bloque de comentario conviven la estimación teórica («~15 muestras») y
+  el valor medido (17).
+
+### Si hay que repetir algo de esto
+
+- Mutar una guarda: restaurar con `cp` de un backup tomado **después** del arreglo;
+  `git checkout` deshace el arreglo, no la mutación.
+- `make seed` antes de cada `make screens`; `make yarn-build` antes de ambos si se
+  tocó `app/javascript/` o Tailwind.

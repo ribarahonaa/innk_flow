@@ -92,6 +92,33 @@ de que la diarización funcione.** La transcripción se guarda y se muestra con
 hablantes cuando los hay, y sirve igual sin ellos. Es la misma forma que
 `DetectDuplicates`, que elige su camino según lo que el proveedor sabe hacer.
 
+**Ojo: re-medido el 2026-10-08 y SIGUE SIN SABERSE; el riesgo 1 queda abierto.**
+La tarea 8 del plan pedía veinte segundos de audio real de dos personas hablando
+en español, y ese archivo no llegó, así que no se midió con voces reales ni se
+sintetizó un sustituto. Lo que hay son dos confirmaciones independientes de que
+la diarización colapsa, las dos con voces sintéticas:
+
+- el sondeo del diseño (arriba): dos voces `flite` distintas con 1,5 s de hueco
+  entre ellas volvieron como un solo `speaker 0`, con `speaker_confidence` entre
+  0,196 y 0,687;
+- la única llamada real de la tarea 7, con el `script/fake_audio.wav` que está en
+  el repo (voz `slt`, silencio, voz `awb`): otra vez las dos voces como
+  `speaker 0`, con `speaker_confidence` 0,69 y 0,0.
+
+**Y el reparo que las vuelve inconclusas pesa tanto como el resultado:** son
+voces de síntesis. Un diarizador se apoya en la variación del tracto vocal que
+`flite` no produce, y correrle el tono no la crea. El colapso puede ser un
+artefacto de la entrada y no una propiedad del proveedor — lo mismo que ya se
+sospechaba, ahora con una medición más y sin que acerque la respuesta.
+
+**El español no se midió en absoluto:** todo se midió en inglés porque `flite`
+no habla otro idioma. Lo que C1 hace con la transcripción (guardarla, mostrarla,
+avisar cuando la mesa es de dos y vino un solo hablante) no depende de ninguna de
+las dos cosas; **C2 sí** —su premisa central son las etiquetas de hablante—, y
+recibiría transcripciones de un solo hablante si el colapso fuera real. Lo que
+cierra el riesgo sigue siendo lo mismo: veinte segundos de dos personas reales
+hablando español, con el comando del paso 1 de la tarea 8.
+
 ## La forma: el cuarto eje de proveedor
 
 ### Lo que se descartó, y por qué
