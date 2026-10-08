@@ -2729,6 +2729,15 @@ docker compose exec app grep -c "recordingUrl" app/assets/builds/application-bui
 docker compose exec app grep -c "waveform__bar" app/assets/builds/application-build-css.css
 ```
 
+**Ojo, y esto se descubrió midiendo: grepear una cadena que YA existía no prueba
+que el bundle se reconstruyó.** En la ronda de arreglos de esta tarea,
+`recordingUrl` daba 1 contra el bundle **viejo**, porque esa cadena había entrado
+en el build anterior — o sea que el chequeo pasaba sin haber compilado nada. Para
+verificar un rebuild hay que grepear algo que **sólo exista después del cambio**;
+en esa ronda sirvió el literal `'subiendo'`, que la minificación conserva porque
+es un string y no un nombre de variable (3 en el bundle, y en el fuente). Cada
+vez que se toca el JS, elegí una cadena nueva de ESE cambio.
+
 Esperado: los dos mayores que 0. Si el primero da 0, el import no entró; si el
 segundo da 0, la regla no se compiló y la onda sale **sin alto, sin color y sin
 `display:flex`** — o sea las barras apiladas en una columna, y
