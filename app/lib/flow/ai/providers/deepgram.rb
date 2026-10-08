@@ -29,14 +29,22 @@ module Flow
         end
 
         def transcribe(audio:, content_type:, language:)
-          body = post(audio, content_type, language)
-          metadata = metadata_from(body)
           # Las dos cosas en UN valor inmutable, y no un arreglo más un accesor
           # que se pregunta después. Un accesor sería estado compartido: el
           # proveedor se memoiza, o sea UNA instancia para el proceso, y Sidekiq
           # corre con cinco hilos — dos grabaciones en vuelo se pisarían la
           # metadata y la fila de auditoría de una llevaría el `request_id` de
           # la otra.
+          transcription_from(post(audio, content_type, language))
+        end
+
+        # Público por el mismo motivo que `normalize` y `metadata_from`: es lo
+        # que se puede probar sin red, y acá vive el cableado de la metadata al
+        # valor que se devuelve. Sin esto, `transcribe` sólo se podía ejercitar
+        # con una llamada real, y una mutación que le borraba la metadata
+        # quedaba en verde.
+        def transcription_from(body)
+          metadata = metadata_from(body)
           Provider::Transcription.new(
             utterances: normalize(body),
             duration: metadata["duration"],

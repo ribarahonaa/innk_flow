@@ -78,4 +78,19 @@ RSpec.describe Flow::AI::Providers::Deepgram do
       )
     end
   end
+
+  describe "#transcription_from" do
+    it "arma el valor con las utterances Y la metadata de la respuesta" do
+      # Es el cableado que `transcribe` usa: sin este ejemplo, borrar la
+      # metadata del valor devuelto no ponía nada en rojo.
+      resultado = provider.transcription_from(body)
+
+      expect(resultado).to be_a(Flow::AI::Provider::Transcription)
+      expect(resultado.utterances.size).to eq(3)
+      expect(resultado.duration).to eq(body.dig("metadata", "duration"))
+      expect(resultado.request_id).to eq(body.dig("metadata", "request_id"))
+      expect(resultado.model).to eq(body.dig("metadata", "model_info").values.first["name"])
+      expect([resultado.duration, resultado.request_id, resultado.model]).to all(be_present)
+    end
+  end
 end
