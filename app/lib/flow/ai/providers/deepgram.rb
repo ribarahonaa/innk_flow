@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "net/http"
+
 module Flow
   module AI
     module Providers
