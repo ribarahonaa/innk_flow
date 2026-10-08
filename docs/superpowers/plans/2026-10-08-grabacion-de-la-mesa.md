@@ -1768,8 +1768,7 @@ module Flow
   module Workshops
     # Audio → utterances con hablante.
     #
-    # Le pide los vectores... no: le pide la transcripción a
-    # `Flow::AI.speech_provider` y NO al de chat. Son objetos distintos, y
+    # Le pide la transcripción a `Flow::AI.speech_provider` y NO al de chat. Son objetos distintos, y
     # preguntarle al de chat es exactamente el error que `DetectDuplicates` pagó
     # con los embeddings: el proveedor específico quedaba sin usarse nunca, con
     # la credencial puesta y todo.
