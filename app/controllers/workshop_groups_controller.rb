@@ -37,6 +37,7 @@ class WorkshopGroupsController < ApplicationController
     # versiones publicadas—. Va antes de pedir la llegada para no crear una
     # que después la guarda rechaza.
     had_draft = false
+    had_recording = false
     refused = group.with_lock do
       # Misma regla que `AssignGroups` (no rearmar con propuestas), para que
       # borrar a mano y repartir no se contradigan.
@@ -65,6 +66,13 @@ class WorkshopGroupsController < ApplicationController
       # un borrador, así que una mesa con texto tecleado quedaría imposible de
       # borrar para siempre. Se lee antes del `destroy!`, que lo borra.
       had_draft = group.workshop_drafts.exists?
+      # La grabación se va igual, y pesa más que el texto: `destroy!` cascadea
+      # la transcripción y `has_one_attached :file` PURGA el audio, que es
+      # irrecuperable —re-transcribir con otros parámetros es cómo se arregla
+      # una diarización colapsada, y sin el audio no hay con qué—. Así que el
+      # aviso la nombra: el comentario del modelo ya decía que la pantalla lo
+      # decía, y la pantalla no lo decía.
+      had_recording = group.workshop_recordings.exists?
       group.destroy!
       nil
     end
@@ -73,8 +81,7 @@ class WorkshopGroupsController < ApplicationController
       return redirect_to workshop_path(@workshop),
                          alert: "Esta mesa ya tiene propuestas: no se elimina. Las mesas con trabajo hecho se mueven a mano."
     end
-    notice = had_draft ? "Mesa eliminada, con el borrador que tenía sin mandar." : "Mesa eliminada."
-    redirect_to workshop_path(@workshop), notice: notice
+    redirect_to workshop_path(@workshop), notice: deleted_notice(had_draft, had_recording)
   end
 
   def assign
@@ -89,6 +96,18 @@ class WorkshopGroupsController < ApplicationController
   end
 
   private
+
+  # Qué se fue con la mesa. Lo que el borrado destruye y no se puede
+  # reconstruir se NOMBRA: «Mesa eliminada.» a secas sobre una mesa que tenía
+  # media hora de conversación grabada no dice nada de lo que acaba de pasar.
+  def deleted_notice(had_draft, had_recording)
+    perdido = []
+    perdido << "el borrador que tenía sin mandar" if had_draft
+    perdido << "lo que había grabado" if had_recording
+    return "Mesa eliminada." if perdido.empty?
+
+    "Mesa eliminada, con #{perdido.to_sentence}."
+  end
 
   # Qué hizo, y qué partió. Los cortes se cuentan aparte de las mesas: son la
   # única parte del resultado que no respeta «no partir grupos», así que

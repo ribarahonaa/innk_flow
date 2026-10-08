@@ -86,11 +86,19 @@ class WorkshopRecordingsController < ApplicationController
     # a idear se ignora—, igual que en el borrador.
     idea = @link.kind == "evolution" ? workable_idea(group) : nil
 
-    grabacion = group.workshop_recordings.create!(
-      workshop_challenge: @link, idea: idea, recorded_by: current_user, status: "pending"
-    )
-    grabacion.file.attach(archivo)
-    grabacion
+    # Los dos en UNA transacción. `attach` puede levantar —el servicio de
+    # Active Storage, una validación, el disco— y afuera de la transacción eso
+    # dejaba una fila `pending` sin archivo y sin job: la tarjeta decía «en
+    # cola» para siempre, y «en cola» existe justamente para distinguir «subida
+    # y sin job todavía» de «falló». O entra la fila con su audio, o no entra
+    # ninguna de las dos cosas.
+    ActiveRecord::Base.transaction do
+      grabacion = group.workshop_recordings.create!(
+        workshop_challenge: @link, idea: idea, recorded_by: current_user, status: "pending"
+      )
+      grabacion.file.attach(archivo)
+      grabacion
+    end
   end
 
   # El mismo idioma que `WorkshopDraftsController` y `WorkshopProposalsController`:

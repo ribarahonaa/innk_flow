@@ -266,6 +266,25 @@ RSpec.describe "armar las mesas", type: :request do
       expect(as_company(company) { WorkshopDraft.count }).to eq(0)
     end
 
+    # Lo mismo, y pesa más: el `destroy!` cascadea la transcripción y purga el
+    # audio, que no se reconstruye. El comentario del modelo decía que el aviso
+    # lo nombraba y el aviso no lo nombraba.
+    it "borrar una mesa con grabación la borra y el aviso nombra lo grabado" do
+      mesa = as_company(company) { create(:workshop_group, workshop: taller) }
+      as_company(company) do
+        create(:workshop_recording, :ready, workshop_group: mesa,
+                                            workshop_challenge: taller.workshop_challenges.first,
+                                            recorded_by: admin)
+      end
+      sign_in(admin, company: company)
+
+      delete workshop_workshop_group_path(taller, mesa)
+
+      expect(flash[:notice]).to include("grabado")
+      expect(table_exists?(mesa)).to be(false)
+      expect(as_company(company) { WorkshopRecording.count }).to eq(0)
+    end
+
     it "en modo individual se borra como siempre: cada persona es su mesa" do
       individual = workshop_with(mode: "individual")
       mesa = as_company(company) { create(:workshop_group, workshop: individual) }
