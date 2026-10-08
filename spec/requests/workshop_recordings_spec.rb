@@ -17,6 +17,7 @@ RSpec.describe "sala del taller: la grabación de la mesa", type: :request do
 
   let!(:ana) { member("ana@test.dev") }
   let!(:beto) { member("beto@test.dev") }
+  let!(:carla) { member("carla@test.dev") }
 
   let!(:idear) do
     as_company(company) do
@@ -157,6 +158,40 @@ RSpec.describe "sala del taller: la grabación de la mesa", type: :request do
     end
   end
 
+  context "en una sala de evolución" do
+    let!(:evolucion) do
+      as_company(company) do
+        challenge = create(:challenge)
+        create(:challenge_step, challenge: challenge, kind: "ideation", status: "completed")
+        step = create(:challenge_step, challenge: challenge, kind: "evolution", status: "active")
+        workshop = create(:workshop, status: "open")
+        link = create(:workshop_challenge, workshop: workshop, challenge: challenge,
+                                           challenge_step: step)
+        group = create(:workshop_group, workshop: workshop)
+        create(:workshop_group_member, workshop_group: group, user: ana)
+        idea = create(:idea, challenge: challenge, author: ana, status: "active")
+        { workshop: workshop, link: link, group: group, idea: idea }
+      end
+    end
+
+    it "registra la idea como contexto" do
+      sign_in(ana, company: company)
+
+      post_recording(evolucion, { file: audio, idea_id: evolucion[:idea].id })
+
+      expect(response).to have_http_status(:created)
+      expect(as_company(company) { WorkshopRecording.last.idea_id }).to eq(evolucion[:idea].id)
+    end
+
+    it "con un idea_id que no se resuelve, 404 y no crea nada" do
+      sign_in(ana, company: company)
+
+      expect { post_recording(evolucion, { file: audio, idea_id: SecureRandom.uuid }) }
+        .not_to change { as_company(company) { WorkshopRecording.count } }
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
   describe "servir el audio" do
     it "lo devuelve a quien está en la mesa" do
       sign_in(ana, company: company)
@@ -191,6 +226,68 @@ RSpec.describe "sala del taller: la grabación de la mesa", type: :request do
       get workshop_sala_recording_path(idear[:workshop], idear[:link], ajena)
 
       expect(response).to have_http_status(:not_found)
+    end
+
+    it "una grabación de OTRA sala de la misma empresa da 404" do
+      # Distinto del de otra empresa: ése lo satisface el `default_scope` del
+      # tenant solo. Este falla si la búsqueda deja de colgar de la sala.
+      otra_sala = as_company(company) do
+        challenge = create(:challenge)
+        step = create(:challenge_step, challenge: challenge, kind: "ideation", status: "active")
+        link = create(:workshop_challenge, workshop: idear[:workshop], challenge: challenge,
+                                           challenge_step: step)
+        rec = create(:workshop_recording, workshop_group: idear[:group], workshop_challenge: link,
+                                          recorded_by: ana)
+        rec.file.attach(io: StringIO.new("x"), filename: "a.webm", content_type: "audio/webm")
+        rec
+      end
+      sign_in(ana, company: company)
+
+      get workshop_sala_recording_path(idear[:workshop], idear[:link], otra_sala)
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    context "con otra mesa en la misma sala" do
+      let!(:mesa_de_carla) do
+        as_company(company) do
+          group = create(:workshop_group, workshop: idear[:workshop])
+          create(:workshop_group_member, workshop_group: group, user: carla)
+          group
+        end
+      end
+      let!(:ajena) do
+        as_company(company) do
+          rec = create(:workshop_recording, workshop_group: mesa_de_carla,
+                                            workshop_challenge: idear[:link], recorded_by: carla)
+          rec.file.attach(io: StringIO.new("x"), filename: "a.webm", content_type: "audio/webm")
+          rec
+        end
+      end
+
+      it "quien está sentado en otra mesa recibe 404: la grabación es de la mesa" do
+        sign_in(ana, company: company)
+
+        get workshop_sala_recording_path(idear[:workshop], idear[:link], ajena)
+
+        expect(response).to have_http_status(:not_found)
+      end
+
+      it "quien administra el taller la oye aunque no esté sentado" do
+        sign_in(member("admin@test.dev", :admin), company: company)
+
+        get workshop_sala_recording_path(idear[:workshop], idear[:link], ajena)
+
+        expect(response).to have_http_status(:ok)
+      end
+
+      it "quien está en esa mesa la oye" do
+        sign_in(carla, company: company)
+
+        get workshop_sala_recording_path(idear[:workshop], idear[:link], ajena)
+
+        expect(response).to have_http_status(:ok)
+      end
     end
 
     it "una grabación sin audio adjunto da 404 y no 500" do

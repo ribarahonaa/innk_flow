@@ -23,9 +23,9 @@ class WorkshopRecordingsController < ApplicationController
 
     group = @workshop.group_of(current_user)
     return head :forbidden unless group
-    # La mesa de llegada no trabaja. Misma pregunta que los otros siete lugares;
-    # éste es el octavo. El número está en CLAUDE.md y no acá: escrito en ocho
-    # comentarios, el día que cambie miente en siete.
+    # La mesa de llegada no trabaja. Misma pregunta que en los demás lugares que
+    # no dejan trabajar desde ella; cuántos son lo dice CLAUDE.md y no este
+    # comentario, que con un número se desactualiza en silencio.
     return head :forbidden if group.arrival?
 
     archivo = params[:file]
@@ -42,10 +42,11 @@ class WorkshopRecordingsController < ApplicationController
 
   def show
     authorize @workshop, :work?
-    # DENTRO de la sala, que ya se buscó por `policy_scope`: una grabación de
-    # otra empresa o de otra sala no se encuentra, así que da 404 y no 403. Un
+    # DENTRO de lo alcanzable, que cuelga de la sala (ya buscada por
+    # `policy_scope`) y de la mesa de quien pide: una grabación de otra empresa,
+    # de otra sala o de otra mesa no se encuentra, así que da 404 y no 403. Un
     # 403 sería un oráculo de existencia.
-    grabacion = @link.workshop_recordings.find_by!(id: params[:id])
+    grabacion = alcanzables.find_by!(id: params[:id])
 
     # Levanta `RecordNotFound` si no hay archivo adjunto, que es el caso real de
     # una fila creada antes de adjuntarle nada.
@@ -57,6 +58,21 @@ class WorkshopRecordingsController < ApplicationController
   def set_link
     @workshop = policy_scope(Workshop).find_by!(id: params[:workshop_id])
     @link = @workshop.workshop_challenges.find_by!(id: params[:sala_id])
+  end
+
+  # La grabación es de la MESA, igual que el borrador: la oye quien está
+  # sentado en esa mesa. Quien administra el taller las oye todas, porque es
+  # quien lo lleva. Va en la búsqueda y no en un `authorize` aparte: así lo
+  # inalcanzable da 404. Quien pasa `work?` sin administrar siempre está
+  # sentado (`work?` sólo da true sin mesa por `administers_any?`), pero se
+  # cubre igual el caso sin mesa.
+  def alcanzables
+    return @link.workshop_recordings if policy(@workshop).update?
+
+    grupo = @workshop.group_of(current_user)
+    return WorkshopRecording.none if grupo.nil?
+
+    @link.workshop_recordings.where(workshop_group: grupo)
   end
 
   def audio?(archivo)
@@ -83,6 +99,8 @@ class WorkshopRecordingsController < ApplicationController
   def workable_idea(group)
     return nil if params[:idea_id].blank?
 
-    group.workable_ideas(@link.challenge).find_by(id: params[:idea_id])
+    # La idea es contexto opcional, pero un id que no se resuelve no se
+    # descarta en silencio: la grabación perdería el contexto sin avisar.
+    group.workable_ideas(@link.challenge).find_by!(id: params[:idea_id])
   end
 end
