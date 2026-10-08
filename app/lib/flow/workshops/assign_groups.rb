@@ -152,6 +152,23 @@ module Flow
       # alguien tecleó una palabra bloquearía una operación común por texto sin
       # mandar. Ese guarda existe por la procedencia de versiones publicadas, y
       # un borrador no la tiene.
+      #
+      # **La grabación se suma por lo mismo, y acá no hace falta ninguna
+      # carrera.** En idear el guarda de arriba no se interpone NUNCA —sólo mira
+      # `WorkshopProposal`, que es un artefacto de evolución—, así que cambiar
+      # el tamaño de mesa o marcar a alguien ausente y repartir de nuevo es una
+      # operación común, los presentes caen en las filas 0..n-1 y las de más
+      # quedan vacías. El barrido se las llevaba con sus grabaciones:
+      # `WorkshopGroup` declara `has_many :workshop_recordings, dependent:
+      # :destroy`, la FK es `ON DELETE CASCADE` y `has_one_attached :file`
+      # PURGA el blob. Y el argumento para conservar el audio es más filoso que
+      # el del texto: la spec lo dice así —«sin el audio una transcripción mala
+      # es definitiva», porque re-transcribir con otros parámetros es
+      # exactamente cómo se arregla una diarización colapsada—, o sea que lo
+      # que el barrido destruía no se reconstruye de ninguna forma. El guarda de
+      # arriba tampoco se extiende a grabaciones, por la misma asimetría del
+      # borrador: negarse a repartir porque alguien grabó bloquearía una
+      # operación común, y conservar la mesa es la respuesta correcta.
       def seat!(tables)
         # La mesa de llegada NO es reusable: es la primera creada, así que
         # `existentes[0]` la convertiría en «Mesa 1» conservando `arrival: true`
@@ -173,7 +190,7 @@ module Flow
 
         @workshop.workshop_groups.reload.each do |mesa|
           mesa.destroy! if mesa.workshop_group_members.empty? && mesa.workshop_proposals.empty? &&
-            mesa.workshop_drafts.empty?
+            mesa.workshop_drafts.empty? && mesa.workshop_recordings.empty?
         end
       end
 

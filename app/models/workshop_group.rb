@@ -12,8 +12,15 @@ class WorkshopGroup < ApplicationRecord
   # su barrido de mesas vacías se llevaría el texto de la mesa. Ver la cláusula
   # de `seat!`.
   has_many :workshop_drafts, dependent: :destroy
-  # `dependent: :destroy` como los borradores y las propuestas: borrar una mesa
-  # a mano se lleva su grabación, y el aviso de la pantalla lo dice.
+  # `dependent: :destroy` como los borradores —y NO como las propuestas, que se
+  # NIEGAN a borrarse en vez de cascadear—: borrar una mesa a mano se lleva su
+  # grabación, y el aviso de la pantalla lo dice.
+  #
+  # Y el mismo peligro que el borrador, agravado: el barrido de mesas vacías de
+  # `AssignGroups` se llevaría la grabación, y con ella el blob, porque
+  # `has_one_attached :file` purga. Repartir de nuevo en idear es una operación
+  # común —el guarda de propuestas no se interpone ahí—, así que ese camino se
+  # alcanza sin ninguna carrera. Ver la cláusula de `seat!`.
   has_many :workshop_recordings, dependent: :destroy
   has_many :members, through: :workshop_group_members, source: :user
 

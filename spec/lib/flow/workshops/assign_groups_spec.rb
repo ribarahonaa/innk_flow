@@ -316,6 +316,31 @@ RSpec.describe Flow::Workshops::AssignGroups do
         expect(WorkshopDraft.exists?(draft.id)).to be(true)
       end
     end
+
+    # Lo mismo que el borrador, y el camino se alcanza SIN carrera: este taller
+    # es de idear, así que el guarda de propuestas no se interpone nunca y
+    # repartir de nuevo —cambiar el tamaño, marcar a alguien ausente— está
+    # siempre permitido. El `destroy!` del barrido se llevaría la transcripción
+    # por `dependent: :destroy` y el audio por el `purge_later` del adjunto, y
+    # «sin el audio una transcripción mala es definitiva».
+    it "no borra una mesa que queda vacía pero tiene una grabación, ni la grabación" do
+      m1, m2 = mesas(2)
+      grabacion = as_company(company) do
+        [paula, pedro].each { |u| create(:membership, company: company, user: u, role: "participant") }
+        seat(taller, paula, m1)
+        create(:workshop_recording, :ready, workshop_group: m2,
+                                            workshop_challenge: taller.workshop_challenges.first,
+                                            recorded_by: ana)
+      end
+
+      result = as_company(company) { described_class.new(taller, size: 4).call }
+
+      expect(result).to be_ok
+      as_company(company) do
+        expect(WorkshopGroup.exists?(m2.id)).to be(true)
+        expect(WorkshopRecording.exists?(grabacion.id)).to be(true)
+      end
+    end
   end
 
   describe "un vínculo cuyo módulo ya terminó" do
