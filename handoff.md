@@ -1,250 +1,200 @@
-# Handoff — el borrador de la mesa, y trece tests que no podían fallar (2026-10-07)
+# Handoff — la re-revisión acotada del borrador de mesa, y diez mutaciones (2026-10-08)
 
 ## 1. Objetivo
 
-Construir **B** de los tres subsistemas de taller que quedaban: que lo que una
-mesa teclea en la sala no se pierda.
+Correr la **re-revisión acotada** que la sesión anterior dejó pendiente como
+próximo paso número uno: el diff de `f53594e..93a6d95` —la última ronda del
+borrador de mesa, la que cerró el bloqueante de la revisión final y dos
+Important más—, que estaba verificado en lo que el ejecutor pudo medir pero
+**nadie había mirado con ojos frescos**.
 
-El brainstorming lo redujo antes de escribir una línea, y ese recorte es lo más
-importante de la sesión. La spec anterior
-(`2026-10-02-sala-de-la-mesa-design.md`) había fichado B como «guardado
-automático que **publica** una `idea_version` nueva», y con eso arrastraba los
-dos bloqueos que el handoff anterior declaraba: qué pasa con las propuestas
-pendientes cuando el autoguardado publica, y cómo se coalescen versiones que son
-inmutables y llevan un `embedding vector(1024)` cada una.
-
-La decisión fue **durabilidad, no inmediatez**: B guarda un borrador de trabajo
-que **no es una versión**, y publicar sigue siendo un acto explícito. Eso
-disolvió los dos bloqueos de una vez —nada publica, así que no hay conflicto con
-las propuestas; y un borrador es mutable, así que se pisa en vez de coalescerse—.
-
-Las otras dos decisiones de producto, las dos del dueño del repo:
-
-- **El borrador es de la MESA, no de cada persona** (servidor, último que escribe
-  gana). Es la única opción que sobrevive al caso que B existe para evitar: que
-  al que escribe se le muera la máquina o se vaya, y el texto quede para el
-  resto. **Ojo con un argumento que usé mal durante toda la sesión**: la línea
-  «el borrador se comparte con…: es de la mesa, no solo tuyo» NO es una promesa
-  del autoguardado. Es preexistente (`_ideation.html.haml:76`) y habla de la
-  `Idea` que crea el botón, que nace con la mesa entera como
-  `idea_contributors`. La decisión concuerda con cómo la pantalla ya trata el
-  trabajo de la mesa; no la prometía nadie.
-- **Si la versión vigente avanzó desde que la mesa guardó, gana el borrador CON
-  aviso.** Que ganara la versión tira el trabajo de la mesa sin preguntar; que
-  ganara en silencio hace que la mesa mande una propuesta que revierte la versión
-  nueva sin enterarse.
-
-Spec: `docs/superpowers/specs/2026-10-07-borrador-de-mesa-design.md`.
-Plan: `docs/superpowers/plans/2026-10-07-borrador-de-mesa.md` (seis tareas).
+No era construir nada nuevo. Era contestar tres preguntas abiertas y cerrar lo
+que apareciera.
 
 ## 2. Estado actual
 
-Rama **`borrador-de-mesa`**, 17 commits sobre `master`, **toda pusheada y en
-sincronía**: `origin/borrador-de-mesa` está en `36d0ff1`. `master` sigue en
-`acda95a`, local y remoto, así que **la rama está publicada pero sin mergear**.
+Rama **`borrador-de-mesa`**, 20 commits sobre `master`, **pusheada y en
+sincronía**: `origin/borrador-de-mesa` está en el commit de este handoff.
+`master` sigue en `acda95a`, así que la rama está publicada y sin mergear.
 
-Verificado así, que es el punto:
+Verificado preguntando **por la rama** y no por `master`, que es el error que
+esta cadena de handoffs ya pagó dos veces:
 
 ```bash
 git branch -vv                                                   # ahead/behind
 gh api repos/ribarahonaa/innk_flow/branches/borrador-de-mesa --jq .commit.sha
 ```
 
-**Preguntá por la RAMA, no por `master`.** La primera versión de este handoff
-decía «nada pusheado, verificado con `gh api`»: la verificación era real pero
-medía el ref de al lado —el sha de `master` no dice nada sobre si la rama se
-publicó— y en ese momento ya había ocho commits allá. Es la misma familia de
-error que el handoff anterior ya había pagado.
+Tres commits nuevos: `50741b6` (los dos testigos), `85cd1c3` (los documentos),
+`dbaa378` (la pasada de comentarios y el atributo honesto).
 
-Y un hueco de método que vale para la próxima: la rama apareció en el remoto a
-mitad de la sesión (`branch_creation` en `40d9318`, el commit de la Tarea 4) sin
-que ningún paso lo pidiera. **Los despachos a los implementadores prohibían
-`rebase` y `reset` y no prohibían pushear.** Prohibilo explícito.
-
-- `make spec`: **1682 ejemplos, 0 fallas** — corrido por mí y no declarado por un
-  subagente, porque el verde declarado de una ronda resultó falso y la rama
-  estuvo roja sin que el reporte lo dijera.
-- `make screens`: verde. Última corrida, con los diez contadores:
-  `[RITMO] 39 · [RELLENO] 296 · [PASTILLA] 793 · [CRITERIO] 195 · [LIVE] 1 ·
+- `make spec`: **1694 ejemplos, 0 fallas**. Venía de 1685: +7 en `50741b6` (6 del
+  lint nuevo, 1 del ejemplo discriminador) y +2 en `dbaa378`.
+- `make screens`: verde. Cuatro corridas, todas con `FLOW_AI_PROVIDER=fixture`,
+  o sea **cero costo de IA**. Última línea:
+  `[RITMO] 39 · [RELLENO] 296 · [PASTILLA] 813 · [CRITERIO] 195 · [LIVE] 1 ·
   [RIEL] 71 · [BANDA] 71 · [SOMBRA] 299 · [CAMPO] 291 · [DRAFT] 2`.
-- **Diez corridas del recorrido en total**, todas con `FLOW_AI_PROVIDER=fixture`,
-  o sea **cero costo de IA**. Son seis más de las que el plan preveía, porque
-  cada ronda de arreglo que tocó el navegador se volvió a medir.
+- **Diez mutaciones**, cada una pegando en el ejemplo que le toca. Están abajo
+  como tabla, porque es lo que más cuesta reconstruir.
 
-**OJO: la app quedó en `fixture`.** Para devolverla al proveedor real:
+**OJO con el proveedor, y al revés de lo que decía el handoff anterior.** Ese
+decía «la app quedó en `fixture`»; al empezar esta sesión el stack llevaba dos
+horas arriba y `FLOW_AI_PROVIDER` decía **`anthropic`**. O sea que esa línea era
+falsa y se le habría creído. **Hoy queda en `anthropic`** —verificado en `app` y
+en `sidekiq`—, así que una corrida de `make screens` cuesta plata. Para bajarlo
+a fixture y devolverlo:
 
 ```bash
-docker compose up -d --force-recreate app sidekiq   # lee FLOW_AI_PROVIDER del .env
+FLOW_AI_PROVIDER=fixture docker compose up -d --force-recreate app sidekiq
+docker compose up -d --force-recreate app sidekiq   # vuelve al .env
 ```
 
-El recreate tiene que incluir `sidekiq`: `Flow::AI.provider` memoiza por proceso.
-Y **no** uses `make reup` para esto: hace `down` del stack entero, base incluida.
+El recreate tiene que incluir `sidekiq` (`Flow::AI.provider` memoiza por
+proceso), y **no** sirve `make reup`: hace `down` del stack entero.
+
+### El veredicto de la revisión
+
+**Con arreglos, cero Critical.** Tres Important y nueve Minor, todos cerrados o
+descartados con motivo. Las nueve líneas de «declined to judge» quedaron
+revisadas: las dos decisiones ya aceptadas —el borrador que cambia de dueños al
+repartir, y el envío fallido que pierde lo tecleado— se verificaron contra
+`assign_groups.rb:160` y `:174-176` y siguen como estaban.
+
+Las tres preguntas abiertas, contestadas:
+
+1. **`base_version_id` del cliente: seguro**, y por un motivo que no estaba
+   escrito en ninguna parte. El `find_by` cuelga de `idea.versions`, que filtra
+   por `idea_id` **y** —vía `TenantScoped`— por `company_id`, así que una versión
+   de otra idea o de otra empresa queda excluida dos veces, independientemente. Y
+   la columna es **`uuid`** (`db/structure.sql:739`), así que `OID::Uuid#cast_value`
+   convierte basura, un no-entero, un array o la clave ausente en `nil` antes del
+   SQL. **Las dos últimas son portantes y no se leen del código**: si el tipo de
+   la columna cambiara, o si el `find_by` se mudara a `IdeaVersion`, se irían a la
+   vez la seguridad de tipo y el scope. Está escrito en `CLAUDE.md`.
+2. **`res.status !== 204`: no hay cuarto camino de éxito.** Se enumeraron los seis
+   del action más la capa de framework, y la ruta es `resource :draft, only:
+   %i[update]`, así que no hay otro verbo. El único 2xx no-204 alcanzable es el
+   200 del redirect seguido, que es el bug que se arregló.
+3. **El ejemplo del fallback no distingue el arreglo, confirmado — y ninguno
+   podría.** El fallback *es* el comportamiento viejo, así que sólo discrimina un
+   caso donde el valor del cliente y el de la base difieran.
+
+### Lo que queda sin verificar
+
+Nada de esta re-revisión. Lo que sigue abierto es lo de antes, y está anotado en
+`CLAUDE.md` con su tamaño real: el **camino concurrente** del autoguardado
+(`AbortController`, `enVuelo`, los dos `form !== enviadoDesde`, `descargar()` con
+su `keepalive`) no lo mide nada y borrarlo deja la suite y `[DRAFT] 2` en verde;
+el **borrador de idear puede cambiar de dueños** al repartir; un **envío fallido**
+pierde lo tecleado desde la última pausa de dos segundos; y
+`MINIMO_DE_CAMPOS_POR_CARA` mide **2 de 2 sin margen**, así que la rama que falla
+por «pocos campos» nunca corrió y su mensaje no está probado.
+
+Y una cosa de proceso: **los asientos de revisión de esta rama están gastados.**
+Hubo revisión final de rama entera, esta re-revisión acotada, y las dos están
+cerradas. Un tercer pase sobre lo mismo rinde poco.
 
 ## 3. Archivos y cambios
 
-Lo que existe ahora y antes no:
+| Pieza | Dónde | Commit |
+|---|---|---|
+| La tercera fase de `[DRAFT]`: intercepta el PATCH, contesta 200 y exige el texto de fallo | `script/capture_screens.js` | `50741b6` |
+| El lint de los tres eslabones del sello, con autotest del stripper | `spec/lint/sello_del_borrador_spec.rb` (nuevo) | `50741b6` |
+| El ejemplo que separa `idea.versions` de `IdeaVersion` | `spec/requests/workshop_drafts_spec.rb` | `50741b6` |
+| La spec de diseño: el bloque de código y la línea en negrita, corregidos con un `Ojo:` fechado | `docs/superpowers/specs/2026-10-07-borrador-de-mesa-design.md` | `85cd1c3` |
+| El bullet del sello y uno nuevo sobre el dato del cliente | `CLAUDE.md` | `50741b6`, `85cd1c3` |
+| El atributo `draft_base` honesto, con su ejemplo | `app/views/workshop_rooms/_evolution.html.haml`, `spec/requests/workshop_draft_prefill_spec.rb` | `dbaa378` |
+| `base_version_id` por argumento; tres comentarios que prometían cotas falsas | `app/controllers/workshop_drafts_controller.rb`, `db/migrate/20261007120000_create_workshop_drafts.rb` | `dbaa378` |
 
-| Pieza | Dónde |
+### El mapa de cobertura, medido
+
+Esto es lo que más cuesta reconstruir y lo que ninguna lectura del código da.
+Qué eje caza qué:
+
+| Mutación | Rojo en |
 |---|---|
-| La tabla y el modelo | `db/migrate/20261007120000_create_workshop_drafts.rb`, `app/models/workshop_draft.rb` |
-| El endpoint que autoguarda | `app/controllers/workshop_drafts_controller.rb`, `config/routes.rb` |
-| El autoguardado del navegador | `app/javascript/workshop_draft.js` |
-| El sello y el aviso de base vieja | `app/views/workshop_rooms/_draft_stamp.html.haml`, `_evolution.html.haml` |
-| La guarda del recorrido | `script/capture_screens.js` (`revisarBorrador`, `[DRAFT]`) |
+| se saca `if draft.new_record?` | «el sello de la versión no se reescribe en el autoguardado siguiente» **y** «de extremo a extremo» |
+| la vista pierde `draft_base` | «el sello usa la versión con la que se prellenó» + el lint |
+| el servidor ignora al cliente y lee de la base | «el sello usa la versión con la que se prellenó» |
+| el JS deja de leer `dataset.draftBase`, o le cambia la clave | **sólo** el lint |
+| `IdeaVersion.find_by` en vez de `idea.versions.find_by` | el ejemplo de «otra idea de la misma empresa» |
+| `res.status !== 204` → `!res.ok` | las dos caras de `[DRAFT]`; cae de 2 a **0** |
+| el atributo vuelve a `selected.current_version_id` | el ejemplo de `data-draft-base` con borrador |
+| el stripper del lint deja de sacar los `//` | el autotest del stripper |
 
-Cuatro decisiones de diseño que no se leen del código y que `CLAUDE.md` ahora
-explica:
+Tres decisiones de diseño de esta sesión que no se leen del código:
 
-- **Una tabla propia y no una columna en `workshop_groups`.** El borrador tiene
-  identidad compuesta —mesa + sala, y la idea sólo en evolución— y dos índices
-  UNIQUE **parciales**, porque Postgres trata los NULL como distintos: un solo
-  `UNIQUE(mesa, sala, idea)` dejaría que la mesa acumule una fila por
-  autoguardado. El precedente es
-  `index_workshop_groups_on_workshop_id_arrival … WHERE arrival`.
-- **El sello de la versión se escribe SÓLO al crear la fila**
-  (`if draft.new_record?`). Si se reescribiera en cada autoguardado, el aviso de
-  base vieja no podría dispararse nunca. Es una línea de la que depende toda esa
-  feature.
-- **Un `PATCH` sin `payload` es un no-op**, y también si tras filtrar no
-  sobrevive ninguna clave. Con `fetch(:payload, {})` un bug de una línea en el JS
-  pisaría el texto de la mesa con nada. Los tres caminos responden 204, así que
-  los dos que NO escriben mandan `X-Draft-Saved: "0"`; sin esa cabecera el sello
-  diría «Guardado ahora.» sobre un guardado que no ocurrió.
-- **La cláusula nueva del barrido de mesas vacías de `AssignGroups#seat!`
-  acompaña a la de propuestas; el guarda de arriba NO se extendió a borradores,
-  a propósito** — y los dos motivos son distintos, aunque se parezcan. El del
-  barrido es la carrera: ahí la mesa queda vacía por un efecto del reparto y
-  nadie eligió perderla. El de no extender el guarda de arriba lo dice
-  `assign_groups.rb:149-152`: negarse a repartir porque alguien tecleó una
-  palabra bloquearía una operación común por texto sin mandar, y ese guarda
-  existe por la procedencia de versiones publicadas, que un borrador no tiene.
-  Borrar una mesa **a mano** sí se lleva el borrador y tampoco se niega, pero
-  por un tercer motivo, que vive en `workshop_groups_controller.rb:64-66`:
-  ninguna pantalla borra un borrador, así que una mesa con texto tecleado
-  quedaría imposible de borrar para siempre. Ahora el aviso lo dice.
+- **La fase de fallo de `[DRAFT]` no suma un contador nuevo.** Una cara cuenta
+  como medida sólo si pasaron las tres fases. `PISO_DE_BORRADORES` es exacto en 2
+  porque cuenta CARAS y no hay una tercera; un contador aparte lo volvería 4,
+  rompería esa semántica y sumaría un onceavo número a una línea que el doc dice
+  que tiene diez.
+- **La fase de fallo va al FINAL.** La de éxito ya dejó el borrador escrito y un
+  guardado que falla no escribe nada, así que no contamina lo medido; y
+  `guardar()` no restaura `sucio`, de modo que el texto de esa fase no se va
+  después en el `keepalive` de `descargar()`.
+- **El lint tiene autotest del STRIPPER y no de los patrones.** De los patrones
+  ya se encargan los tres ejemplos, que comparan contra el código sin
+  comentarios; lo que puede fallar en silencio es el stripper, porque uno que
+  devolviera el archivo entero los dejaría pasando sobre la prosa que explica
+  cada línea.
 
 ## 4. Intentos fallidos
 
-**Lo que esta sesión costó de verdad fueron trece tests y chequeos que no podían
-fallar.** No es una cifra retórica: cada uno se encontró preguntándole a un
-ejemplo verde «¿qué tendría que romperse para que esto falle?» y descubriendo que
-la respuesta era «nada». La mayoría los escribía el plan. Los más caros:
+**Una mutación mía no probaba nada y dio verde.** Para el autotest del stripper
+mutué el `gsub` de `/* */` — que el JS no usa, o sea un no-op— y la guarda siguió
+en verde. El trabajo real lo hace el `sub(%r{//.*})` de cada línea. Lo delató el
+propio verde: una mutación que no pone nada en rojo es sospechosa antes de ser
+tranquilizadora. Es la trampa exacta que esta rama lleva catorce casos cazando, y
+la pisé escribiendo la guarda que existe para eso.
 
-- Un ejemplo aseveraba `include("lo publicado")` y esa cadena llegaba a la
-  respuesta por **dos caminos más** —el título de la idea y la tarjeta
-  «Contenido»—, así que pasaba con el prellenado roto.
-- El ejemplo del sello aseveraba `include(ana.name)`, y ese nombre ya sale en la
-  lista de integrantes de la mesa.
-- El sello de la cara de **idear** no tenía ningún ejemplo: borrar su `render`
-  dejaba la suite entera verde. Peor: ponía *verde* el único ejemplo que estaba
-  rojo por su causa.
-- El chequeo del sello en `[DRAFT]` pedía que no estuviera **vacío**. Como la
-  guarda misma deja un borrador en la base, desde la segunda corrida el servidor
-  ya lo renderizaba con texto y el chequeo pasaba sobre un autoguardado muerto.
-  Lo probé mutando: con el JS roto, el sello decía «Guardado por Ana Admin hace 2
-  minutos.» Ése lo acepté yo, no el plan.
-- `[DRAFT]` medía **un solo campo**, así que no podía cazar la única invariante
-  que la tarea declaró load-bearing: que el JS mande el formulario entero, porque
-  el endpoint reemplaza el hash sin merge. Con `cuerpo()` «optimizado» a un diff,
-  el borrador quedaba con un campo y la guarda daba verde.
-- La cabecera `X-Draft-Saved`, recién agregada para arreglar otro de éstos, no la
-  aseveraba nada: borrarla dejaba `make spec` **y** `make screens` en verde.
+**Un `cp` de restauración me deshizo el arreglo, no la mutación.** El backup de
+`_evolution.html.haml` se había tomado al EMPEZAR la tanda C, o sea antes de
+aplicar el ítem 4; al restaurar la mutación, el `cp` devolvió el archivo a la
+versión pre-arreglo. Lo cazó un `grep -c` del arreglo que dio **0**. Sin eso, el
+commit habría salido sin el cambio que su ejemplo nuevo justifica. Es la misma
+familia que el `git checkout` ya anotado: **el backup va después del arreglo, y
+se verifica grepeando lo ARREGLADO y no lo mutado** —lo mutado ausente no
+distingue «restaurado» de «restaurado de más»—.
 
-**Dos defectos del plan que afectaron cuatro tareas.** La factoría
-`:idea_version` no existe y no debe existir —`Flow::Ideas::PublishVersion` es el
-único escritor de versiones, porque `ideas.current_version_id` e
-`idea_versions.idea_id` forman un ciclo de FK—; y el plan mandaba un
-`idea.update!(current_version:)` a mano al lado.
+**Escribí un autotest redundante y lo saqué.** El primer lint tenía un ejemplo
+«mira el código y no el comentario que lo explica», que no agregaba nada: como la
+guarda real ya compara contra el código sin comentarios, no puede vivir de su
+propio comentario, y el único efecto era que cada mutación diera dos fallas en
+vez de una. Lo reemplacé por el del stripper.
 
-**La rama quedó ROJA y el reporte decía «todos en verde».** El implementador
-corrió los dos archivos que el Step 8 del brief nombraba. La cara que tocó tiene
-su propio spec, que él mismo había corrido en una tarea anterior. **La lista de
-archivos de un brief no es el radio de impacto.**
+**Una preocupación que resultó ya resuelta.** Al diseñar la fase de fallo noté
+que comparar `innerText` contra `data-failed-text` es el mismo agujero
+autorreferencial que la ronda anterior había cerrado para el texto de guardado:
+los dos lados salen del mismo lookup de locale. Resultó que **ya estaba cubierto
+para los dos textos** —`workshop_draft_prefill_spec.rb` asevera los dos literales
+desde afuera—, así que no hizo falta nada. Lo que faltaba era la RAMA, no el
+string.
 
-**Dos arreglos míos trajeron un defecto cada uno, y sólo se vieron leyendo el
-código con el cambio ya puesto.** Dicté un `start()` con el `stop()` antes del
-return temprano, que cancelaba un guardado pendiente al morfear. Y al sacar el
-`form = null` del `catch`, el `stop()` que quedaba —antes inocuo— pasó a cancelar
-un guardado **más nuevo** que el que había fallado. El `AbortController` que
-agregamos para cerrar una carrera abrió otra: podía abortar el `keepalive` de
-otro borrador.
+**El reviewer se equivocó en un punto, medido.** Afirmó que el ejemplo del sello
+(«el sello usa la versión con la que se prellenó») se pone rojo al sacar
+`if draft.new_record?`. No:
+hace un solo `PATCH`, así que resellar escribe el mismo valor. Los que sí caen son
+otros dos. Yo relayé esa afirmación sin medirla antes de corregirla; la lección es
+la de siempre en este repo, aplicada a un revisor en vez de a un test.
 
-**Un agujero en una decisión mía.** Saqué el link del aviso de base vieja porque
-en evolución la mesa trabaja la idea de *cualquier* integrante
-(`workable_ideas` es la unión) mientras `IdeaPolicy::Scope` le muestra a quien
-participa sólo lo que creó o comparte: el link era un 404 en el caso normal de la
-mesa. Justifiqué el reemplazo —«mirá «Contenido» más arriba»— diciendo que el
-orden lo fijaba `workshop_room_spec.rb`, y era falso: su única aserción de orden
-es de la columna de referencia, en la otra cara. Ahora hay una aserción de orden,
-mutada.
+**Lo que NO falló, para no buscarlo:** el `base_version_id` del cliente aguantó
+todo lo que le tiré —cadena basura, no-entero, versión de otra idea, versión de
+otra empresa, clave ausente— y ninguno llega a un 500, a una violación de FK ni a
+una lectura cruzada.
 
-**Una sospecha que medí y resultó falsa.** Antes de despachar la última tarea
-supuse que el seed reventaría con `PG::ForeignKeyViolation` al destruir una sala
-con borrador. `db/structure.sql` lo desmintió: las FK son `ON DELETE CASCADE`. Y
-medido, `WorkshopDraft.count` da 2 antes del seed y 0 después **sin ninguna línea
-nueva** — así que el `WorkshopDraft.delete_all` que el plan pedía era redundante
-y, bajo `bypass!`, habría borrado los borradores de todas las empresas.
+## 5. Próximos pasos
 
-**Lo de siempre, que vuelve a aparecer**: `db:migrate:redo` aborta porque
-`tenant_table` no es reversible: usa `execute` (el helper tiene tres, uno
-en cada método) (13 migraciones
-del repo la usan; se deshace con `DROP TABLE` más borrar la fila de
-`schema_migrations`). Y un commit salió con las líneas de atribución que el dueño
-del repo no quiere; se enmendó antes de pushear.
-
-- **El borrador de idear puede cambiar de dueños, y se aceptó a propósito.** En
-  idear su única llave es la FILA de la mesa, y `seat!` reusa esas filas por
-  índice: después de volver a repartir, «Mesa 1» puede tener gente distinta y
-  recibe prellenado el texto de quien ya no está — y si lo manda, se publica a
-  su nombre, mientras quien escribió no lo encuentra en su mesa nueva. La
-  revisión final lo encontró y la decisión fue **aceptarlo y documentarlo**: es
-  el precio de «nunca perder el borrador». Las propuestas no tienen el problema
-  porque ahí el guarda de arriba sí se niega a repartir. Si alguna vez molesta
-  en un taller real, la dirección menos mala es borrar el borrador en `seat!`
-  sólo cuando los ocupantes nuevos no comparten NINGUNA persona con los
-  anteriores.
-
-## 5. Lo que quedó SIN verificar
-
-**La re-revisión acotada de la última ronda no se corrió: se cortó a pedido.**
-La ronda (`ed7d871` + `93a6d95`) cerró el bloqueante de la revisión final y dos
-Important más, y está verificada en lo que yo pude medir —`make spec` 1685/0,
-`make screens` verde con `[DRAFT] 2`, el bundle con `base_version_id`, y una
-mutación propia que pone en rojo exacto el ejemplo nuevo del sello
-(`spec/requests/workshop_drafts_spec.rb:310`)—. Lo que **nadie revisó** es el
-diff de esa ronda con ojos frescos. Tres cosas que le iba a pedir y que quedan
-abiertas:
-
-1. **`base_version_id` ahora viene del CLIENTE**, y es el único lugar de la rama
-   donde un dato del navegador entra a una columna con FK. El código lo busca
-   entre las versiones de esa idea y cae a `current_version_id` si no aparece,
-   y `version_belongs_to_idea` rechaza una de otra idea — pero nadie verificó
-   independientemente que una cadena basura, una versión de otra empresa o la
-   clave ausente caigan todas en un camino sano.
-2. **`res.status !== 204`**: ¿queda algún camino de ÉXITO que responda algo
-   distinto de 204 y que ahora se lea como fallo? Los tres que conozco responden
-   204; no se auditó si hay un cuarto.
-3. **El ejemplo de «una versión inexistente cae a la vigente»** protege el
-   camino nuevo de reventar, pero —según el propio implementador— **no
-   distingue el arreglo**. Es candidato a número quince de la lista.
-
-## 6. Próximos pasos
-
-1. **Correr esa re-revisión acotada** sobre `f53594e..93a6d95`. Es lo primero.
-2. La revisión final de rama entera **ya se hizo** y sus hallazgos están
-   cerrados; lo que sigue parkeado, con ruling, está en
-   `.superpowers/sdd/2026-10-07-borrador-de-mesa/progress.md` (34 rulings). Lo
-   que más merece un segundo par de ojos:
-   - **Un envío FALLIDO pierde lo tecleado desde la última pausa de dos
-     segundos.** El listener de `submit` pone `sucio = false` y tiene que
-     hacerlo: si no, cada envío exitoso recrearía el borrador con lo que el
-     servidor acaba de publicar y borrar en la misma transacción. No hay salida
-     BARATA —los rechazos redirigen con un `alert:`, o sea 302 → 200, y
-     `turbo:submit-end` informa `success: true`— pero sí hay salida, y está
-     escrita en `CLAUDE.md`: el discriminador es si el borrador sobrevivió.
-   - El `keepalive` y el pedido normal ahora conviven sin abortarse, así que en
-     una carrera de red el viejo puede pisar al nuevo.
-   - `MINIMO_DE_CAMPOS_POR_CARA` mide **2 de 2 sin margen** y su rama **nunca
-     corrió**: el mensaje de esa falla no está probado.
-3. **Quedan C y D** de la división de cuatro partes del taller. Nada de lo de
-   acá los bloquea.
+1. **Quedan C y D** de la división de cuatro partes del taller. Nada de esta rama
+   los bloquea, y la rama está lista para mergear en lo que a esta revisión
+   respecta.
+2. Si se toca el borrador otra vez, el candidato con mejor relación
+   valor/esfuerzo es el **envío fallido**: hoy pierde lo tecleado desde la última
+   pausa de dos segundos, y la salida está escrita en `CLAUDE.md` —el
+   discriminador no es el código de estado sino **si el borrador sobrevivió**:
+   capturar el cuerpo en el `submit` y, en el render siguiente, mirar si
+   `#draft-stamp` volvió NO vacío—. Cuesta un write por envío rechazado y le da
+   significado semántico a «el sello está vacío», que hoy es sólo presentación.
+3. Antes de cualquier `make screens`, decidir el proveedor a conciencia: el stack
+   queda en **`anthropic`** y cada corrida factura. Los comandos están en la
+   sección 2.
