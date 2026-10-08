@@ -45,11 +45,17 @@ RSpec.describe "sala del taller: el borrador de la mesa", type: :request do
   describe "las cuatro guardas, en el mismo orden que los otros dos POST de la sala" do
     it "sin sesión no entra" do
       patch_draft(idear, payload: { idear[:field].key => "x" })
-      expect(response).to have_http_status(:found)
       # El `fetch` del autoguardado SIGUE ese 302 y lo lee como 200: por eso el JS
-      # exige 204 y no `res.ok`. Este ejemplo fija la premisa: el rechazo no es 204
-      # y no escribe nada.
-      expect(response).not_to have_http_status(:no_content)
+      # exige 204 y no `res.ok`. Este ejemplo fija la premisa del lado del
+      # servidor: el rechazo es un 302 y no escribe nada. Que el CLIENTE lo lea
+      # como fallo no lo puede ver un request spec; eso es la tercera fase de
+      # `[DRAFT]` en `make screens`.
+      #
+      # Acá había además un `not_to have_http_status(:no_content)`: dado que la
+      # línea de arriba pasa, ésa no podía fallar nunca. Era un comentario
+      # disfrazado de aserción, que es el patrón que esta rama lleva catorce veces
+      # cazado.
+      expect(response).to have_http_status(:found)
       expect(drafts).to be_empty
     end
 
@@ -333,10 +339,29 @@ RSpec.describe "sala del taller: el borrador de la mesa", type: :request do
       expect(response.body).to include("la versión vigente ya es v2")
     end
 
-    it "una versión inexistente cae a la vigente, sin reventar" do
+    # Dos ejemplos y no uno, porque son dos caminos distintos del mismo fallback
+    # y el que estaba cubría el que su nombre NO decía.
+    #
+    # `based_on_version_id` es `uuid`, así que `999999999` no es «una versión
+    # inexistente»: `OID::Uuid#cast_value` no lo reconoce y devuelve `nil` ANTES
+    # de llegar al SQL, de modo que la consulta queda `id IS NULL`. O sea que este
+    # ejemplo prueba el camino de la BASURA —y de paso cubre la cadena cualquiera,
+    # el no-entero y el array, que castean igual—, no el de una uuid que no está.
+    it "un `base_version_id` malformado castea a nil y cae a la vigente, sin reventar" do
       sign_in(ana, company: company)
       patch_draft(evolucion, payload: { evolucion[:field].key => "x" },
                              idea_id: evolucion[:idea].id, base_version_id: 999_999_999)
+      expect(response).to have_http_status(:no_content)
+      expect(drafts.sole.based_on_version_id).to eq(evolucion[:version].id)
+    end
+
+    # Y éste sí es el que su nombre dice: una uuid bien formada que no existe.
+    # Llega al SQL, no encuentra fila, y cae al mismo lado por el `||`. Es otra
+    # línea del código que la de arriba: ahí el valor muere en el cast.
+    it "una uuid bien formada que no existe cae a la vigente, sin reventar" do
+      sign_in(ana, company: company)
+      patch_draft(evolucion, payload: { evolucion[:field].key => "x" },
+                             idea_id: evolucion[:idea].id, base_version_id: SecureRandom.uuid)
       expect(response).to have_http_status(:no_content)
       expect(drafts.sole.based_on_version_id).to eq(evolucion[:version].id)
     end

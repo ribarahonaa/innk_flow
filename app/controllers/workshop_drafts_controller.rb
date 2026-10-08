@@ -21,8 +21,11 @@ class WorkshopDraftsController < ApplicationController
     # @link.kind == "ideation"` (o `"evolution"`) y éste sólo `workable?`. Con un
     # `kind` fuera de los trabajables el ternario de abajo cae en la rama de idear
     # y escribe una fila que ninguna pantalla puede renderizar. Se tolera porque
-    # hace falta un PATCH armado a mano —ninguna sala ofrece ese formulario— y
-    # el daño es una fila huérfana de la propia mesa. Lo que se repite y no se
+    # por la app no se llega: `Flow::Workshops::Open` sólo deja abierto un vínculo
+    # cuyo `kind` está en `WORKABLE_KINDS`, así que un vínculo `workable?` con
+    # otro `kind` no existe —haría falta una FILA armada a mano, no un PATCH
+    # armado a mano, que es lo que esta línea decía— y el daño sería una fila
+    # huérfana de la propia mesa. Lo que se repite y no se
     # reescribe es el resto: divergir es cómo se abrió la fuga que esos dos
     # documentan —`work?` da true por `administers_any?` SIN mesa—.
     return head :conflict unless @link.workable?
@@ -58,7 +61,7 @@ class WorkshopDraftsController < ApplicationController
     # el cliente tiene que mandar el formulario COMPLETO en cada PATCH. Si manda
     # sólo lo tecleado, los demás campos vuelven en blanco y la propuesta
     # publica vacío lo que estaba escrito. No «optimizar» mandando menos.
-    write!(group, idea, payload)
+    write!(group, idea, payload, params[:base_version_id])
     head :no_content
   end
 
@@ -105,7 +108,7 @@ class WorkshopDraftsController < ApplicationController
   # reintenta una vez y ahí la fila ya existe. Un `upsert` sería una sentencia
   # sola, pero saltea las dos validaciones del modelo, que es justo lo que no se
   # quiere saltear.
-  def write!(group, idea, payload, intento: 1)
+  def write!(group, idea, payload, base_version_id, intento: 1)
     draft = group.workshop_drafts.find_or_initialize_by(
       workshop_challenge: @link, idea_id: idea&.id
     )
@@ -118,19 +121,32 @@ class WorkshopDraftsController < ApplicationController
     # La versión la dice el CLIENTE (`base_version_id`: contra la que la vista
     # prellenó el formulario) y no la base al primer PATCH: entre el render y la
     # primera tecla la versión puede avanzar, y sellar la nueva sobre contenido de
-    # la vieja apagaba el aviso para siempre. No se confía a ciegas: se busca entre
-    # las versiones DE ESA idea (una ajena o inexistente cae a la vigente; el
-    # modelo además rechaza una de otra idea con `version_belongs_to_idea`), y si el cliente
-    # miente con una vieja de la MISMA idea lo peor que logra es que el aviso
-    # dispare de más, que es el lado seguro. Sin la clave (un cliente viejo, un
-    # PATCH a mano) se cae a leer `current_version_id` de la base.
+    # la vieja apagaba el aviso para siempre.
+    #
+    # No se confía a ciegas, y lo que acota la mentira son DOS cosas, no tres. El
+    # `find_by` cuelga de `idea.versions`, que filtra por `idea_id` y —vía
+    # `TenantScoped`— por `company_id`: una versión de otra idea o de otra empresa
+    # no se encuentra y se cae a la vigente. Y la columna es `uuid`, así que
+    # basura, un no-entero o un array castean a `nil` antes del SQL y caen al
+    # mismo lado. `version_belongs_to_idea` NO es la tercera: en este camino no se
+    # ejecuta nunca, porque el scope ya excluyó la versión ajena —es cinturón por
+    # si el `find_by` se mudara a `IdeaVersion`, y ahí pasaría a ser el único
+    # freno, con un 500 en vez de un fallback—. Esta línea decía que «el modelo
+    # además rechaza una de otra idea», que describe un rechazo que no ocurre.
+    #
+    # Si el cliente miente con una vieja de la MISMA idea, lo peor que logra es
+    # que el aviso dispare de más, que es el lado seguro. La dirección insegura es
+    # la contraria —mandar la vigente SUPRIME el aviso—, y es autodaño: el aviso
+    # protege a la mesa que lo estaría suprimiendo. Sin la clave (un cliente
+    # viejo, un PATCH a mano) se cae a leer `current_version_id` de la base.
     if draft.new_record?
-      draft.based_on_version_id = idea && (idea.versions.find_by(id: params[:base_version_id])&.id || idea.current_version_id)
+      draft.based_on_version_id =
+        idea && (idea.versions.find_by(id: base_version_id)&.id || idea.current_version_id)
     end
     draft.update!(payload: payload, updated_by: current_user)
   rescue ActiveRecord::RecordNotUnique
     raise if intento > 1
 
-    write!(group, idea, payload, intento: 2)
+    write!(group, idea, payload, base_version_id, intento: 2)
   end
 end

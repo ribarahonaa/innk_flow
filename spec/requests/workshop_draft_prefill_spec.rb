@@ -201,6 +201,40 @@ RSpec.describe "sala del taller: el borrador se prellena", type: :request do
       expect(response.body).to include("lo de la mesa")
     end
 
+    # El atributo que el JS manda de vuelta tiene que decir contra qué se prellenó
+    # ESTE formulario, y con borrador puesto eso es el sello del BORRADOR y no la
+    # versión vigente: abajo el prellenado sale de `draft.payload`, que se tecleó
+    # contra `draft.based_on_version_id`.
+    #
+    # Hoy no cambia ningún comportamiento —el servidor sella sólo al crear la
+    # fila, así que con borrador ignora lo que llega—, y es exactamente por eso
+    # que hace falta el ejemplo: sin él, volver el atributo a
+    # `selected.current_version_id` deja `make spec` y `[DRAFT] 2` en verde, y
+    # resellar deja de ser un no-op seguro para volverse una regresión silenciosa
+    # —el aviso de base vieja se apagaría— para quien saque la condición creyendo
+    # que el cliente ya manda la base correcta.
+    #
+    # Una sola aserción a propósito: un `not_to include` con la versión nueva no
+    # podría fallar dado que la de arriba pasa (hay UN solo formulario, con UN
+    # solo atributo), y ésa es la forma del comentario disfrazado de aserción que
+    # esta rama lleva catorce veces cazado.
+    it "con borrador, `data-draft-base` lleva el sello del borrador y no la versión vigente" do
+      as_company(company) do
+        create(:workshop_draft, workshop_group: evolucion[:group],
+                                workshop_challenge: evolucion[:link], idea: evolucion[:idea],
+                                based_on_version: evolucion[:version], updated_by: ana,
+                                payload: { evolucion[:field].key => "lo de la mesa" })
+        Flow::Ideas::PublishVersion.new(
+          evolucion[:idea], payload: { evolucion[:field].key => "lo nuevo" },
+          author: ana, title: "La mía"
+        ).call
+      end
+      sign_in(ana, company: company)
+      get workshop_sala_path(evolucion[:workshop], evolucion[:link], idea: evolucion[:idea].id)
+
+      expect(response.body).to include(%(data-draft-base="#{evolucion[:version].id}"))
+    end
+
     # La otra mitad: una guarda que siempre dispara no discrimina.
     it "no avisa cuando la versión no se movió" do
       as_company(company) do
@@ -251,11 +285,6 @@ RSpec.describe "sala del taller: el borrador se prellena", type: :request do
       expect(response.body).to include("Guardado por #{ana.name}")
     end
 
-    # El único que prueba la cadena COMPLETA. Los de arriba arman el borrador con la
-    # factoría, así que le ponen `based_on_version` a mano y nunca ejecutan el código
-    # que lo escribe: el endpoint sella SÓLO al crear la fila, y si eso se rompiera
-    # —resellando en cada autoguardado— el aviso no podría dispararse nunca y los
-    # cuatro ejemplos de arriba seguirían verdes.
     # Literales a propósito: son lo único que la mesa lee para saber si su trabajo
     # está a salvo. Si la clave del locale desaparece el acuse pasa a ser un
     # `translation missing` y la guarda de capturas no se entera, porque compara
@@ -270,6 +299,14 @@ RSpec.describe "sala del taller: el borrador se prellena", type: :request do
       )
     end
 
+    # El único que prueba la cadena COMPLETA. Los de arriba arman el borrador con la
+    # factoría, así que le ponen `based_on_version` a mano y nunca ejecutan el código
+    # que lo escribe: el endpoint sella SÓLO al crear la fila, y si eso se rompiera
+    # —resellando en cada autoguardado— el aviso no podría dispararse nunca y los
+    # cuatro ejemplos de arriba seguirían verdes.
+    #
+    # Este párrafo vivía arriba del ejemplo de los literales, que se intercaló
+    # entre los dos: describía a éste y se leía como si hablara de aquél.
     it "de extremo a extremo: la mesa autoguarda, la versión avanza, la mesa autoguarda de nuevo y el aviso aparece" do
       sign_in(ana, company: company)
       patch workshop_sala_draft_path(evolucion[:workshop], evolucion[:link]),

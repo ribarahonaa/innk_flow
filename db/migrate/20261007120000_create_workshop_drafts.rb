@@ -45,11 +45,14 @@ class CreateWorkshopDrafts < ActiveRecord::Migration[7.1]
     # Planos además de los parciales: el planner no los une para un
     # `workshop_group_id = x` pelado, y `mesa.workshop_drafts.empty?` corre por
     # mesa en el barrido del reparto. `idea_id` por la FK con cascade.
-    # El censo de FKs NO es completo: `workshop_challenge_id` también tiene FK
-    # `ON DELETE CASCADE` y queda sin índice plano (los dos parciales lo llevan
-    # como segunda columna, que no sirve para un `workshop_challenge_id = x`
-    # pelado). No importa: sólo corre al borrar un vínculo, y son pocas filas por
-    # taller.
+    # Faltan DOS índices planos y los dos a propósito. `workshop_challenge_id`
+    # tiene FK `ON DELETE CASCADE` y los dos parciales lo llevan como segunda
+    # columna, que no sirve para un `workshop_challenge_id = x` pelado; y
+    # `based_on_version_id` tiene FK `ON DELETE SET NULL` y no aparece en ningún
+    # índice. Los dos sólo se recorren al borrar el padre —un vínculo, una
+    # versión— y son pocas filas por taller. Esta nota decía «el censo NO es
+    # completo» y después nombraba uno solo de los dos, que es la misma clase de
+    # texto que avisa de un hueco y lo deja medio tapado.
     add_index :workshop_drafts, :workshop_group_id
     add_index :workshop_drafts, :idea_id
 

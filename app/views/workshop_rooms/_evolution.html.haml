@@ -86,10 +86,20 @@
       .card-body
         .section-head
           %h2.section-title Proponer cambios
+        -# `draft_base` es contra qué versión se prellenó ESTE formulario, y con un
+        -# borrador puesto eso es su sello y no la vigente: abajo el prellenado sale
+        -# de `draft&.payload`, que se tecleó contra `draft.based_on_version_id`.
+        -# Publicar la vigente acá dejaba el atributo mintiendo justo en el caso para
+        -# el que existe el aviso. Hoy no cambia nada —el servidor sella sólo al
+        -# crear la fila, así que con borrador ignora lo que llega—, y es por eso que
+        -# importa: así resellar pasa a ser un no-op seguro en vez de una regresión
+        -# silenciosa para quien saque esa condición creyendo que el cliente ya dice
+        -# la base correcta.
         = form_with url: workshop_sala_proposals_path(workshop, link),
                     data: { draft_url: workshop_sala_draft_path(workshop, link),
                             draft_idea: selected.id,
-                            draft_base: selected.current_version_id, debounce: 2000 } do
+                            draft_base: draft&.based_on_version_id || selected.current_version_id,
+                            debounce: 2000 } do
           = hidden_field_tag :idea_id, selected.id
           -# El borrador le gana a la versión vigente: es el texto de la mesa. Si
           -# la versión avanzó desde que se guardó, el aviso de arriba lo dice.
