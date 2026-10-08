@@ -255,12 +255,11 @@ async function subir() {
     // pagó, y acá costaría la reunión entera.
     if (res.status !== 201) { subiendo = false; pintar('idle', caja.dataset.failedText); return; }
     // Se devuelve el botón a `idle` ANTES de navegar, y no es redundante: la
-    // navegación es un morph a la misma URL, y `start()` sale temprano cuando el
-    // nodo es el mismo —ahí está grabando o acaba de grabar—, así que no vuelve
-    // a pintar. El morph le sacaría el `disabled` igual, porque el HTML del
-    // servidor no lo trae, pero eso es un accidente afortunado y no una
-    // garantía: si mañana el botón nace deshabilitado en el markup, queda
-    // muerto después de cada subida.
+    // navegación es un morph a la misma URL, y `start()` en el mismo nodo
+    // REPINTA desde el estado de módulo en vez de salir temprano, así que el
+    // botón tiene que quedar coherente (libre, `subiendo` en false) antes de
+    // visitar. Si no, el repintado lo dejaría en «subiendo» o con el texto del
+    // servidor, y no habría quién lo corrija.
     subiendo = false;
     pintar('idle');
     // La pantalla la refresca el servidor: se visita la misma URL y Turbo
@@ -282,8 +281,10 @@ function alApretar() {
 // DOM es el que mandó el servidor, o sea «Grabar» y el sello vacío.
 function repintar() {
   if (rec && rec.state === 'recording') {
+    // Sólo si el analizador existe: una onda plana sin analizador diría «el
+    // micrófono no toma nada», que es una señal falsa y no una ausente.
     const onda = nodo('wave');
-    if (onda) onda.hidden = false;
+    if (onda && analizador) onda.hidden = false;
     tictac();
   } else if (subiendo) {
     pintar('subiendo', TEXTOS.uploading);
@@ -319,7 +320,7 @@ function start() {
   boton.addEventListener('click', alApretar);
   // Nodo nuevo por una navegación real: si venía grabando, el micrófono se
   // suelta, porque el estado anterior ya no tiene dónde mostrarse.
-  if (rec && rec.state === 'recording') rec.stop(); else pintar('idle');
+  if (rec && rec.state === 'recording') rec.stop(); else repintar();
 }
 
 addEventListener('turbo:load', start);
