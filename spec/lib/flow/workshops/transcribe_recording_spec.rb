@@ -114,6 +114,28 @@ RSpec.describe Flow::Workshops::TranscribeRecording do
     end
   end
 
+  it "con FLOW_SPEECH_PROVIDER mal escrito la fila queda `failed`, no colgada" do
+    # Un nombre que no resuelve cae en `Providers::Null` (`resolve` loguea un
+    # warning y lo devuelve), y su `transcribe` tiene que levantar
+    # `TranscriptionFailed` y NO el `NotImplementedError` que hereda de
+    # `Provider`: con ése el `rescue` angosto del servicio no matcheaba, así que
+    # la fila no se marcaba, `retry_on` tampoco lo veía, y la tarjeta se quedaba
+    # en «transcribiendo» sin texto de error PARA SIEMPRE. El mensaje nombra la
+    # variable porque un typo no deja ninguna otra pista en la pantalla.
+    rec = grabacion
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("FLOW_SPEECH_PROVIDER").and_return("deepgran")
+    Flow::AI.reset_provider!
+
+    as_company(company) do
+      expect { Flow::Workshops::TranscribeRecording.call(rec) }
+        .to raise_error(Flow::Errors::TranscriptionFailed)
+
+      expect(rec.reload.status).to eq("failed")
+      expect(rec.error).to include("FLOW_SPEECH_PROVIDER")
+    end
+  end
+
   it "un bug nuestro sale como bug: no se lo disfraza de `failed` ni se lo traga" do
     # El rescue del servicio es angosto a propósito. Con `rescue StandardError`
     # un `NoMethodError` nuestro dejaría la fila en `failed` con «no se pudo

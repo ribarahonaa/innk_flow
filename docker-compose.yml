@@ -54,6 +54,22 @@ services:
       FLOW_EMBEDDINGS_MODEL: ${FLOW_EMBEDDINGS_MODEL:-}
       VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # La VOZ va por su propio proveedor, por lo mismo: Anthropic no
+      # transcribe. Dejarlo vacío es lo que hace que la cascada caiga al fixture
+      # —determinista, sin red— y que ni la suite ni `make screens` facturen
+      # voz. Para usar Deepgram de verdad, arrancá con
+      # FLOW_SPEECH_PROVIDER=deepgram y la key puesta en el .env: cada
+      # transcripción se cobra por minuto.
+      #
+      # Van acá y no sólo en el .env a propósito: este archivo enumera el
+      # entorno del contenedor y no tiene `env_file:`, así que el .env sólo
+      # sirve para INTERPOLAR. Sin estas tres líneas, `sidekiq` —que es el
+      # proceso que corre el job de transcripción— no veía ninguna de las tres,
+      # y el eje era imposible de encender editando el .env (medido: `env |
+      # grep -cE "FLOW_SPEECH|DEEPGRAM"` daba 0).
+      FLOW_SPEECH_PROVIDER: ${FLOW_SPEECH_PROVIDER:-}
+      FLOW_SPEECH_MODEL: ${FLOW_SPEECH_MODEL:-}
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
     depends_on:
       - db
       - redis
@@ -91,8 +107,10 @@ services:
       # test tampoco recibe la credencial.
       FLOW_AI_PROVIDER: fixture
       FLOW_EMBEDDINGS_PROVIDER: fixture
+      FLOW_SPEECH_PROVIDER: fixture
       VOYAGE_API_KEY: ""
       OPENAI_API_KEY: ""
+      DEEPGRAM_API_KEY: ""
     depends_on:
       - db
       - redis
