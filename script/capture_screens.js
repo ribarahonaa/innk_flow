@@ -26,6 +26,41 @@ let draftMeasurements = 0;
 // una tercera. Un piso flojo no cazaría que una dejó de medirse.
 const PISO_DE_BORRADORES = 2;
 
+// En cuántas de las dos caras de la sala `[GRABAR]` midió el viaje completo:
+// grabar, parar, subir, y que la transcripción aparezca.
+let recordingMeasurements = 0;
+// EXACTO en 2, por el mismo motivo que `PISO_DE_BORRADORES`: cuenta CARAS
+// —idear y evolución— y no hay una tercera, así que un piso flojo no cazaría
+// que una dejó de medirse.
+//
+// Una cara cuenta como medida sólo si pasaron TODAS las fases —el control, la
+// onda con su silencio, la subida y la transcripción—, igual que en `[DRAFT]`.
+// Un contador por fase volvería el piso 4 y rompería la semántica de «caras».
+const PISO_DE_GRABACIONES = 2;
+
+// Los umbrales de la onda. **Se CALIBRAN midiendo, no se adivinan**: el Paso 7
+// manda imprimir la serie real del micrófono falso y pinchar estos tres con lo
+// que salga. Los valores de abajo son el punto de partida.
+//
+// `VOZ_MINIMA` es el piso del pico durante la voz; `SILENCIO_MAXIMO` el techo de
+// una muestra que cuenta como silencio —el mismo orden de magnitud que
+// `PISO_VISIBLE` del JS, a propósito—; y `MUESTRAS_DE_SILENCIO`, cuántas
+// seguidas hacen falta. El silencio del wav dura 1,5 s y se muestrea cada
+// 100 ms, o sea ~15 muestras: pedir 8 deja margen para el ataque y la cola de
+// las voces de al lado.
+// CALIBRADOS el 2026-10-08 con la serie real del micrófono falso (60 muestras,
+// una cada 100 ms, wav de 6,5 s):
+//   0.072 0.194 0.606 0.336 0.315 0.424 0.307 0.333 0.187 0.244 0.194
+//   0.006 0.006 0.006 0.005 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
+//   0.000 0.006 0.005 0.013 0.179 0.082 0.026 0.019 0.011 0.089 ...
+// El pico de la voz fue 0,606: 0,05 queda un orden de magnitud abajo. El hueco
+// marca 0,000–0,006 (opus mete algo de ruido): 0,01 queda arriba de eso y abajo
+// de la cola de la voz (0,013 y más). La corrida bajo 0,01 midió 15 muestras
+// seguidas; se piden 8, o sea poco más de la mitad.
+const VOZ_MINIMA = 0.05;
+const SILENCIO_MAXIMO = 0.01;
+const MUESTRAS_DE_SILENCIO = 8;
+
 // Un módulo por su TIPO, no por su nombre: el nombre es editable y una
 // propuesta de la IA lo reescribe entero.
 function porTipo(page, label) {
@@ -1577,6 +1612,170 @@ async function revisarBorrador(page, nombre) {
   draftMeasurements++;
 }
 
+// El viaje completo de la grabación: apretar, grabar unos segundos, parar,
+// subir, y que la transcripción del fixture aparezca en pantalla.
+//
+// Es lo único que ve el camino entero. El POST, el job y el partial pueden
+// estar los tres en verde y el botón no grabar: `getUserMedia` fuera de
+// contexto seguro, el bundle sin compilar, el estado guardado en el DOM y
+// borrado por un morph. Nada de eso lo ve un spec de Ruby.
+async function revisarGrabacion(page, nombre) {
+  const caja = page.locator('[data-recording-url]').first();
+  if (!(await caja.count())) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: la sala no tiene bloque de grabación`);
+    return;
+  }
+
+  const boton = caja.locator('[data-recording-role="toggle"]');
+  // Un botón escondido significa que el JS encontró un impedimento. En el
+  // recorrido corre sobre `localhost`, que es contexto seguro, así que esto
+  // sólo pasa si el bundle no se compiló o si el micrófono falso no llegó.
+  if (await boton.isHidden()) {
+    failures++;
+    const motivo = await caja.locator('[data-recording-role="status"]').innerText();
+    console.error(`[GRABAR] ${nombre}: el control está bloqueado y dice «${motivo}». Si dice que falta HTTPS, el micrófono falso no llegó; si está vacío, falta \`make yarn-build\``);
+    return;
+  }
+
+  const onda = caja.locator('[data-recording-role="wave"]');
+  // Antes de grabar la onda está escondida: una onda plana sin micrófono abierto
+  // se lee como un micrófono que no toma nada.
+  if (!(await onda.isHidden())) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: la onda se ve antes de grabar y tendría que estar escondida`);
+    return;
+  }
+  const barras = await onda.locator('.waveform__bar').count();
+  if (barras !== 40) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: la onda tiene ${barras} barras y el markup declara 40`);
+    return;
+  }
+
+  const antes = await page.locator('details summary').count();
+  await boton.click();
+  // Que el cronómetro corra es la prueba de que `getUserMedia` resolvió: el
+  // texto cambia recién cuando hay stream.
+  await page.waitForFunction(
+    () => /\d\d:\d\d/.test(document.querySelector('[data-recording-role="status"]')?.textContent || ''),
+    null, { timeout: 10000 },
+  ).catch(() => {});
+  const sello = await caja.locator('[data-recording-role="status"]').innerText();
+  if (!/\d\d:\d\d/.test(sello)) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: después de apretar grabar el sello dice «${sello}» y tendría que traer un cronómetro: el micrófono no se abrió`);
+    return;
+  }
+
+  // ── El morph en medio de la grabación ──────────────────────────────────
+  //
+  // Es el ÚNICO testigo de un bug que ya ocurrió: el servidor renderiza el
+  // botón diciendo «Grabar» y el sello vacío, así que un morph le devolvía esos
+  // valores mientras el micrófono seguía abierto —y la onda SÍ se recuperaba,
+  // porque el bucle de dibujo reescribe las barras en el frame siguiente—.
+  // Quien veía onda moviéndose al lado de un botón que decía «Grabar» lo
+  // apretaba creyendo que arrancaba, y PARABA la reunión.
+  //
+  // Se fuerza con `Turbo.visit` a la misma URL en vez de apretando un botón de
+  // la pantalla: un POST real —«Crear borrador»— dejaría datos sembrados de más
+  // en el recorrido, y lo que se quiere probar es el morph, no el POST.
+  const textoAntes = await boton.innerText();
+  await page.evaluate(() => window.Turbo.visit(window.location.href, { action: 'replace' }));
+  await page.waitForTimeout(1500);
+  const textoDespues = await boton.innerText();
+  const selloDespues = await caja.locator('[data-recording-role="status"]').innerText();
+  if (textoDespues !== textoAntes || !/\d\d:\d\d/.test(selloDespues)) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: después de morfear en medio de la grabación el botón dice «${textoDespues}» (antes «${textoAntes}») y el sello «${selloDespues}»: el morph le devolvió el HTML del servidor y \`start()\` no repintó desde el estado del módulo`);
+    return;
+  }
+
+  // ── La onda ────────────────────────────────────────────────────────────
+  //
+  // Se muestrea `data-level` —el RMS CRUDO, no el alto de la barra— mientras
+  // graba. Es el único puente medible: las barras dicen cómo quedó el dibujo y
+  // esto dice qué midió el micrófono.
+  const niveles = [];
+  for (let i = 0; i < 60; i++) {
+    niveles.push(Number(await caja.getAttribute('data-level')));
+    await page.waitForTimeout(100);
+  }
+
+  await boton.click();
+
+  // Dos aserciones sobre la serie, y la SEGUNDA es la que discrimina.
+  //
+  // Que el máximo esté arriba de cero sólo prueba que algo se mueve: una onda
+  // decorativa con números al azar también lo logra. Lo que una onda falsa NO
+  // puede producir es la corrida de muestras cerca de cero del silencio que el
+  // wav tiene a propósito entre las dos voces. Por eso el archivo se arma
+  // voz → silencio → voz y la grabación dura menos que él.
+  const pico = Math.max(...niveles);
+  let corrida = 0;
+  let mayorCorrida = 0;
+  for (const n of niveles) {
+    corrida = n <= SILENCIO_MAXIMO ? corrida + 1 : 0;
+    if (corrida > mayorCorrida) mayorCorrida = corrida;
+  }
+  const serie = niveles.map((n) => n.toFixed(3)).join(' ');
+  if (pico < VOZ_MINIMA) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: el pico de la onda fue ${pico.toFixed(3)} y el mínimo esperado es ${VOZ_MINIMA}: el AnalyserNode no está leyendo el micrófono. Serie: ${serie}`);
+    return;
+  }
+  if (mayorCorrida < MUESTRAS_DE_SILENCIO) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: la corrida de silencio más larga fue de ${mayorCorrida} muestras y hacen falta ${MUESTRAS_DE_SILENCIO}: la onda da nivel incluso en el silencio del wav, o sea que no está midiendo audio real. Serie: ${serie}`);
+    return;
+  }
+  // `rec.stop()` es asíncrono: la onda se esconde en `onstop`, no en el clic.
+  // Leerla en el mismo tick midió el instante anterior al evento (falso rojo
+  // medido en las dos caras con el JS sano), así que se espera con tope.
+  await onda.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+  if (!(await onda.isHidden())) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: después de parar la onda sigue visible: el bucle de dibujo o el AudioContext no se cerraron`);
+    return;
+  }
+
+  // El POST y después la visita que morfea la pantalla. Se espera un `details`
+  // MÁS que antes —la tarjeta nueva de la grabación—, que es una señal que sólo
+  // puede existir con la pantalla nueva pintada.
+  //
+  // La tarjeta con `details` sólo existe cuando la transcripción está `ready`,
+  // y eso lo hace Sidekiq DESPUÉS de la visita que dispara la subida: esa
+  // primera visita pinta la tarjeta «en cola» sin plegable. Esperar sin volver a
+  // visitar medía para siempre la pantalla vieja (falso rojo medido, con el
+  // código sano), así que se vuelve a pedir la pantalla hasta que aparezca.
+  for (let i = 0; i < 20; i++) {
+    if ((await page.locator('details summary').count()) > antes) break;
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => window.Turbo.visit(window.location.href, { action: 'replace' }));
+    await page.waitForTimeout(500);
+  }
+
+  const tarjetas = await page.locator('details summary').count();
+  if (tarjetas <= antes) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: después de parar hay ${tarjetas} plegables y antes había ${antes}: la grabación no llegó al servidor o el job no la transcribió`);
+    return;
+  }
+
+  // Y que lo que apareció sea la transcripción del fixture y no «algo»: pedir
+  // que no esté vacío no discrimina, porque esta guarda deja grabaciones en la
+  // base y en la corrida siguiente ya hay tarjetas antes de tocar nada.
+  const texto = await page.locator('.card-body').first().innerText();
+  const esperado = 'barricas';
+  if (!(await page.locator('details', { hasText: esperado }).count())) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: la tarjeta nueva no trae la transcripción del fixture (buscaba «${esperado}»); lo que hay dice «${texto.slice(0, 120)}»`);
+    return;
+  }
+
+  recordingMeasurements++;
+}
+
 // El contraste se mide con `medirContraste`, que es el ÚNICO medidor del
 // script y el que tiene autotest (`probarMedidorDeContraste`). No hay un
 // `contraste(a, b)` llamable desde acá: esa función vive adentro del
@@ -1896,7 +2095,29 @@ async function revisarTema(page, pantalla, url) {
     if (file.endsWith('.png')) fs.unlinkSync(`${OUT}/${file}`);
   }
 
-  const browser = await chromium.launch();
+  // El micrófono falso, para `[GRABAR]`. Son flags de LANZAMIENTO, así que
+  // aplican a la corrida entera; inofensivo, ninguna otra pantalla pide
+  // micrófono. Medido: la pista aparece como `Fake Default Audio Input` en
+  // estado `live`, el permiso se auto-concede, y el `mimeType` que elige
+  // Chromium es `audio/webm;codecs=opus` — el mismo que Deepgram acepta.
+  //
+  // `%noloop` está MEDIDO y se honra: grabando 12 segundos de un wav de 5, la
+  // frase aparece UNA vez en la transcripción y el resto es silencio. Importa
+  // porque sin él Chromium repite el archivo, y una grabación larga
+  // transcribiría la misma frase tres veces — lo que haría imposible distinguir
+  // «grabó bien» de «grabó el loop».
+  //
+  // Ojo si se verifica de nuevo: comparar el TAMAÑO del blob no discrimina
+  // nada. A bitrate fijo los bytes siguen a la duración y no al contenido, así
+  // que con y sin el sufijo dan el mismo número exacto (15.989 bytes los dos,
+  // medido). Hay que transcribir, y grabar MÁS que el largo del archivo.
+  const browser = await chromium.launch({
+    args: [
+      '--use-fake-ui-for-media-stream',
+      '--use-fake-device-for-media-stream',
+      '--use-file-for-fake-audio-capture=/script/fake_audio.wav%noloop',
+    ],
+  });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   // El link del check-in, que `29` lee de la pantalla y `30` usa sin sesión.
   // Queda en `null` si `29` no pudo leerlo, y `30` lo sabe.
@@ -3303,6 +3524,7 @@ async function revisarTema(page, pantalla, url) {
       }
       await capturar(page, '25-taller-sala-idear');
       await revisarBorrador(page, 'sala de idear');
+      await revisarGrabacion(page, 'sala de idear');
       await goToWorkshop('Taller de mejora continua');
     }
 
@@ -3354,6 +3576,7 @@ async function revisarTema(page, pantalla, url) {
         }
         await capturar(page, '26b-taller-idea-elegida');
         await revisarBorrador(page, 'sala de evolución');
+        await revisarGrabacion(page, 'sala de evolución');
       } else {
         failures++;
         console.error('[TALLER] ninguna idea del selector se puede elegir');
@@ -3706,7 +3929,7 @@ async function revisarTema(page, pantalla, url) {
   // verde y es indistinguible de una que funciona, que es el modo de falla que
   // este script ya pagó dos veces (la pasada oscura del muestrario, y `[MONO]`
   // después del arreglo).
-  console.log(`[RITMO] ${pantallasConRitmo} de ${shots.length} pantallas tuvieron dos tarjetas que comparar · [RELLENO] ${cardBodiesMedidos} \`card-body\` medidos · [PASTILLA] ${pastillasMedidas} chips y avisos medidos · [CRITERIO] ${criteriosMedidos} nombres medidos · [LIVE] ${liveMeasurements} pantalla(s) medida(s) · [RIEL] ${rielesMedidos} pantallas con riel · [BANDA] ${bandasMedidas} pantallas con banda · [SOMBRA] ${sombrasMedidas} tarjetas medidas · [CAMPO] ${camposMedidos} campos medidos · [DRAFT] ${draftMeasurements} caras medidas`);
+  console.log(`[RITMO] ${pantallasConRitmo} de ${shots.length} pantallas tuvieron dos tarjetas que comparar · [RELLENO] ${cardBodiesMedidos} \`card-body\` medidos · [PASTILLA] ${pastillasMedidas} chips y avisos medidos · [CRITERIO] ${criteriosMedidos} nombres medidos · [LIVE] ${liveMeasurements} pantalla(s) medida(s) · [RIEL] ${rielesMedidos} pantallas con riel · [BANDA] ${bandasMedidas} pantallas con banda · [SOMBRA] ${sombrasMedidas} tarjetas medidas · [CAMPO] ${camposMedidos} campos medidos · [DRAFT] ${draftMeasurements} caras medidas · [GRABAR] ${recordingMeasurements} caras medidas`);
   if (pantallasConRitmo < PISO_DE_RITMO) {
     failures++;
     console.error(`[RITMO] sólo ${pantallasConRitmo} de ${shots.length} pantallas tuvieron un par de tarjetas que comparar, y el piso es ${PISO_DE_RITMO}: la guarda dejó de ver las tarjetas`);
@@ -3722,6 +3945,10 @@ async function revisarTema(page, pantalla, url) {
   if (draftMeasurements < PISO_DE_BORRADORES) {
     failures++;
     console.error(`[DRAFT] sólo ${draftMeasurements} de ${PISO_DE_BORRADORES} caras de la sala midieron el autoguardado: la guarda dejó de ver una`);
+  }
+  if (recordingMeasurements < PISO_DE_GRABACIONES) {
+    failures++;
+    console.error(`[GRABAR] sólo ${recordingMeasurements} de ${PISO_DE_GRABACIONES} caras de la sala midieron el viaje de la grabación: la guarda dejó de ver una`);
   }
   if (!liveMeasurements) {
     failures++;
