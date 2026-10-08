@@ -114,7 +114,30 @@ RSpec.describe Flow::Workshops::TranscribeRecording do
     end
   end
 
-  it "dos grabaciones de la misma mesa no se pisan" do
+  it "un bug nuestro sale como bug: no se lo disfraza de `failed` ni se lo traga" do
+    # El rescue del servicio es angosto a propósito. Con `rescue StandardError`
+    # un `NoMethodError` nuestro dejaría la fila en `failed` con «no se pudo
+    # transcribir» y el bug real invisible. Las DOS mitades importan: que se
+    # propague, y que la fila NO se haya marcado `failed` (sigue `transcribing`,
+    # que el servicio escribe antes de llamar al proveedor).
+    rec = grabacion
+    as_company(company) do
+      proveedor = Flow::AI::Providers::Fixture.new
+      allow(proveedor).to receive(:transcribe).and_raise(NoMethodError, "bug nuestro")
+      Flow::AI.speech_provider = proveedor
+
+      expect { Flow::Workshops::TranscribeRecording.call(rec) }
+        .to raise_error(NoMethodError)
+
+      expect(rec.reload.status).to eq("transcribing")
+      expect(rec.error).to be_nil
+    end
+  end
+
+  it "dos grabaciones de la misma mesa terminan cada una con su transcripción" do
+    # Mide que no colisionan a nivel de fila. NO guarda contra la carrera entre
+    # hilos: esa se eliminó por construcción cuando `transcribe` pasó a devolver
+    # un valor inmutable en vez de dejar metadata en el proveedor memoizado.
     una = grabacion
     otra = grabacion
     as_company(company) do
