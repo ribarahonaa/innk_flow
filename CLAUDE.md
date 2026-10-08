@@ -769,39 +769,41 @@ revocar un link filtrado devolvería la asistencia a presumida en medio de la
 sesión. Rotar revoca; apagar el modo cambia cómo se cuenta.
 
 **La «Mesa de llegada» (`workshop_groups.arrival`, con índice UNIQUE parcial)
-es sala de espera, y hoy son NUEVE los lugares que preguntan `arrival?` para no
-dejar trabajar desde ella** —el bloque de armado la pregunta cuatro veces más,
-por otras razones: no se borra a mano, y se sirve en el frame que se refresca
-solo—. Los nueve: las
-dos caras de la sala (`workshop_rooms/_ideation` y `_evolution`), que en vez del
-trabajo dicen que la mesa todavía no se armó; los CUATRO controllers que
-escriben —`WorkshopIdeasController`, `WorkshopProposalsController`,
-`WorkshopDraftsController` y `WorkshopRecordingsController`, éste último desde
-la grabación—; el panel «Tu mesa» (`workshops/_my_group`); y las dos fuentes de ideas, que la
-vuelven a preguntar por su cuenta —la de evolución en el modelo
-(`WorkshopGroup#workable_ideas` devuelve `Idea.none`) y la de idear en el
-controller (`WorkshopRoomsController#load_ideation`)—. Esa última es
-**load-bearing** y no prolijidad: `policy_scope(Idea)` devuelve `all` a todo rol
-que no sea `participant`, así que sin ella quien administra y está sentado en la
-llegada vería las ideas de los treinta que esperan, bajo el título «Las ideas de
-tu mesa». Del lado de la escritura, `WorkshopIdeasController` escribe
-`idea_contributors` para toda la mesa, así que un borrador creado desde una
-llegada de treinta personas nace con las treinta ESCRITAS y repartir no lo
-deshace. Y `AssignGroups#seat!` la excluye de las
+es sala de espera, y todo lugar que se negaría a dejar trabajar desde ella
+pregunta `arrival?`** —el bloque de armado la pregunta además por otras razones:
+no se borra a mano, y se sirve en el frame que se refresca solo—. No hay un
+número acá a propósito: una lista se verifica con un `grep -rn "arrival?" app` y
+un número no, y éste ya se desactualizó dos veces. Los lugares, agrupados por lo
+que el chequeo HACE:
+
+- **Los controllers que rechazan una escritura** (`403` o rechazo con aviso):
+  `WorkshopIdeasController`, `WorkshopProposalsController`,
+  `WorkshopDraftsController` y `WorkshopRecordingsController`.
+- **Las dos caras de la sala**, que en vez del trabajo dicen que la mesa todavía
+  no se armó: `workshop_rooms/_ideation` y `workshop_rooms/_evolution`.
+- **El panel «Tu mesa»**: `workshops/_my_group`.
+- **Las lecturas que devuelven nada**: `WorkshopGroup#workable_ideas`
+  (`Idea.none`) y, en `WorkshopRoomsController`, `load_ideation`,
+  `load_recordings` y las dos cargas del borrador (la de idear y la de evolución).
+
+`load_ideation` es **load-bearing** y no prolijidad: `policy_scope(Idea)` devuelve
+`all` a todo rol que no sea `participant`, así que sin ella quien administra y
+está sentado en la llegada vería las ideas de los treinta que esperan, bajo el
+título «Las ideas de tu mesa». Del lado de la escritura,
+`WorkshopIdeasController` escribe `idea_contributors` para toda la mesa, así que
+un borrador creado desde una llegada de treinta personas nace con las treinta
+ESCRITAS y repartir no lo deshace. Y `AssignGroups#seat!` la excluye de las
 mesas reusables: es la primera creada, así que la habría convertido en «Mesa 1»
 con `arrival: true` puesto y su sala habría quedado muda para siempre.
 
-**Ojo: hasta el 2026-10-08 esta línea decía «siete», y la lista tampoco
-nombraba al autoguardado del borrador** (`WorkshopDraftsController`), que ya
-preguntaba lo mismo: el conteo estaba corto antes de que la grabación sumara el
-suyo. Dos comentarios del código repiten un número viejo —«los otros seis
-lugares» en `workshop_drafts_controller.rb` y en `workshop_rooms/_ideation`— y
-siguen ahí; el controller de grabaciones, en cambio, remite a este párrafo en
-vez de contar. Además de los nueve, la sala pregunta `arrival?` en
-tres LECTURAS (`load_recordings` y las dos del borrador, en
-`WorkshopRoomsController`) para no cargar lo que la vista no va a dibujar: no
-son un permiso, pero quien agregue un décimo lugar tiene que decidir a cuál de
-los dos grupos pertenece.
+**Ojo: hasta el 2026-10-08 esta línea decía «siete», y la lista no nombraba al
+autoguardado del borrador** (`WorkshopDraftsController`), que ya preguntaba lo
+mismo: el conteo estaba corto antes de que la grabación sumara el suyo, y es la
+evidencia de por qué no hay número. Dos comentarios del código repiten un número
+viejo —«los otros seis lugares» en `workshop_drafts_controller.rb` y en
+`workshop_rooms/_ideation`— y siguen ahí; el controller de grabaciones, en
+cambio, remite a este párrafo en vez de contar. Quien agregue un lugar nuevo lo
+suma a la lista del grupo que corresponda a lo que su chequeo hace.
 
 **«Mi mesa en este taller» vive en `Workshop#group_of`, y en ningún otro lado.**
 Estaba escrito tres veces —el `group_of` privado de los dos controllers que
@@ -978,10 +980,15 @@ ventana de muestreo termina ADENTRO de la segunda voz, así que la corrida sale
 del hueco interior y no de una cola muda. Si alguien «simplifica» ese wav a una
 sola voz corrida, la guarda queda midiendo que algo se mueve y nada más.
 
-**La onda sigue moviéndose con `prefers-reduced-motion`**, igual que el spinner de
-la IA y por el mismo motivo: es la ÚNICA señal de que el micrófono está tomando
-algo, y quieta se lee como un micrófono tapado, que es justo el estado que tiene
-que poder distinguir. Un micrófono que entrega silencio (tapado, en mute por
+**`workshop_recording.js` no tiene NINGÚN manejo de `prefers-reduced-motion`, y
+no agregarlo es deliberado y no un descuido.** La onda se mueve porque el JS
+escribe las alturas, con o sin la preferencia. La hoja ya registra el motivo para
+el spinner de la IA, que sigue girando bajo la preferencia porque es la ÚNICA
+señal de que el trabajo continúa y uno quieto se lee como colgado: la onda es
+exactamente eso para el micrófono. Quieta se lee como un micrófono tapado, que es
+justo el estado que tiene que poder distinguir. No es una decisión implementada
+con una guarda: es la ausencia de una, y quien la «arregle» agregándola la rompe.
+Un micrófono que entrega silencio (tapado, en mute por
 hardware, el equipo equivocado) deja la onda plana mientras el cronómetro sigue
 corriendo.
 

@@ -53,10 +53,9 @@ mediciones que hay (§4) y el español no se midió nunca.
 
 ### Lo que CLAUDE.md dice ahora (tarea 8)
 
-- Los lugares que preguntan `arrival?` son **NUEVE**, no siete ni ocho: el conteo
-  viejo ya no nombraba al autoguardado del borrador (`WorkshopDraftsController`),
-  y la grabación suma el suyo. Más tres LECTURAS (`load_recordings` y las dos del
-  borrador) que no son permiso.
+- Los lugares que preguntan `arrival?` ya **no llevan número**: CLAUDE.md los enumera
+  por lo que el chequeo hace (controllers que rechazan, caras de la sala, panel
+  «Tu mesa», lecturas que devuelven nada). El conteo viejo ya estaba corto.
 - **Tres** proveedores (`FLOW_AI_PROVIDER`, `FLOW_EMBEDDINGS_PROVIDER`,
   `FLOW_SPEECH_PROVIDER`), y por qué la tercera no se declara.
 - **Once** guardas que cuentan; pisos `36, 250, 300, 100, «al menos una», 66, 71,
@@ -153,8 +152,9 @@ las dos aserciones de la onda miden cosas distintas.
   Se reemplazó por un valor de retorno (`Data`).
 - **El helper de sesión del plan era inventado** y cuatro conteos estaban mal
   (commit `3d9dd49`); la mutación B del plan nombraba código viejo.
-- **El conteo de `arrival?` del brief (ocho) no cierra** contra el código: son
-  nueve. Si algún día alguien quiere volver a contarlos: `grep -rn "arrival?" app`.
+- **El conteo de `arrival?` del brief (ocho) no cierra** y ningún número es estable
+  (depende de cómo se agrupen las cuatro lecturas de `WorkshopRoomsController`):
+  por eso CLAUDE.md enumera y no cuenta. `grep -rn "arrival?" app` es la verificación.
 
 ## 5. Próximos pasos
 

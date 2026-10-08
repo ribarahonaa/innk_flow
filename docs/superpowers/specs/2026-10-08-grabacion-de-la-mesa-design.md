@@ -33,7 +33,7 @@ veces B, así que se parte.
 
 Dos cosas quedan decididas acá y condicionan las otras dos:
 
-- **C1 estrena el cuarto eje de proveedor** y es la única de las tres con riesgo
+- **C1 estrena el tercer eje de proveedor** y es la única de las tres con riesgo
   técnico real. Por eso va primero: si algo de C va a fallar, falla acá, y más
   vale saberlo antes de escribir las otras dos specs.
 - **C2 no depende de C1 para desarrollarse.** Sus dos propósitos de chat corren
@@ -119,7 +119,7 @@ recibiría transcripciones de un solo hablante si el colapso fuera real. Lo que
 cierra el riesgo sigue siendo lo mismo: veinte segundos de dos personas reales
 hablando español, con el comando del paso 1 de la tarea 8.
 
-## La forma: el cuarto eje de proveedor
+## La forma: el tercer eje de proveedor
 
 ### Lo que se descartó, y por qué
 
@@ -386,10 +386,12 @@ inventado habría decidido si se avisa o no— acá sólo decide un alto en pixe
 El nivel **crudo** se publica igual en `data-level`, así que lo que se mide es la
 causa y no el dibujo.
 
-**Sigue moviéndose con `prefers-reduced-motion` activado**, y no es un descuido:
-el repo ya tomó esta decisión para el spinner de la IA, con el motivo escrito en
-la hoja —«es la ÚNICA señal de que la IA sigue trabajando, y quieto se lee como
-colgado»—. La onda es exactamente eso para el micrófono.
+**No hay manejo de `prefers-reduced-motion`, y es deliberado:** la onda se mueve
+porque el JS escribe las alturas, con o sin la preferencia. El repo ya registró en
+la hoja el motivo para el spinner de la IA —«es la ÚNICA señal de que la IA sigue
+trabajando, y quieto se lee como colgado»—, que sigue girando bajo la preferencia;
+la onda es exactamente eso para el micrófono. Es una ausencia razonada, no una
+guarda implementada.
 
 ### La UX: un control, y lo menos posible alrededor
 
