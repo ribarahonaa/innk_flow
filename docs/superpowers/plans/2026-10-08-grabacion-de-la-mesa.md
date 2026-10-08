@@ -2963,6 +2963,29 @@ async function revisarGrabacion(page, nombre) {
     return;
   }
 
+  // ── El morph en medio de la grabación ──────────────────────────────────
+  //
+  // Es el ÚNICO testigo de un bug que ya ocurrió: el servidor renderiza el
+  // botón diciendo «Grabar» y el sello vacío, así que un morph le devolvía esos
+  // valores mientras el micrófono seguía abierto —y la onda SÍ se recuperaba,
+  // porque el bucle de dibujo reescribe las barras en el frame siguiente—.
+  // Quien veía onda moviéndose al lado de un botón que decía «Grabar» lo
+  // apretaba creyendo que arrancaba, y PARABA la reunión.
+  //
+  // Se fuerza con `Turbo.visit` a la misma URL en vez de apretando un botón de
+  // la pantalla: un POST real —«Crear borrador»— dejaría datos sembrados de más
+  // en el recorrido, y lo que se quiere probar es el morph, no el POST.
+  const textoAntes = await boton.innerText();
+  await page.evaluate(() => window.Turbo.visit(window.location.href, { action: 'replace' }));
+  await page.waitForTimeout(1500);
+  const textoDespues = await boton.innerText();
+  const selloDespues = await caja.locator('[data-recording-role="status"]').innerText();
+  if (textoDespues !== textoAntes || !/\d\d:\d\d/.test(selloDespues)) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: después de morfear en medio de la grabación el botón dice «${textoDespues}» (antes «${textoAntes}») y el sello «${selloDespues}»: el morph le devolvió el HTML del servidor y \`start()\` no repintó desde el estado del módulo`);
+    return;
+  }
+
   // ── La onda ────────────────────────────────────────────────────────────
   //
   // Se muestrea `data-level` —el RMS CRUDO, no el alto de la barra— mientras
@@ -3128,8 +3151,16 @@ cp script/capture_screens.js /tmp/bk_screens.js
 cp app/javascript/workshop_recording.js /tmp/bk_rec.js
 ```
 
-**Mutación A — el botón fantasma.** En `workshop_recording.js`, en `start()`,
-borrá las dos líneas de `impedimento()`:
+**Mutación A — el puente de la onda.** Borrá la línea que publica
+`caja.dataset.level` en `dibujar()`:
+
+**Ojo: la mutación que esta línea decía antes era IMPOSIBLE.** Pedía borrar
+`impedimento()` esperando el botón fantasma en rojo, y el recorrido corre en
+`localhost` con micrófono falso, así que `impedimento()` siempre devuelve null y
+esa rama es inalcanzable — la spec ya declaraba que el fallo de contexto seguro
+es invisible para este navegador, y el plan la contradecía. Lo que sí es
+portante y sí se puede mutar es `data-level`, el único puente por el que la onda
+se mide:
 
 ```bash
 make yarn-build && make screens 2>&1 | grep GRABAR
@@ -3138,8 +3169,9 @@ cp /tmp/bk_rec.js app/javascript/workshop_recording.js && make yarn-build
 
 Esperado: rojo. Si queda verde, la guarda no mira el botón escondido.
 
-**Mutación B — el estado en el DOM.** En `start()`, saqué la prueba de
-identidad (`if (encontrado && encontrado === caja) return;`):
+**Mutación B — el estado en el DOM.** En `start()`, sacá la prueba de
+identidad (la rama `mismoNodo`; la Tarea 6 reemplazó el `encontrado === caja`
+que esta línea nombraba antes):
 
 ```bash
 make yarn-build && make screens 2>&1 | grep GRABAR

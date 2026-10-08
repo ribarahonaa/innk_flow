@@ -420,8 +420,22 @@ muestra seguidos:
 - **Del navegador, y no se persisten:** `idle` → `grabando` → `subiendo`. Viven
   en el módulo de JS; nadie los consulta desde el servidor.
 - **De la fila, y son los del CHECK:** `pending` → `transcribing` → `ready` |
-  `failed`. Los trae el refresco del frame, el mismo mecanismo de
-  `arrival_live.js`.
+  `failed`.
+
+**Ojo: NADA los refresca solo, y hasta el 2026-10-08 esta línea decía que los
+traía «el refresco del frame, el mismo mecanismo de `arrival_live.js`».** Ese
+mecanismo no se construyó: no hay `turbo-frame`, ni `data-live`, ni poller. La
+mesa sube, ve «en cola», y la tarjeta no se mueve hasta que navegue o recargue.
+Medido —la guarda `[GRABAR]` tuvo que agregar su propio `Turbo.visit` en bucle
+para que la tarjeta apareciera, o sea que pasa en verde mientras la app no
+refresca—.
+
+Hacerlo es ruta + acción + frame + poller, con su propia fase de guarda: una
+tarea, no una línea. Y la alternativa barata está **descartada por una razón
+dura**: Turbo 8 morfea llamando a `morphElements` sin `ignoreActiveValue`, así
+que `syncInputValue` le devuelve al campo enfocado el valor del servidor — un
+poller de página completa **le pisaría a la mesa lo que está tecleando** en el
+borrador.
 
 `pending` es el hueco entre «la subida aterrizó» y «el job arrancó», y existe
 porque el POST contesta antes de encolar nada: sin ese estado, una grabación
@@ -541,6 +555,8 @@ visible:
 - **La onda en un teléfono.** El riel a 414px tampoco lo mira ninguna captura, y
   esto es lo mismo: el recorrido fotografía 1440×1000 y 1100×900, así que
   cuántas barras caben y si desbordan a ancho de teléfono no está medido.
+- **La tarjeta no se refresca sola mientras transcribe.** Ver «Los estados».
+  Es el primer incremento obvio de esta feature.
 - **Navegar mientras graba pierde el audio.** Se avisa con `beforeunload` y nada
   más: `keepalive` tiene un tope de 64 KB y el audio son megabytes.
 
