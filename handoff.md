@@ -23,15 +23,26 @@ tarea. **No verifiqué el remoto:** el `ls-remote` por SSH da `Permission denied
 `master`: `gh api repos/ribarahonaa/innk_flow/branches/grabacion-de-la-mesa
 --jq .commit.sha`).
 
-- `make spec`: **1761 ejemplos, 0 fallas**.
+- `make spec`: **1769 ejemplos, 0 fallas** (corrido sobre el árbol final, tras la
+  tanda de arreglos de la revisión de rama).
 - `make screens` (tras `make seed` y `make yarn-build`): verde, "Sin errores de
-  JS ni respuestas >= 400". Las ONCE cifras:
-  `[RITMO] 40 · [RELLENO] 299 · [PASTILLA] 790 · [CRITERIO] 195 · [LIVE] 1 ·
+  JS ni respuestas >= 400", 76 capturas. Las ONCE cifras:
+  `[RITMO] 40 · [RELLENO] 299 · [PASTILLA] 789 · [CRITERIO] 195 · [LIVE] 1 ·
   [RIEL] 71 · [BANDA] 71 · [SOMBRA] 302 · [CAMPO] 289 · [DRAFT] 2 · [GRABAR] 2`.
 
-**Proveedores, tal como queda el stack:** `FLOW_AI_PROVIDER=anthropic` en `app` y
-en `sidekiq` (verificado), así que una corrida de `make screens` **cuesta plata de
-IA**. `FLOW_SPEECH_PROVIDER` está **sin declarar a propósito**: la cascada cae al
+**Proveedores, tal como queda el stack — Y CAMBIÓ RESPECTO DEL HANDOFF
+ANTERIOR.** Lo dejo en **`FLOW_AI_PROVIDER=fixture`** en `app` y `sidekiq`, no en
+`anthropic`: recreé los dos contenedores para correr el recorrido sin facturar, y
+lo dejo así porque es el lado seguro —el handoff anterior se quejaba justamente de
+haber heredado `anthropic` sin saberlo y de que cada corrida costara plata—.
+Para devolverlo:
+
+```bash
+FLOW_AI_PROVIDER=anthropic docker compose up -d --force-recreate app sidekiq
+```
+
+El recreate tiene que incluir `sidekiq` (`Flow::AI.provider` memoiza por proceso)
+y **no** sirve `make reup`, que baja el stack entero. `FLOW_SPEECH_PROVIDER` está **sin declarar a propósito**: la cascada cae al
 fixture (Anthropic no transcribe), así que ni la suite ni el recorrido facturan
 voz. `DEEPGRAM_API_KEY` está en `.env` y **autentica desde el host**: lo medido es
 un `curl` a `/v1/listen` que devolvió HTTP 200, no un pedido hecho desde la app.
@@ -45,6 +56,13 @@ imposible de encender editando el `.env`, y quien lo intentara se habría comido
 el `TranscriptionFailed, "falta DEEPGRAM_API_KEY"` del adapter. Las tres ya están
 en el anchor con default vacío, y `app_test` fija `FLOW_SPEECH_PROVIDER: fixture`
 con `DEEPGRAM_API_KEY: ""`. Encender el eje es poner las dos variables.
+
+**Y esto quedó verificado EMPÍRICAMENTE y no leyendo el compose**: tras recrear
+`app` y `sidekiq`, `docker compose exec -T sidekiq env | grep -E
+"FLOW_SPEECH|DEEPGRAM"` devuelve las tres —las dos de voz vacías, la credencial
+presente—. Antes del arreglo devolvía **cero**. Ojo con esto: **el cambio de
+compose no lo toma un contenedor ya corriendo**, hace falta
+`up -d --force-recreate`.
 
 **Riesgo abierto que ningún documento cerraba:** la diarización colapsa en las dos
 mediciones que hay (§4) y el español no se midió nunca.
@@ -174,8 +192,49 @@ las dos aserciones de la onda miden cosas distintas.
    el brief). Es lo único que cierra el riesgo 1, y **decide si C2 vale la pena
    como está diseñada**. Escribir el resultado como un `Ojo:` fechado encima del de
    hoy.
-2. **La revisión final de la rama entera** (la dispara el orquestador). Triar los
-   *minors* diferidos de abajo.
+2. ~~**La revisión final de la rama entera.**~~ **Hecha**, en el modelo más
+   capaz y con cuatro pasadas. Veredicto inicial: **no lista para mergear**, con
+   **1 Critical** —el barrido de mesas vacías de `AssignGroups#seat!` destruía
+   grabaciones y **purgaba su audio**, en silencio, en cualquier taller de
+   idear— más 6 Important. Una sola tanda de arreglos cubrió **16 ítems** (6
+   commits), y la re-revisión acotada los dio por los 16 ADDRESSED sin breakage.
+   Los *minors* diferidos de abajo quedaron triados: **ninguno bloquea el
+   merge**.
+
+   **Los residuales que la re-revisión dejó abiertos, y uno importa:**
+
+   - **La cara de EVOLUCIÓN tiene el mismo defecto que se arregló en idear.**
+     `_evolution.html.haml` deja que `ideas.empty?` reemplace la sala entera, y
+     el render de grabación vive adentro del `else`. Así que una mesa sentada en
+     un taller de evolución **sin idea trabajable** —convocatoria a mano, o sus
+     ideas eliminadas/retiradas, porque `workable_ideas` filtra con
+     `Idea.alive`— no sólo no graba: **pierde el acceso a transcripciones que
+     ya grabó**, mientras el POST las aceptaría igual. Es la misma
+     contradicción con la spec («graba quien pasa `work?` y está sentado en una
+     mesa que no es la de llegada») contra la que se arregló el ítem 4.
+     **NO se arregló acá a propósito**: el proceso tiene una sola tanda, y un
+     render movido sin su ciclo de revisión es cómo se deshace el cuidado del
+     resto. Es el mismo arreglo que el ítem 4 —sacar el render del `else`— y
+     **es el primer candidato de un round más**.
+   - `.env.example` documenta los ejes de chat y de vectores y **omite el de
+     voz**. Es el único documento cuyo trabajo es decir cómo se enciende un eje.
+     Tres líneas comentadas.
+   - **Un fallo de subida le dice a la mesa lo equivocado**: el JS pinta «No se
+     pudo transcribir.» cuando lo que pasó es que se perdió la grabación entera
+     (`trozos` se limpia antes del `fetch`). Hace falta un texto propio.
+   - **El comentario de `crear!` atribuye a la transacción más de lo que
+     compra**: Rails 7.1 difiere el upload físico a `after_commit`, así que un
+     fallo de disco revienta DESPUÉS del commit y deja la fila `pending` sin
+     archivo igual. Lo que la transacción sí compra es atomicidad de fila.
+   - **El ejemplo del Critical fija la fila pero no el blob**: la factory no
+     adjunta archivo, así que la mitad `purge_later` del hallazgo de pérdida de
+     datos **no tiene testigo**.
+   - `workshop_recordings_controller.rb:27` dice «**cuántos** son lo dice
+     CLAUDE.md» y CLAUDE.md se niega a dar un número a propósito; va «cuáles».
+   - **Borrar un taller entero** cascadea todas las grabaciones y su audio bajo
+     un «Taller eliminado.» pelado. Simétrico con cómo trata los borradores, o
+     sea preexistente, pero es el otro lugar donde aplicaría el aviso del
+     ítem 7.
 3. ~~**Dos comentarios del código con el número viejo**: `workshop_drafts_controller.rb`
    y `workshop_rooms/_ideation`.~~ **Hecho en la revisión final**, y eran tres: el
    del spec de la pantalla de la sala decía «el octavo lugar». Los tres remiten
