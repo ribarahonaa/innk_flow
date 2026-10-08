@@ -341,7 +341,7 @@ En `app/lib/flow/ai/providers/fixture.rb`, después de `embedding_model`:
 make spec-file FILE=spec/lib/flow/ai/speech_provider_spec.rb
 ```
 
-Esperado: PASS, 7 ejemplos.
+Esperado: PASS, 8 ejemplos.
 
 - [ ] **Paso 8: Correr la suite entera**
 
@@ -349,7 +349,7 @@ Esperado: PASS, 7 ejemplos.
 make spec
 ```
 
-Esperado: 1694 + 7 = **1701 ejemplos, 0 fallas**. Si algo más se rompió, es
+Esperado: 1694 + 8 = **1702 ejemplos, 0 fallas**. Si algo más se rompió, es
 `reset_provider!`: revisá que ningún spec dependa de que `@speech_provider`
 sobreviva.
 
@@ -699,7 +699,7 @@ end
 make spec-file FILE=spec/lib/flow/ai/providers/deepgram_spec.rb
 ```
 
-Esperado: PASS, 9 ejemplos.
+Esperado: PASS, 8 ejemplos.
 
 - [ ] **Paso 6: Verificar contra la API real, una sola vez**
 
@@ -1065,12 +1065,23 @@ class WorkshopRecording < ApplicationRecord
 
   scope :recent_first, -> { order(created_at: :desc) }
 
-  # Qué se le da a leer a una persona, y lo que C2 le va a dar al modelo. Se
-  # DERIVA y no se guarda: una columna con el texto plano sería la segunda
-  # fuente que el día que difiera miente.
+  # El texto para EL MODELO: es lo que C2 le va a pasar en el prompt. Se DERIVA
+  # y no se guarda: una columna con el texto plano sería la segunda fuente que
+  # el día que difiera miente.
   #
   # Los hablantes se numeran desde 1 porque Deepgram los numera desde 0, y
   # «Hablante 0» no se lee como una persona.
+  #
+  # **Y no pasa por I18n a propósito, aunque la pantalla diga lo mismo.** El
+  # partial rotula cada utterance con `t("flow.recordings.speaker")` para una
+  # PERSONA; esto arma la entrada de un modelo. Que hoy las dos digan «Hablante
+  # N» es una coincidencia, no una duplicación: unificarlas ataría el prompt al
+  # idioma de la interfaz, y el día que la app se traduzca el prompt cambiaría
+  # de idioma sin que nadie lo decida. Si alguien viene a «DRYear» esto, es
+  # esto.
+  #
+  # En C1 no lo consume ninguna pantalla —existe para C2— y por eso lo cubre su
+  # propio ejemplo: sin él sería código que nadie ejercita.
   def transcript_text
     utterances.map { |u| "Hablante #{u['speaker'].to_i + 1}: #{u['transcript']}" }.join("\n")
   end
@@ -1130,7 +1141,7 @@ En `app/models/workshop_group.rb`, junto a `has_many :workshop_drafts`:
 make spec-file FILE=spec/models/workshop_recording_spec.rb
 ```
 
-Esperado: PASS, 10 ejemplos.
+Esperado: PASS, 9 ejemplos.
 
 - [ ] **Paso 9: Correr los specs de tenencia**
 
@@ -1233,7 +1244,7 @@ RSpec.describe "sala del taller: la grabación de la mesa", type: :request do
     end
 
     it "quien no está en ninguna mesa recibe 403" do
-      sign_in_as(carla, company)
+      sign_in(carla, company: company)
 
       post_recording(idear)
 
@@ -1246,7 +1257,7 @@ RSpec.describe "sala del taller: la grabación de la mesa", type: :request do
         idear[:group].workshop_group_members.destroy_all
         create(:workshop_group_member, workshop_group: llegada, user: ana)
       end
-      sign_in_as(ana, company)
+      sign_in(ana, company: company)
 
       post_recording(idear)
 
@@ -1255,7 +1266,7 @@ RSpec.describe "sala del taller: la grabación de la mesa", type: :request do
 
     it "con el vínculo cerrado, 409" do
       as_company(company) { idear[:link].update!(status: "closed") }
-      sign_in_as(ana, company)
+      sign_in(ana, company: company)
 
       post_recording(idear)
 
@@ -1267,14 +1278,14 @@ RSpec.describe "sala del taller: la grabación de la mesa", type: :request do
     it "contesta 400 y no crea nada" do
       # Sin esto, `attach(nil)` revienta con un 500 y la mesa ve una pantalla de
       # error en vez de un motivo.
-      sign_in_as(ana, company)
+      sign_in(ana, company: company)
 
       expect { post_recording(idear, {}) }.not_to change { as_company(company) { WorkshopRecording.count } }
       expect(response).to have_http_status(:bad_request)
     end
 
     it "con un archivo que no es audio, 415" do
-      sign_in_as(ana, company)
+      sign_in(ana, company: company)
       texto = Rack::Test::UploadedFile.new(
         StringIO.new("no soy audio"), "text/plain", original_filename: "x.txt"
       )
@@ -1287,7 +1298,7 @@ RSpec.describe "sala del taller: la grabación de la mesa", type: :request do
 
   describe "el camino feliz" do
     it "crea la grabación pendiente, adjunta el audio y encola el job" do
-      sign_in_as(ana, company)
+      sign_in(ana, company: company)
 
       post_recording(idear)
 
@@ -1302,7 +1313,7 @@ RSpec.describe "sala del taller: la grabación de la mesa", type: :request do
     end
 
     it "devuelve el id en el cuerpo, que es lo que el JS necesita" do
-      sign_in_as(ana, company)
+      sign_in(ana, company: company)
 
       post_recording(idear)
 
@@ -1312,9 +1323,9 @@ RSpec.describe "sala del taller: la grabación de la mesa", type: :request do
     it "dos personas de la mesa pueden grabar a la vez: son dos filas" do
       # No hay índice único, a diferencia del borrador. Lo que no puede pasar es
       # que una pise a la otra.
-      sign_in_as(ana, company)
+      sign_in(ana, company: company)
       post_recording(idear)
-      sign_in_as(beto, company)
+      sign_in(beto, company: company)
       post_recording(idear)
 
       expect(as_company(company) { WorkshopRecording.count }).to eq(2)
@@ -1323,7 +1334,7 @@ RSpec.describe "sala del taller: la grabación de la mesa", type: :request do
 
   describe "servir el audio" do
     it "lo devuelve a quien está en la mesa" do
-      sign_in_as(ana, company)
+      sign_in(ana, company: company)
       post_recording(idear)
       grabacion = as_company(company) { WorkshopRecording.last }
 
@@ -1347,7 +1358,7 @@ RSpec.describe "sala del taller: la grabación de la mesa", type: :request do
         create(:workshop_recording, :ready, workshop_group: group, workshop_challenge: link,
                                             recorded_by: create(:user))
       end
-      sign_in_as(ana, company)
+      sign_in(ana, company: company)
 
       get workshop_sala_recording_path(idear[:workshop], idear[:link], ajena)
 
@@ -1360,7 +1371,7 @@ RSpec.describe "sala del taller: la grabación de la mesa", type: :request do
         create(:workshop_recording, workshop_group: idear[:group],
                                     workshop_challenge: idear[:link], recorded_by: ana)
       end
-      sign_in_as(ana, company)
+      sign_in(ana, company: company)
 
       get workshop_sala_recording_path(idear[:workshop], idear[:link], grabacion)
 
@@ -1831,7 +1842,7 @@ end
 make spec-file FILE=spec/lib/flow/workshops/transcribe_recording_spec.rb
 ```
 
-Esperado: PASS, 9 ejemplos.
+Esperado: PASS, 8 ejemplos.
 
 - [ ] **Paso 6: Correr la suite entera**
 
@@ -1911,7 +1922,7 @@ RSpec.describe "sala del taller: el bloque de grabación", type: :request do
 
   it "la cara de idear trae el control, con la URL que enciende el JS" do
     s = sala
-    sign_in_as(ana, company)
+    sign_in(ana, company: company)
 
     visitar(s)
 
@@ -1925,7 +1936,7 @@ RSpec.describe "sala del taller: el bloque de grabación", type: :request do
     # siguiente. `hidden` porque una onda plana sin grabar se lee como un
     # micrófono que no toma nada.
     s = sala
-    sign_in_as(ana, company)
+    sign_in(ana, company: company)
 
     visitar(s)
 
@@ -1945,7 +1956,7 @@ RSpec.describe "sala del taller: el bloque de grabación", type: :request do
                                           workshop_challenge: s[:link], recorded_by: ana,
                                           created_at: 1.minute.ago)
     end
-    sign_in_as(ana, company)
+    sign_in(ana, company: company)
 
     visitar(s)
 
@@ -1957,7 +1968,7 @@ RSpec.describe "sala del taller: el bloque de grabación", type: :request do
     # Es el octavo lugar que pregunta `arrival?`. Ofrecerlo igual sería un
     # control que rebota en el 403 del POST.
     s = sala(arrival: true)
-    sign_in_as(ana, company)
+    sign_in(ana, company: company)
 
     visitar(s)
 
@@ -1970,7 +1981,7 @@ RSpec.describe "sala del taller: el bloque de grabación", type: :request do
       create(:workshop_recording, :ready, workshop_group: s[:group],
                                           workshop_challenge: s[:link], recorded_by: ana)
     end
-    sign_in_as(ana, company)
+    sign_in(ana, company: company)
 
     visitar(s)
 
@@ -1984,7 +1995,7 @@ RSpec.describe "sala del taller: el bloque de grabación", type: :request do
       create(:workshop_recording, :colapsada, workshop_group: s[:group],
                                               workshop_challenge: s[:link], recorded_by: ana)
     end
-    sign_in_as(ana, company)
+    sign_in(ana, company: company)
 
     visitar(s)
 
@@ -1997,7 +2008,7 @@ RSpec.describe "sala del taller: el bloque de grabación", type: :request do
       create(:workshop_recording, workshop_group: s[:group], workshop_challenge: s[:link],
                                   recorded_by: ana, status: "ready", utterances: [])
     end
-    sign_in_as(ana, company)
+    sign_in(ana, company: company)
 
     visitar(s)
 
@@ -2010,7 +2021,7 @@ RSpec.describe "sala del taller: el bloque de grabación", type: :request do
       create(:workshop_recording, :ready, workshop_group: s[:group],
                                           workshop_challenge: s[:link], recorded_by: ana)
     end
-    sign_in_as(ana, company)
+    sign_in(ana, company: company)
 
     visitar(s)
 
@@ -2028,7 +2039,7 @@ RSpec.describe "sala del taller: el bloque de grabación", type: :request do
                                                           "confidence" => 0.9,
                                                           "speaker_confidence" => 0.9 } ])
     end
-    sign_in_as(ana, company)
+    sign_in(ana, company: company)
 
     visitar(s)
 
