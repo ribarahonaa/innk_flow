@@ -44,7 +44,12 @@ class WorkshopRoomsController < ApplicationController
   def load_recordings
     return WorkshopRecording.none if @group.nil? || @group.arrival?
 
-    @group.workshop_recordings.where(workshop_challenge: @link).recent_first
+    # La precarga va acá, en el punto de uso, igual que la del borrador de
+    # evolución. La tarjeta lee `recorded_by.name` y `file.attached?` por fila,
+    # y el segundo es una consulta por fila: una mesa con quince grabaciones
+    # hacía treinta consultas que no se ven en ninguna pantalla.
+    @group.workshop_recordings.where(workshop_challenge: @link)
+          .includes(:recorded_by, file_attachment: :blob).recent_first
   end
 
   # Las ideas de la mesa en este desafío. `policy_scope(Idea)` y NO

@@ -71,10 +71,18 @@
         -# Chicos y apagados, no en el encabezado: `provider` y `model` hacen
         -# falta para que una transcripción de fixture no se lea como real, y no
         -# son lo que la mesa vino a ver.
+        -#
+        -# Los DOS, con la misma forma `proveedor/modelo` de `ai_runs/show`.
+        -# Hasta la revisión final de la rama se dibujaba sólo el modelo, así que
+        -# `provider` se escribía y no se leía en ninguna pantalla: «fixture-v1»
+        -# se lee como un nombre de modelo cualquiera y no dice de dónde salió,
+        -# que es lo único que estas dos columnas existen para decir. El `join`
+        -# cubre la fila vieja o a medio escribir, con una sola de las dos.
         %p.muted
           = recording.recorded_by.name
-          - if recording.model.present?
-            = "· #{recording.model}"
+          - origen = [recording.provider, recording.model].compact_blank
+          - if origen.any?
+            = "· #{origen.join("/")}"
           - if recording.duration_seconds.present?
             = "· #{recording.duration_seconds.round} s"
 
@@ -99,6 +107,16 @@
                     = u["transcript"]
 
         - if recording.file.attached?
+          -# `turbo: false` y NO es prolijidad: `send_attached_file` sirve con
+          -# `disposition: "attachment"`, así que la respuesta no es HTML. Sin
+          -# esto Turbo intercepta el clic, se trae los megabytes del audio, se
+          -# encuentra con un content-type que no sabe pintar y recarga la
+          -# página — y la recarga pide el archivo DE NUEVO. Dos descargas por
+          -# clic, invisibles salvo en la pestaña de red.
+          -#
+          -# Y el texto dice «Descargar» porque es lo que hace: con
+          -# `attachment` el navegador baja el archivo, no lo reproduce. No hay
+          -# reproductor en la pantalla.
           = link_to t("flow.recordings.listen"),
                     workshop_sala_recording_path(workshop, link, recording),
-                    class: "btn btn-ghost"
+                    class: "btn btn-ghost", data: { turbo: false }

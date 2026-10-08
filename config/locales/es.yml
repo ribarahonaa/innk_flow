@@ -221,7 +221,12 @@ es:
       collapsed_diarization: "Esta transcripción salió con un solo hablante aunque en la mesa hay varias personas: la separación de voces no funcionó."
       transcript: "Qué se dijo"
       speaker: "Hablante %{n}"
-      listen: "Escuchar el audio"
+      # «Descargar» y no «Escuchar»: `send_attached_file` sirve con
+      # `disposition: "attachment"`, así que el navegador baja el archivo y no
+      # hay reproductor en la pantalla. La clave conserva el nombre viejo
+      # (`listen`) porque ningún spec renderiza ese link y un renombre se
+      # rompería en silencio hasta que alguien abriera una sala con audio.
+      listen: "Descargar el audio"
       # Los tres fallos del navegador. Van con su propio texto porque el motivo
       # y lo que hay que hacer son distintos en cada uno.
       insecure_context: "Este navegador no puede grabar porque la página no se sirve por HTTPS. Abrila en la máquina donde corre la app, o servila con certificado."
