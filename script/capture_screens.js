@@ -1654,6 +1654,21 @@ async function revisarGrabacion(page, nombre) {
   }
 
   const antes = await page.locator('details summary').count();
+  // Cuántas tarjetas con la transcripción del fixture hay ANTES: corridas
+  // anteriores dejan `ready` con el mismo texto, así que contar «alguna» no
+  // discrimina; hay que ver que sume UNA.
+  const esperado = 'barricas';
+  const conTextoAntes = await page.locator('details', { hasText: esperado }).count();
+  // El POST se intercepta sólo para MEDIR el cuerpo y se deja seguir. El fixture
+  // ignora el audio, así que un blob vacío pasaría todo lo demás: la onda prueba
+  // que el analizador recibió sonido, no que `MediaRecorder` lo grabó.
+  let bytesSubidos = null;
+  const RUTA_DE_GRABACIONES = /\/recordings$/;
+  await page.route(RUTA_DE_GRABACIONES, async (route) => {
+    const req = route.request();
+    if (req.method() === 'POST') bytesSubidos = (req.postDataBuffer() || Buffer.alloc(0)).length;
+    await route.continue();
+  });
   await boton.click();
   // Que el cronómetro corra es la prueba de que `getUserMedia` resolvió: el
   // texto cambia recién cuando hay stream.
@@ -1681,8 +1696,21 @@ async function revisarGrabacion(page, nombre) {
   // la pantalla: un POST real —«Crear borrador»— dejaría datos sembrados de más
   // en el recorrido, y lo que se quiere probar es el morph, no el POST.
   const textoAntes = await boton.innerText();
-  await page.evaluate(() => window.Turbo.visit(window.location.href, { action: 'replace' }));
-  await page.waitForTimeout(1500);
+  // Se espera el EVENTO `turbo:morph` y no un tiempo fijo: con un tiempo, una
+  // máquina lenta pasaría la fase sin que ningún morph hubiera ocurrido. El
+  // oyente se registra ANTES de visitar.
+  await page.evaluate(() => {
+    window.__morphsGrabar = 0;
+    addEventListener('turbo:morph', () => { window.__morphsGrabar += 1; });
+    window.Turbo.visit(window.location.href, { action: 'replace' });
+  });
+  const huboMorph = await page.waitForFunction(() => window.__morphsGrabar > 0, null, { timeout: 15000 })
+    .then(() => true).catch(() => false);
+  if (!huboMorph) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: la visita a la misma URL no disparó \`turbo:morph\` en 15 s: la fase del morph no midió nada`);
+    return;
+  }
   const textoDespues = await boton.innerText();
   const selloDespues = await caja.locator('[data-recording-role="status"]').innerText();
   if (textoDespues !== textoAntes || !/\d\d:\d\d/.test(selloDespues)) {
@@ -1696,6 +1724,14 @@ async function revisarGrabacion(page, nombre) {
   // Se muestrea `data-level` —el RMS CRUDO, no el alto de la barra— mientras
   // graba. Es el único puente medible: las barras dicen cómo quedó el dibujo y
   // esto dice qué midió el micrófono.
+  // Visible MIENTRAS graba. Sin esto el chequeo de «escondida» de más abajo es
+  // vacío: borrar el `hidden = false` del arranque dejaría la onda invisible,
+  // `data-level` publicando y todo en verde. La onda es lo que se pidió.
+  if (await onda.isHidden()) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: la onda está escondida mientras graba: la mesa no ve la señal del micrófono`);
+    return;
+  }
   const niveles = [];
   for (let i = 0; i < 60; i++) {
     niveles.push(Number(await caja.getAttribute('data-level')));
@@ -1710,7 +1746,11 @@ async function revisarGrabacion(page, nombre) {
   // decorativa con números al azar también lo logra. Lo que una onda falsa NO
   // puede producir es la corrida de muestras cerca de cero del silencio que el
   // wav tiene a propósito entre las dos voces. Por eso el archivo se arma
-  // voz → silencio → voz y la grabación dura menos que él.
+  // voz → silencio → voz. Ojo: la grabación NO dura menos que el archivo (son
+  // ~8,5 s entre el cronómetro, el morph y los 6 s de muestreo, contra 6,5 s de
+  // wav), así que con `%noloop` la cola es silencio puro y la corrida puede
+  // salir del hueco del medio o de esa cola. Sirve cualquiera de las dos: una
+  // onda decorativa no produce ni hueco ni cola silenciosa.
   const pico = Math.max(...niveles);
   let corrida = 0;
   let mayorCorrida = 0;
@@ -1772,8 +1812,13 @@ async function revisarGrabacion(page, nombre) {
   // que no esté vacío no discrimina, porque esta guarda deja grabaciones en la
   // base y en la corrida siguiente ya hay tarjetas antes de tocar nada.
   const texto = await page.locator('.card-body').first().innerText();
-  const esperado = 'barricas';
-  if (!(await page.locator('details', { hasText: esperado }).count())) {
+  await page.unroute(RUTA_DE_GRABACIONES);
+  if (bytesSubidos === null || bytesSubidos < 2000) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: el POST de la grabación llevó ${bytesSubidos === null ? 'ningún cuerpo medido' : bytesSubidos + ' bytes'} y se esperaban al menos 2000: se subió un blob vacío`);
+    return;
+  }
+  if ((await page.locator('details', { hasText: esperado }).count()) <= conTextoAntes) {
     failures++;
     console.error(`[GRABAR] ${nombre}: la tarjeta nueva no trae la transcripción del fixture (buscaba «${esperado}»); lo que hay dice «${texto.slice(0, 120)}»`);
     return;
