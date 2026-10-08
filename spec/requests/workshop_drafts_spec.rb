@@ -334,6 +334,42 @@ RSpec.describe "sala del taller: el borrador de la mesa", type: :request do
       expect(drafts.sole.based_on_version_id).to eq(evolucion[:version].id)
     end
 
+    # EL ejemplo que distingue el arreglo, y el único.
+    #
+    # El de arriba no lo hace y no podría: manda una versión que no existe, así
+    # que el código nuevo cae a `current_version_id` y el viejo leía
+    # `current_version_id` directo — los dos escriben el mismo id y los dos dan
+    # verde. Ninguna aserción sobre el FALLBACK puede discriminar, porque el
+    # fallback ES el comportamiento viejo.
+    #
+    # Éste manda una versión REAL de la misma empresa que pertenece a OTRA idea.
+    # Separa las dos implementaciones plausibles:
+    #
+    #   `idea.versions.find_by(id:)`  →  no la encuentra (el scope filtra por
+    #                                    `idea_id`), cae a la vigente, 204.
+    #   `IdeaVersion.find_by(id:)`    →  SÍ la encuentra (misma empresa), la
+    #                                    escribe, y `version_belongs_to_idea`
+    #                                    levanta en el `update!`: 500.
+    #
+    # O sea que esto es también lo único que prueba que la validación del modelo
+    # no es la que está atajando el caso: en el camino real no se ejecuta nunca,
+    # porque el scope ya excluyó la versión ajena.
+    it "una versión de otra idea de la misma empresa cae a la vigente y no revienta" do
+      ajena = as_company(company) do
+        otra = create(:idea, challenge: evolucion[:challenge], author: beto, status: "active")
+        Flow::Ideas::PublishVersion.new(
+          otra, payload: { evolucion[:field].key => "la de beto" }, author: beto
+        ).call.version
+      end
+
+      sign_in(ana, company: company)
+      patch_draft(evolucion, payload: { evolucion[:field].key => "x" },
+                             idea_id: evolucion[:idea].id, base_version_id: ajena.id)
+
+      expect(response).to have_http_status(:no_content)
+      expect(drafts.sole.based_on_version_id).to eq(evolucion[:version].id)
+    end
+
     # No se agrega tope: `WorkshopProposal.payload` ya acepta el mismo contenido
     # del mismo formulario, así que un tope acá rechazaría un borrador cuya
     # propuesta sí entraría. Este ejemplo existe para que nadie meta un truncado

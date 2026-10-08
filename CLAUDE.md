@@ -250,6 +250,42 @@ gritos. Está probada con dos mutaciones que fallan
 distinto: rompiendo el JS fallan las dos caras; rompiendo el prellenado del
 servidor de UNA sola cara falla esa y no la otra, que es lo que prueba que mide
 cada una por separado.
+**Y mide una TERCERA fase, que es lo único del repo que mira el camino de FALLO
+del autoguardado.** Después de la ida y vuelta intercepta el PATCH, lo contesta
+con un **200 pelado** y exige que el sello diga el texto de fallo. El 200 es el
+punto: el endpoint sólo contesta 204, y el JS exige exactamente eso y no
+`res.ok`, porque un `before_action` que redirige —sesión caída, membresía
+revocada— le llega al `fetch` como 200: el `fetch` sigue el 302 y convierte el
+PATCH en GET, así que la pantalla de login satisface `res.ok`. Con `!res.ok` el
+sello diría «Guardado ahora.» cada dos segundos sobre un guardado que nunca
+ocurrió, y la mesa pierde todo al mandar. Ese bug es **silencioso por
+construcción**, así que no alcanza con que el servidor conteste bien —eso ya lo
+fijan los request specs—: hace falta un navegador que lea la respuesta, y no hay
+infra de test de JavaScript en el repo. Medido: con `!res.ok` fallan las dos
+caras y `[DRAFT]` cae de 2 a **0**. La fase va al final a propósito —la de éxito
+ya dejó el borrador escrito y un guardado que falla no escribe nada, y
+`guardar()` no restaura `sucio`, así que el texto de la fase de fallo no se va
+después en el `keepalive` de `descargar()`—. Y **no suma un contador nuevo**:
+una cara cuenta como medida sólo si pasaron las tres fases, porque
+`PISO_DE_BORRADORES` es exacto en 2 por contar CARAS, y un contador aparte lo
+volvería 4 y rompería esa semántica.
+
+**La otra mitad de ese arreglo no la puede ver un navegador, y vive en un lint.**
+El sello se sella con la versión que dice el CLIENTE —`_evolution.html.haml`
+publica `draft_base`, `workshop_draft.js` lo lee de `dataset.draftBase` y lo
+manda como `base_version_id`—, y de esos tres eslabones sólo el del servidor
+tiene cobertura en runtime: los request specs mandan `base_version_id` a mano y
+`[DRAFT]` no publica ninguna versión entre el render y el tipeo, así que con el
+atributo o el envío borrados el sello cae a `current_version_id` y las dos
+verificaciones siguen verdes. Lo cuida `spec/lint/sello_del_borrador_spec.rb`,
+que compara contra el código SIN comentarios —los tres nombres aparecen también
+en prosa— y tiene autotest del stripper, no de los patrones: de los patrones ya
+se encargan los tres ejemplos, pero un stripper que devolviera el archivo entero
+los dejaría pasando sobre la prosa, en silencio. **Caza la borradura de un
+eslabón y no un cambio de lógica**; el discriminador de lógica es un ejemplo de
+request —una versión real de OTRA idea de la misma empresa, que separa
+`idea.versions.find_by` de `IdeaVersion.find_by`— y es el único de los 24 del
+archivo que lo hace.
 Ese piso de 2 campos mide hoy **2 de 2, sin margen**: el seed crea exactamente
 dos (`titulo` y `descripcion`), así que la rama que falla por «pocos campos»
 nunca corrió y su mensaje no está probado. Es un piso exacto contra una

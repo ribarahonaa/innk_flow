@@ -1488,6 +1488,10 @@ const SELECTOR_DE_CAMPO = 'form[data-draft-url] input[type="text"][name^="payloa
 // campo medido estaría ahí con su marca. Por eso hace falta más de uno.
 const MINIMO_DE_CAMPOS_POR_CARA = 2;
 
+// El PATCH del autoguardado, para interceptarlo en la fase de fallo. La ruta es
+// `resource :draft` anidado en la sala, o sea `/workshops/:id/salas/:id/draft`.
+const RUTA_DEL_AUTOGUARDADO = '**/salas/*/draft';
+
 async function revisarBorrador(page, nombre) {
   const campos = page.locator(SELECTOR_DE_CAMPO);
   const total = await campos.count();
@@ -1535,6 +1539,41 @@ async function revisarBorrador(page, nombre) {
     }
   }
   if (fallo) return;
+
+  // 3 · El camino de FALLO, que es lo único de esta guarda que mira el arreglo
+  // del bloqueante, y lo único que lo mira en todo el repo. El endpoint contesta
+  // 204 y nada más; el JS exige EXACTAMENTE eso y no `res.ok`, porque un
+  // `before_action` que redirige —sesión caída, membresía revocada— le llega al
+  // `fetch` como 200: el `fetch` sigue el 302 y convierte el PATCH en GET, así
+  // que la pantalla de login satisface `res.ok`. Con `!res.ok` el sello diría
+  // «Guardado ahora.» cada dos segundos sobre un guardado que nunca ocurrió, y
+  // la mesa pierde todo al mandar sin que nada avise. Es silencioso por
+  // construcción: por eso no alcanza con que el servidor conteste bien, y hace
+  // falta un navegador que lea la respuesta.
+  //
+  // Se intercepta el PATCH y se contesta un 200 PELADO: es el 2xx que distingue
+  // las dos implementaciones. Con `res.status !== 204` el sello tiene que decir
+  // el texto de fallo; con `!res.ok` diría el de guardado, y esta guarda es la
+  // única que se enteraría.
+  //
+  // Va al FINAL y no antes, por dos razones: la fase de éxito ya dejó el
+  // borrador escrito y un guardado que falla no escribe nada, así que no
+  // contamina nada de lo medido arriba; y `guardar()` no restaura `sucio` tras
+  // fallar, de modo que el texto de esta fase no se va después en el `keepalive`
+  // de `descargar()` al navegar.
+  await page.route(RUTA_DEL_AUTOGUARDADO, (route) => route.fulfill({ status: 200 }));
+  await despues.nth(0).fill(`${marca}-falla`);
+  await page.waitForTimeout(espera + 1500);
+  const selloTrasFallo = page.locator('#draft-stamp').first();
+  const falloEsperado = ((await selloTrasFallo.getAttribute('data-failed-text')) || '').trim();
+  const diceTrasFallo = (await selloTrasFallo.innerText()).trim();
+  await page.unroute(RUTA_DEL_AUTOGUARDADO);
+  if (diceTrasFallo !== falloEsperado) {
+    failures++;
+    console.error(`[DRAFT] ${nombre}: con el endpoint contestando 200 el sello dice «${diceTrasFallo}» y tendría que decir «${falloEsperado}»: el autoguardado está leyendo cualquier 2xx como éxito`);
+    return;
+  }
+
   draftMeasurements++;
 }
 
