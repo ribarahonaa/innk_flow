@@ -54,7 +54,7 @@ RSpec.describe "Flow::AI.speech_provider" do
     let(:utterances) do
       Flow::AI::Providers::Fixture.new.transcribe(
         audio: "bytes", content_type: "audio/webm", language: "es"
-      )
+      ).utterances
     end
 
     it "devuelve utterances con la forma normalizada" do
@@ -68,7 +68,7 @@ RSpec.describe "Flow::AI.speech_provider" do
     it "es determinista: dos llamadas dan lo mismo" do
       otra = Flow::AI::Providers::Fixture.new.transcribe(
         audio: "bytes", content_type: "audio/webm", language: "es"
-      )
+      ).utterances
 
       expect(utterances).to eq(otra)
     end

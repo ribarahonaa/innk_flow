@@ -3,8 +3,11 @@
 require "rails_helper"
 
 # Lo que se prueba es la NORMALIZACIÓN y no la llamada: el repo no tiene webmock
-# y sus otros dos adapters HTTP no tienen spec. El fixture es una respuesta real
-# de nova-3, recortada; las claves son las que la API devuelve de verdad.
+# y sus otros dos adapters HTTP no tienen spec. El fixture es la respuesta REAL
+# de nova-3 a una llamada medida, sin tocar los números; lo único que se le
+# sacó es el arreglo `words` del canal (`channels[].alternatives[].words`), que
+# ningún código del adapter lee. Sus tres utterances salen todas con
+# `speaker: 0`: la diarización colapsó en esa grabación, y eso es un dato medido.
 RSpec.describe Flow::AI::Providers::Deepgram do
   subject(:provider) { described_class.new }
 
@@ -20,20 +23,23 @@ RSpec.describe Flow::AI::Providers::Deepgram do
     it "devuelve una fila por utterance, con las seis claves" do
       filas = provider.normalize(body)
 
-      expect(filas.size).to eq(2)
+      expect(filas.size).to eq(3)
       expect(filas.first).to eq(
         "speaker" => 0, "start" => 0.08, "end" => 5.12,
         "transcript" => "We should reduce the waste in the winery by reusing the barrels.",
-        "confidence" => 0.99538165, "speaker_confidence" => 0.4120001
+        "confidence" => 0.99538165, "speaker_confidence" => 0.6869923
       )
     end
 
     it "el speaker_confidence es el MÍNIMO de las palabras, no el de la primera" do
-      # Las tres palabras de la primera utterance traen 0.6869923, 0.6869923 y
-      # 0.4120001. Tomar la primera diría 0.69 sobre una utterance donde el
-      # diarizador dudó bastante más: el mínimo es el lado conservador, y esta
-      # señal existe justamente para delatar una diarización insegura.
-      expect(provider.normalize(body).first["speaker_confidence"]).to eq(0.4120001)
+      # Sólo la utterance 2 discrimina: sus palabras traen 0.6428709 (la primera)
+      # y 0.5203239 (la última). Tomar la primera diría 0.6428709; el mínimo,
+      # 0.5203239, que es el lado conservador y la señal de que el diarizador
+      # dudó. Las filas 0 y 1 tienen la misma confianza en todas sus palabras:
+      # asertar sobre ellas pasaría con cualquiera de las dos implementaciones.
+      filas = provider.normalize(body)
+
+      expect(filas[2]["speaker_confidence"]).to eq(0.5203239)
     end
 
     it "no revienta si no vienen utterances" do

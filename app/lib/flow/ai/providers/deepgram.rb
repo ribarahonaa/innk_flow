@@ -30,15 +30,20 @@ module Flow
 
         def transcribe(audio:, content_type:, language:)
           body = post(audio, content_type, language)
-          @last_metadata = metadata_from(body)
-          normalize(body)
+          metadata = metadata_from(body)
+          # Las dos cosas en UN valor inmutable, y no un arreglo más un accesor
+          # que se pregunta después. Un accesor sería estado compartido: el
+          # proveedor se memoiza, o sea UNA instancia para el proceso, y Sidekiq
+          # corre con cinco hilos — dos grabaciones en vuelo se pisarían la
+          # metadata y la fila de auditoría de una llevaría el `request_id` de
+          # la otra.
+          Provider::Transcription.new(
+            utterances: normalize(body),
+            duration: metadata["duration"],
+            request_id: metadata["request_id"],
+            model: metadata["model"]
+          )
         end
-
-        # Lo que la Tarea 5 escribe en las columnas de auditoría. Se llena en
-        # `transcribe` y se lee después, en vez de devolver una tupla: el
-        # contrato de la interfaz es «utterances», y meterle metadata obligaría
-        # al fixture a inventar una.
-        attr_reader :last_metadata
 
         # Pública para poder probarla sin red. Es donde están los errores.
         def normalize(body)
@@ -102,8 +107,13 @@ module Flow
 
           raise Flow::Errors::TranscriptionFailed,
                 "deepgram respondió #{respuesta.code}: #{detail(parsed)}#{hint(respuesta.code)}"
-        rescue Net::OpenTimeout, Net::ReadTimeout => e
-          raise Flow::Errors::TranscriptionFailed, "deepgram no respondió en #{TIMEOUT}s (#{e.class})"
+        # Todo lo que la red puede tirar, y NADA más: un NoMethodError nuestro es
+        # un bug y tiene que verse como bug. Sin esto, un corte de DNS dejaría la
+        # grabación en `transcribing` para siempre, porque el servicio sólo
+        # rescata `TranscriptionFailed`.
+        rescue Net::OpenTimeout, Net::ReadTimeout, Net::HTTPBadResponse,
+               SocketError, SystemCallError, OpenSSL::SSL::SSLError, EOFError => e
+          raise Flow::Errors::TranscriptionFailed, "deepgram no respondió (#{e.class}): #{e.message}"
         end
 
         def query(language)

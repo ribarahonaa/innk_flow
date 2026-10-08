@@ -41,14 +41,22 @@ module Flow
       # expone ni embeddings ni transcripción; Deepgram sólo transcribe.
       def transcription? = false
 
-      # Audio → utterances con hablante. Devuelve un arreglo de hashes con
-      # claves string: "speaker", "start", "end", "transcript", "confidence",
-      # "speaker_confidence".
+      # Audio → utterances con hablante, MÁS la metadata de la llamada.
       #
-      # NO devuelve la respuesta cruda del proveedor: normalizar es parte del
-      # adapter. Medido, la respuesta completa de Deepgram son 0,80 MB por 20
-      # minutos de reunión y esta forma 0,040 MB, veinte veces menos, sin
-      # perder nada que el dominio use.
+      # Las dos cosas en un valor inmutable y no en dos llamadas, porque el
+      # proveedor se MEMOIZA —una instancia por proceso— y Sidekiq corre con
+      # cinco hilos: un accesor que se pregunta después de `transcribe` es
+      # estado compartido, y dos grabaciones en vuelo se pisarían la metadata.
+      # Mismo idioma que el `Result` de arriba.
+      #
+      # `utterances` es un arreglo de hashes con claves string: "speaker",
+      # "start", "end", "transcript", "confidence", "speaker_confidence". NO es
+      # la respuesta cruda del proveedor: normalizar es parte del adapter.
+      # Medido, la respuesta completa de Deepgram son 0,80 MB por 20 minutos de
+      # reunión y esta forma 0,040 MB, veinte veces menos, sin perder nada que
+      # el dominio use.
+      Transcription = Data.define(:utterances, :duration, :request_id, :model)
+
       def transcribe(audio:, content_type:, language:)
         raise NotImplementedError
       end

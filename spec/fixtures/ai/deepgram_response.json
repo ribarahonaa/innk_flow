@@ -15,13 +15,8 @@
       {
         "alternatives": [
           {
-            "transcript": "We should reduce the waste in the winery by reusing the barrels. I disagree.",
-            "confidence": 0.99902344,
-            "words": [
-              { "word": "we", "start": 0.08, "end": 0.56, "confidence": 0.9819336, "speaker": 0, "speaker_confidence": 0.6869923, "punctuated_word": "We" },
-              { "word": "should", "start": 0.56, "end": 0.88, "confidence": 1.0, "speaker": 0, "speaker_confidence": 0.6869923, "punctuated_word": "should" },
-              { "word": "reduce", "start": 0.88, "end": 1.52, "confidence": 0.9980469, "speaker": 0, "speaker_confidence": 0.4120001, "punctuated_word": "reduce" }
-            ]
+            "transcript": "We should reduce the waste in the winery by reusing the barrels. I disagree. The real problem is the onboarding of the new operators. We should reduce the waste in the winery by reusing the barrels.",
+            "confidence": 0.99902344
           }
         ]
       }
@@ -34,24 +29,355 @@
         "channel": 0,
         "transcript": "We should reduce the waste in the winery by reusing the barrels.",
         "words": [
-          { "word": "we", "start": 0.08, "end": 0.56, "confidence": 0.9819336, "speaker": 0, "speaker_confidence": 0.6869923, "punctuated_word": "We" },
-          { "word": "should", "start": 0.56, "end": 0.88, "confidence": 1.0, "speaker": 0, "speaker_confidence": 0.6869923, "punctuated_word": "should" },
-          { "word": "reduce", "start": 0.88, "end": 1.52, "confidence": 0.9980469, "speaker": 0, "speaker_confidence": 0.4120001, "punctuated_word": "reduce" }
+          {
+            "word": "we",
+            "start": 0.08,
+            "end": 0.56,
+            "confidence": 0.9819336,
+            "speaker": 0,
+            "speaker_confidence": 0.6869923,
+            "punctuated_word": "We"
+          },
+          {
+            "word": "should",
+            "start": 0.56,
+            "end": 0.88,
+            "confidence": 1.0,
+            "speaker": 0,
+            "speaker_confidence": 0.6869923,
+            "punctuated_word": "should"
+          },
+          {
+            "word": "reduce",
+            "start": 0.88,
+            "end": 1.52,
+            "confidence": 0.9980469,
+            "speaker": 0,
+            "speaker_confidence": 0.6869923,
+            "punctuated_word": "reduce"
+          },
+          {
+            "word": "the",
+            "start": 1.52,
+            "end": 1.8399999,
+            "confidence": 0.9970703,
+            "speaker": 0,
+            "speaker_confidence": 0.6869923,
+            "punctuated_word": "the"
+          },
+          {
+            "word": "waste",
+            "start": 1.8399999,
+            "end": 2.24,
+            "confidence": 1.0,
+            "speaker": 0,
+            "speaker_confidence": 0.6869923,
+            "punctuated_word": "waste"
+          },
+          {
+            "word": "in",
+            "start": 2.24,
+            "end": 2.56,
+            "confidence": 0.99316406,
+            "speaker": 0,
+            "speaker_confidence": 0.6869923,
+            "punctuated_word": "in"
+          },
+          {
+            "word": "the",
+            "start": 2.56,
+            "end": 2.8,
+            "confidence": 0.9980469,
+            "speaker": 0,
+            "speaker_confidence": 0.6869923,
+            "punctuated_word": "the"
+          },
+          {
+            "word": "winery",
+            "start": 2.8,
+            "end": 3.28,
+            "confidence": 0.9995117,
+            "speaker": 0,
+            "speaker_confidence": 0.6869923,
+            "punctuated_word": "winery"
+          },
+          {
+            "word": "by",
+            "start": 3.28,
+            "end": 3.6,
+            "confidence": 0.9970703,
+            "speaker": 0,
+            "speaker_confidence": 0.6869923,
+            "punctuated_word": "by"
+          },
+          {
+            "word": "reusing",
+            "start": 3.6,
+            "end": 4.24,
+            "confidence": 0.9855957,
+            "speaker": 0,
+            "speaker_confidence": 0.6869923,
+            "punctuated_word": "reusing"
+          },
+          {
+            "word": "the",
+            "start": 4.24,
+            "end": 4.56,
+            "confidence": 0.99609375,
+            "speaker": 0,
+            "speaker_confidence": 0.6869923,
+            "punctuated_word": "the"
+          },
+          {
+            "word": "barrels",
+            "start": 4.56,
+            "end": 5.12,
+            "confidence": 0.9980469,
+            "speaker": 0,
+            "speaker_confidence": 0.6869923,
+            "punctuated_word": "barrels."
+          }
         ],
-        "speaker": 0
+        "speaker": 0,
+        "id": "fa0b2ba7-7cf9-46ee-a1fd-1e734c028bdf"
       },
       {
-        "start": 6.55,
-        "end": 10.55,
-        "confidence": 0.9912,
+        "start": 6.551125,
+        "end": 10.551125,
+        "confidence": 0.9816691,
         "channel": 0,
         "transcript": "I disagree. The real problem is the onboarding of the new operators.",
         "words": [
-          { "word": "i", "start": 6.55, "end": 6.79, "confidence": 0.9941, "speaker": 1, "speaker_confidence": 0.7312, "punctuated_word": "I" },
-          { "word": "disagree", "start": 6.79, "end": 7.43, "confidence": 0.9988, "speaker": 1, "speaker_confidence": 0.7312, "punctuated_word": "disagree." },
-          { "word": "the", "start": 7.6, "end": 7.84, "confidence": 0.9995, "speaker": 1, "speaker_confidence": 0.5501, "punctuated_word": "The" }
+          {
+            "word": "i",
+            "start": 6.551125,
+            "end": 6.8711247,
+            "confidence": 0.99902344,
+            "speaker": 0,
+            "speaker_confidence": 0.19632149,
+            "punctuated_word": "I"
+          },
+          {
+            "word": "disagree",
+            "start": 6.8711247,
+            "end": 7.5111246,
+            "confidence": 0.97924805,
+            "speaker": 0,
+            "speaker_confidence": 0.19632149,
+            "punctuated_word": "disagree."
+          },
+          {
+            "word": "the",
+            "start": 7.5111246,
+            "end": 7.671125,
+            "confidence": 0.99902344,
+            "speaker": 0,
+            "speaker_confidence": 0.19632149,
+            "punctuated_word": "The"
+          },
+          {
+            "word": "real",
+            "start": 7.671125,
+            "end": 7.911125,
+            "confidence": 1.0,
+            "speaker": 0,
+            "speaker_confidence": 0.19632149,
+            "punctuated_word": "real"
+          },
+          {
+            "word": "problem",
+            "start": 7.911125,
+            "end": 8.311125,
+            "confidence": 1.0,
+            "speaker": 0,
+            "speaker_confidence": 0.19632149,
+            "punctuated_word": "problem"
+          },
+          {
+            "word": "is",
+            "start": 8.311125,
+            "end": 8.551125,
+            "confidence": 1.0,
+            "speaker": 0,
+            "speaker_confidence": 0.19632149,
+            "punctuated_word": "is"
+          },
+          {
+            "word": "the",
+            "start": 8.551125,
+            "end": 8.711124,
+            "confidence": 0.9980469,
+            "speaker": 0,
+            "speaker_confidence": 0.19632149,
+            "punctuated_word": "the"
+          },
+          {
+            "word": "onboarding",
+            "start": 8.711124,
+            "end": 9.111125,
+            "confidence": 0.81396484,
+            "speaker": 0,
+            "speaker_confidence": 0.19632149,
+            "punctuated_word": "onboarding"
+          },
+          {
+            "word": "of",
+            "start": 9.111125,
+            "end": 9.271125,
+            "confidence": 0.99902344,
+            "speaker": 0,
+            "speaker_confidence": 0.19632149,
+            "punctuated_word": "of"
+          },
+          {
+            "word": "the",
+            "start": 9.271125,
+            "end": 9.431125,
+            "confidence": 0.9941406,
+            "speaker": 0,
+            "speaker_confidence": 0.19632149,
+            "punctuated_word": "the"
+          },
+          {
+            "word": "new",
+            "start": 9.431125,
+            "end": 9.591125,
+            "confidence": 0.99902344,
+            "speaker": 0,
+            "speaker_confidence": 0.19632149,
+            "punctuated_word": "new"
+          },
+          {
+            "word": "operators",
+            "start": 9.591125,
+            "end": 10.551125,
+            "confidence": 0.99853516,
+            "speaker": 0,
+            "speaker_confidence": 0.19632149,
+            "punctuated_word": "operators."
+          }
         ],
-        "speaker": 1
+        "speaker": 0,
+        "id": "70087dd8-56e1-41ef-a7a3-0941d8355bbc"
+      },
+      {
+        "start": 11.5911255,
+        "end": 16.471125,
+        "confidence": 0.9987386,
+        "channel": 0,
+        "transcript": "We should reduce the waste in the winery by reusing the barrels.",
+        "words": [
+          {
+            "word": "we",
+            "start": 11.5911255,
+            "end": 11.911125,
+            "confidence": 0.99902344,
+            "speaker": 0,
+            "speaker_confidence": 0.6428709,
+            "punctuated_word": "We"
+          },
+          {
+            "word": "should",
+            "start": 11.911125,
+            "end": 12.231125,
+            "confidence": 1.0,
+            "speaker": 0,
+            "speaker_confidence": 0.6428709,
+            "punctuated_word": "should"
+          },
+          {
+            "word": "reduce",
+            "start": 12.231125,
+            "end": 12.871124,
+            "confidence": 1.0,
+            "speaker": 0,
+            "speaker_confidence": 0.6428709,
+            "punctuated_word": "reduce"
+          },
+          {
+            "word": "the",
+            "start": 12.871124,
+            "end": 13.191125,
+            "confidence": 0.9980469,
+            "speaker": 0,
+            "speaker_confidence": 0.6428709,
+            "punctuated_word": "the"
+          },
+          {
+            "word": "waste",
+            "start": 13.191125,
+            "end": 13.671125,
+            "confidence": 1.0,
+            "speaker": 0,
+            "speaker_confidence": 0.6428709,
+            "punctuated_word": "waste"
+          },
+          {
+            "word": "in",
+            "start": 13.671125,
+            "end": 13.991125,
+            "confidence": 0.9941406,
+            "speaker": 0,
+            "speaker_confidence": 0.6428709,
+            "punctuated_word": "in"
+          },
+          {
+            "word": "the",
+            "start": 13.991125,
+            "end": 14.151125,
+            "confidence": 0.99902344,
+            "speaker": 0,
+            "speaker_confidence": 0.6428709,
+            "punctuated_word": "the"
+          },
+          {
+            "word": "winery",
+            "start": 14.151125,
+            "end": 14.711124,
+            "confidence": 0.9995117,
+            "speaker": 0,
+            "speaker_confidence": 0.6428709,
+            "punctuated_word": "winery"
+          },
+          {
+            "word": "by",
+            "start": 14.711124,
+            "end": 15.031124,
+            "confidence": 1.0,
+            "speaker": 0,
+            "speaker_confidence": 0.6428709,
+            "punctuated_word": "by"
+          },
+          {
+            "word": "reusing",
+            "start": 15.031124,
+            "end": 15.671125,
+            "confidence": 0.99853516,
+            "speaker": 0,
+            "speaker_confidence": 0.6428709,
+            "punctuated_word": "reusing"
+          },
+          {
+            "word": "the",
+            "start": 15.671125,
+            "end": 15.911125,
+            "confidence": 0.99902344,
+            "speaker": 0,
+            "speaker_confidence": 0.6428709,
+            "punctuated_word": "the"
+          },
+          {
+            "word": "barrels",
+            "start": 15.911125,
+            "end": 16.471125,
+            "confidence": 0.9975586,
+            "speaker": 0,
+            "speaker_confidence": 0.5203239,
+            "punctuated_word": "barrels."
+          }
+        ],
+        "speaker": 0,
+        "id": "428e1fc3-4358-4c71-98a9-fabb68002d30"
       }
     ]
   }

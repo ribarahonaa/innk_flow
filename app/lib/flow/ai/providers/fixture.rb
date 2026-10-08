@@ -65,14 +65,20 @@ module Flow
         # duración de la grabación, y un fixture que variara con ellos dejaría
         # de ser reproducible.
         def transcribe(audio:, content_type:, language:)
-          [
-            { "speaker" => 0, "start" => 0.0, "end" => 4.2,
-              "transcript" => "Tenemos que bajar la merma de la bodega reusando las barricas.",
-              "confidence" => 0.99, "speaker_confidence" => 0.91 },
-            { "speaker" => 1, "start" => 5.1, "end" => 9.4,
-              "transcript" => "No estoy de acuerdo: el problema real es la inducción de los operarios nuevos.",
-              "confidence" => 0.97, "speaker_confidence" => 0.88 }
-          ]
+          # Sin `duration` ni `request_id`: no hubo llamada que medir. El modelo
+          # sí, porque identifica de dónde salió el texto, y es lo que deja a la
+          # pantalla decir que una transcripción es canneada.
+          Provider::Transcription.new(
+            duration: nil, request_id: nil, model: model_name,
+            utterances: [
+              { "speaker" => 0, "start" => 0.0, "end" => 4.2,
+                "transcript" => "Tenemos que bajar la merma de la bodega reusando las barricas.",
+                "confidence" => 0.99, "speaker_confidence" => 0.91 },
+              { "speaker" => 1, "start" => 5.1, "end" => 9.4,
+                "transcript" => "No estoy de acuerdo: el problema real es la inducción de los operarios nuevos.",
+                "confidence" => 0.97, "speaker_confidence" => 0.88 }
+            ]
+          )
         end
 
         private
