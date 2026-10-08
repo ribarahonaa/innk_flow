@@ -252,14 +252,22 @@ En `app/lib/flow/ai/provider.rb`, después de `embed`:
       # expone ni embeddings ni transcripción; Deepgram sólo transcribe.
       def transcription? = false
 
-      # Audio → utterances con hablante. Devuelve un arreglo de hashes con
-      # claves string: "speaker", "start", "end", "transcript", "confidence",
-      # "speaker_confidence".
+      # Audio → utterances con hablante, MÁS la metadata de la llamada.
       #
-      # NO devuelve la respuesta cruda del proveedor: normalizar es parte del
-      # adapter. Medido, la respuesta completa de Deepgram son 0,80 MB por 20
-      # minutos de reunión y esta forma 0,040 MB, veinte veces menos, sin
-      # perder nada que el dominio use.
+      # Las dos cosas en un valor inmutable y no en dos llamadas, porque el
+      # proveedor se MEMOIZA —una instancia por proceso— y Sidekiq corre con
+      # cinco hilos: un accesor que se pregunta después de `transcribe` es
+      # estado compartido, y dos grabaciones en vuelo se pisarían la metadata.
+      # Mismo idioma que el `Result` de arriba.
+      #
+      # `utterances` es un arreglo de hashes con claves string: "speaker",
+      # "start", "end", "transcript", "confidence", "speaker_confidence". NO es
+      # la respuesta cruda del proveedor: normalizar es parte del adapter.
+      # Medido, la respuesta completa de Deepgram son 0,80 MB por 20 minutos de
+      # reunión y esta forma 0,040 MB, veinte veces menos, sin perder nada que
+      # el dominio use.
+      Transcription = Data.define(:utterances, :duration, :request_id, :model)
+
       def transcribe(audio:, content_type:, language:)
         raise NotImplementedError
       end
@@ -324,14 +332,20 @@ En `app/lib/flow/ai/providers/fixture.rb`, después de `embedding_model`:
         # duración de la grabación, y un fixture que variara con ellos dejaría
         # de ser reproducible.
         def transcribe(audio:, content_type:, language:)
-          [
+          # Sin `duration` ni `request_id`: no hubo llamada que medir. El modelo
+          # sí, porque identifica de dónde salió el texto, y es lo que deja a la
+          # pantalla decir que una transcripción es canneada.
+          Provider::Transcription.new(
+            duration: nil, request_id: nil, model: model_name,
+            utterances: [
             { "speaker" => 0, "start" => 0.0, "end" => 4.2,
               "transcript" => "Tenemos que bajar la merma de la bodega reusando las barricas.",
               "confidence" => 0.99, "speaker_confidence" => 0.91 },
             { "speaker" => 1, "start" => 5.1, "end" => 9.4,
               "transcript" => "No estoy de acuerdo: el problema real es la inducción de los operarios nuevos.",
               "confidence" => 0.97, "speaker_confidence" => 0.88 }
-          ]
+            ]
+          )
         end
 ```
 
@@ -379,10 +393,12 @@ git commit -m "El cuarto eje de proveedor: transcribir es una capacidad más, y 
   `#normalize(body)` → el mismo `Array<Hash>` a partir de un cuerpo ya parseado,
   y `#metadata_from(body)` → `Hash` con las claves string `"duration"`,
   `"request_id"` y `"model"`.
-  `#last_metadata` → lo que `metadata_from` devolvió en la última llamada a
-  `transcribe`, o `nil` si todavía no hubo ninguna. Es de donde la Tarea 5 saca
-  las columnas de auditoría, y **sólo Deepgram lo tiene**: el fixture no, así
-  que la Tarea 5 lo pide detrás de un `respond_to?`.
+  **NO hay `last_metadata`.** `transcribe` devuelve un
+  `Flow::AI::Provider::Transcription` —`Data.define(:utterances, :duration,
+  :request_id, :model)`— con las dos cosas en un valor inmutable. Un accesor
+  que se pregunta DESPUÉS de la llamada es estado compartido en un proveedor
+  memoizado, y con los cinco hilos de Sidekiq dos grabaciones en vuelo se
+  pisarían la metadata.
 
 **Por qué la normalización es pública y la llamada HTTP no tiene spec:** el repo
 no tiene webmock ni VCR, y ni `Providers::Openai` ni `Providers::Voyage` tienen
@@ -582,15 +598,20 @@ module Flow
 
         def transcribe(audio:, content_type:, language:)
           body = post(audio, content_type, language)
-          @last_metadata = metadata_from(body)
-          normalize(body)
+          metadata = metadata_from(body)
+          # Las dos cosas en UN valor inmutable, y no un arreglo más un accesor
+          # que se pregunta después. Un accesor sería estado compartido: el
+          # proveedor se memoiza, o sea UNA instancia para el proceso, y Sidekiq
+          # corre con cinco hilos — dos grabaciones en vuelo se pisarían la
+          # metadata y la fila de auditoría de una llevaría el `request_id` de
+          # la otra.
+          Provider::Transcription.new(
+            utterances: normalize(body),
+            duration: metadata["duration"],
+            request_id: metadata["request_id"],
+            model: metadata["model"]
+          )
         end
-
-        # Lo que la Tarea 5 escribe en las columnas de auditoría. Se llena en
-        # `transcribe` y se lee después, en vez de devolver una tupla: el
-        # contrato de la interfaz es «utterances», y meterle metadata obligaría
-        # al fixture a inventar una.
-        attr_reader :last_metadata
 
         # Pública para poder probarla sin red. Es donde están los errores.
         def normalize(body)
@@ -1614,9 +1635,9 @@ RSpec.describe Flow::Workshops::TranscribeRecording do
     # re-transcribe una que salió bien.
     rec = grabacion(status: "ready")
     as_company(company) do
-      # El objeto REAL con `transcribe` espiado, y no un `instance_double`: el
-      # doble verificador no deja stubear `last_metadata`, que existe en
-      # Deepgram y no en el fixture.
+      # El objeto REAL con `transcribe` espiado, y no un `instance_double`:
+      # devuelve un `Provider::Transcription` y un doble verificador obliga a
+      # construirlo a mano para nada.
       proveedor = Flow::AI::Providers::Fixture.new
       allow(proveedor).to receive(:transcribe).and_call_original
       Flow::AI.speech_provider = proveedor
@@ -1642,10 +1663,13 @@ RSpec.describe Flow::Workshops::TranscribeRecording do
     # blanco sería el control fantasma. La pantalla lo dice.
     rec = grabacion
     as_company(company) do
-      # El objeto real con una respuesta vacía. Un `instance_double` acá
-      # fallaría al stubear `last_metadata`, que el fixture no tiene.
+      # El objeto real, con una transcripción vacía.
       proveedor = Flow::AI::Providers::Fixture.new
-      allow(proveedor).to receive(:transcribe).and_return([])
+      allow(proveedor).to receive(:transcribe).and_return(
+        Flow::AI::Provider::Transcription.new(
+          utterances: [], duration: nil, request_id: nil, model: "fixture-v1"
+        )
+      )
       Flow::AI.speech_provider = proveedor
 
       Flow::Workshops::TranscribeRecording.call(rec)
@@ -1762,24 +1786,36 @@ module Flow
 
       def transcribir!
         proveedor = Flow::AI.speech_provider
-        utterances = proveedor.transcribe(
+        # `transcribe` devuelve un `Provider::Transcription` —utterances Y
+        # metadata en el mismo valor inmutable— y no un arreglo más un
+        # `last_metadata` que se pregunta después.
+        #
+        # El porqué es una carrera que el diseño anterior tenía: el proveedor se
+        # memoiza (`Flow::AI.speech_provider` usa `||=`), así que UNA instancia
+        # sirve al proceso entero, y Sidekiq corre con cinco hilos. Con dos
+        # grabaciones en vuelo, el hilo A dejaba su metadata en el objeto, el B
+        # la pisaba, y acá se escribía el `request_id` del B en la fila del A.
+        # Auditoría cruzada, en el camino que la spec marca como riesgo —«dos
+        # personas de la mesa grabando a la vez»— e invisible para todo spec.
+        resultado = proveedor.transcribe(
           audio: recording.file.download,
           content_type: recording.file.content_type,
           language: idioma
         )
-        metadata = proveedor.respond_to?(:last_metadata) ? proveedor.last_metadata : nil
 
         # Una transcripción vacía NO es un fallo: silencio o ruido devuelve 200
         # con texto vacío. Queda `ready` con cero utterances y la pantalla lo
         # dice; marcarla `failed` sería mentir sobre una llamada que salió bien.
         recording.update!(
           status: "ready",
-          utterances: utterances,
+          utterances: resultado.utterances,
           error: nil,
-          duration_seconds: metadata&.dig("duration"),
-          request_id: metadata&.dig("request_id"),
+          duration_seconds: resultado.duration,
+          request_id: resultado.request_id,
           provider: proveedor.name,
-          model: metadata&.dig("model") || modelo_de(proveedor)
+          # El fixture no tiene de dónde sacar un modelo, así que cae al nombre
+          # del proveedor. Deepgram sí lo trae, en `metadata.model_info`.
+          model: resultado.model || proveedor.name
         )
       end
 
@@ -1791,10 +1827,6 @@ module Flow
       # idioma. Que transcriba español con la misma calidad es una afirmación
       # del proveedor y no una medición. La Tarea 8 la mide.
       def idioma = I18n.locale.to_s.split("-").first
-
-      def modelo_de(proveedor)
-        proveedor.respond_to?(:model_name, true) ? proveedor.send(:model_name) : proveedor.name
-      end
 
       def fallar!(mensaje)
         recording.update!(status: "failed", error: mensaje)
