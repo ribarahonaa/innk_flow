@@ -30,6 +30,26 @@ let frame = null;
 // Subiendo: `rec` ya es null durante la subida, así que sin esta marca un
 // repintado no distingue «subiendo» de «libre» y habilitaría el botón.
 let subiendo = false;
+// A DÓNDE va lo grabado, capturado al APRETAR GRABAR y no leído del DOM al
+// parar. Parece redundancia y no lo es: `caja` se reasigna en `start()` en cada
+// `turbo:load`, y ahí `caja = encontrado` pasa ANTES del `rec.stop()`, así que
+// el handler de parada corría contra el contenedor de la pantalla NUEVA.
+//
+// El repro es de dos clics y no pide ninguna carrera: grabando en la sala A, al
+// breadcrumb del taller (sin contenedor, así que `caja` queda en null, el bucle
+// de dibujo se detiene y el grabador SIGUE, porque Turbo no dispara
+// `pagehide`), «Entrar» a la sala B → `start()` encuentra un nodo nuevo →
+// `rec.stop()` → la subida posteaba a `/recordings` de B, y el servidor
+// resolvía la mesa de B: la conversación de la mesa A quedaba guardada como
+// grabación de la mesa B, descargable por sus integrantes. La variante de un
+// clic es en evolución: hacer clic en otra idea de la lista DETIENE la
+// grabación, y la etiquetaba con la idea nueva, mientras la migración y la spec
+// dicen que `idea_id` es «qué idea tenía la sala elegida AL APRETAR GRABAR».
+//
+// Con esto, «el estado vive en el módulo y el DOM es una vista» pasa a ser
+// cierto también del destino, que es lo que cualquiera ya asume que significa.
+let urlDeSubida = null;
+let ideaDeSubida = null;
 
 const TEXTOS = {
   start: 'Grabar',
@@ -183,25 +203,45 @@ function alDescargar(e) {
 }
 
 async function arrancar() {
+  // El destino se LEE ACÁ, en el clic, y no en `subir()`: ver `urlDeSubida`
+  // arriba. Al parar, `caja` puede ser el contenedor de otra sala.
+  urlDeSubida = caja.dataset.recordingUrl;
+  ideaDeSubida = caja.dataset.ideaId || null;
+
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    trozos = [];
+    // Bitrate EXPLÍCITO. Medido: el default de Chromium son 115 kbps, o sea
+    // 17,4 MB por 20 minutos. Para transcribir, 32 kbps de opus alcanzan de
+    // sobra y bajan eso a ~4,8 MB.
+    const bits = Number(caja.dataset.bitrate) || 32000;
+    // El constructor y el `start` van DENTRO del try, no al lado: los dos
+    // pueden levantar (`NotSupportedError` por el mimeType, un
+    // `InvalidStateError`), y afuera eso era una promesa rechazada sin manejar
+    // —el micrófono quedaba abierto con su indicador prendido, el botón seguía
+    // diciendo «Grabar» y nada pintaba un motivo—, que es exactamente el
+    // control fantasma contra el que se escribió esta pantalla.
+    rec = new MediaRecorder(stream, { audioBitsPerSecond: bits });
+    rec.ondataavailable = (e) => { if (e.data && e.data.size) trozos.push(e.data); };
+    rec.onstop = subir;
+    rec.start(1000);
   } catch (e) {
     // Dos motivos distintos y dos textos distintos: qué hacer no es lo mismo.
+    // Lo que levanta el constructor cae en la rama de «permiso denegado», que
+    // no es preciso; es la misma imprecisión ya anotada para `NotReadableError`
+    // y se acepta por lo mismo: pintar un motivo impreciso es mejor que no
+    // pintar ninguno, y un texto nuevo es otra decisión.
     const texto = e && e.name === 'NotFoundError'
       ? caja.dataset.noDeviceText
       : caja.dataset.deniedText;
+    // Soltar el micrófono: si lo que falló fue el grabador, `getUserMedia` ya
+    // abrió el stream y sin esto queda tomado, con el indicador del navegador
+    // prendido sobre una grabación que no existe.
+    rec = null;
+    soltarMicrofono();
     pintar('idle', texto);
     return;
   }
-  trozos = [];
-  // Bitrate EXPLÍCITO. Medido: el default de Chromium son 115 kbps, o sea 17,4
-  // MB por 20 minutos. Para transcribir, 32 kbps de opus alcanzan de sobra y
-  // bajan eso a ~4,8 MB.
-  const bits = Number(caja.dataset.bitrate) || 32000;
-  rec = new MediaRecorder(stream, { audioBitsPerSecond: bits });
-  rec.ondataavailable = (e) => { if (e.data && e.data.size) trozos.push(e.data); };
-  rec.onstop = subir;
-  rec.start(1000);
   desde = Date.now();
   cronometro = setInterval(tictac, 1000);
   tictac();
@@ -223,10 +263,20 @@ function soltarMicrofono() {
   if (cronometro !== null) clearInterval(cronometro);
   cronometro = null;
   desde = null;
+  // El destino se limpia con el resto del estado de la grabación. `subir()` lo
+  // copia a locales ANTES de llamar acá, así que la subida en vuelo no lo
+  // pierde.
+  urlDeSubida = null;
+  ideaDeSubida = null;
 }
 
 async function subir() {
-  const url = caja && caja.dataset.recordingUrl;
+  // `urlDeSubida` y NO `caja.dataset.recordingUrl`: al parar, `caja` puede ser
+  // el contenedor de OTRA sala —`start()` lo reasigna antes del `rec.stop()`—,
+  // y postear ahí guarda la conversación de una mesa como grabación de otra.
+  // Ver el comentario de `urlDeSubida`.
+  const url = urlDeSubida;
+  const idea = ideaDeSubida;
   const tipo = rec ? rec.mimeType : 'audio/webm';
   const blob = new Blob(trozos, { type: tipo });
   trozos = [];
@@ -240,7 +290,6 @@ async function subir() {
   // La extensión sale del mimeType y no se fija a .webm: Safari da audio/mp4.
   const ext = tipo.includes('mp4') ? 'm4a' : 'webm';
   cuerpo.append('file', blob, `mesa.${ext}`);
-  const idea = caja.dataset.ideaId;
   if (idea) cuerpo.append('idea_id', idea);
 
   try {
@@ -253,7 +302,7 @@ async function subir() {
     // membresía revocada— le llega al `fetch` como 200, porque el `fetch` sigue
     // el 302 y convierte el POST en GET. Es el mismo bug que el autoguardado
     // pagó, y acá costaría la reunión entera.
-    if (res.status !== 201) { subiendo = false; pintar('idle', caja.dataset.failedText); return; }
+    if (res.status !== 201) { subiendo = false; pintar('idle', caja?.dataset.failedText); return; }
     // Se devuelve el botón a `idle` ANTES de navegar, y no es redundante: la
     // navegación es un morph a la misma URL, y `start()` en el mismo nodo
     // REPINTA desde el estado de módulo en vez de salir temprano, así que el
@@ -268,7 +317,7 @@ async function subir() {
                  : window.location.reload();
   } catch (_e) {
     subiendo = false;
-    pintar('idle', caja.dataset.failedText);
+    pintar('idle', caja?.dataset.failedText);
   }
 }
 
