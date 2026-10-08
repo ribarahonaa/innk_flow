@@ -1748,6 +1748,12 @@ async function revisarGrabacion(page, nombre) {
   // primera visita pinta la tarjeta «en cola» sin plegable. Esperar sin volver a
   // visitar medía para siempre la pantalla vieja (falso rojo medido, con el
   // código sano), así que se vuelve a pedir la pantalla hasta que aparezca.
+  //
+  // OJO, esto NO es evidencia de que la tarjeta se actualice sola: la app no
+  // refresca la tarjeta de la grabación —no hay `turbo-frame` ni poller—, así
+  // que la guarda re-visita A PROPÓSITO para llegar al estado `ready`. Un
+  // `[GRABAR]` verde no dice nada sobre que la tarjeta cambie sin recargar; ese
+  // hueco está declarado en la spec, bajo «Los estados».
   for (let i = 0; i < 20; i++) {
     if ((await page.locator('details summary').count()) > antes) break;
     await page.waitForTimeout(1500);
