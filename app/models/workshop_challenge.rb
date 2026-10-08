@@ -18,6 +18,10 @@ class WorkshopChallenge < ApplicationRecord
   belongs_to :challenge
   belongs_to :challenge_step, optional: true
 
+  # Por acá entra `show`: la grabación se busca DENTRO de la sala para que lo de
+  # otra empresa dé 404 y no 403.
+  has_many :workshop_recordings, dependent: :destroy
+
   validates :status, inclusion: { in: STATUSES }
   validates :challenge_id, uniqueness: { scope: :workshop_id }
 

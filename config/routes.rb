@@ -141,6 +141,12 @@ Rails.application.routes.draw do
       # formulario de propuesta—, porque el cliente no conoce el id del
       # borrador: la identidad de la fila la arma el servidor.
       resource :draft, only: %i[update], controller: "workshop_drafts"
+      # Plural y con `show`, a diferencia del borrador: una mesa graba VARIAS
+      # veces en una sesión, y cada grabación se puede escuchar. El `show`
+      # sirve el audio por un controller propio y no por `rails_blob_path`, que
+      # verifica la firma del blob y nada más —sin sesión, sin membresía, sin
+      # Pundit y sin tenant—.
+      resources :recordings, only: %i[create show], controller: "workshop_recordings"
     end
   end
 
