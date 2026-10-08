@@ -11,9 +11,21 @@ RSpec.describe "Flow::AI.speech_provider" do
   it "usa el declarado en FLOW_SPEECH_PROVIDER" do
     Flow::AI.reset_provider!
     allow(ENV).to receive(:[]).and_call_original
-    allow(ENV).to receive(:[]).with("FLOW_SPEECH_PROVIDER").and_return("fixture")
+    allow(ENV).to receive(:[]).with("FLOW_SPEECH_PROVIDER").and_return("null")
 
-    expect(Flow::AI.speech_provider).to be_a(Flow::AI::Providers::Fixture)
+    # `null` y no `fixture`: el fallback también da un Fixture, así que con
+    # `fixture` el ejemplo pasaría aunque se borrara la rama de la variable.
+    # Un Null sólo puede salir de ahí.
+    expect(Flow::AI.speech_provider).to be_a(Flow::AI::Providers::Null)
+  end
+
+  it "usa el de chat, la MISMA instancia, cuando sabe transcribir" do
+    Flow::AI.reset_provider!
+    chat = Flow::AI::Providers::Fixture.new
+    Flow::AI.provider = chat
+
+    # `be` y no `be_a`: sin la rama del medio el fallback arma OTRO Fixture.
+    expect(Flow::AI.speech_provider).to be(Flow::AI.provider)
   end
 
   it "cae al fixture cuando el de chat no sabe transcribir" do
@@ -33,7 +45,9 @@ RSpec.describe "Flow::AI.speech_provider" do
 
     # Si `@speech_provider` sobreviviera, un spec que cambia la variable de
     # entorno vería el proveedor de otro spec: contaminación entre ejemplos.
-    expect(Flow::AI.instance_variable_get(:@speech_provider)).to be_nil
+    %i[@provider @embeddings_provider @speech_provider].each do |ivar|
+      expect(Flow::AI.instance_variable_get(ivar)).to be_nil, "#{ivar} sobrevivió"
+    end
   end
 
   describe "el fixture" do
