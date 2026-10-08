@@ -279,13 +279,46 @@ otros dos controllers: una clave que no es de un campo se descarta. Los campos
 draft = @group.workshop_drafts.find_or_initialize_by(
   workshop_challenge: @link, idea_id: idea&.id
 )
-draft.update!(payload: filtered, updated_by: current_user,
-              based_on_version_id: idea&.current_version_id)
+if draft.new_record?
+  draft.based_on_version_id =
+    idea && (idea.versions.find_by(id: params[:base_version_id])&.id || idea.current_version_id)
+end
+draft.update!(payload: filtered, updated_by: current_user)
 ```
 
-**`based_on_version_id` lo escribe el servidor, nunca el cliente:** es el dato
-del que depende el aviso de base vieja, y un cliente que lo manda puede
-mentirlo.
+**`based_on_version_id` se sella SÓLO al crear la fila, y la versión la dice el
+CLIENTE** (`base_version_id`: contra la que la vista prellenó el formulario). El
+servidor no se la cree a ciegas: la busca entre las versiones DE ESA idea, y una
+ajena, una inexistente o la clave ausente caen a `current_version_id`.
+
+> **Ojo: hasta la revisión final de esta misma rama (2026-10-07) este bloque y
+> el párrafo de arriba decían lo contrario** —que el sello se escribía en cada
+> `update!` y que `based_on_version_id` «lo escribe el servidor, nunca el
+> cliente, porque un cliente que lo manda puede mentirlo»—. Las dos mitades
+> estaban mal y por motivos distintos.
+>
+> Reescribirlo en cada autoguardado dejaba el aviso de base vieja **imposible de
+> disparar**: el sello perseguía a la versión vigente, así que nunca quedaba
+> atrás. De ahí el `if draft.new_record?`.
+>
+> Y leer `current_version_id` de la base al primer `PATCH` tampoco servía: el
+> formulario se prellena al RENDERIZAR y la mesa puede tardar en teclear, así
+> que entre el render y la primera tecla la versión puede avanzar, y sellar la
+> nueva sobre contenido de la vieja apagaba el aviso igual. El dato que hace
+> falta es contra qué se prellenó, y eso sólo lo sabe quien renderizó: viaja en
+> `data-draft-base`.
+>
+> El miedo de la línea original era razonable y resultó estar cubierto. Lo que
+> un cliente puede mentir está acotado por tres cosas: el `find_by` cuelga de
+> `idea.versions`, que filtra por `idea_id` y —vía `TenantScoped`— por
+> `company_id`, así que una versión de otra idea o de otra empresa queda
+> excluida dos veces y cae a la vigente; la columna es `uuid`, así que basura, un
+> no-entero o un array castean a `nil` antes del SQL y caen al mismo lado; y lo
+> peor que logra una mentira plausible —una versión vieja de la MISMA idea— es
+> que el aviso dispare de más, que es el lado seguro. La dirección insegura es la
+> otra: mandar la vigente SUPRIME el aviso, y eso es autodaño —el aviso protege a
+> la mesa que lo suprimiría— y es exactamente lo que el código original hacía
+> para todos, sin excepción.
 
 **La carrera es real y se maneja.** Dos personas de la mesa guardando a la vez
 no encuentran fila, las dos insertan, y el índice parcial levanta

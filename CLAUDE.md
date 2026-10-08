@@ -876,10 +876,40 @@ botón. Lo que decidió la spec y no se lee del código:
   (`if draft.new_record?`) depende toda la feature del aviso, y la cubren DOS
   ejemplos que prueban mitades distintas: el request spec «el sello de la
   versión no se reescribe en el autoguardado siguiente»
-  (`spec/requests/workshop_drafts_spec.rb`) hace dos `PATCH` con una versión
-  publicada en el medio y asevera que el sello sigue siendo el de la primera; el
-  de extremo a extremo, que el sello que escribió el servidor llega al markup
-  del aviso. Sacar la condición pone en rojo el primero.
+  (`spec/requests/workshop_drafts_spec.rb:291`) hace dos `PATCH` con una versión
+  publicada en el medio y asevera que el sello sigue siendo el de la primera; y
+  el de extremo a extremo
+  (`spec/requests/workshop_draft_prefill_spec.rb:273`), que ese sello llega al
+  markup del aviso. Sacar la condición pone en rojo **los dos** — medido; esta
+  línea decía «el primero» y era quedarse corta.
+- **Y esa versión la dice el CLIENTE, no la base.** Es el único lugar de la app
+  donde un dato del navegador entra a una columna con FK. Va así: la vista
+  publica `draft_base` en el form, el JS lo lee de `dataset.draftBase` y lo
+  manda como `base_version_id`, y el servidor lo busca en `idea.versions`. El
+  motivo es que el formulario se prellena al RENDERIZAR y la mesa puede tardar
+  en teclear: entre el render y la primera tecla la versión puede avanzar, y
+  sellar la nueva sobre contenido de la vieja apagaba el aviso para siempre.
+  **Lo que lo hace seguro son tres cosas, y sólo una está escrita en el
+  código.** El `find_by` cuelga de `idea.versions`, que filtra por `idea_id` y
+  —por `TenantScoped`— por `company_id`, así que una versión de otra idea o de
+  otra empresa queda excluida dos veces, independientemente, y cae a
+  `current_version_id`. La columna es **`uuid`**, así que `OID::Uuid#cast_value`
+  convierte basura, un no-entero, un array o la clave ausente en `nil` antes de
+  llegar al SQL: la consulta queda `id IS NULL` y cae al mismo lado. Y lo peor
+  que logra un cliente que miente con una versión vieja de SU idea es que el
+  aviso dispare de más, que es el lado seguro. **Ojo con las dos últimas: son
+  portantes y no se leen del código.** Si la columna cambiara de tipo, o si el
+  `find_by` se moviera a `IdeaVersion`, se irían a la vez la seguridad de tipo y
+  el scope — y ahí `version_belongs_to_idea`, que en el camino real no se
+  ejecuta nunca porque el scope ya excluyó la versión ajena, pasaría de cinturón
+  a único freno, levantando un 500 en vez de caer a la vigente. Hay un ejemplo
+  por eje, y los ejes son distintos: `workshop_drafts_spec.rb:310` caza que el
+  servidor ignore al cliente **y** que la vista pierda el atributo;
+  `:357`, que el `find_by` deje de colgar de `idea.versions`. Que el JS deje de
+  leerlo o le cambie la clave no lo caza ningún request spec —mandan
+  `base_version_id` a mano— ni `[DRAFT]`: eso es `spec/lint/sello_del_borrador_spec.rb`.
+  Y el aviso de base vieja sigue dependiendo de `if draft.new_record?`: `:310`
+  **no** lo cubre, porque hace un solo `PATCH` y resellar da el mismo valor.
 - **Un `PATCH` sin `payload` es un no-op a propósito**, y lo mismo si después de
   filtrar no sobrevive ninguna clave: con `fetch(:payload, {})` un bug del
   cliente pisaría el texto de la mesa con nada. Los tres caminos responden 204,

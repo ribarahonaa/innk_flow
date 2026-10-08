@@ -247,9 +247,16 @@ RSpec.describe "sala del taller: el borrador de la mesa", type: :request do
 
       draft = drafts.sole
       expect(draft.idea_id).to eq(evolucion[:idea].id)
-      # Lo escribe el SERVIDOR desde `idea.current_version_id`, nunca el cliente:
-      # es el dato del que depende el aviso de base vieja, y un cliente que lo
-      # manda puede mentirlo.
+      # Este `PATCH` va SIN `base_version_id` a propósito —un cliente viejo, un
+      # PATCH a mano—, y ése es el camino de fallback: el servidor lee
+      # `idea.current_version_id`.
+      #
+      # Ojo, que este comentario decía lo contrario: que el sello «lo escribe el
+      # SERVIDOR, nunca el cliente». Desde la revisión final lo manda el cliente
+      # (`base_version_id`, contra la que la vista prellenó el formulario) y el
+      # servidor lo busca en `idea.versions`. El motivo de ese cambio y lo que
+      # acota la mentira están en el bullet del sello en `CLAUDE.md`; los
+      # ejemplos del camino del cliente son los tres de más abajo.
       expect(draft.based_on_version_id).to eq(evolucion[:version].id)
     end
 
