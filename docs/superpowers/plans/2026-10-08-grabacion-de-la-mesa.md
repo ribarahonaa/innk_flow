@@ -1229,7 +1229,6 @@ RSpec.describe "sala del taller: la grabación de la mesa", type: :request do
 
   let!(:ana) { member("ana@test.dev") }
   let!(:beto) { member("beto@test.dev") }
-  let!(:carla) { member("carla@test.dev") }
 
   let!(:idear) do
     as_company(company) do
@@ -1264,8 +1263,11 @@ RSpec.describe "sala del taller: la grabación de la mesa", type: :request do
       expect(response).to redirect_to(login_path)
     end
 
-    it "quien no está en ninguna mesa recibe 403" do
-      sign_in(carla, company: company)
+    it "quien administra y no está sentado en ninguna mesa: 403" do
+      # `work?` da true por `administers_any?` SIN mesa: es lo que cierra el
+      # `group_of`. Un `participant` sin mesa no llega: el scope le da 404.
+      admin = member("admin@test.dev", :admin)
+      sign_in(admin, company: company)
 
       post_recording(idear)
 
@@ -1327,10 +1329,24 @@ RSpec.describe "sala del taller: la grabación de la mesa", type: :request do
       grabacion = as_company(company) { WorkshopRecording.last }
       expect(grabacion.status).to eq("pending")
       expect(grabacion.recorded_by).to eq(ana)
-      expect(grabacion.workshop_group).to eq(idear[:group])
-      expect(grabacion.file).to be_attached
+      as_company(company) do
+        expect(grabacion.workshop_group).to eq(idear[:group])
+        expect(grabacion.file).to be_attached
+      end
       expect(Flow::Workshops::TranscribeRecordingJob)
         .to have_received(:perform_later).with(company.id, grabacion.id)
+    end
+
+    it "acepta el tipo con parámetro, que es lo que manda MediaRecorder" do
+      # Chromium manda `audio/webm;codecs=opus`: se compara el tipo base.
+      sign_in(ana, company: company)
+      opus = Rack::Test::UploadedFile.new(
+        StringIO.new("bytes"), "audio/webm;codecs=opus", original_filename: "mesa.webm"
+      )
+
+      post_recording(idear, { file: opus })
+
+      expect(response).to have_http_status(:created)
     end
 
     it "devuelve el id en el cuerpo, que es lo que el JS necesita" do
@@ -1379,6 +1395,9 @@ RSpec.describe "sala del taller: la grabación de la mesa", type: :request do
         create(:workshop_recording, :ready, workshop_group: group, workshop_challenge: link,
                                             recorded_by: create(:user))
       end
+      # Con audio adjunto: sin él, el 404 lo daría `send_attached_file` aunque la
+      # búsqueda encontrara la fila ajena, y el ejemplo no probaría el scope.
+      as_company(otra) { ajena.file.attach(io: StringIO.new("x"), filename: "a.webm", content_type: "audio/webm") }
       sign_in(ana, company: company)
 
       get workshop_sala_recording_path(idear[:workshop], idear[:link], ajena)
@@ -1408,7 +1427,10 @@ end
 make spec-file FILE=spec/requests/workshop_recordings_spec.rb
 ```
 
-Esperado: FAIL con `undefined method 'workshop_sala_recordings_path'`.
+Esperado: FAIL. **Ojo: NO falla por el helper de ruta que falta**, como decía
+antes esta línea, sino con `uninitialized constant
+Flow::Workshops::TranscribeRecordingJob`: el `before` del spec stubea esa
+constante y por lo tanto revienta primero.
 
 - [ ] **Paso 3: Sumar las rutas**
 
@@ -1550,7 +1572,7 @@ module Flow
 end
 ```
 
-Volvé a correr. Esperado: PASS, 12 ejemplos.
+Volvé a correr. Esperado: PASS, **13** ejemplos.
 
 - [ ] **Paso 7: Commit**
 
