@@ -12,6 +12,9 @@ class WorkshopGroup < ApplicationRecord
   # su barrido de mesas vacías se llevaría el texto de la mesa. Ver la cláusula
   # de `seat!`.
   has_many :workshop_drafts, dependent: :destroy
+  # `dependent: :destroy` como los borradores y las propuestas: borrar una mesa
+  # a mano se lleva su grabación, y el aviso de la pantalla lo dice.
+  has_many :workshop_recordings, dependent: :destroy
   has_many :members, through: :workshop_group_members, source: :user
 
   validates :name, presence: true

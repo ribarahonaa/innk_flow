@@ -1,4 +1,4 @@
-\restrict ppa8SsG7IG8cIqG6fH7HMF3ADVFmfkyKAKqm0Tp75t8BH4PfevNPtnwcDFAA2d2
+\restrict 02v7G34fPcwEUqcbRddEf3HLpScOtdo1jiEY7Yfg0rQUsqpodkjQuYtLPeUX3jB
 
 -- Dumped from database version 17.9 (Debian 17.9-1.pgdg12+1)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg12+2)
@@ -796,6 +796,30 @@ CREATE TABLE public.workshop_proposals (
 
 
 --
+-- Name: workshop_recordings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workshop_recordings (
+    id uuid DEFAULT public.uuid_generate_v7() NOT NULL,
+    company_id uuid NOT NULL,
+    workshop_group_id uuid NOT NULL,
+    workshop_challenge_id uuid NOT NULL,
+    idea_id uuid,
+    recorded_by_id uuid NOT NULL,
+    status character varying DEFAULT 'pending'::character varying NOT NULL,
+    utterances jsonb DEFAULT '[]'::jsonb NOT NULL,
+    duration_seconds double precision,
+    provider character varying,
+    model character varying,
+    request_id character varying,
+    error text,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT workshop_recordings_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'transcribing'::character varying, 'ready'::character varying, 'failed'::character varying])::text[])))
+);
+
+
+--
 -- Name: workshops; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1343,6 +1367,22 @@ ALTER TABLE ONLY public.workshop_proposals
 
 ALTER TABLE ONLY public.workshop_proposals
     ADD CONSTRAINT workshop_proposals_tenant_uniq UNIQUE (id, company_id);
+
+
+--
+-- Name: workshop_recordings workshop_recordings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_recordings
+    ADD CONSTRAINT workshop_recordings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workshop_recordings workshop_recordings_tenant_uniq; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_recordings
+    ADD CONSTRAINT workshop_recordings_tenant_uniq UNIQUE (id, company_id);
 
 
 --
@@ -2279,6 +2319,41 @@ CREATE INDEX index_workshop_proposals_on_workshop_group_id ON public.workshop_pr
 
 
 --
+-- Name: index_workshop_recordings_on_company_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_recordings_on_company_id ON public.workshop_recordings USING btree (company_id);
+
+
+--
+-- Name: index_workshop_recordings_on_group_and_room; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_recordings_on_group_and_room ON public.workshop_recordings USING btree (workshop_group_id, workshop_challenge_id);
+
+
+--
+-- Name: index_workshop_recordings_on_idea_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_recordings_on_idea_id ON public.workshop_recordings USING btree (idea_id);
+
+
+--
+-- Name: index_workshop_recordings_on_recorded_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_recordings_on_recorded_by_id ON public.workshop_recordings USING btree (recorded_by_id);
+
+
+--
+-- Name: index_workshop_recordings_on_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_workshop_recordings_on_status ON public.workshop_recordings USING btree (status);
+
+
+--
 -- Name: index_workshops_on_checkin_token; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2660,6 +2735,14 @@ ALTER TABLE ONLY public.challenge_gestores
 
 
 --
+-- Name: workshop_recordings fk_rails_7175409457; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_recordings
+    ADD CONSTRAINT fk_rails_7175409457 FOREIGN KEY (recorded_by_id) REFERENCES public.users(id);
+
+
+--
 -- Name: sessions fk_rails_758836b4f0; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2785,6 +2868,14 @@ ALTER TABLE ONLY public.ideas
 
 ALTER TABLE ONLY public.ai_runs
     ADD CONSTRAINT fk_rails_af497563ca FOREIGN KEY (requested_by_id) REFERENCES public.users(id);
+
+
+--
+-- Name: workshop_recordings fk_rails_af9d394784; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_recordings
+    ADD CONSTRAINT fk_rails_af9d394784 FOREIGN KEY (company_id) REFERENCES public.companies(id);
 
 
 --
@@ -3268,14 +3359,39 @@ ALTER TABLE ONLY public.workshop_proposals
 
 
 --
+-- Name: workshop_recordings workshop_recordings_idea_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_recordings
+    ADD CONSTRAINT workshop_recordings_idea_id_same_company FOREIGN KEY (idea_id, company_id) REFERENCES public.ideas(id, company_id) ON DELETE SET NULL (idea_id);
+
+
+--
+-- Name: workshop_recordings workshop_recordings_workshop_challenge_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_recordings
+    ADD CONSTRAINT workshop_recordings_workshop_challenge_id_same_company FOREIGN KEY (workshop_challenge_id, company_id) REFERENCES public.workshop_challenges(id, company_id) ON DELETE CASCADE;
+
+
+--
+-- Name: workshop_recordings workshop_recordings_workshop_group_id_same_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workshop_recordings
+    ADD CONSTRAINT workshop_recordings_workshop_group_id_same_company FOREIGN KEY (workshop_group_id, company_id) REFERENCES public.workshop_groups(id, company_id) ON DELETE CASCADE;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ppa8SsG7IG8cIqG6fH7HMF3ADVFmfkyKAKqm0Tp75t8BH4PfevNPtnwcDFAA2d2
+\unrestrict 02v7G34fPcwEUqcbRddEf3HLpScOtdo1jiEY7Yfg0rQUsqpodkjQuYtLPeUX3jB
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261008120000'),
 ('20261007120000'),
 ('20261001120000'),
 ('20260930140000'),
