@@ -45,9 +45,13 @@ const PISO_DE_GRABACIONES = 2;
 // `VOZ_MINIMA` es el piso del pico durante la voz; `SILENCIO_MAXIMO` el techo de
 // una muestra que cuenta como silencio —el mismo orden de magnitud que
 // `PISO_VISIBLE` del JS, a propósito—; y `MUESTRAS_DE_SILENCIO`, cuántas
-// seguidas hacen falta. El silencio del wav dura 1,5 s y se muestrea cada
-// 100 ms, o sea ~15 muestras: pedir 8 deja margen para el ataque y la cola de
-// las voces de al lado.
+// seguidas hacen falta: pedir 8 de las 17 que se midieron (abajo) deja margen
+// para el ataque y la cola de las voces de al lado.
+//
+// Al lado de ese 17 había una estimación teórica —«el silencio dura 1,5 s y se
+// muestrea cada 100 ms, o sea ~15 muestras»— y se sacó: las dos eran ciertas en
+// sus propios términos, y un número plausible pero equivocado al lado del
+// medido es justo lo que hace que alguien recalibre contra el que no se midió.
 // CALIBRADOS el 2026-10-08 y RE-MEDIDOS tras cambiar la espera del morph (de
 // 1500 ms fijos al evento `turbo:morph`), que corrió el muestreo respecto del
 // wav. Serie real del micrófono falso, 60 muestras, una cada 100 ms:

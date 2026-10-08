@@ -114,7 +114,7 @@ no se dijera acá. Cada línea tiene su test asignado a la tarea dueña del cód
 | `config/locales/es.yml` | textos de estado y de fallo | 6 |
 | `script/capture_screens.js` | la guarda `[GRABAR]` y las flags | 7 |
 | `script/fake_audio.wav` | **nuevo** · el audio del micrófono falso | 7 |
-| `CLAUDE.md` | el octavo `arrival?`, el onceavo número, el eje nuevo | 8 |
+| `CLAUDE.md` | los `arrival?` enumerados sin número, el onceavo número, el eje nuevo | 8 |
 
 ---
 
@@ -1476,9 +1476,12 @@ class WorkshopRecordingsController < ApplicationController
 
     group = @workshop.group_of(current_user)
     return head :forbidden unless group
-    # La mesa de llegada no trabaja. Misma pregunta que los otros siete lugares;
-    # éste es el octavo. El número está en CLAUDE.md y no acá: escrito en ocho
-    # comentarios, el día que cambie miente en siete.
+    # La mesa de llegada no trabaja. Misma pregunta que en los demás lugares que
+    # no dejan trabajar desde ella; cuáles son lo dice CLAUDE.md y no este
+    # comentario, que con un número se desactualiza en silencio.
+    #
+    # Ojo: esta plantilla decía «los otros siete lugares; éste es el octavo».
+    # Sin número — ver el Ojo del Paso 3 de la Tarea 8.
     return head :forbidden if group.arrival?
 
     archivo = params[:file]
@@ -2018,8 +2021,9 @@ RSpec.describe "sala del taller: el bloque de grabación", type: :request do
   end
 
   it "desde la mesa de llegada NO trae el control" do
-    # Es el octavo lugar que pregunta `arrival?`. Ofrecerlo igual sería un
-    # control que rebota en el 403 del POST.
+    # Uno más de los lugares que preguntan `arrival?` —cuáles son lo enumera
+    # CLAUDE.md, sin número; ver el Ojo del Paso 3 de la Tarea 8—. Ofrecerlo
+    # igual sería un control que rebota en el 403 del POST.
     s = sala(arrival: true)
     sign_in(ana, company: company)
 
@@ -3283,7 +3287,17 @@ El formato, igual que los otros «Ojo» fechados del repo:
 Tres cambios, y el tercero es el que más fácil se olvida:
 
 1. En la sección del taller, donde dice que **siete** lugares preguntan
-   `arrival?`, cambiarlo a **ocho** y sumar la grabación a la lista.
+   `arrival?`, sumar la grabación a la lista.
+
+   **Ojo: este paso pedía cambiar el número a «ocho», y al ejecutarlo se
+   decidió lo contrario — no hay número en ninguna parte.** El conteo viejo ya
+   estaba CORTO antes de que la grabación sumara el suyo (la lista no nombraba
+   el autoguardado del borrador, que ya preguntaba lo mismo), y ningún número
+   es estable: depende de cómo se agrupen las cuatro lecturas de
+   `WorkshopRoomsController`. `CLAUDE.md` los **enumera por lo que hace cada
+   chequeo**, con su archivo, y la verificación es `grep -rn "arrival?" app`.
+   Lo mismo vale para los comentarios del código y para los de los specs: la
+   revisión final de la rama sacó los tres que todavía contaban.
 2. En «La capa de IA», sumar el tercer eje junto a «Hay DOS proveedores, no
    uno»: ahora son **tres**, con `FLOW_SPEECH_PROVIDER`, y Deepgram sólo
    transcribe igual que Voyage sólo vectoriza.
@@ -3332,10 +3346,18 @@ voz → SILENCIO → voz y la guarda graba menos que su duración. Si alguien
 «simplifica» ese wav a una sola voz corrida, la guarda queda midiendo que algo
 se mueve y nada más.
 
-**La onda sigue moviéndose con `prefers-reduced-motion` activado**, y es la misma
-decisión que ya está tomada para el spinner de la IA, con el mismo motivo: es la
-ÚNICA señal de que el micrófono está tomando algo, y quieta se lee como un
-micrófono tapado — que es justo el estado que tiene que poder distinguir.
+**`workshop_recording.js` no tiene NINGÚN manejo de `prefers-reduced-motion`, y
+no agregarlo es deliberado.** La onda se mueve porque el JS escribe las alturas,
+con o sin la preferencia: es la misma decisión que ya está tomada para el spinner
+de la IA, con el mismo motivo —es la ÚNICA señal de que el micrófono está tomando
+algo, y quieta se lee como un micrófono tapado, que es justo el estado que tiene
+que poder distinguir—. **Es la ausencia de una guarda y no una guarda
+implementada**, así que quien la «arregle» agregándola la rompe.
+
+**Ojo: esta plantilla decía «la onda sigue moviéndose con
+`prefers-reduced-motion` activado», y al ejecutar se cambió.** Esa redacción se
+lee como que hay algo escrito que lo decide, y no hay nada: no se consulta la
+preferencia en ninguna parte. La spec y `CLAUDE.md` quedaron con esta versión.
 
 **Y una navegación en medio de la grabación PIERDE el audio.** No hay despedida
 posible: `keepalive` tiene un tope de 64 KB por especificación y el audio son
@@ -3373,7 +3395,7 @@ reconstruir:
 
 ```bash
 git add CLAUDE.md docs/superpowers/specs/2026-10-08-grabacion-de-la-mesa-design.md handoff.md
-git commit -m "Los documentos cuentan el tercer eje, el octavo arrival? y el onceavo contador"
+git commit -m "Los documentos cuentan el tercer eje, los arrival? enumerados y el onceavo contador"
 ```
 
 ---
@@ -3390,6 +3412,8 @@ git commit -m "Los documentos cuentan el tercer eje, el octavo arrival? y el onc
       `grep -c` de lo ARREGLADO — y la de `Math.random()` fallando **por la
       corrida de silencio** y no por el pico
 - [ ] `waveform__bar` presente en la hoja compilada, no sólo en el fuente
-- [ ] `CLAUDE.md` dice ocho `arrival?`, tres ejes y once contadores
+- [ ] `CLAUDE.md` **enumera** los `arrival?` sin número, y dice tres ejes y once
+      contadores (esta línea pedía «ocho `arrival?`»; ver el Ojo del Paso 3 de
+      la Tarea 8)
 - [ ] El resultado del audio real está escrito en la spec, gane o pierda
 - [ ] `FLOW_SPEECH_PROVIDER` sigue **sin declarar** en `.env`

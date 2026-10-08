@@ -33,7 +33,18 @@ tarea. **No verifiqué el remoto:** el `ls-remote` por SSH da `Permission denied
 en `sidekiq` (verificado), así que una corrida de `make screens` **cuesta plata de
 IA**. `FLOW_SPEECH_PROVIDER` está **sin declarar a propósito**: la cascada cae al
 fixture (Anthropic no transcribe), así que ni la suite ni el recorrido facturan
-voz. `DEEPGRAM_API_KEY` está en `.env` y **anda** (HTTP 200).
+voz. `DEEPGRAM_API_KEY` está en `.env` y **autentica desde el host**: lo medido es
+un `curl` a `/v1/listen` que devolvió HTTP 200, no un pedido hecho desde la app.
+
+**Corrección de la revisión final:** hasta ella `docker-compose.yml` **no
+reenviaba ninguna de las tres variables de voz a los contenedores** —enumera el
+entorno con `${VAR:-default}` y no tiene `env_file:`, así que el `.env` sólo
+interpola—, y en `sidekiq`, que es el proceso que corre el job,
+`env | grep -cE "FLOW_SPEECH|DEEPGRAM"` daba **0**. O sea que el eje era
+imposible de encender editando el `.env`, y quien lo intentara se habría comido
+el `TranscriptionFailed, "falta DEEPGRAM_API_KEY"` del adapter. Las tres ya están
+en el anchor con default vacío, y `app_test` fija `FLOW_SPEECH_PROVIDER: fixture`
+con `DEEPGRAM_API_KEY: ""`. Encender el eje es poner las dos variables.
 
 **Riesgo abierto que ningún documento cerraba:** la diarización colapsa en las dos
 mediciones que hay (§4) y el español no se midió nunca.
@@ -165,11 +176,11 @@ las dos aserciones de la onda miden cosas distintas.
    hoy.
 2. **La revisión final de la rama entera** (la dispara el orquestador). Triar los
    *minors* diferidos de abajo.
-3. **Dos comentarios del código con el número viejo**, sin editar (esta tarea sólo
-   toca documentos): `app/controllers/workshop_drafts_controller.rb:35` y
-   `app/views/workshop_rooms/_ideation.html.haml:17` dicen «los otros seis
-   lugares». Mejor que cambiar el número: remitir a CLAUDE.md, como ya hace el
-   controller de grabaciones.
+3. ~~**Dos comentarios del código con el número viejo**: `workshop_drafts_controller.rb`
+   y `workshop_rooms/_ideation`.~~ **Hecho en la revisión final**, y eran tres: el
+   del spec de la pantalla de la sala decía «el octavo lugar». Los tres remiten
+   ahora a CLAUDE.md, como ya hacía el controller de grabaciones; en el código no
+   queda ningún número.
 4. **C2 y C3 siguen pendientes.** C2 no puede diseñarse con confianza mientras las
    etiquetas de hablante estén sin verificar.
 5. Antes de mostrar la grabación desde un teléfono: **HTTPS**. Hoy no hay
@@ -191,10 +202,21 @@ las dos aserciones de la onda miden cosas distintas.
 - T3: nada prueba el `SET NULL` a nivel base (borrar una idea y ver la grabación
   sobrevivir con `idea_id` nil).
 - T4: el job stub no llevaba `frozen_string_literal` (la tarea 5 lo restauró).
-- T4: los dos comentarios «los otros seis lugares» están viejos (ver §5.3).
-- T6: si la mesa navega a una pantalla SIN el contenedor mientras graba, `caja`
+- T4: ~~los dos comentarios «los otros seis lugares» están viejos (ver §5.3).~~
+  Arreglado en la revisión final, y eran tres.
+- T6: ~~si la mesa navega a una pantalla SIN el contenedor mientras graba, `caja`
   queda en null y la grabación sigue corriendo (Turbo no dispara `pagehide`); al
-  volver, `subir()` descarta el audio porque `url` es null. Preexistente.
+  volver, `subir()` descarta el audio porque `url` es null.~~ **Era peor que
+  eso, y la revisión final lo arregló:** el audio no se descartaba, se subía a
+  donde hubieras aterrizado. `start()` hace `caja = encontrado` ANTES del
+  `rec.stop()`, así que la subida leía el `recording-url` de la pantalla nueva y
+  la conversación de la mesa A quedaba guardada como grabación de la mesa B
+  —reproducible por sus integrantes—; en evolución, un clic a otra idea la
+  etiquetaba con la idea nueva. Hoy el destino se captura en `arrancar()`
+  (`urlDeSubida`, `ideaDeSubida`). Lo que SÍ se pierde es cerrar la pestaña
+  estando en una pantalla sin contenedor, y por el límite ya conocido: un
+  `fetch` sin `keepalive` no sobrevive al unload, y con `keepalive` el tope son
+  64 KB.
 - T6: tras un morph las barras quedan en blanco un instante (idiomorph resetea sus
   `height` en línea) y el historial se rellena en los frames siguientes.
 - T7: una segunda corrida de `make screens` sin `make seed` falla `[CHECKIN]`
@@ -205,8 +227,9 @@ las dos aserciones de la onda miden cosas distintas.
   false, así que el chequeo del pico se saltea; la corrida de silencio sí lo caza.
 - T7: la ruta interceptada del POST queda registrada tras un `return` temprano,
   por el resto de la corrida (sólo continúa pedidos).
-- T7: en el bloque de comentario conviven la estimación teórica («~15 muestras») y
-  el valor medido (17).
+- T7: ~~en el bloque de comentario conviven la estimación teórica («~15 muestras») y
+  el valor medido (17).~~ La estimación se borró en la revisión final: queda el 17
+  medido.
 
 ### Si hay que repetir algo de esto
 

@@ -32,7 +32,9 @@ class WorkshopDraftsController < ApplicationController
 
     group = @workshop.group_of(current_user)
     return head :forbidden unless group
-    # La mesa de llegada no trabaja. Misma pregunta que los otros seis lugares.
+    # La mesa de llegada no trabaja. Misma pregunta que en los demás lugares que
+    # no dejan trabajar desde ella; cuáles son lo enumera CLAUDE.md y no este
+    # comentario, que con un número se desactualiza en silencio.
     return head :forbidden if group.arrival?
 
     # Un PATCH sin la clave `payload` es un NO-OP. Con `fetch(:payload, {})` a

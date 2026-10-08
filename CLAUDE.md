@@ -804,9 +804,11 @@ autoguardado del borrador** (`WorkshopDraftsController`), que ya preguntaba lo
 mismo: el conteo estaba corto antes de que la grabación sumara el suyo, y es la
 evidencia de por qué no hay número. Dos comentarios del código repiten un número
 viejo —«los otros seis lugares» en `workshop_drafts_controller.rb` y en
-`workshop_rooms/_ideation`— y siguen ahí; el controller de grabaciones, en
-cambio, remite a este párrafo en vez de contar. Quien agregue un lugar nuevo lo
-suma a la lista del grupo que corresponda a lo que su chequeo hace.
+`workshop_rooms/_ideation`, más «el octavo lugar» en
+`spec/requests/pantalla_de_la_sala_grabacion_spec.rb`—, y la revisión final de
+la rama los pasó a remitir acá, que es lo que ya hacía el controller de
+grabaciones: **en el código no queda ningún número.** Quien agregue un lugar
+nuevo lo suma a la lista del grupo que corresponda a lo que su chequeo hace.
 
 **«Mi mesa en este taller» vive en `Workshop#group_of`, y en ningún otro lado.**
 Estaba escrito tres veces —el `group_of` privado de los dos controllers que
@@ -1008,6 +1010,21 @@ quien veía una onda moverse al lado de un «Grabar» lo apretaba y cortaba la
 grabación. Si alguien «arregla» el archivo copiando a los hermanos, se cortan
 grabaciones y ninguna suite se entera: el único testigo es `[GRABAR]`.
 
+**Y «el estado vive en el módulo» incluye A DÓNDE va lo grabado, que es la mitad
+que al principio no estaba.** `urlDeSubida` e `ideaDeSubida` se leen del DOM en
+`arrancar()`, en el clic, y `subir()` usa ésos y no `caja.dataset`. Parece
+redundancia hasta que se ve el camino: `start()` hace `caja = encontrado`
+**antes** del `rec.stop()`, así que en una navegación real el handler de parada
+corría contra el contenedor de la pantalla NUEVA. Repro de dos clics: grabando
+en la sala A, al selector del taller (sin contenedor, así que `caja` queda en
+null y el grabador sigue, porque Turbo no dispara `pagehide`), «Entrar» a la
+sala B, y la conversación de la mesa A se guardaba como grabación de la mesa B,
+con su link de descarga. De un clic: en evolución, elegir otra idea paraba la
+grabación y la etiquetaba con la idea nueva, contra la regla de que `idea_id` es
+«qué idea tenía la sala elegida AL APRETAR GRABAR». Ningún spec de request lo
+ve —el destino lo elige el cliente— y `[GRABAR]` tampoco, porque no navega entre
+salas mientras graba.
+
 **Una navegación en medio de la grabación PIERDE el audio, y `keepalive` no lo
 salva.** La despedida del borrador no se traslada: la spec de Fetch topa el
 cuerpo de un `keepalive` en 64 KB y el audio son megabytes. Sin subida
@@ -1155,11 +1172,24 @@ real y vectores reales a la vez, y con dos tampoco voz real. Sin declarar el
 segundo o el tercero se usa el de chat si sabe hacer lo que se le pide
 (`Provider#embeddings?`, `Provider#transcription?`), y si no el fixture.
 
-**`FLOW_SPEECH_PROVIDER` no está declarada en `.env` a propósito**, y es lo que
-hace que `make spec` y `make screens` no facturen: Anthropic no sabe
-transcribir, la cascada cae al fixture y el recorrido de la grabación corre sin
-red. `DEEPGRAM_API_KEY` sí está en `.env`, y anda. Declarar la variable es
-elegir que cada corrida cueste plata.
+**`FLOW_SPEECH_PROVIDER` se deja VACÍA a propósito**, y es lo que hace que
+`make spec` y `make screens` no facturen: Anthropic no sabe transcribir, la
+cascada cae al fixture y el recorrido de la grabación corre sin red. Declararla
+es elegir que cada corrida cueste plata.
+
+**Y encenderla es tocar `docker-compose.yml`, no sólo el `.env`.** El compose
+enumera el entorno de cada contenedor con `${VAR:-default}` y **no tiene
+`env_file:`**, así que el `.env` sirve nada más que para INTERPOLAR: una
+variable que el compose no nombra no llega a ningún proceso, por más que esté
+escrita en el `.env`. Medido el 2026-10-08: las tres de voz no estaban en el
+anchor, y en `sidekiq` —que es el proceso que corre el job de transcripción—
+`env | grep -cE "FLOW_SPEECH|DEEPGRAM"` daba **0**, o sea que el eje era
+imposible de encender. Ahora las tres van en `&app_env` con default vacío, y
+`app_test` fija `FLOW_SPEECH_PROVIDER: fixture` con la credencial en `""`, igual
+que los otros dos ejes: el contenedor de test no puede llegar a un proveedor
+real ni depender de una key. De `DEEPGRAM_API_KEY` lo que está medido es que
+**autentica desde el host** —un `curl` a `/v1/listen` con un clip devolvió
+200—; lo que el compose agrega es que ahora el contenedor la recibe.
 
 Los adapters de embeddings (`Providers::Openai`, `Providers::Voyage`) heredan
 de `HttpEmbeddings`, que trae lo que es fácil hacer mal —respetar el índice de
@@ -1791,6 +1821,21 @@ las dé por cubiertas:**
   común por texto sin mandar—. Las propuestas no tienen este problema porque ahí
   el guarda de arriba SÍ se niega a repartir; el borrador es el primer artefacto
   por fila de mesa sin ese guarda.
+- **Y la grabación hereda eso mismo, con voces de personas adentro: repartir de
+  nuevo le entrega a los ocupantes NUEVOS el audio de los anteriores.** Es el
+  mismo mecanismo —`workshop_recordings.workshop_group_id` cuelga de la fila, y
+  `seat!` reusa las filas por índice—, pero el cálculo no es el mismo que para
+  el texto: lo que cambia de dueños es una conversación grabada, identificable
+  por la voz, y la tarjeta de la mesa nueva le ofrece el link para
+  **descargarla**. Un borrador se lee y se puede tirar; una grabación se baja.
+  Queda **aceptado como límite** y escrito acá porque las dos salidas son
+  peores: borrar las grabaciones al repartir destruye lo único irrecuperable
+  —«sin el audio una transcripción mala es definitiva»— y negar el reparto
+  bloquea una operación común, que es la misma asimetría que el borrador ya
+  tiene documentada. Lo que la revisión final SÍ arregló es lo otro: el barrido
+  de mesas vacías de `seat!` se las llevaba (ver la cláusula, que ahora también
+  pregunta `workshop_recordings.empty?`). Mover mesas a mano, con trabajo
+  hecho, sigue siendo lo que la pantalla recomienda.
 - **Un envío FALLIDO pierde lo tecleado desde la última pausa de dos
   segundos.** El listener de `submit` pone `sucio = false` —tiene que hacerlo:
   si no, cada envío exitoso recrearía el borrador con lo que el servidor acaba
