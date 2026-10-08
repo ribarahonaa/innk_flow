@@ -5,21 +5,23 @@
 > `superpowers:executing-plans` para implementar tarea por tarea. Los pasos usan
 > casillas (`- [ ]`) para seguimiento.
 
-**Goal:** La mesa de un taller aprieta grabar, habla, y la sala muestra qué se
-dijo y con cuánta confianza de hablante.
+**Goal:** La mesa de un taller aprieta grabar, **ve la línea de sonido moverse
+mientras habla**, y la sala muestra qué se dijo y con cuánta confianza de
+hablante.
 
 **Architecture:** Un cuarto eje de proveedor (`FLOW_SPEECH_PROVIDER`) que espeja
 `embeddings_provider`, con `Providers::Deepgram` para el camino real y
 `Providers::Fixture` para el determinista. El audio lo graba `MediaRecorder` en
-el navegador, se sube en un POST, vive en Active Storage detrás de una fila
-`workshop_recordings` con `TenantScoped`, y lo transcribe un job calcado de
-`EmbedVersionJob`. La transcripción se guarda normalizada —20 veces más chica que
-la respuesta cruda, medido— y el audio se conserva porque re-transcribir es el
-arreglo de una diarización colapsada.
+el navegador —con un `AnalyserNode` en paralelo que alimenta la onda en vivo—, se
+sube en un POST, vive en Active Storage detrás de una fila `workshop_recordings`
+con `TenantScoped`, y lo transcribe un job calcado de `EmbedVersionJob`. La
+transcripción se guarda normalizada —20 veces más chica que la respuesta cruda,
+medido— y el audio se conserva porque re-transcribir es el arreglo de una
+diarización colapsada.
 
 **Tech Stack:** Rails 7.1, Postgres con `structure.sql`, Active Storage (servicio
-`local`), Sidekiq, Net::HTTP de la stdlib, `MediaRecorder` + `getUserMedia`,
-Playwright para el recorrido.
+`local`), Sidekiq, Net::HTTP de la stdlib, `MediaRecorder` + `getUserMedia` +
+Web Audio (`AnalyserNode`), Playwright para el recorrido.
 
 **Spec:** `docs/superpowers/specs/2026-10-08-grabacion-de-la-mesa-design.md`
 
@@ -42,7 +44,20 @@ Playwright para el recorrido.
   reales (`Providers::Openai`, `Providers::Voyage`) no tienen specs: lo que se
   prueba es la normalización como función pura. Una gema nueva pediría `make
   rebuild`.
-- **Sin `bundle add` ni `yarn add`:** todo lo que hace falta ya está.
+- **Sin `bundle add` ni `yarn add`:** todo lo que hace falta ya está. La onda va
+  con Web Audio de la plataforma; **ninguna librería de visualización**.
+- **La onda va en barras del DOM, NUNCA en un `<canvas>`.** No hay un solo canvas
+  en el repo, y un canvas es una caja negra para todas las guardas: `[CLASES]`,
+  `[CONTRASTE]` y `[SOMBRA]` no ven adentro, y una guarda que no puede ver da
+  permiso.
+- **El color de la onda es `--dato` / `--dato-fuerte`**, por la regla «el acento
+  es de las ACCIONES; los gráficos van con la tinta de datos». **No** el morado
+  `#8520BD` del Figma: no pinta un pixel en la app, adoptarlo es una decisión
+  abierta que nadie tomó, y además es uno de los dos colores del Figma que no
+  pasan el piso de 4,5:1 de `[CONTRASTE]`.
+- **Clases literales, nunca interpoladas.** `spec/lint/clases_interpoladas_spec.rb`
+  mira HAML, `.vue` **y `.js`**: una clase armada con un template literal no
+  llega a la hoja de Tailwind y el elemento queda sin ninguna regla detrás.
 - **`FLOW_SPEECH_PROVIDER` NO se declara en `.env`.** La cascada cae al fixture
   sola, así que `make spec` y `make screens` no facturan. `DEEPGRAM_API_KEY` ya
   está en `.env`.
@@ -69,6 +84,10 @@ no se dijera acá. Cada línea tiene su test asignado a la tarea dueña del cód
    `utterances=true` de la query, o la API cambia). Normalizar tiene que caer a
    las palabras del canal o dejar la lista vacía, nunca reventar con
    `NoMethodError` sobre `nil`. → Tarea 2.
+6. **Un micrófono que entrega silencio** (tapado, en mute por hardware, o el
+   equipo equivocado elegido en el sistema). La onda queda plana y es la única
+   señal que lo dice: el cronómetro corre igual. Es la razón de existir de la
+   onda y lo que `[GRABAR]` mide por la corrida de silencio. → Tarea 7.
 
 ---
 
@@ -88,8 +107,9 @@ no se dijera acá. Cada línea tiene su test asignado a la tarea dueña del cód
 | `config/routes.rb` | suma `resources :recordings` en la sala | 4 |
 | `app/jobs/flow/workshops/transcribe_recording_job.rb` | **nuevo** | 5 |
 | `app/lib/flow/workshops/transcribe_recording.rb` | **nuevo** · el servicio | 5 |
-| `app/views/workshop_rooms/_recording.html.haml` | **nuevo** · control + transcripción | 6 |
-| `app/javascript/workshop_recording.js` | **nuevo** · estado en el módulo | 6 |
+| `app/views/workshop_rooms/_recording.html.haml` | **nuevo** · control + onda + transcripción | 6 |
+| `app/javascript/workshop_recording.js` | **nuevo** · estado en el módulo + el `AnalyserNode` | 6 |
+| `app/assets/stylesheets/application.css` | suma `.waveform` y `.waveform__bar` | 6 |
 | `app/javascript/application.js` | importa el nuevo | 6 |
 | `config/locales/es.yml` | textos de estado y de fallo | 6 |
 | `script/capture_screens.js` | la guarda `[GRABAR]` y las flags | 7 |
@@ -1849,7 +1869,13 @@ git commit -m "El job transcribe fuera del request, y sale temprano sobre una gr
   `#speakers` (Tarea 3); la ruta `workshop_sala_recordings_path` (Tarea 4).
 - Produces: el partial `workshop_rooms/_recording`, que las dos caras
   renderizan; `data-recording-url` en el contenedor, que es lo que enciende el
-  JS —mismo principio que `data-draft-url` y `data-live`—.
+  JS —mismo principio que `data-draft-url` y `data-live`—; y
+  **`data-level`** en el mismo contenedor, el RMS crudo de 0 a 1 con tres
+  decimales, que el bucle de dibujo reescribe en cada frame. Es el **único**
+  puente por el que una guarda puede medir la onda, y por eso existe como
+  atributo y no sólo como alto de una barra.
+- Produces: las clases `.waveform` y `.waveform__bar`, literales, con regla
+  propia en la hoja.
 
 - [ ] **Paso 1: Escribir el spec que falla**
 
@@ -1891,6 +1917,40 @@ RSpec.describe "sala del taller: el bloque de grabación", type: :request do
 
     expect(response.body).to include("data-recording-url")
     expect(response.body).to include(workshop_sala_recordings_path(s[:workshop], s[:link]))
+  end
+
+  it "trae la onda con sus 40 barras, escondida hasta que haya micrófono" do
+    # Las barras van en el MARKUP y no las crea el JS: así Tailwind ve las
+    # clases y un morph que borre los `style` en línea se arregla en el frame
+    # siguiente. `hidden` porque una onda plana sin grabar se lee como un
+    # micrófono que no toma nada.
+    s = sala
+    sign_in_as(ana, company)
+
+    visitar(s)
+
+    expect(response.body.scan('class="waveform__bar"').size).to eq(40)
+    expect(response.body).to match(/<div[^>]*class="waveform"[^>]*hidden/)
+  end
+
+  it "la última grabación abre su transcripción sola, y la anterior no" do
+    # Hacer clic para ver lo que acabás de grabar es un paso que no agrega nada.
+    # `recent_first`, así que la primera del listado es la última grabada.
+    s = sala
+    as_company(company) do
+      create(:workshop_recording, :ready, workshop_group: s[:group],
+                                          workshop_challenge: s[:link], recorded_by: ana,
+                                          created_at: 2.minutes.ago)
+      create(:workshop_recording, :ready, workshop_group: s[:group],
+                                          workshop_challenge: s[:link], recorded_by: ana,
+                                          created_at: 1.minute.ago)
+    end
+    sign_in_as(ana, company)
+
+    visitar(s)
+
+    expect(response.body.scan(/<details open/).size).to eq(1)
+    expect(response.body.scan(/<details/).size).to eq(2)
   end
 
   it "desde la mesa de llegada NO trae el control" do
@@ -2036,17 +2096,41 @@ Crear `app/views/workshop_rooms/_recording.html.haml`:
     -# `data-recording-url` es lo que enciende el JS: el JS no sabe ni tiene que
     -# saber si esta sala admite trabajo. Mismo principio que `data-draft-url` y
     -# que `data-live` en `arrival_live.js`.
+    -#
+    -# `data-level` lo reescribe el bucle de dibujo con el RMS crudo. Es el ÚNICO
+    -# puente por el que `[GRABAR]` puede medir la onda: las alturas de las
+    -# barras dicen cómo quedó el dibujo, y esto dice qué midió el micrófono.
     %div{ data: { recording_url: workshop_sala_recordings_path(workshop, link),
-                  bitrate: 32_000 } }
-      -# Lo rellena el JS según el estado, y arranca con el motivo de por qué no
-      -# se puede grabar si ése es el caso. Nace con el botón para que quien
-      -# tenga JS apagado vea algo y no un hueco.
-      %p.muted{ data: { recording_role: "status" } }
-      %button.btn.btn-primary{ type: "button", data: { recording_role: "toggle" } }
-        = t("flow.recordings.start")
+                  bitrate: 32_000, level: "0" } }
+      -# UN control, y el botón ES el estado: «Grabar» → onda con cronómetro y
+      -# «Parar» → deshabilitado mientras sube. Ningún menú, ningún formato,
+      -# ninguna opción de calidad: la mesa está en una reunión.
+      .form-actions
+        %button.btn.btn-primary{ type: "button", data: { recording_role: "toggle" } }
+          = t("flow.recordings.start")
+        -# Mientras graba dice el cronómetro y nada más: un texto «Grabando» al
+        -# lado de una onda que se mueve es decir dos veces lo mismo. Fuera de
+        -# ese momento lleva el motivo de por qué no se puede grabar.
+        %p.muted{ data: { recording_role: "status" } }
+
+      -# Las barras las dibuja el JS reescribiendo su `height`. Van en el DOM y
+      -# NO en un `<canvas>` porque no hay un solo canvas en el repo y un canvas
+      -# es una caja negra para todas las guardas. Nacen en el markup —40, fijas—
+      -# para que el JS sólo toque alturas: así un morph que borre los `style` en
+      -# línea se arregla en el frame siguiente, y Tailwind ve las clases.
+      -#
+      -# `hidden` hasta que haya micrófono abierto: una onda plana sin grabar se
+      -# lee como un micrófono que no toma nada.
+      .waveform{ hidden: true, data: { recording_role: "wave" } }
+        - 40.times do
+          %span.waveform__bar
 
 - if recordings.any?
-  - recordings.each do |recording|
+  -# `recent_first`, así que la primera es la última grabada y es la que se abre
+  -# sola: hacer clic para ver lo que acabás de grabar es un paso que no agrega
+  -# nada. Un `open` que pone el SERVIDOR sobrevive al morph — el guardia de
+  -# `application.js` cancela la REMOCIÓN del `open`, no su agregado.
+  - recordings.each_with_index do |recording, i|
     .card
       .card-body
         .section-head
@@ -2054,9 +2138,10 @@ Crear `app/views/workshop_rooms/_recording.html.haml`:
             = l(recording.created_at, format: :short)
             %span{ class: chip_de_grabacion(recording.status) }
               = t("flow.recording_statuses.#{recording.status}")
+        -# Chicos y apagados, no en el encabezado: `provider` y `model` hacen
+        -# falta para que una transcripción de fixture no se lea como real, y no
+        -# son lo que la mesa vino a ver.
         %p.muted
-          -# `provider` y `model` en pantalla: sin esto alguien lee una
-          -# transcripción de fixture como si fuera real.
           = recording.recorded_by.name
           - if recording.model.present?
             = "· #{recording.model}"
@@ -2074,7 +2159,7 @@ Crear `app/views/workshop_rooms/_recording.html.haml`:
           - if recording.collapsed_diarization?
             .alert.alert-soft.alert-warning
               %div= t("flow.recordings.collapsed_diarization")
-          %details
+          %details{ open: i.zero? }
             %summary= t("flow.recordings.transcript")
             %ul.field-list
               - recording.utterances.each do |u|
@@ -2159,13 +2244,30 @@ let trozos = [];
 let stream = null;
 let desde = null;
 let cronometro = null;
+// La onda. `audio` es el AudioContext, que hay que CERRAR al parar: sin eso
+// queda uno por grabación y el navegador termina negándose a dar más.
+let audio = null;
+let analizador = null;
+let muestras = null;
+let frame = null;
 
 const TEXTOS = {
   start: 'Grabar',
   stop: 'Parar',
-  recording: 'Grabando',
   uploading: 'Subiendo…',
 };
+
+// Cuántas barras hay NO se declara acá: el bucle lee `onda.children`, así que la
+// cantidad vive en un solo lugar, el markup del partial. Una constante al lado
+// sería una segunda fuente que el día que difiera deja barras sin dibujar o un
+// índice fuera de rango.
+//
+// Abajo de esto la barra se dibuja en su mínimo. Es un umbral de PRESENTACIÓN y
+// decide un alto en pixeles, no si se avisa algo: a diferencia del de la
+// diarización, acá no hay decisión que un número inventado pueda falsear. El
+// nivel CRUDO se publica igual en `data-level`, así que lo que se mide es la
+// causa y no el dibujo.
+const PISO_VISIBLE = 0.01;
 
 function nodo(rol) {
   return caja ? caja.querySelector(`[data-recording-role="${rol}"]`) : null;
@@ -2208,7 +2310,96 @@ function tictac() {
   const seg = Math.floor((Date.now() - desde) / 1000);
   const mm = String(Math.floor(seg / 60)).padStart(2, '0');
   const ss = String(seg % 60).padStart(2, '0');
-  pintar('grabando', `${TEXTOS.recording} ${mm}:${ss}`);
+  // Sólo el cronómetro: la onda que se mueve al lado ya dice «grabando».
+  pintar('grabando', `${mm}:${ss}`);
+}
+
+// ── La onda ───────────────────────────────────────────────────────────────
+//
+// Barras del DOM y NO un `<canvas>`: no hay un solo canvas en el repo, y un
+// canvas es una caja negra para todas las guardas —`[CLASES]`, `[CONTRASTE]`,
+// `[SOMBRA]` no ven adentro— y una guarda que no puede ver DA PERMISO. De paso
+// el color lo pone la hoja con `--dato`, en vez de que el JS tenga que leer el
+// token y re-leerlo al cambiar de tema.
+function abrirAnalizador() {
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return false;
+  audio = new Ctx();
+  analizador = audio.createAnalyser();
+  // 1024 en el dominio del tiempo alcanza de sobra para un RMS y cuesta menos
+  // que el default de 2048.
+  analizador.fftSize = 1024;
+  muestras = new Uint8Array(analizador.fftSize);
+  audio.createMediaStreamSource(stream).connect(analizador);
+  return true;
+}
+
+// RMS de 0 a 1. Los bytes del dominio del tiempo vienen centrados en 128, así
+// que el silencio da ~0 y no ~0,5.
+function nivel() {
+  if (!analizador) return 0;
+  analizador.getByteTimeDomainData(muestras);
+  let suma = 0;
+  for (let i = 0; i < muestras.length; i++) {
+    const v = (muestras[i] - 128) / 128;
+    suma += v * v;
+  }
+  return Math.sqrt(suma / muestras.length);
+}
+
+function dibujar() {
+  frame = null;
+  if (!caja || !caja.isConnected) return;
+  const onda = nodo('wave');
+  // Se re-consulta cada frame y no se cachea: un morph puede haber reemplazado
+  // las barras, y con la referencia vieja el bucle dibujaría sobre nodos
+  // desconectados sin que se vea nada.
+  if (!onda) return;
+
+  const n = nivel();
+  // El nivel CRUDO, que es lo que `[GRABAR]` mide. Tres decimales alcanzan y
+  // evitan reescribir el atributo con ruido de punto flotante.
+  caja.dataset.level = n.toFixed(3);
+
+  const barras = onda.children;
+  // Se corre todo una posición y la nueva entra al final: la onda SCROLLEA, que
+  // es lo que deja ver dónde hubo silencio hace tres segundos. Un osciloscopio
+  // instantáneo no muestra historia.
+  for (let i = 0; i < barras.length - 1; i++) {
+    barras[i].style.height = barras[i + 1].style.height;
+  }
+  const alto = n < PISO_VISIBLE ? 2 : Math.min(100, Math.round(n * 260));
+  barras[barras.length - 1].style.height = `${alto}%`;
+
+  if (rec && rec.state === 'recording') frame = requestAnimationFrame(dibujar);
+}
+
+function pararOnda() {
+  if (frame !== null) cancelAnimationFrame(frame);
+  frame = null;
+  // CERRAR el contexto, no sólo soltarlo: uno por grabación se acumula.
+  if (audio) audio.close().catch(() => {});
+  audio = null;
+  analizador = null;
+  muestras = null;
+  const onda = nodo('wave');
+  if (onda) {
+    onda.hidden = true;
+    Array.from(onda.children).forEach((b) => { b.style.height = ''; });
+  }
+  if (caja) caja.dataset.level = '0';
+}
+
+// Mientras graba, irse de la página AVISA. No es prolijidad: `keepalive` tiene
+// un tope de 64 KB por especificación y el audio son megabytes, así que una
+// navegación real pierde lo grabado y no hay despedida que lo salve. Avisar es
+// lo único que se puede hacer sin subida progresiva.
+function alDescargar(e) {
+  if (!rec || rec.state !== 'recording') return;
+  e.preventDefault();
+  // Los navegadores modernos ignoran el texto y muestran el suyo; hay que
+  // asignar `returnValue` igual para que el diálogo aparezca.
+  e.returnValue = '';
 }
 
 async function arrancar() {
@@ -2234,9 +2425,19 @@ async function arrancar() {
   desde = Date.now();
   cronometro = setInterval(tictac, 1000);
   tictac();
+
+  // La onda arranca DESPUÉS del grabador: si el analizador no se puede abrir
+  // —un navegador sin Web Audio— se graba igual. La onda es la mejor señal que
+  // hay, no una condición para grabar.
+  const onda = nodo('wave');
+  if (abrirAnalizador() && onda) {
+    onda.hidden = false;
+    frame = requestAnimationFrame(dibujar);
+  }
 }
 
 function soltarMicrofono() {
+  pararOnda();
   if (stream) stream.getTracks().forEach((t) => t.stop());
   stream = null;
   if (cronometro !== null) clearInterval(cronometro);
@@ -2272,6 +2473,14 @@ async function subir() {
     // el 302 y convierte el POST en GET. Es el mismo bug que el autoguardado
     // pagó, y acá costaría la reunión entera.
     if (res.status !== 201) { pintar('idle', caja.dataset.failedText); return; }
+    // Se devuelve el botón a `idle` ANTES de navegar, y no es redundante: la
+    // navegación es un morph a la misma URL, y `start()` sale temprano cuando el
+    // nodo es el mismo —ahí está grabando o acaba de grabar—, así que no vuelve
+    // a pintar. El morph le sacaría el `disabled` igual, porque el HTML del
+    // servidor no lo trae, pero eso es un accidente afortunado y no una
+    // garantía: si mañana el botón nace deshabilitado en el markup, queda
+    // muerto después de cada subida.
+    pintar('idle');
     // La pantalla la refresca el servidor: se visita la misma URL y Turbo
     // morfea, así que la tarjeta nueva aparece con su estado «en cola».
     window.Turbo ? window.Turbo.visit(window.location.href, { action: 'replace' })
@@ -2309,15 +2518,64 @@ function start() {
 addEventListener('turbo:load', start);
 // Irse de la página de verdad sí para: el micrófono no puede quedar abierto.
 addEventListener('pagehide', () => { if (rec && rec.state === 'recording') rec.stop(); });
+addEventListener('beforeunload', alDescargar);
 ```
 
-- [ ] **Paso 7: Importarlo y pasar los textos**
+- [ ] **Paso 7: Importarlo, pasar los textos, y la regla de la onda**
 
 En `app/javascript/application.js`, junto a los otros imports:
 
 ```javascript
 import './workshop_recording';
 ```
+
+En `app/assets/stylesheets/application.css`, junto a `.histogram__bar` —que es el
+otro gráfico de barras de la app y comparte la tinta—:
+
+```css
+/* La onda del micrófono. Clase propia y no doce utilidades: es vocabulario de
+   esta app y aparece con su regla, que es lo que `[CLASES]` puede ver. Va en
+   barras del DOM y no en un `<canvas>` porque un canvas es una caja negra para
+   todas las guardas.
+
+   En TINTA DE DATOS y no en el acento: el acento es de las acciones, y una
+   barra pintada con el violeta del botón de al lado se lee como un control.
+   Misma regla que los dos gráficos de reportería. */
+.waveform {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 48px;
+  margin: 12px 0 0;
+  padding: 0 2px;
+}
+
+/* El `height` lo escribe el JS en línea, en porcentaje. El mínimo de 2px es lo
+   que hace que el silencio se vea como una línea y no como un hueco: una barra
+   de alto 0 desaparece, y una onda con agujeros no se lee como silencio sino
+   como que algo se rompió. */
+.waveform__bar {
+  flex: 1 1 0;
+  min-height: 2px;
+  height: 2px;
+  background: var(--dato);
+  border-radius: 2px;
+  /* Sin transición: el dato ES la altura instantánea, y un suavizado de 100ms
+     le miente al ojo sobre cuándo hubo silencio. */
+}
+
+/* La última barra es la que acaba de entrar: un paso más oscura para que se lea
+   dónde está el "ahora" de la onda. Mismo recurso que `--dato-fuerte` en el
+   contorno del histograma. */
+.waveform__bar:last-child { background: var(--dato-fuerte); }
+```
+
+**No lleva `@media (prefers-reduced-motion)`, y es una decisión con
+precedente.** La hoja ya dice por qué, para el spinner de la IA: «sigue girando
+—que es lo que hace falta: es la ÚNICA señal de que la IA sigue trabajando, y
+quieto se lee como colgado—». La onda es exactamente eso para el micrófono:
+quieta se lee como un micrófono que no toma nada, que es justo el estado que
+tiene que poder distinguir.
 
 En el partial, sumar los textos al `data` del contenedor (el JS los lee de ahí
 para no duplicar el locale en JavaScript):
@@ -2399,13 +2657,19 @@ en verde una app que no es la que escribiste:
 make yarn-build
 ```
 
-Verificá que el bundle lo tiene:
+Verificá **las dos mitades**, porque son dos archivos compilados distintos y se
+puede tener uno sin el otro:
 
 ```bash
-docker compose exec app grep -c "workshop_recording\|recordingUrl" app/assets/builds/application-build.js
+docker compose exec app grep -c "recordingUrl" app/assets/builds/application-build.js
+docker compose exec app grep -c "waveform__bar" app/assets/builds/application-build-css.css
 ```
 
-Esperado: un número mayor que 0. Si da 0, el import no entró.
+Esperado: los dos mayores que 0. Si el primero da 0, el import no entró; si el
+segundo da 0, la regla no se compiló y la onda sale **sin alto, sin color y sin
+`display:flex`** — o sea las barras apiladas en una columna, y
+`spec/lint/reglas_sin_elemento_spec.rb` no lo caza porque ese lint busca reglas
+SIN elemento y acá pasa lo contrario.
 
 - [ ] **Paso 11: Correr el spec y verificar que pasa**
 
@@ -2431,10 +2695,11 @@ debería, porque la sala no es una pantalla de módulo.
 ```bash
 git add app/views/workshop_rooms/ app/javascript/workshop_recording.js \
         app/javascript/application.js app/helpers/estilos_helper.rb \
+        app/assets/stylesheets/application.css \
         app/controllers/workshop_rooms_controller.rb config/locales/es.yml \
         spec/requests/pantalla_de_la_sala_grabacion_spec.rb \
         spec/helpers/estilos_helper_spec.rb
-git commit -m "La mesa graba desde el navegador, y el control dice por qué no puede en vez de no hacer nada"
+git commit -m "La mesa graba desde el navegador y ve la línea de sonido; el control dice por qué no puede en vez de no hacer nada"
 ```
 
 ---
@@ -2461,24 +2726,33 @@ git commit -m "La mesa graba desde el navegador, y el control dice por qué no p
 que el contenedor monta (`-v "$(PWD)/script:/script:ro"` en el `Makefile`), así
 que el archivo va ahí y adentro se ve como `/script/fake_audio.wav`.
 
-Dos voces y una pausa en el medio, que es lo que deja ver si la diarización
-separó. Se arma **en el host**, que tiene ffmpeg con `flite`:
+**La estructura importa y no es decorativa: voz → SILENCIO → voz, con la
+grabación de la guarda más corta que el archivo.** Ese silencio del medio es lo
+único que distingue una onda real de una decorativa: números al azar o una
+animación suelta dan nivel siempre, y nunca producen la corrida de ceros.
+
+Se arma **en el host**, que tiene ffmpeg con `flite`:
 
 ```bash
 ffmpeg -hide_banner -loglevel error -f lavfi \
   -i "flite=text='We should reduce the waste in the winery by reusing the barrels.':voice=slt" \
-  -t 5 /tmp/a.wav -y
-ffmpeg -hide_banner -loglevel error -f lavfi -i anullsrc=r=16000:cl=mono -t 1 /tmp/sil.wav -y
+  -t 2.5 /tmp/a.wav -y
+# 1,5 s de silencio: largo para que la guarda lo vea en varias muestras
+# consecutivas, corto para no alargar la corrida.
+ffmpeg -hide_banner -loglevel error -f lavfi -i anullsrc=r=16000:cl=mono -t 1.5 /tmp/sil.wav -y
 ffmpeg -hide_banner -loglevel error -f lavfi \
   -i "flite=text='I disagree. The real problem is the onboarding of the new operators.':voice=awb" \
-  -t 5 /tmp/b.wav -y
+  -t 2.5 /tmp/b.wav -y
+# Voz PRIMERO, no silencio: así el máximo queda establecido antes del hueco, y
+# una onda que nunca arrancó no se confunde con el silencio del medio.
 printf "file '/tmp/a.wav'\nfile '/tmp/sil.wav'\nfile '/tmp/b.wav'\n" > /tmp/l.txt
 ffmpeg -hide_banner -loglevel error -f concat -safe 0 -i /tmp/l.txt \
   -ar 16000 -ac 1 script/fake_audio.wav -y
-ls -l script/fake_audio.wav
+ffprobe -hide_banner script/fake_audio.wav 2>&1 | grep Duration
 ```
 
-Esperado: un wav de ~11 segundos y ~350 KB.
+Esperado: ~6,5 segundos. La guarda graba **6**, así que la ventana cubre
+voz → silencio → voz.
 
 **Y una aclaración para que nadie se confunda después:** con
 `FLOW_SPEECH_PROVIDER` sin declarar, la transcripción la da el **fixture**, que
@@ -2534,7 +2808,25 @@ let recordingMeasurements = 0;
 // EXACTO en 2, por el mismo motivo que `PISO_DE_BORRADORES`: cuenta CARAS
 // —idear y evolución— y no hay una tercera, así que un piso flojo no cazaría
 // que una dejó de medirse.
+//
+// Una cara cuenta como medida sólo si pasaron TODAS las fases —el control, la
+// onda con su silencio, la subida y la transcripción—, igual que en `[DRAFT]`.
+// Un contador por fase volvería el piso 4 y rompería la semántica de «caras».
 const PISO_DE_GRABACIONES = 2;
+
+// Los umbrales de la onda. **Se CALIBRAN midiendo, no se adivinan**: el Paso 7
+// manda imprimir la serie real del micrófono falso y pinchar estos tres con lo
+// que salga. Los valores de abajo son el punto de partida.
+//
+// `VOZ_MINIMA` es el piso del pico durante la voz; `SILENCIO_MAXIMO` el techo de
+// una muestra que cuenta como silencio —el mismo orden de magnitud que
+// `PISO_VISIBLE` del JS, a propósito—; y `MUESTRAS_DE_SILENCIO`, cuántas
+// seguidas hacen falta. El silencio del wav dura 1,5 s y se muestrea cada
+// 100 ms, o sea ~15 muestras: pedir 8 deja margen para el ataque y la cola de
+// las voces de al lado.
+const VOZ_MINIMA = 0.02;
+const SILENCIO_MAXIMO = 0.005;
+const MUESTRAS_DE_SILENCIO = 8;
 ```
 
 - [ ] **Paso 4: Escribir la guarda**
@@ -2568,6 +2860,21 @@ async function revisarGrabacion(page, nombre) {
     return;
   }
 
+  const onda = caja.locator('[data-recording-role="wave"]');
+  // Antes de grabar la onda está escondida: una onda plana sin micrófono abierto
+  // se lee como un micrófono que no toma nada.
+  if (!(await onda.isHidden())) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: la onda se ve antes de grabar y tendría que estar escondida`);
+    return;
+  }
+  const barras = await onda.locator('.waveform__bar').count();
+  if (barras !== 40) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: la onda tiene ${barras} barras y el markup declara 40`);
+    return;
+  }
+
   const antes = await page.locator('details summary').count();
   await boton.click();
   // Que el cronómetro corra es la prueba de que `getUserMedia` resolvió: el
@@ -2583,8 +2890,50 @@ async function revisarGrabacion(page, nombre) {
     return;
   }
 
-  await page.waitForTimeout(3000);
+  // ── La onda ────────────────────────────────────────────────────────────
+  //
+  // Se muestrea `data-level` —el RMS CRUDO, no el alto de la barra— mientras
+  // graba. Es el único puente medible: las barras dicen cómo quedó el dibujo y
+  // esto dice qué midió el micrófono.
+  const niveles = [];
+  for (let i = 0; i < 60; i++) {
+    niveles.push(Number(await caja.getAttribute('data-level')));
+    await page.waitForTimeout(100);
+  }
+
   await boton.click();
+
+  // Dos aserciones sobre la serie, y la SEGUNDA es la que discrimina.
+  //
+  // Que el máximo esté arriba de cero sólo prueba que algo se mueve: una onda
+  // decorativa con números al azar también lo logra. Lo que una onda falsa NO
+  // puede producir es la corrida de muestras cerca de cero del silencio que el
+  // wav tiene a propósito entre las dos voces. Por eso el archivo se arma
+  // voz → silencio → voz y la grabación dura menos que él.
+  const pico = Math.max(...niveles);
+  let corrida = 0;
+  let mayorCorrida = 0;
+  for (const n of niveles) {
+    corrida = n <= SILENCIO_MAXIMO ? corrida + 1 : 0;
+    if (corrida > mayorCorrida) mayorCorrida = corrida;
+  }
+  const serie = niveles.map((n) => n.toFixed(3)).join(' ');
+  if (pico < VOZ_MINIMA) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: el pico de la onda fue ${pico.toFixed(3)} y el mínimo esperado es ${VOZ_MINIMA}: el AnalyserNode no está leyendo el micrófono. Serie: ${serie}`);
+    return;
+  }
+  if (mayorCorrida < MUESTRAS_DE_SILENCIO) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: la corrida de silencio más larga fue de ${mayorCorrida} muestras y hacen falta ${MUESTRAS_DE_SILENCIO}: la onda da nivel incluso en el silencio del wav, o sea que no está midiendo audio real. Serie: ${serie}`);
+    return;
+  }
+  if (!(await onda.isHidden())) {
+    failures++;
+    console.error(`[GRABAR] ${nombre}: después de parar la onda sigue visible: el bucle de dibujo o el AudioContext no se cerraron`);
+    return;
+  }
+
   // El POST y después la visita que morfea la pantalla. Se espera un `details`
   // MÁS que antes —la tarjeta nueva de la grabación—, que es una señal que sólo
   // puede existir con la pantalla nueva pintada.
@@ -2648,7 +2997,35 @@ Y junto al chequeo de `PISO_DE_BORRADORES` (~línea 3722):
   }
 ```
 
-- [ ] **Paso 7: Compilar y correr el recorrido**
+- [ ] **Paso 7: Calibrar los umbrales de la onda contra lo medido**
+
+**Los tres números no se adivinan: se miden.** Antes de dar la guarda por buena,
+hacela imprimir la serie real. Poné temporalmente `VOZ_MINIMA = 99` para forzar
+el fallo que imprime la serie:
+
+```bash
+make yarn-build
+make screens 2>&1 | grep -A1 "el pico de la onda"
+```
+
+Leé la serie que sale y pinchá los tres umbrales con lo que viste:
+
+- `VOZ_MINIMA`: bien abajo del pico real, no pegado. Si el pico mide 0,18,
+  poner 0,02 deja margen para un `flite` que suene distinto en otra máquina.
+- `SILENCIO_MAXIMO`: arriba de lo que marcan las muestras del hueco —que no van
+  a ser 0 exacto, porque opus a 32 kbps mete algo de ruido— y bien abajo de la
+  voz.
+- `MUESTRAS_DE_SILENCIO`: contá cuántas muestras seguidas quedaron abajo de ese
+  techo en el hueco, y pedí unas cuantas menos.
+
+**Si el hueco NO aparece en la serie**, no toques los umbrales: o el wav quedó
+mal armado (revisá el Paso 1), o la grabación de 6 s no alcanzó a cruzarlo, o la
+onda no está leyendo el micrófono — que es el bug que esto existe para cazar.
+
+Anotá los tres valores finales y de dónde salieron en un comentario al lado de
+las constantes.
+
+- [ ] **Paso 8: Correr el recorrido entero**
 
 ```bash
 make yarn-build
@@ -2667,7 +3044,7 @@ es otra cosa y la decide quien corra —el handoff anterior lo dejó en
 docker compose exec app env | grep -E "FLOW_(AI|SPEECH)_PROVIDER"
 ```
 
-- [ ] **Paso 8: Ver fallar la guarda, en tres mutaciones**
+- [ ] **Paso 9: Ver fallar la guarda, en cuatro mutaciones**
 
 Una guarda que nunca se vio en rojo no prueba nada, y **el baseline tiene que
 estar verde primero** o la mutación no discrimina. Tomá el backup **después**
@@ -2698,7 +3075,22 @@ cp /tmp/bk_rec.js app/javascript/workshop_recording.js && make yarn-build
 
 Esperado: rojo, al recablear el listener sobre el mismo nodo.
 
-**Mutación C — una cara deja de medirse.** Comentá la llamada de la sala de
+**Mutación C — la onda decorativa.** Es la más importante de las cuatro, porque
+es el bug que nadie vería mirando la pantalla: una onda que se mueve lindo sin
+leer el micrófono. En `nivel()`, reemplazá el cuerpo por `return Math.random() *
+0.3;`:
+
+```bash
+make yarn-build && make screens 2>&1 | grep GRABAR
+cp /tmp/bk_rec.js app/javascript/workshop_recording.js && make yarn-build
+```
+
+Esperado: rojo **por la corrida de silencio** y no por el pico —`Math.random()`
+pasa la primera aserción de sobra—. El mensaje tiene que ser el de
+«la corrida de silencio más larga fue de N muestras». Si falla por el pico, los
+umbrales están mal calibrados.
+
+**Mutación D — una cara deja de medirse.** Comentá la llamada de la sala de
 evolución:
 
 ```bash
@@ -2714,17 +3106,18 @@ ausente no distingue «restaurado» de «restaurado de más»—:
 ```bash
 grep -c "encontrado === caja" app/javascript/workshop_recording.js   # 1
 grep -c "impedimento()" app/javascript/workshop_recording.js          # 2
+grep -c "getByteTimeDomainData" app/javascript/workshop_recording.js  # 1
 grep -c "revisarGrabacion(page, 'sala de evolución')" script/capture_screens.js  # 1
 make yarn-build && make screens
 ```
 
 Esperado: verde otra vez, con `[GRABAR] 2`.
 
-- [ ] **Paso 9: Commit**
+- [ ] **Paso 10: Commit**
 
 ```bash
 git add script/capture_screens.js script/fake_audio.wav
-git commit -m "La guarda [GRABAR] ve el viaje completo con micrófono falso, y se probó con tres mutaciones"
+git commit -m "La guarda [GRABAR] ve el viaje completo y el silencio de la onda, probada con cuatro mutaciones"
 ```
 
 ---
@@ -2814,6 +3207,36 @@ teléfono por `http://<ip>:3001`, `navigator.mediaDevices` es `undefined` y no
 hay grabación. La pantalla lo detecta y lo dice en vez de dejar un botón
 mudo. **`make screens` corre en `localhost`, que es contexto seguro SIEMPRE**,
 así que ninguna corrida verde dice nada sobre esto.
+
+**La línea de sonido va en barras del DOM y NUNCA en un `<canvas>`.** No hay un
+solo canvas en el repo, y el motivo de que siga así es que un canvas es una caja
+negra para todas las guardas —`[CLASES]`, `[CONTRASTE]` y `[SOMBRA]` no ven
+adentro— y una guarda que no puede ver **da permiso**. Con barras, el color sale
+de `--dato` por la hoja (tinta de DATOS y no el acento: una barra con el violeta
+del botón de al lado se lee como un control) y las alturas quedan en el DOM. Las
+40 barras nacen en el MARKUP y el JS sólo toca `height`: así Tailwind ve las
+clases y un morph que borre los `style` en línea se arregla en el frame
+siguiente.
+
+**Lo que hace medible a la onda es `data-level`, y sin eso no habría forma.** El
+bucle publica ahí el RMS crudo, y `[GRABAR]` lo muestrea cada 100ms para exigir
+dos cosas: un pico durante la voz, **y una corrida de muestras cerca de cero**.
+La segunda es la única que discrimina —una onda decorativa con `Math.random()`
+pasa la del pico de sobra—, y por eso `script/fake_audio.wav` está armado
+voz → SILENCIO → voz y la guarda graba menos que su duración. Si alguien
+«simplifica» ese wav a una sola voz corrida, la guarda queda midiendo que algo
+se mueve y nada más.
+
+**La onda sigue moviéndose con `prefers-reduced-motion` activado**, y es la misma
+decisión que ya está tomada para el spinner de la IA, con el mismo motivo: es la
+ÚNICA señal de que el micrófono está tomando algo, y quieta se lee como un
+micrófono tapado — que es justo el estado que tiene que poder distinguir.
+
+**Y una navegación en medio de la grabación PIERDE el audio.** No hay despedida
+posible: `keepalive` tiene un tope de 64 KB por especificación y el audio son
+megabytes, así que el truco que usa el autoguardado del borrador acá no sirve.
+Lo único que se hace es avisar con un `beforeunload` mientras graba. Si alguien
+lo saca por «limpieza», se pierden reuniones en silencio.
 ```
 
 - [ ] **Paso 4: Correr todo una última vez**
@@ -2856,8 +3279,12 @@ git commit -m "Los documentos cuentan el tercer eje, el octavo arrival? y el onc
 - [ ] `make yarn-build` corrido después del último cambio a `app/javascript/`
 - [ ] `make screens` verde, con once números y `[GRABAR] 2`
 - [ ] `db/structure.sql` commiteado
-- [ ] Las tres mutaciones de la Tarea 7 vistas en rojo y restauradas, con el
-      `grep -c` de lo ARREGLADO
+- [ ] Los tres umbrales de la onda **calibrados contra la serie medida**, con el
+      comentario que dice de dónde salieron
+- [ ] Las cuatro mutaciones de la Tarea 7 vistas en rojo y restauradas, con el
+      `grep -c` de lo ARREGLADO — y la de `Math.random()` fallando **por la
+      corrida de silencio** y no por el pico
+- [ ] `waveform__bar` presente en la hoja compilada, no sólo en el fuente
 - [ ] `CLAUDE.md` dice ocho `arrival?`, tres ejes y once contadores
 - [ ] El resultado del audio real está escrito en la spec, gane o pierda
 - [ ] `FLOW_SPEECH_PROVIDER` sigue **sin declarar** en `.env`

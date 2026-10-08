@@ -8,8 +8,13 @@ Lo que se dijo en voz alta no deja rastro, y quien escribe se pierde la mitad de
 la discusión por estar escribiendo.
 
 Lo que esto construye es el primer tramo del camino de la voz: la mesa aprieta
-grabar, habla, y lee en pantalla **qué se dijo y con cuánta confianza de
-hablante**. Convertir eso en una idea es el tramo siguiente y no está acá.
+grabar, **ve la línea de sonido moverse mientras habla**, y después lee en
+pantalla **qué se dijo y con cuánta confianza de hablante**. Convertir eso en una
+idea es el tramo siguiente y no está acá.
+
+La onda no es adorno: es lo único que distingue «está grabando» de «el
+cronómetro corre con el micrófono tapado», y un cronómetro corre igual en los dos
+casos.
 
 ## Alcance: esto es C1 de tres, y C era una de cuatro
 
@@ -57,6 +62,9 @@ quien quiera saber qué está verificado y qué no.
 | ¿Cuánto pesa el audio? | **17,4 MB** por 20 min al default de Chromium | 115 kbps medidos |
 | ¿Cuánto pesa la transcripción cruda? | **0,80 MB** por 20 min | extrapolado de la respuesta real |
 | ¿Y normalizada? | **0,040 MB** por 20 min | la misma respuesta, recortada |
+| ¿`%noloop` se honra en el micrófono falso? | **sí**: 12s grabados de un wav de 5s dan la frase UNA vez | transcrito; comparar el tamaño del blob NO discrimina |
+| ¿El Figma tiene componente de audio? | **no**, ninguno | búsqueda en el design system |
+| ¿Hay algún `canvas` en el repo? | **ninguno** | de ahí que la onda vaya en DOM |
 | ¿Separa hablantes? | **NO SE SABE** | ver «La diarización, sin verificar» |
 | ¿Transcribe español? | **NO SE SABE** | `flite` sólo habla inglés |
 
@@ -317,6 +325,93 @@ Los otros dos fallos del navegador van por el mismo camino y con su propio
 texto: **permiso denegado** (`NotAllowedError`) y **sin micrófono**
 (`NotFoundError`).
 
+### La forma de onda: barras del DOM, no un canvas
+
+Mientras graba, la mesa ve **la línea de sonido en vivo**: sube cuando alguien
+habla, se achata en los silencios. No es decoración — es la única forma de saber
+que el micrófono está tomando algo, y sin ella la única señal es un cronómetro
+que corre igual con el micrófono tapado.
+
+**Va en barras del DOM y NO en un `<canvas>`, y el motivo es de este repo:** no
+hay un solo canvas en el código, y un canvas es una caja negra para **todas** las
+guardas —`[CLASES]`, `[CONTRASTE]`, `[SOMBRA]` no ven adentro—. La cultura de
+este repo es que una guarda que no puede ver **da permiso**. Con barras, las
+alturas quedan en el DOM, el color sale de la hoja, y se mide sin leer un pixel.
+
+De paso resuelve dos cosas que un canvas complica: el color lo pone CSS en vez de
+que el JS tenga que leer el token y re-leerlo al cambiar de tema, y un morph que
+borre los `style` en línea se arregla solo, porque el bucle de dibujo reescribe
+las alturas en el frame siguiente.
+
+**El color es `--dato` / `--dato-fuerte`, no el acento.** Lo decide una regla que
+ya existe: «el acento es de las ACCIONES. Los gráficos van con `--dato` /
+`--dato-fuerte` […] pintar una barra con el violeta del botón de al lado la hace
+leer como un control». Una onda es un gráfico.
+
+**Cómo se mide el nivel.** `AudioContext` → `createMediaStreamSource(stream)` →
+`AnalyserNode`, y un bucle de `requestAnimationFrame` que lee
+`getByteTimeDomainData` y calcula el RMS. El `AudioContext` se **cierra** al
+parar: sin eso queda uno por grabación.
+
+**El umbral de silencio es de PRESENTACIÓN y se dice así.** Hace falta un número
+para achatar una barra, y a diferencia del de la diarización —donde un corte
+inventado habría decidido si se avisa o no— acá sólo decide un alto en pixeles.
+El nivel **crudo** se publica igual en `data-level`, así que lo que se mide es la
+causa y no el dibujo.
+
+**Sigue moviéndose con `prefers-reduced-motion` activado**, y no es un descuido:
+el repo ya tomó esta decisión para el spinner de la IA, con el motivo escrito en
+la hoja —«es la ÚNICA señal de que la IA sigue trabajando, y quieto se lee como
+colgado»—. La onda es exactamente eso para el micrófono.
+
+### La UX: un control, y lo menos posible alrededor
+
+La mesa está en una reunión, no operando un software. Lo que eso significa acá:
+
+- **Un solo botón, y el botón ES el estado.** «Grabar» → la onda con el
+  cronómetro y «Parar» → deshabilitado mientras sube. Ningún menú, ningún
+  formato, ninguna opción de calidad.
+- **La onda reemplaza al texto mientras graba.** Un texto que dice «Grabando» al
+  lado de una onda que se mueve es decir dos veces lo mismo, y lo visual gana.
+- **El silencio y la voz se ven en la onda misma**, no en una etiqueta aparte.
+- **La transcripción de la última grabación abre sola.** Hacer clic para ver lo
+  que acabás de grabar es un paso que no agrega nada; las anteriores quedan
+  plegadas. Un `open` que pone el SERVIDOR sobrevive al morph —el guardia de
+  `application.js` cancela la remoción del `open`, no su agregado—.
+- **El proveedor, el modelo y la duración van chicos y apagados**, no en el
+  encabezado: hacen falta para que un fixture no se lea como real, y no son lo
+  que la mesa vino a ver.
+- **Irse de la página mientras graba AVISA.** Un `beforeunload` mientras hay
+  grabación en curso, porque lo que se pierde son los minutos que se hablaron
+  (ver el límite más abajo).
+
+### Las condiciones del Figma, medidas, y lo que no contestan
+
+El Figma de INNK (`3xc9srW7XlOlM9jzZ3lGjC`, «General Rediseño») **no tiene
+ningún componente de audio, grabación, onda ni micrófono** — verificado por
+búsqueda: devuelve «Radio buttom» y «cursor and manipulator» de una
+`Biblioteca-2023`, que es cómo se ve un *sin resultados* en una búsqueda difusa.
+Así que no hay referencia de forma para esto; lo que hay son condiciones, y la
+hoja de innk_flow ya las implementa:
+
+| Condición del Figma | Cómo se cumple |
+|---|---|
+| Open Sans, 13px de base | ya es la única familia de la app |
+| radios 10px campos/botones, 16px tarjetas | `--radius-field` / `--radius-box` |
+| sombra en todo campo, borde reemplazado por sombra | `--shadow`, con **una** salida deliberada: `--borde-campo`, por el 3:1 de WCAG 1.4.11 |
+| color hardcodeado, sin sistema de tokens | acá va por token, que es lo que deja existir el tema oscuro |
+
+Y tres cosas que el Figma **no puede** contestar, así que las contesta el repo:
+
+- **No hay tema oscuro en ningún frame**, y `capturar()` corre también en
+  oscuro. La onda tiene que funcionar en los dos, y por eso su color es un token
+  y no un literal.
+- **Dos de sus colores no pasan el piso de 4,5:1** que mide `[CONTRASTE]` —el
+  placeholder `#808080` da 3,95:1 y el blanco sobre `#F06653`, 3,12:1—, así que
+  portar literales pone la corrida en rojo. La onda no porta ninguno.
+- **El morado `#8520BD` sigue sin pintar un pixel en la app**, y adoptarlo es una
+  decisión abierta que nadie tomó. La onda no la toma por su cuenta.
+
 ### Los estados: tres en el navegador y cuatro en la fila
 
 No son una sola secuencia, y confundirlos es fácil porque la pantalla los
@@ -350,6 +445,16 @@ segundos. Subir los trozos a medida sobrevive a eso, y no se hace acá: los
 trozos de webm después del primero no se decodifican solos (no llevan
 encabezado), así que pide concatenarlos en el servidor. Queda escrito como
 límite, no como olvido.
+
+**Y el mismo límite tapa una salida que parece obvia: `keepalive` no sirve
+acá.** El borrador se despide con `fetch(..., { keepalive: true })` y funciona
+porque manda unos kilobytes de texto; la especificación de Fetch le pone un tope
+de **64 KB** al cuerpo de un pedido `keepalive`, y el audio son megabytes. O sea
+que una navegación real en medio de la grabación **pierde lo grabado**, y no hay
+truco de despedida que lo salve: `pagehide` llega a parar el grabador y no a
+subirlo. Por eso la pantalla pone un `beforeunload` mientras graba y deja que el
+navegador pregunte — avisar es lo único que se puede hacer sin la subida
+progresiva.
 
 ## La pantalla
 
@@ -426,7 +531,18 @@ visible:
   Lo más cercano es el indicador, que lo ve quien tiene la sala abierta.
 - **El contexto seguro en una LAN.** Se detecta y se explica; no se resuelve.
 - **La pestaña de fondo.** Queda grabando, y si el navegador la estrangula no
-  hay medición de qué pasa.
+  hay medición de qué pasa — y la onda, que depende de
+  `requestAnimationFrame`, **sí** se congela ahí por definición del navegador:
+  lo que se pierde es el dibujo, no el audio.
+- **Que el `AudioContext` se cierre de verdad.** Se cierra en el código y nada
+  lo verifica: un contexto filtrado por grabación no se ve en ninguna guarda ni
+  en ningún spec. Una pestaña con muchas grabaciones seguidas acumularía
+  contextos hasta que el navegador se niegue a dar más.
+- **La onda en un teléfono.** El riel a 414px tampoco lo mira ninguna captura, y
+  esto es lo mismo: el recorrido fotografía 1440×1000 y 1100×900, así que
+  cuántas barras caben y si desbordan a ancho de teléfono no está medido.
+- **Navegar mientras graba pierde el audio.** Se avisa con `beforeunload` y nada
+  más: `keepalive` tiene un tope de 64 KB y el audio son megabytes.
 
 ## Verificación
 
@@ -456,6 +572,20 @@ La guarda graba unos segundos, para, sube, y asevera que la tarjeta muestra las
 utterances del fixture. **Contador y piso 2, exacto**, contando **caras** —idear
 y evolución—: la misma semántica y el mismo razonamiento que `[DRAFT]`, porque
 no hay una tercera cara y un piso flojo no cazaría que una dejó de medirse.
+
+**Y mide la onda, que es lo que no se puede medir de ninguna otra forma.** El
+nivel crudo se publica en `data-level`, así que la guarda lo muestrea cada 100ms
+mientras graba y exige **dos** cosas:
+
+1. que el máximo durante la voz esté claramente arriba de cero, y
+2. que haya una corrida de muestras **cerca de cero**, que es el silencio que el
+   wav del micrófono falso tiene **a propósito** entre las dos voces.
+
+La segunda es la que discrimina, y por eso el wav se arma con silencios
+intercalados y la grabación dura más que el primer tramo de voz. **Una onda
+decorativa —números al azar, o una animación suelta— pasa la primera y falla la
+segunda.** Sin ese silencio adentro de la ventana de grabación, la guarda sólo
+probaría que algo se mueve.
 
 **Costo de la corrida: cero.** Sin declarar `FLOW_SPEECH_PROVIDER` la cascada
 cae al fixture, porque Anthropic no sabe transcribir.
@@ -487,6 +617,8 @@ Declarado ahora y no descubierto después:
 | se saca el aviso de diarización colapsada | el ejemplo de un hablante con mesa de dos |
 | el fixture deja de medirse en una cara | `[GRABAR]` cae de 2 a 1 |
 | se saca la guarda de `arrival?` | el ejemplo de grabar desde la llegada |
+| la onda se dibuja con números al azar en vez del `AnalyserNode` | `[GRABAR]`, por la corrida de silencio que no aparece |
+| el `AudioContext` no se cierra al parar | ningún test — límite declarado abajo |
 
 ## Riesgos
 
