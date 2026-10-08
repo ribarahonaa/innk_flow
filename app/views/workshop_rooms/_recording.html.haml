@@ -1,0 +1,104 @@
+-# Grabar la conversación de la mesa.
+-#
+-# Va al CENTRO y no a la columna de referencia, y es por una regla más un
+-# límite medido. La regla: «el centro es lo que se hace», y grabar es lo que se
+-# hace. El límite: `[REFERENCIA]` declaradamente NO mide la sala, y la columna
+-# es de 320px con `max-height: 100vh` — una transcripción de 20 minutos ahí
+-# queda detrás de su propio scroll.
+-#
+-# La transcripción va en un `<details>`, que es el único mecanismo plegable de
+-# la app y el que `application.js` protege del morph cancelando la remoción del
+-# `open`.
+.card
+  .card-body
+    .section-head
+      %h2.section-title= t("flow.recordings.title")
+    %p.muted= t("flow.recordings.hint")
+
+    -# `data-recording-url` es lo que enciende el JS: el JS no sabe ni tiene que
+    -# saber si esta sala admite trabajo. Mismo principio que `data-draft-url` y
+    -# que `data-live` en `arrival_live.js`.
+    -#
+    -# `data-level` lo reescribe el bucle de dibujo con el RMS crudo. Es el ÚNICO
+    -# puente por el que `[GRABAR]` puede medir la onda: las alturas de las
+    -# barras dicen cómo quedó el dibujo, y esto dice qué midió el micrófono.
+    -#
+    -# Los textos viajan acá para que el JS los lea y no duplique el locale.
+    %div{ data: { recording_url: workshop_sala_recordings_path(workshop, link),
+                  bitrate: 32_000,
+                  level: "0",
+                  idea_id: defined?(selected) && selected ? selected.id : nil,
+                  insecure_text: t("flow.recordings.insecure_context"),
+                  denied_text: t("flow.recordings.denied"),
+                  no_device_text: t("flow.recordings.no_device"),
+                  failed_text: t("flow.recordings.failed") } }
+      -# UN control, y el botón ES el estado: «Grabar» → onda con cronómetro y
+      -# «Parar» → deshabilitado mientras sube. Ningún menú, ningún formato,
+      -# ninguna opción de calidad: la mesa está en una reunión.
+      .form-actions
+        %button.btn.btn-primary{ type: "button", data: { recording_role: "toggle" } }
+          = t("flow.recordings.start")
+        -# Mientras graba dice el cronómetro y nada más: un texto «Grabando» al
+        -# lado de una onda que se mueve es decir dos veces lo mismo. Fuera de
+        -# ese momento lleva el motivo de por qué no se puede grabar.
+        %p.muted{ data: { recording_role: "status" } }
+
+      -# Las barras las dibuja el JS reescribiendo su `height`. Van en el DOM y
+      -# NO en un `<canvas>` porque no hay un solo canvas en el repo y un canvas
+      -# es una caja negra para todas las guardas. Nacen en el markup —40, fijas—
+      -# para que el JS sólo toque alturas: así un morph que borre los `style` en
+      -# línea se arregla en el frame siguiente, y Tailwind ve las clases.
+      -#
+      -# `hidden` hasta que haya micrófono abierto: una onda plana sin grabar se
+      -# lee como un micrófono que no toma nada.
+      .waveform{ hidden: true, data: { recording_role: "wave" } }
+        - 40.times do
+          %span.waveform__bar
+
+- if recordings.any?
+  -# `recent_first`, así que la primera es la última grabada y es la que se abre
+  -# sola: hacer clic para ver lo que acabás de grabar es un paso que no agrega
+  -# nada. Un `open` que pone el SERVIDOR sobrevive al morph — el guardia de
+  -# `application.js` cancela la REMOCIÓN del `open`, no su agregado.
+  - recordings.each_with_index do |recording, i|
+    .card
+      .card-body
+        .section-head
+          %h2.section-title
+            = l(recording.created_at, format: :short)
+            %span{ class: chip_de_grabacion(recording.status) }
+              = t("flow.recording_statuses.#{recording.status}")
+        -# Chicos y apagados, no en el encabezado: `provider` y `model` hacen
+        -# falta para que una transcripción de fixture no se lea como real, y no
+        -# son lo que la mesa vino a ver.
+        %p.muted
+          = recording.recorded_by.name
+          - if recording.model.present?
+            = "· #{recording.model}"
+          - if recording.duration_seconds.present?
+            = "· #{recording.duration_seconds.round} s"
+
+        - if recording.status == "failed"
+          .alert.alert-soft.alert-error
+            %div
+              %strong= t("flow.recordings.failed")
+              %p.muted= recording.error
+        - elsif recording.status == "ready" && recording.utterances.empty?
+          %p.muted= t("flow.recordings.no_speech")
+        - elsif recording.status == "ready"
+          - if recording.collapsed_diarization?
+            .alert.alert-soft.alert-warning
+              %div= t("flow.recordings.collapsed_diarization")
+          %details{ open: i.zero? }
+            %summary= t("flow.recordings.transcript")
+            %ul.field-list
+              - recording.utterances.each do |u|
+                %li.field-list__item
+                  %div
+                    %p.muted= t("flow.recordings.speaker", n: u["speaker"].to_i + 1)
+                    = u["transcript"]
+
+        - if recording.file.attached?
+          = link_to t("flow.recordings.listen"),
+                    workshop_sala_recording_path(workshop, link, recording),
+                    class: "btn btn-ghost"

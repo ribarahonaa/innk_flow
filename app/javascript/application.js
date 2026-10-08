@@ -8,6 +8,7 @@ import './ia_popups';
 import './arrival_live';
 // Lo que la mesa teclea en la sala de un taller se guarda solo.
 import './workshop_draft';
+import './workshop_recording';
 
 // Conservar el scroll cuando la pantalla se actualiza sin recargarse.
 //

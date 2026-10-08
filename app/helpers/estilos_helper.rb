@@ -114,6 +114,17 @@ module EstilosHelper
     "rejected" => "badge badge-soft badge-warning badge-sm font-semibold whitespace-nowrap"
   }.freeze
 
+  # El estado de una grabación. Va acá y no como ternario en la vista: un mapeo
+  # en la vista queda afuera del spec que compara contra el enum, que es cómo
+  # un cuarto estado se habría pintado con la rama de otro sin que nada se
+  # pusiera rojo.
+  CHIP_DE_GRABACION = {
+    "pending" => "badge badge-soft",
+    "transcribing" => "badge badge-soft badge-info",
+    "ready" => "badge badge-soft badge-success",
+    "failed" => "badge badge-soft badge-error"
+  }.freeze
+
   CLASE_DE_DIFF = {
     "added" => "diff-kind diff-kind--added",
     "removed" => "diff-kind diff-kind--removed",
@@ -202,6 +213,7 @@ module EstilosHelper
   def punto_de_estado(estado) = PUNTO_DE_ESTADO.fetch(estado.to_s, PUNTO_DE_ESTADO.fetch("pending"))
   def chip(nombre) = CHIPS.fetch(nombre.to_s)
   def chip_de_propuesta(status) = CHIP_DE_PROPUESTA.fetch(status.to_s, CHIP_DE_PROPUESTA.fetch("pending"))
+  def chip_de_grabacion(status) = CHIP_DE_GRABACION.fetch(status)
   def chip_de_veredicto(veredicto) = CHIP_DE_VEREDICTO.fetch(veredicto.to_s, CHIP_DE_VEREDICTO.fetch("con_reservas"))
 
   # `_setup_progress.html.haml` ya arma su clase como ARREGLO y le suma otras

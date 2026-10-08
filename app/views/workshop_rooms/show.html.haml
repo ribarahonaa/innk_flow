@@ -19,11 +19,13 @@
 - case @link.room_state
 - when :ideation
   = render "workshop_rooms/ideation", workshop: @workshop, link: @link, group: @group,
-                                      mesa_ideas: @mesa_ideas, draft: @draft
+                                      mesa_ideas: @mesa_ideas, draft: @draft,
+                                      recordings: @recordings
 - when :evolution
   = render "workshop_rooms/evolution", workshop: @workshop, link: @link, group: @group,
                                        ideas: @workable_ideas, selected: @selected_idea,
-                                       proposals: @mesa_proposals, draft: @draft
+                                       proposals: @mesa_proposals, draft: @draft,
+                                       recordings: @recordings
 - when :unopened
   .card
     .card-body

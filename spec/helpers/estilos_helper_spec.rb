@@ -218,4 +218,11 @@ RSpec.describe EstilosHelper, type: :helper do
     expect(helper.chip_de_resultado("done")).to eq(neutro)
     expect(helper.chip_de_resultado("pending")).to eq(neutro)
   end
+
+  it "tiene un chip para cada estado de grabación" do
+    WorkshopRecording::STATUSES.each do |status|
+      expect(EstilosHelper::CHIP_DE_GRABACION).to have_key(status)
+      expect(EstilosHelper::CHIP_DE_GRABACION[status]).to start_with("badge ")
+    end
+  end
 end

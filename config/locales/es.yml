@@ -208,6 +208,30 @@ es:
       saved: "Guardado ahora."
       failed: "No se pudo guardar: copiá el texto antes de salir."
       stamp: "Guardado por %{name} hace %{ago}."
+    recordings:
+      title: "Grabar la conversación"
+      hint: "Se graba lo que se habla en la mesa y se transcribe con quién dijo qué."
+      start: "Grabar"
+      stop: "Parar"
+      recording: "Grabando"
+      uploading: "Subiendo…"
+      transcribing: "Transcribiendo…"
+      failed: "No se pudo transcribir."
+      no_speech: "No se detectó habla en esta grabación."
+      collapsed_diarization: "Esta transcripción salió con un solo hablante aunque en la mesa hay varias personas: la separación de voces no funcionó."
+      transcript: "Qué se dijo"
+      speaker: "Hablante %{n}"
+      listen: "Escuchar el audio"
+      # Los tres fallos del navegador. Van con su propio texto porque el motivo
+      # y lo que hay que hacer son distintos en cada uno.
+      insecure_context: "Este navegador no puede grabar porque la página no se sirve por HTTPS. Abrila en la máquina donde corre la app, o servila con certificado."
+      denied: "El navegador bloqueó el micrófono. Dale permiso en la barra de direcciones y volvé a intentar."
+      no_device: "No se encontró ningún micrófono en este equipo."
+    recording_statuses:
+      pending: "en cola"
+      transcribing: "transcribiendo"
+      ready: "lista"
+      failed: "falló"
     workshop_proposal_statuses:
       pending: "Pendiente"
       accepted: "Aceptada"

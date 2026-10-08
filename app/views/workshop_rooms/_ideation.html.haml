@@ -67,6 +67,9 @@
                       %span.people-list__name= contributor.user.name
                       %span.people-list__role= t("flow.contributor_roles.#{contributor.role}")
 
+  = render "workshop_rooms/recording", workshop: workshop, link: link,
+                                       recordings: recordings
+
   .card
     .card-body
       .section-head

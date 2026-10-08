@@ -29,9 +29,23 @@ class WorkshopRoomsController < ApplicationController
     when :ideation then load_ideation
     when :evolution then load_evolution
     end
+
+    # Las de ESTA mesa y nada más. El filtro por mesa es PORTANTE y no
+    # prolijidad: quien administra no es `participant`, así que un scope por
+    # policy le devolvería todo, y vería la conversación de las otras mesas bajo
+    # un título que dice que es la suya. Es la misma trampa que `load_ideation`
+    # documenta para las ideas. Y desde la llegada no se lista nada: ahí están
+    # sentados los treinta que esperan.
+    @recordings = load_recordings
   end
 
   private
+
+  def load_recordings
+    return WorkshopRecording.none if @group.nil? || @group.arrival?
+
+    @group.workshop_recordings.where(workshop_challenge: @link).recent_first
+  end
 
   # Las ideas de la mesa en este desafío. `policy_scope(Idea)` y NO
   # `workable_ideas`: ese método filtra con `Idea.alive` (o sea `active`) y no

@@ -1967,6 +1967,43 @@ a.step-card__link:hover .step-card__name { text-decoration: underline; }
    grilla y no el dato. En tinta de datos, con el contorno un paso más oscuro
    para que dos barras vecinas no se peguen. */
 .histogram__bar { grid-row: 2; align-self: end; width: 100%; min-height: 2px; background: var(--dato); border: 1px solid var(--dato-fuerte); border-radius: 4px 4px 0 0; }
+
+/* La onda del micrófono. Clase propia y no doce utilidades: es vocabulario de
+   esta app y aparece con su regla, que es lo que `[CLASES]` puede ver. Va en
+   barras del DOM y no en un `<canvas>` porque un canvas es una caja negra para
+   todas las guardas.
+
+   En TINTA DE DATOS y no en el acento: el acento es de las acciones, y una
+   barra pintada con el violeta del botón de al lado se lee como un control.
+   Misma regla que los dos gráficos de reportería. */
+.waveform {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 48px;
+  margin: 12px 0 0;
+  padding: 0 2px;
+}
+
+/* El `height` lo escribe el JS en línea, en porcentaje. El mínimo de 2px es lo
+   que hace que el silencio se vea como una línea y no como un hueco: una barra
+   de alto 0 desaparece, y una onda con agujeros no se lee como silencio sino
+   como que algo se rompió. */
+.waveform__bar {
+  flex: 1 1 0;
+  min-height: 2px;
+  height: 2px;
+  background: var(--dato);
+  border-radius: 2px;
+  /* Sin transición: el dato ES la altura instantánea, y un suavizado de 100ms
+     le miente al ojo sobre cuándo hubo silencio. */
+}
+
+/* La última barra es la que acaba de entrar: un paso más oscura para que se lea
+   dónde está el "ahora" de la onda. Mismo recurso que `--dato-fuerte` en el
+   contorno del histograma. */
+.waveform__bar:last-child { background: var(--dato-fuerte); }
+
 .histogram__label, .histogram__count { font-size: 10px; color: var(--muted); }
 .histogram__count { font-weight: 600; }
 
