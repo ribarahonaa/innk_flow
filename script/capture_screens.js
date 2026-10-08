@@ -48,15 +48,19 @@ const PISO_DE_GRABACIONES = 2;
 // seguidas hacen falta. El silencio del wav dura 1,5 s y se muestrea cada
 // 100 ms, o sea ~15 muestras: pedir 8 deja margen para el ataque y la cola de
 // las voces de al lado.
-// CALIBRADOS el 2026-10-08 con la serie real del micrófono falso (60 muestras,
-// una cada 100 ms, wav de 6,5 s):
-//   0.072 0.194 0.606 0.336 0.315 0.424 0.307 0.333 0.187 0.244 0.194
-//   0.006 0.006 0.006 0.005 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000
-//   0.000 0.006 0.005 0.013 0.179 0.082 0.026 0.019 0.011 0.089 ...
-// El pico de la voz fue 0,606: 0,05 queda un orden de magnitud abajo. El hueco
-// marca 0,000–0,006 (opus mete algo de ruido): 0,01 queda arriba de eso y abajo
-// de la cola de la voz (0,013 y más). La corrida bajo 0,01 midió 15 muestras
-// seguidas; se piden 8, o sea poco más de la mitad.
+// CALIBRADOS el 2026-10-08 y RE-MEDIDOS tras cambiar la espera del morph (de
+// 1500 ms fijos al evento `turbo:morph`), que corrió el muestreo respecto del
+// wav. Serie real del micrófono falso, 60 muestras, una cada 100 ms:
+//   0.006 0.006 0.605 0.056 0.523 0.211 0.516 0.506 0.506 0.132 0.013 0.564
+//   0.492 0.487 0.064 0.286 0.566 0.321 0.294 0.445 0.311 0.279 0.055 0.235
+//   | 0.005 0.005 0.005 0.005 0.001 0.000 x9 0.003 0.005 0.005 |
+//   0.157 0.061 0.109 0.029 0.029 0.028 0.056 0.006 0.005 0.125 ... 0.119 0.097
+// (la segunda cara dio lo mismo: pico 0,600, mismo hueco). El hueco cae en las
+// muestras 24 a 40 (17 seguidas bajo 0,01) y la ventana termina DENTRO de la
+// segunda voz, así que la corrida sale del hueco del medio y no de una cola.
+// Pico de la voz 0,605: 0,05 queda un orden de magnitud abajo. El hueco marca
+// 0,000–0,006 (opus mete algo de ruido): 0,01 queda arriba de eso y abajo de la
+// cola de la voz. Se piden 8 de 17.
 const VOZ_MINIMA = 0.05;
 const SILENCIO_MAXIMO = 0.01;
 const MUESTRAS_DE_SILENCIO = 8;
@@ -1746,11 +1750,11 @@ async function revisarGrabacion(page, nombre) {
   // decorativa con números al azar también lo logra. Lo que una onda falsa NO
   // puede producir es la corrida de muestras cerca de cero del silencio que el
   // wav tiene a propósito entre las dos voces. Por eso el archivo se arma
-  // voz → silencio → voz. Ojo: la grabación NO dura menos que el archivo (son
-  // ~8,5 s entre el cronómetro, el morph y los 6 s de muestreo, contra 6,5 s de
-  // wav), así que con `%noloop` la cola es silencio puro y la corrida puede
-  // salir del hueco del medio o de esa cola. Sirve cualquiera de las dos: una
-  // onda decorativa no produce ni hueco ni cola silenciosa.
+  // voz → silencio → voz. La corrida sale del hueco del medio: en la medición
+  // vigente la ventana de 6 s termina dentro de la segunda voz (ver la serie
+  // junto a las constantes). Si algún día la ventana pasara del final del wav,
+  // con `%noloop` la cola es silencio y también serviría: una onda decorativa
+  // no produce ni hueco ni cola silenciosa.
   const pico = Math.max(...niveles);
   let corrida = 0;
   let mayorCorrida = 0;
