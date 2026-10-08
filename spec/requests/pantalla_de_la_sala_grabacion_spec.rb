@@ -197,6 +197,25 @@ RSpec.describe "sala del taller: el bloque de grabación", type: :request do
       expect(response.body).to include(%(data-idea-id="#{s[:idea].id}"))
     end
 
+    it "una mesa sin ninguna idea trabajable sigue viendo el control y lo que ya grabó" do
+      # La rama vacía de evolución reemplaza el TRABAJO, no la conversación: la
+      # mesa ya grabó y perder el acceso a eso es el defecto. `workable_ideas`
+      # filtra con `Idea.alive`, así que basta que la idea esté eliminada.
+      s = sala(kind: "evolution")
+      as_company(company) do
+        s[:idea].update!(status: "eliminated")
+        create(:workshop_recording, :ready, workshop_group: s[:group],
+                                            workshop_challenge: s[:link], recorded_by: ana)
+      end
+      sign_in(ana, company: company)
+
+      visitar(s)
+
+      expect(response.body).to include("Ninguna idea para trabajar")
+      expect(response.body).to include("data-recording-url")
+      expect(response.body).to include("Primera.")
+    end
+
     it "en idear el contenedor no lleva ninguna idea: la fase la decide la sala" do
       s = sala
       sign_in(ana, company: company)
