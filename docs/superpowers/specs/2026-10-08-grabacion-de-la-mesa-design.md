@@ -42,8 +42,8 @@ Dos cosas quedan decididas acá y condicionan las otras dos:
 
 Y la condición de entrada de A vale igual: esto corre **con las mesas ya
 repartidas**. Desde la mesa de llegada no se graba, con la misma guarda
-(`arrival?`) que ya protegen las otras siete puertas de la sala — ésta es la
-octava.
+(`arrival?`) que ya preguntan todos los lugares que se niegan a dejar trabajar
+desde ella; `CLAUDE.md` los enumera con sus archivos.
 
 ## Lo que se midió antes de diseñar, y por qué está acá
 
@@ -515,9 +515,10 @@ la app y el que `application.js` ya protege del morph cancelando la remoción de
 ### Permisos
 
 Graba quien pasa `work?` y está sentado en una mesa que no es la de llegada, así
-que **`arrival?` pasa a ser el octavo lugar** que pregunta lo mismo. El número
-va en `CLAUDE.md` y no en los comentarios: escrito en ocho lugares, el día que
-cambie miente en siete.
+que **la grabación suma un lugar más** a los que preguntan `arrival?`. Qué
+lugares son lo enumera `CLAUDE.md`, con su archivo, y no hay número en ninguna
+parte: ni acá ni en los comentarios, porque escrito en varios lugares el día que
+cambie miente en todos menos en uno.
 
 La transcripción la lee la mesa entera: es de la mesa, igual que el borrador.
 

@@ -781,6 +781,9 @@ que el chequeo HACE:
   `WorkshopDraftsController` y `WorkshopRecordingsController`.
 - **Las dos caras de la sala**, que en vez del trabajo dicen que la mesa todavía
   no se armó: `workshop_rooms/_ideation` y `workshop_rooms/_evolution`.
+- **La negativa a BORRAR la llegada** —no a trabajar desde ella—:
+  `WorkshopGroupsController#destroy` (`workshop_groups_controller.rb:25`, redirige
+  con aviso: la llegada se va sola cuando el reparto la vacía).
 - **El panel «Tu mesa»**: `workshops/_my_group`.
 - **Las lecturas que devuelven nada**: `WorkshopGroup#workable_ideas`
   (`Idea.none`) y, en `WorkshopRoomsController`, `load_ideation`,
