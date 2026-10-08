@@ -27,6 +27,9 @@ let audio = null;
 let analizador = null;
 let muestras = null;
 let frame = null;
+// Subiendo: `rec` ya es null durante la subida, así que sin esta marca un
+// repintado no distingue «subiendo» de «libre» y habilitaría el botón.
+let subiendo = false;
 
 const TEXTOS = {
   start: 'Grabar',
@@ -231,6 +234,7 @@ async function subir() {
   soltarMicrofono();
   if (!url || !blob.size) { pintar('idle'); return; }
 
+  subiendo = true;
   pintar('subiendo', TEXTOS.uploading);
   const cuerpo = new FormData();
   // La extensión sale del mimeType y no se fija a .webm: Safari da audio/mp4.
@@ -249,7 +253,7 @@ async function subir() {
     // membresía revocada— le llega al `fetch` como 200, porque el `fetch` sigue
     // el 302 y convierte el POST en GET. Es el mismo bug que el autoguardado
     // pagó, y acá costaría la reunión entera.
-    if (res.status !== 201) { pintar('idle', caja.dataset.failedText); return; }
+    if (res.status !== 201) { subiendo = false; pintar('idle', caja.dataset.failedText); return; }
     // Se devuelve el botón a `idle` ANTES de navegar, y no es redundante: la
     // navegación es un morph a la misma URL, y `start()` sale temprano cuando el
     // nodo es el mismo —ahí está grabando o acaba de grabar—, así que no vuelve
@@ -257,12 +261,14 @@ async function subir() {
     // servidor no lo trae, pero eso es un accidente afortunado y no una
     // garantía: si mañana el botón nace deshabilitado en el markup, queda
     // muerto después de cada subida.
+    subiendo = false;
     pintar('idle');
     // La pantalla la refresca el servidor: se visita la misma URL y Turbo
     // morfea, así que la tarjeta nueva aparece con su estado «en cola».
     window.Turbo ? window.Turbo.visit(window.location.href, { action: 'replace' })
                  : window.location.reload();
   } catch (_e) {
+    subiendo = false;
     pintar('idle', caja.dataset.failedText);
   }
 }
@@ -272,13 +278,27 @@ function alApretar() {
   arrancar();
 }
 
+// La vista se deriva del estado de MÓDULO, nunca del DOM: después de un morph el
+// DOM es el que mandó el servidor, o sea «Grabar» y el sello vacío.
+function repintar() {
+  if (rec && rec.state === 'recording') {
+    const onda = nodo('wave');
+    if (onda) onda.hidden = false;
+    tictac();
+  } else if (subiendo) {
+    pintar('subiendo', TEXTOS.uploading);
+  } else {
+    pintar('idle');
+  }
+}
+
 function start() {
   const encontrado = document.querySelector('[data-recording-url]');
   // Turbo 8 morfea: después de un POST que vuelve a la misma URL el NODO puede
-  // ser el mismo y `turbo:load` corre de nuevo. Si es el mismo nodo ya está
-  // cableado, y además puede estar GRABANDO: recablearlo duplicaría el
-  // listener, y pararlo cortaría la reunión.
-  if (encontrado && encontrado === caja) return;
+  // ser el mismo y `turbo:load` corre de nuevo. CABLEAR (sólo si el nodo
+  // cambió: si no, el listener se duplica) y PINTAR (siempre, desde el estado)
+  // son dos cosas distintas.
+  const mismoNodo = encontrado && encontrado === caja;
   caja = encontrado;
   if (!caja) return;
 
@@ -286,9 +306,19 @@ function start() {
   if (!boton) return;
   const motivo = impedimento();
   if (motivo) { pintar('bloqueado', motivo); return; }
+
+  if (mismoNodo) {
+    // No se recablea, pero SÍ se repinta: idiomorph comparó contra el HTML del
+    // servidor y le devolvió al botón «Grabar» y al sello el vacío. Sin esto el
+    // botón miente durante una grabación mientras la onda se sigue moviendo al
+    // lado, y quien lo aprieta creyendo que arranca, para.
+    repintar();
+    return;
+  }
+
   boton.addEventListener('click', alApretar);
-  // Si venía grabando y el nodo cambió por una navegación real, el micrófono se
-  // suelta: el estado anterior ya no tiene dónde mostrarse.
+  // Nodo nuevo por una navegación real: si venía grabando, el micrófono se
+  // suelta, porque el estado anterior ya no tiene dónde mostrarse.
   if (rec && rec.state === 'recording') rec.stop(); else pintar('idle');
 }
 
