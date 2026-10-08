@@ -60,10 +60,8 @@ class WorkshopRecording < ApplicationRecord
   # sería inventado, y un umbral inventado es la guarda que da permiso. El
   # número se MUESTRA en la pantalla; no se juzga acá.
   #
-  # Sin utterances es false: no se avisa sobre una transcripción que no existe.
+  # Sin utterances no hay hablantes, así que la condición es false por sí sola.
   def collapsed_diarization?
-    return false if utterances.empty?
-
     speakers.size == 1 && workshop_group.workshop_group_members.count > 1
   end
 

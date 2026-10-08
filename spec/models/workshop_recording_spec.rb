@@ -117,7 +117,9 @@ RSpec.describe WorkshopRecording do
       end
     end
 
-    it "es false sin utterances: no se avisa de una transcripción que no existe" do
+    it "es false sin utterances: la condición es una igualdad y no un `<=`" do
+      # Caza la mutación `speakers.size == 1` -> `<= 1`: con cero hablantes y dos
+      # sentados, empezaría a avisar de una diarización colapsada que no existe.
       s = armar
       as_company(company) do
         2.times { create(:workshop_group_member, workshop_group: s[:group], user: create(:user)) }
