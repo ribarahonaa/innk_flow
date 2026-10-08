@@ -51,7 +51,8 @@ class CreateWorkshopRecordings < ActiveRecord::Migration[7.1]
     # El par por el que se lista en la sala. Plano y no único.
     add_index :workshop_recordings, %i[workshop_group_id workshop_challenge_id],
               name: "index_workshop_recordings_on_group_and_room"
-    # Por la FK con cascade, igual que en `workshop_drafts`.
+    # Por el `SET NULL` de la FK: al borrar una idea, Postgres tiene que
+    # encontrar las grabaciones que la apuntan para nulear la columna.
     add_index :workshop_recordings, :idea_id
     # Lo que el job busca para no re-transcribir: las que están esperando.
     add_index :workshop_recordings, :status

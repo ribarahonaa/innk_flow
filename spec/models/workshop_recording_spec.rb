@@ -45,6 +45,18 @@ RSpec.describe WorkshopRecording do
     end
   end
 
+  it "rechaza una idea de otro desafío que el de la sala" do
+    s = armar
+    as_company(company) do
+      ajena = create(:idea, challenge: create(:challenge))
+      grabacion = build(:workshop_recording, workshop_group: s[:group],
+                                             workshop_challenge: s[:link], idea: ajena)
+
+      expect(grabacion).not_to be_valid
+      expect(grabacion.errors[:idea]).to be_present
+    end
+  end
+
   it "rechaza un status que no está en la lista" do
     s = armar
     as_company(company) do
@@ -110,6 +122,19 @@ RSpec.describe WorkshopRecording do
       s = armar
       as_company(company) do
         create(:workshop_group_member, workshop_group: s[:group], user: create(:user))
+        grabacion = create(:workshop_recording, :colapsada, workshop_group: s[:group],
+                                                            workshop_challenge: s[:link])
+
+        expect(grabacion.collapsed_diarization?).to be(false)
+      end
+    end
+
+    it "es false si la segunda persona de la mesa no vino: su voz no puede estar" do
+      s = armar
+      as_company(company) do
+        create(:workshop_group_member, workshop_group: s[:group], user: create(:user))
+        create(:workshop_group_member, workshop_group: s[:group], user: create(:user),
+                                       attended: false)
         grabacion = create(:workshop_recording, :colapsada, workshop_group: s[:group],
                                                             workshop_challenge: s[:link])
 

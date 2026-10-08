@@ -60,9 +60,13 @@ class WorkshopRecording < ApplicationRecord
   # sería inventado, y un umbral inventado es la guarda que da permiso. El
   # número se MUESTRA en la pantalla; no se juzga acá.
   #
+  # Cuentan sólo los PRESENTES: la voz de quien no vino no puede estar en la
+  # grabación, y contarlo avisaría de una separación fallida sobre una
+  # transcripción correcta.
+  #
   # Sin utterances no hay hablantes, así que la condición es false por sí sola.
   def collapsed_diarization?
-    speakers.size == 1 && workshop_group.workshop_group_members.count > 1
+    speakers.size == 1 && workshop_group.workshop_group_members.presentes.count > 1
   end
 
   private
