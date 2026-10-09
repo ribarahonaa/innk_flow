@@ -233,4 +233,80 @@ RSpec.describe "entrar a una mesa del taller", type: :request do
       expect(response.body).not_to include("sin estar sentado")
     end
   end
+
+  # La puerta de entrada: un «Entrar» por mesa y por vínculo trabajable. Se
+  # asevera sobre el HREF servido (con su `mesa=<id>`) y no sobre el texto: el
+  # bloque vive junto a un `form_with`, y es el HTML servido lo que muestra si el
+  # link quedó donde debía.
+  context "el «Entrar» de la lista de mesas" do
+    def entrar_href(workshop, link, mesa)
+      "#{workshop_sala_path(workshop, link)}?mesa=#{mesa.id}"
+    end
+
+    def pantalla_del_taller
+      get workshop_path(idear[:workshop])
+    end
+
+    # Segundo vínculo trabajable en el MISMO taller (misma fase: idear).
+    let!(:segundo) do
+      as_company(company) do
+        challenge = create(:challenge, name: "Desafío del segundo piso")
+        step = create(:challenge_step, challenge: challenge, kind: "ideation", status: "active")
+        link = create(:workshop_challenge, workshop: idear[:workshop], challenge: challenge,
+                                           challenge_step: step)
+        { link: link, challenge: challenge }
+      end
+    end
+
+    it "con un solo vínculo trabajable hay un «Entrar» pelado por mesa" do
+      as_company(company) { segundo[:link].destroy! }
+      sign_in(admin, company: company)
+
+      pantalla_del_taller
+
+      expect(response.body).to include(%(href="#{entrar_href(idear[:workshop], idear[:link], idear[:mesa])}"))
+      expect(response.body).not_to include("Entrar ·")
+    end
+
+    it "no aparece en la mesa de llegada" do
+      llegada = as_company(company) { create(:workshop_group, :arrival, workshop: idear[:workshop]) }
+      sign_in(admin, company: company)
+
+      pantalla_del_taller
+
+      expect(response.body).not_to include("mesa=#{llegada.id}")
+    end
+
+    it "con dos vínculos trabajables cada mesa tiene dos, rotulados con el desafío" do
+      sign_in(admin, company: company)
+
+      pantalla_del_taller
+
+      [idear[:link], segundo[:link]].each do |link|
+        expect(response.body).to include(%(href="#{entrar_href(idear[:workshop], link, idear[:mesa])}"))
+      end
+      expect(response.body).to include("Entrar · Desafío del segundo piso")
+      expect(response.body).to include("Entrar · #{idear[:challenge].name}")
+    end
+
+    it "quien participa no ve ninguno" do
+      sign_in(ana, company: company)
+
+      pantalla_del_taller
+
+      expect(response.body).not_to include("mesa=#{idear[:mesa].id}")
+    end
+
+    it "un gestor de UNO de los dos desafíos ve el «Entrar» de ese y no el del otro" do
+      gestor = member("gestor@test.dev", :gestor)
+      as_company(company) { ChallengeGestor.create!(challenge: segundo[:challenge], user: gestor) }
+      sign_in(gestor, company: company)
+
+      pantalla_del_taller
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(%(href="#{entrar_href(idear[:workshop], segundo[:link], idear[:mesa])}"))
+      expect(response.body).not_to include(%(href="#{entrar_href(idear[:workshop], idear[:link], idear[:mesa])}"))
+    end
+  end
 end
