@@ -1,4 +1,4 @@
-# Handoff — la grabación de la mesa (C1), y lo que quedó sin medir (2026-10-08)
+# Handoff — la grabación de la mesa (C1): MERGEADA, y lo que quedó sin medir (2026-10-08)
 
 ## 1. Objetivo
 
@@ -6,22 +6,34 @@ Construir **C1** de un sub-proyecto de tres: la mesa de un taller graba su
 conversación desde el navegador, el audio se transcribe con etiquetas de
 hablante, y la sala dibuja una línea de sonido en vivo mientras graba.
 
-- **C1 (esta rama):** grabar, subir, transcribir, mostrar. Hecho.
+- **C1 (esta rama):** grabar, subir, transcribir, mostrar. Hecho y **mergeado a
+  `master`**.
 - **C2 (pendiente):** darle esa transcripción al modelo para que resuma/proponga.
   Su premisa central son las **etiquetas de hablante**, y están **sin verificar
   con voces reales** (ver §4).
 - **C3 (pendiente):** el tercero del sub-proyecto; no se diseñó.
 
-La última tarea (8) era sólo documentación: dejar `CLAUDE.md` y la spec contando
-la verdad. Sin cambios de código.
+Las ocho tareas se ejecutaron por subagentes, con revisión de tarea y loop de
+arreglos cada una, más una revisión de rama entera al final. La última (8) era
+sólo documentación: dejar `CLAUDE.md` y la spec contando la verdad.
 
 ## 2. Estado actual
 
-Rama **`grabacion-de-la-mesa`**, 29 commits sobre `master` antes de los de esta
-tarea. **No verifiqué el remoto:** el `ls-remote` por SSH da `Permission denied`
-(el push va por HTTPS con el helper de `gh`; preguntar por la RAMA, no por
-`master`: `gh api repos/ribarahonaa/innk_flow/branches/grabacion-de-la-mesa
---jq .commit.sha`).
+**MERGEADA.** `master` pasó de `6991c6b` a **`9629270`** por **fast-forward**,
+sin commit de merge, y el árbol es byte-idéntico al de la rama (`6448659` en los
+dos) — o sea que la suite y el recorrido verdes corrieron sobre exactamente este
+árbol, no sobre uno nuevo sin probar. 40 commits, 46 archivos, +8.014/−312.
+
+Push por HTTPS con el helper de `gh` (el remoto es SSH y acá no hay clave).
+`origin/master` verificado **preguntando por la RAMA** y no por el ref de al
+lado, que es el error que esta cadena de handoffs ya pagó dos veces:
+
+```bash
+gh api repos/ribarahonaa/innk_flow/branches/master --jq .commit.sha   # 9629270
+```
+
+La rama local **`grabacion-de-la-mesa` no se borró**, igual que las otras seis
+mergeadas que siguen ahí.
 
 - `make spec`: **1769 ejemplos, 0 fallas** (corrido sobre el árbol final, tras la
   tanda de arreglos de la revisión de rama).
@@ -185,67 +197,124 @@ las dos aserciones de la onda miden cosas distintas.
   (depende de cómo se agrupen las cuatro lecturas de `WorkshopRoomsController`):
   por eso CLAUDE.md enumera y no cuenta. `grep -rn "arrival?" app` es la verificación.
 
+### Lo que la revisión de rama encontró, y que ninguna revisión de tarea podía ver
+
+Las ocho tareas se revisaron **contra su propio brief**, así que nadie miró las
+costuras. La revisión de rama entera (cuatro pasadas) dio **no lista para
+mergear**, con esto:
+
+- **CRITICAL: repartir mesas de nuevo destruía grabaciones y PURGABA el audio, en
+  silencio.** El barrido de mesas vacías de `Flow::Workshops::AssignGroups#seat!`
+  preguntaba por miembros, propuestas y borradores; nunca se le enseñó de
+  grabaciones. Con `dependent: :destroy` + `ON DELETE CASCADE` + el
+  `purge_later` que `has_one_attached` trae por default, en un taller de **idear**
+  cambiar el tamaño de mesa y apretar «Repartir mesas» se llevaba la transcripción
+  **y el blob**. El guarda que protege a las propuestas no ayudaba: sólo se niega
+  si hay una `WorkshopProposal`, que es artefacto de evolución.
+  **La lección, que es la que hay que recordar:** la advertencia estaba
+  *inmediatamente arriba* de la asociación nueva —`workshop_group.rb` dice, dos
+  líneas antes, «`dependent: :destroy` crea un peligro que `AssignGroups` tiene
+  que conocer… ver la cláusula de `seat!`»— y la asociación se agregó debajo con
+  un comentario que afirmaba paridad con los borradores. **Todo artefacto nuevo
+  que cuelgue de la FILA de una mesa tiene que sumarse a ese barrido**, y el
+  comentario de al lado no alcanza para que alguien lo haga.
+- **El eje de voz era inalcanzable en el runtime.** `docker-compose.yml` enumera
+  el entorno y no pasaba las tres variables: **sidekiq, que corre el job, tenía
+  cero**. Dos documentos decían que la clave «anda» —cierto sólo de los sondeos
+  desde el host—. Arreglado y **verificado midiendo el env del contenedor**, no
+  leyendo el compose.
+- **Una grabación podía quedar archivada en la sala equivocada.** `subir()` leía
+  el destino del DOM al **parar**, y `start()` reasigna el contenedor antes del
+  `rec.stop()`: grabar en la sala A, navegar, entrar a la B y parar subía la
+  conversación de A **como grabación de B**, reproducible por sus integrantes. Hoy
+  el destino se captura en `arrancar()`.
+- **Un gestor sentado no tenía grabador ni transcripciones** (el render estaba
+  detrás de `puede_crear`, que excluye gestores por conflicto de interés en las
+  IDEAS, no en grabar). Y **la cara de evolución tenía el mismo defecto**: una
+  mesa sin idea trabajable perdía acceso a lo que ella misma había grabado. Los
+  dos arreglados.
+- **Un ejemplo que decía «dice de qué proveedor salió» aseveraba el MODELO.** La
+  columna `provider` se escribía y no se mostraba en ninguna parte.
+
+### Dos errores de ejecución míos, anotados porque son reutilizables
+
+- **Un `&` adentro de un comando en background desprendió el recorrido**: el
+  padre salió y se perdió su salida **y su código de salida**. No se relanzó
+  encima: dos recorridos contra la misma app y la misma base se corrompen, porque
+  el segundo siembra sobre lo que el primero fotografía.
+- **Un `pgrep` de guarda que se matcheaba a sí mismo.** `while pgrep -f
+  "capture_screens.js"` nunca puede salir: la línea de comando del propio bash
+  contiene ese literal. Giró 21 minutos esperándose. Lo delató que los números no
+  cerraran —última captura 20:55 contra hora 21:16, y `98`/`99` son las últimas
+  del recorrido—. Un `pgrep` de guarda tiene que excluirse (`grep -v`) o usar el
+  PID.
+
 ## 5. Próximos pasos
 
-1. **Conseguir los veinte segundos de audio real** (dos personas, español) y correr
-   el comando del paso 1 de la tarea 8 (`curl` a `/v1/listen?...&language=es`, ver
-   el brief). Es lo único que cierra el riesgo 1, y **decide si C2 vale la pena
-   como está diseñada**. Escribir el resultado como un `Ojo:` fechado encima del de
-   hoy.
-2. ~~**La revisión final de la rama entera.**~~ **Hecha**, en el modelo más
-   capaz y con cuatro pasadas. Veredicto inicial: **no lista para mergear**, con
-   **1 Critical** —el barrido de mesas vacías de `AssignGroups#seat!` destruía
-   grabaciones y **purgaba su audio**, en silencio, en cualquier taller de
-   idear— más 6 Important. Una sola tanda de arreglos cubrió **16 ítems** (6
-   commits), y la re-revisión acotada los dio por los 16 ADDRESSED sin breakage.
-   Los *minors* diferidos de abajo quedaron triados: **ninguno bloquea el
-   merge**.
+La rama está **mergeada**, así que esto es lo que queda del sub-proyecto y de lo
+que no se cerró.
 
-   **Los residuales que la re-revisión dejó abiertos, y uno importa:**
+1. **Conseguir los veinte segundos de audio real** (dos personas, español) y
+   medir. Es lo único que cierra el riesgo 1, y **decide si C2 vale la pena como
+   está diseñada**:
 
-   - **La cara de EVOLUCIÓN tiene el mismo defecto que se arregló en idear.**
-     `_evolution.html.haml` deja que `ideas.empty?` reemplace la sala entera, y
-     el render de grabación vive adentro del `else`. Así que una mesa sentada en
-     un taller de evolución **sin idea trabajable** —convocatoria a mano, o sus
-     ideas eliminadas/retiradas, porque `workable_ideas` filtra con
-     `Idea.alive`— no sólo no graba: **pierde el acceso a transcripciones que
-     ya grabó**, mientras el POST las aceptaría igual. Es la misma
-     contradicción con la spec («graba quien pasa `work?` y está sentado en una
-     mesa que no es la de llegada») contra la que se arregló el ítem 4.
-     **NO se arregló acá a propósito**: el proceso tiene una sola tanda, y un
-     render movido sin su ciclo de revisión es cómo se deshace el cuidado del
-     resto. Es el mismo arreglo que el ítem 4 —sacar el render del `else`— y
-     **es el primer candidato de un round más**.
-   - `.env.example` documenta los ejes de chat y de vectores y **omite el de
-     voz**. Es el único documento cuyo trabajo es decir cómo se enciende un eje.
-     Tres líneas comentadas.
-   - **Un fallo de subida le dice a la mesa lo equivocado**: el JS pinta «No se
-     pudo transcribir.» cuando lo que pasó es que se perdió la grabación entera
-     (`trozos` se limpia antes del `fetch`). Hace falta un texto propio.
-   - **El comentario de `crear!` atribuye a la transacción más de lo que
-     compra**: Rails 7.1 difiere el upload físico a `after_commit`, así que un
-     fallo de disco revienta DESPUÉS del commit y deja la fila `pending` sin
-     archivo igual. Lo que la transacción sí compra es atomicidad de fila.
-   - **El ejemplo del Critical fija la fila pero no el blob**: la factory no
-     adjunta archivo, así que la mitad `purge_later` del hallazgo de pérdida de
-     datos **no tiene testigo**.
-   - `workshop_recordings_controller.rb:27` dice «**cuántos** son lo dice
-     CLAUDE.md» y CLAUDE.md se niega a dar un número a propósito; va «cuáles».
-   - **Borrar un taller entero** cascadea todas las grabaciones y su audio bajo
-     un «Taller eliminado.» pelado. Simétrico con cómo trata los borradores, o
-     sea preexistente, pero es el otro lugar donde aplicaría el aviso del
-     ítem 7.
-3. ~~**Dos comentarios del código con el número viejo**: `workshop_drafts_controller.rb`
-   y `workshop_rooms/_ideation`.~~ **Hecho en la revisión final**, y eran tres: el
-   del spec de la pantalla de la sala decía «el octavo lugar». Los tres remiten
-   ahora a CLAUDE.md, como ya hacía el controller de grabaciones; en el código no
-   queda ningún número.
-4. **C2 y C3 siguen pendientes.** C2 no puede diseñarse con confianza mientras las
-   etiquetas de hablante estén sin verificar.
-5. Antes de mostrar la grabación desde un teléfono: **HTTPS**. Hoy no hay
-   grabación fuera de `localhost` y ninguna corrida verde lo dice.
-6. Retención del audio: se conserva a propósito (re-transcribir es cómo se arregla
-   una diarización colapsada) y **nadie escribió la política**.
+   ```bash
+   KEY=$(sed -nE 's/^DEEPGRAM_API_KEY=(.*)/\1/p' .env | tr -d '\r\n"')
+   curl -sS -o /tmp/real.json -w "HTTP %{http_code}\n" \
+     -X POST "https://api.deepgram.com/v1/listen?model=nova-3&diarize=true&utterances=true&punctuate=true&language=es" \
+     -H "Authorization: Token $KEY" -H "Content-Type: audio/mp4" \
+     --data-binary @/tmp/real.m4a
+   ```
+
+   Cuesta ~0,0015 USD. Escribir el resultado en la spec como un `Ojo:` fechado
+   encima del de hoy, **gane o pierda**: si no separa voces, eso es lo que C2
+   necesita saber antes de diseñarse.
+2. **C2 y C3 siguen pendientes.** C2 —resumen de la reunión y «armar la idea
+   desde el resumen»— son dos propósitos de chat sobre la capa que ya existe, y
+   **reusan el `WorkshopDraft` de B** en vez de duplicarlo. No puede diseñarse
+   con confianza mientras las etiquetas de hablante estén sin verificar.
+3. **El primer incremento obvio de C1: que la tarjeta se refresque sola.** Hoy la
+   mesa sube, ve «en cola» y no se mueve hasta navegar o recargar. Hacerlo es
+   ruta + acción + frame + poller con su propia fase de guarda, o sea una tarea.
+   **Y la alternativa barata está descartada por una razón dura:** Turbo 8 morfea
+   llamando a `morphElements` sin `ignoreActiveValue`, así que un poller de
+   página completa **le pisaría a la mesa lo que está tecleando** en el borrador.
+4. **HTTPS, antes de mostrar la grabación desde un teléfono.** Fuera de
+   `localhost` no hay grabación —`getUserMedia` no existe sin contexto seguro— y
+   **ninguna corrida verde lo dice**, porque el recorrido corre en `localhost`.
+   La pantalla lo detecta y lo explica; resolverlo es certificado o túnel.
+5. **Retención del audio.** Se conserva a propósito —re-transcribir es cómo se
+   arregla una diarización colapsada— y **nadie escribió la política**. Son voces
+   de personas identificables, con link de descarga.
+6. **`.env.example` omite el tercer eje.** Documenta chat y vectores; es el único
+   documento cuyo trabajo es decir cómo se enciende un eje. Tres líneas
+   comentadas.
+7. **Devolver el proveedor de chat si hace falta.** El stack quedó en
+   `FLOW_AI_PROVIDER=fixture` (lado seguro: el handoff anterior se quejaba de
+   haber heredado `anthropic` sin saberlo y de que cada corrida costara plata):
+
+   ```bash
+   FLOW_AI_PROVIDER=anthropic docker compose up -d --force-recreate app sidekiq
+   ```
+
+   El recreate tiene que incluir `sidekiq` (`Flow::AI.provider` memoiza por
+   proceso) y **no** sirve `make reup`, que baja el stack entero.
+
+### Lo que sigue sin testigo (declarado, no olvidado)
+
+- La detección de **contexto seguro**: el recorrido corre en `localhost`, donde
+  siempre funciona.
+- El **camino HTTP de Deepgram**: `post`, `query`, el header, `parse`, `hint` y el
+  rescue de red no tienen spec (el repo no tiene webmock ni VCR, igual que sus dos
+  adapters de embeddings). Corrió **una sola vez**, a mano, en la tarea 7.
+- La mitad **`purge_later`** del hallazgo crítico: el ejemplo fija la fila pero la
+  factory no adjunta blob.
+- Tres de las cuatro ramas de estado de la tarjeta (`pending`, `transcribing`,
+  `failed`): ningún ejemplo las renderiza, así que el aviso de `failed` —el único
+  lugar donde `recording.error` llega a una persona— está sin ejercitar.
+- `beforeunload` y `pagehide`: si alguien los saca «por limpieza», se pierden
+  reuniones en silencio.
+- El **camino concurrente** del uploader: `[GRABAR]` aprieta una sola vez.
 
 ### *Minors* diferidos (de `progress.md`, líneas «minor (deferred)»)
 
