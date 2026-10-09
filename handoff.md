@@ -1,367 +1,270 @@
-# Handoff — la grabación de la mesa (C1): MERGEADA, y lo que quedó sin medir (2026-10-08)
+# Handoff — entrar a una mesa (quien administra trabaja sin estar sentado), 2026-10-08
 
 ## 1. Objetivo
 
-Construir **C1** de un sub-proyecto de tres: la mesa de un taller graba su
-conversación desde el navegador, el audio se transcribe con etiquetas de
-hablante, y la sala dibuja una línea de sonido en vivo mientras graba.
+Quien administra un desafío puede **entrar a cualquier mesa** de un taller que
+lo trabaja y trabajarla **como si fuera la suya**, sin ocupar un asiento.
 
-- **C1 (esta rama):** grabar, subir, transcribir, mostrar. Hecho y **mergeado a
-  `master`**.
-- **C2 (pendiente):** darle esa transcripción al modelo para que resuma/proponga.
-  Su premisa central son las **etiquetas de hablante**, y están **sin verificar
-  con voces reales** (ver §4).
-- **C3 (pendiente):** el tercero del sub-proyecto; no se diseñó.
+El punto de partida era un estado documentado a propósito: la sala resolvía su
+mesa siempre con `Workshop#group_of(current_user)`, así que quien administra
+entraba y recibía «no estás en ninguna de este taller». Las otras dos mitades ya
+funcionaban y eso acotó el alcance: la lista completa de mesas ya se veía detrás
+de `can_assemble`, y el reparto ya **no** sienta a quien administra —entrar no
+tiene que ocupar un asiento, porque ocuparlo cambia el tamaño de la mesa, entra
+al reparto y mueve los racimos de evolución—.
 
-Las ocho tareas se ejecutaron por subagentes, con revisión de tarea y loop de
-arreglos cada una, más una revisión de rama entera al final. La última (8) era
-sólo documentación: dejar `CLAUDE.md` y la spec contando la verdad.
+La forma elegida: **una pregunta nueva, no una segunda fuente**. `group_of`
+sigue significando «mi mesa»; al lado vive «sobre qué mesa estoy actuando», una
+vez, en un concern.
+
+Cinco tareas por subagentes, con revisión y loop de arreglos cada una. La quinta
+—esta— es sólo documentación.
 
 ## 2. Estado actual
 
-**MERGEADA.** `master` pasó de `6991c6b` a **`9629270`** por **fast-forward**,
-sin commit de merge, y el árbol es byte-idéntico al de la rama (`6448659` en los
-dos) — o sea que la suite y el recorrido verdes corrieron sobre exactamente este
-árbol, no sobre uno nuevo sin probar. 40 commits, 46 archivos, +8.014/−312.
+**NO mergeada, NO pusheada.** Rama `entrar-a-una-mesa` sobre `master` (`d8be50f`).
 
-Push por HTTPS con el helper de `gh` (el remoto es SSH y acá no hay clave).
-`origin/master` verificado **preguntando por la RAMA** y no por el ref de al
-lado, que es el error que esta cadena de handoffs ya pagó dos veces:
+- `make spec`: **1812 ejemplos, 0 fallas** (baseline de la rama: 1770).
+- `make screens` (tras `make seed` y `make yarn-build`, en la Tarea 4): verde,
+  «Sin errores de JS ni respuestas >= 400», con las once cifras y los dos pisos
+  exactos en su valor:
+  `[RITMO] 40 de 76 · [RELLENO] 299 · [PASTILLA] 790 · [CRITERIO] 195 · [LIVE] 1 · [RIEL] 71 · [BANDA] 71 · [SOMBRA] 302 · [CAMPO] 289 · [DRAFT] 2 · [GRABAR] 2`
+- Commits (del más nuevo al más viejo):
 
-```bash
-gh api repos/ribarahonaa/innk_flow/branches/master --jq .commit.sha   # 9629270
+```
+361319a El «Entrar» se calcula una vez fuera del loop de mesas y se alinea a la izquierda, con el «Convocar»
+047b912 La lista de mesas del taller ofrece «Entrar» por mesa y por vínculo trabajable, sólo para quien administra ese desafío
+5cb469b Los cuatro caminos de escritura de la sala actúan sobre la mesa nombrada, y el audio deja de abrirse por taller
+9a5e580 La cara de evolución de la sala tiene testigo propio, y la frase de la llegada ya no pone en minúscula el nombre
+2a4bcab Corrijo los conteos de ejemplos del plan: eran 6 y no 7, y arrastraban
+590be50 El aviso de mesa ajena deja el sufijo _html como único mecanismo de escape
+d4dd45c La sala resuelve la mesa sobre la que se actúa, y los títulos dejan de decir «tu mesa» cuando es ajena
+13ac246 La mesa sobre la que se actúa es una pregunta nueva, con un solo lugar donde vive
+c01f891 El plan de entrar a una mesa: nueve hechos medidos del repo antes de escribirlo
+eb62105 La spec de entrar a una mesa: una pregunta nueva y no una segunda fuente
 ```
 
-La rama local **`grabacion-de-la-mesa` no se borró**, igual que las otras seis
-mergeadas que siguen ahí.
-
-- `make spec`: **1769 ejemplos, 0 fallas** (corrido sobre el árbol final, tras la
-  tanda de arreglos de la revisión de rama).
-- `make screens` (tras `make seed` y `make yarn-build`): verde, "Sin errores de
-  JS ni respuestas >= 400", 76 capturas. Las ONCE cifras:
-  `[RITMO] 40 · [RELLENO] 299 · [PASTILLA] 789 · [CRITERIO] 195 · [LIVE] 1 ·
-  [RIEL] 71 · [BANDA] 71 · [SOMBRA] 302 · [CAMPO] 289 · [DRAFT] 2 · [GRABAR] 2`.
-
-**Proveedores, tal como queda el stack — Y CAMBIÓ RESPECTO DEL HANDOFF
-ANTERIOR.** Lo dejo en **`FLOW_AI_PROVIDER=fixture`** en `app` y `sidekiq`, no en
-`anthropic`: recreé los dos contenedores para correr el recorrido sin facturar, y
-lo dejo así porque es el lado seguro —el handoff anterior se quejaba justamente de
-haber heredado `anthropic` sin saberlo y de que cada corrida costara plata—.
-Para devolverlo:
-
-```bash
-FLOW_AI_PROVIDER=anthropic docker compose up -d --force-recreate app sidekiq
-```
-
-El recreate tiene que incluir `sidekiq` (`Flow::AI.provider` memoiza por proceso)
-y **no** sirve `make reup`, que baja el stack entero. `FLOW_SPEECH_PROVIDER` está **sin declarar a propósito**: la cascada cae al
-fixture (Anthropic no transcribe), así que ni la suite ni el recorrido facturan
-voz. `DEEPGRAM_API_KEY` está en `.env` y **autentica desde el host**: lo medido es
-un `curl` a `/v1/listen` que devolvió HTTP 200, no un pedido hecho desde la app.
-
-**Corrección de la revisión final:** hasta ella `docker-compose.yml` **no
-reenviaba ninguna de las tres variables de voz a los contenedores** —enumera el
-entorno con `${VAR:-default}` y no tiene `env_file:`, así que el `.env` sólo
-interpola—, y en `sidekiq`, que es el proceso que corre el job,
-`env | grep -cE "FLOW_SPEECH|DEEPGRAM"` daba **0**. O sea que el eje era
-imposible de encender editando el `.env`, y quien lo intentara se habría comido
-el `TranscriptionFailed, "falta DEEPGRAM_API_KEY"` del adapter. Las tres ya están
-en el anchor con default vacío, y `app_test` fija `FLOW_SPEECH_PROVIDER: fixture`
-con `DEEPGRAM_API_KEY: ""`. Encender el eje es poner las dos variables.
-
-**Y esto quedó verificado EMPÍRICAMENTE y no leyendo el compose**: tras recrear
-`app` y `sidekiq`, `docker compose exec -T sidekiq env | grep -E
-"FLOW_SPEECH|DEEPGRAM"` devuelve las tres —las dos de voz vacías, la credencial
-presente—. Antes del arreglo devolvía **cero**. Ojo con esto: **el cambio de
-compose no lo toma un contenedor ya corriendo**, hace falta
-`up -d --force-recreate`.
-
-**Riesgo abierto que ningún documento cerraba:** la diarización colapsa en las dos
-mediciones que hay (§4) y el español no se midió nunca.
+**Lo que hay que leer antes de mergear:** §5.1. La feature está entera del lado
+del servidor y **le falta la mitad del cliente**: ningún formulario ni ningún
+`fetch` manda el parámetro `mesa`, así que desde un navegador quien administra y
+no está sentado **lee** una mesa ajena y **no puede escribirla**. Lo encontré
+midiendo en la Tarea 5 y está escrito en `CLAUDE.md`.
 
 ## 3. Archivos y cambios
 
+21 archivos, +2.169/−21 (la mayoría specs y los dos documentos del plan).
+
 | Pieza | Dónde |
 |---|---|
-| El eje de voz: `Provider#transcription?`/`#transcribe`, `Flow::AI.speech_provider`, `Provider::Transcription` (Data), `TranscriptionFailed` | `app/lib/flow/ai.rb`, `ai/provider.rb`, `errors.rb` |
-| Adapter de Deepgram (normaliza; `transcription_from` público) y fixture | `app/lib/flow/ai/providers/deepgram.rb`, `fixture.rb`, `spec/fixtures/ai/` |
-| Tabla y modelo `workshop_recordings` (`collapsed_diarization?` cuenta sólo a los presentes) | `db/migrate`, `app/models/workshop_recording.rb`, `db/structure.sql` |
-| Subida y entrega (cuatro guardas, entre ellas `arrival?`) | `app/controllers/workshop_recordings_controller.rb`, `config/routes.rb` |
-| Servicio y job (idempotente: sale con `ready`, porque cada llamada se cobra) | `app/lib/flow/workshops/transcribe_recording.rb`, `app/jobs/flow/workshops/transcribe_recording_job.rb` |
-| Pantalla: partial, JS, onda en barras, chip, locale | `app/views/workshop_rooms/_recording.html.haml`, `app/javascript/workshop_recording.js`, `application.css` (`.waveform`), `EstilosHelper` |
-| La guarda `[GRABAR]` y el wav voz → silencio → voz | `script/capture_screens.js`, `script/fake_audio.wav` |
-| Los documentos (tarea 8) | `CLAUDE.md`, `docs/superpowers/specs/2026-10-08-grabacion-de-la-mesa-design.md`, este archivo |
+| El permiso: `ChallengePolicy#enter_any_group?` (= `administers?(record)`), predicado propio y no `builder?`/`curate_pool?` | `app/policies/challenge_policy.rb` |
+| La mesa por id, segura por el scope **y** por el tipo `uuid`: `Workshop#group_named` | `app/models/workshop.rb` |
+| La pregunta nueva, UNA vez: `acting_group(workshop, link)` = `own_group \|\| named_group`, con `own_group` memoizado | `app/controllers/concerns/acts_on_a_group.rb` |
+| Los cinco consumidores: el GET de la sala (`@group`, `@mesa_propia`) y los cuatro que escriben | `workshop_rooms_controller.rb`, `workshop_ideas_controller.rb`, `workshop_proposals_controller.rb`, `workshop_drafts_controller.rb`, `workshop_recordings_controller.rb` |
+| El audio: `alcanzables` pasa de `policy(@workshop).update?` (por TALLER) a `policy(@link.challenge).enter_any_group?` (por DESAFÍO) | `workshop_recordings_controller.rb` |
+| Los textos: `de_la_mesa` (una variable por archivo) y el local `mesa_propia` con default `true` | `workshop_rooms/_ideation`, `_evolution`, `_referencia`, `show`, `workshops/_my_group` |
+| El aviso de mesa ajena, escapado por el sufijo `_html` de la clave | `workshop_rooms/_aviso_mesa_ajena.html.haml`, `config/locales/es.yml` |
+| El «Entrar» por mesa y por vínculo trabajable, `link_to` (no `button_to`: hay un form alrededor) | `app/views/workshops/_groups.html.haml` |
+| Specs | `spec/models/workshop_acting_group_spec.rb` (6), `spec/requests/entrar_a_una_mesa_spec.rb` (18), `spec/requests/escribir_en_una_mesa_ajena_spec.rb` (18) |
+| Los documentos (Tarea 5) | `CLAUDE.md`, este archivo |
 
-### Lo que CLAUDE.md dice ahora (tarea 8)
+### Qué mutación puso en rojo a qué, por tarea
 
-- Los lugares que preguntan `arrival?` ya **no llevan número**: CLAUDE.md los enumera
-  por lo que el chequeo hace (controllers que rechazan, caras de la sala, panel
-  «Tu mesa», lecturas que devuelven nada). El conteo viejo ya estaba corto.
-- **Tres** proveedores (`FLOW_AI_PROVIDER`, `FLOW_EMBEDDINGS_PROVIDER`,
-  `FLOW_SPEECH_PROVIDER`), y por qué la tercera no se declara.
-- **Once** guardas que cuentan; pisos `36, 250, 300, 100, «al menos una», 66, 71,
-  275, 270, 2, 2`. `[GRABAR]` es exacto, como `[DRAFT]`.
-- Una sección nueva en «El taller» con lo que no se lee del código (onda en DOM,
-  `data-level`, el JS que no para en `turbo:before-render`, la navegación que pierde
-  el audio, la tarjeta que no se refresca, el contexto seguro).
+Lo que más cuesta reconstruir después. Los outputs crudos están pegados en
+`.superpowers/sdd/2026-10-08-entrar-a-una-mesa/task-*-report.md`.
 
-### Números medidos (los que más cuesta reconstruir)
+**Tarea 1 — el mecanismo (`13ac246`).** RED: 6 ejemplos, 6 fallas
+(`NoMethodError` de `group_named` y `enter_any_group?`). GREEN: 6/0, suite 1776.
+**Sin mutación propia, y ahí estuvo el hallazgo:** el reviewer notó que el
+concern **no tenía ningún ejemplo** —se podía invertir el `||` de `acting_group`
+o borrar el guard de permiso de `named_group` y los 6 seguían verdes—. Se plegó
+a la Tarea 2 como enmienda.
 
-- **Contrato de Deepgram:** `results.channels[0].alternatives[0]` →
-  `transcript`, `confidence`, `words[]` (`word`, `punctuated_word`, `start`, `end`,
-  `confidence`, `speaker`, `speaker_confidence`); `results.utterances[]` →
-  `speaker`, `start`, `end`, `transcript`, `confidence`, `words[]`;
-  `metadata` → `duration`, `request_id`, `model_info`. Con audio de duración cero
-  contesta **200 con texto vacío**. Query usada:
-  `model=nova-3&diarize=true&utterances=true&punctuate=true`.
-- **Tamaño de la transcripción:** utterances normalizadas **0,040 MB por 20 min**
-  contra **0,80 MB** crudas (veinte veces menos). `speaker_confidence` de la
-  utterance = mínimo de sus palabras.
-- **Bitrate:** Chromium graba a **115 kbps** por default (17,4 MB por 20 min); el
-  `MediaRecorder` va con **32 kbps** explícitos (~4,8 MB).
-- **Cuerpo subido por `[GRABAR]`:** ~**22,4 KB** (22.445 idear, 22.575 evolución)
-  contra un piso de **2000** bytes: unas diez veces de margen.
-- **Serie de la onda** (muestreo cada 100 ms, `data-level`): pico ~**0,605** contra
-  `VOZ_MINIMA = 0,05`; el hueco da **17** muestras seguidas bajo `SILENCIO_MAXIMO =
-  0,01` contra `MUESTRAS_DE_SILENCIO = 8`; ruido del opus en el hueco ≤ 0,006; la
-  voz de la cola arranca en 0,013. La ventana de muestreo **termina dentro de la
-  segunda voz**, así que la corrida sale del hueco interior y no de una cola muda.
-  El wav dura 6,50 s, 16 kHz mono: voz 2,5 s (`slt`) → 1,5 s de silencio → voz 2,5 s
-  (`awb`). La estimación teórica "~15 muestras" quedó en un comentario junto al
-  valor medido (17): las dos son ciertas, pero juntas confunden.
-- **Costo:** la única llamada real de la tarea 7 fue ~0,0006 USD.
+**Tarea 2 — la sala (`d4dd45c`, `590be50`, `9a5e580`).** Dos mutaciones, y
+fallan distinto a propósito:
 
-### Qué mutación puso en rojo a qué
+- `@mesa_propia = true` fijo (el servidor miente diciendo que la mesa es propia):
+  sobre los 13 ejemplos finales caen **7, repartidos 3 de idear y 4 de
+  evolución** (títulos con el nombre, aviso de mesa ajena, rama de llegada; y en
+  evolución título, rama de vacío, rama de llegada y aviso de base vieja).
+  Quedan verdes los dos de `participant`, que es correcto: para ellos la mesa
+  **es** la propia. En la primera entrega, con 8 ejemplos, caían 3 — todos de
+  idear, porque evolución no tenía testigo (ver §4).
+- `||` invertido (`named_group(...) || own_group(...)`): cae **UNO**, siempre el
+  mismo, el del asiento propio. Ver §5.2: es el único testigo que tiene.
 
-| Mutación | Rojo en |
+**Tarea 3 — los cuatro caminos de escritura (`5cb469b`).** Cinco mutaciones, y
+**cada una puso rojo SÓLO el bloque de su propio endpoint**, que es lo que
+prueba que los cuatro bloques son independientes y que la verificación por
+endpoint no es una ilusión:
+
+| Mutación | Rojo |
 |---|---|
-| T1: se comenta `return resolve(declarado) if declarado` | speech_provider_spec, el ejemplo de la variable declarada (1 falla) |
-| T1: se comenta `return provider if provider.transcription?` | el ejemplo de identidad del proveedor de chat |
-| T2: `transcribe` con `duration`/`request_id`/`model` en nil | **verde** con el diseño inicial; tras extraer `transcription_from`, el ejemplo nuevo (`expected: 16.906187`) |
-| T3: `== 1` → `<= 1` en `collapsed_diarization?` | «la condición es una igualdad y no un `<=`» |
-| T3: `presentes` → `count` | sólo el ejemplo de "dos sentados, uno ausente"; los otros cuatro verdes |
-| T3: `return if true` en `idea_matches_room` | sólo el ejemplo de `errors[:idea]` |
-| T4: se borra `unless group` | "admin sin mesa 403" |
-| T4: se borra `group.arrival?` | "mesa de llegada 403" |
-| T4: se borra `workable?` | "vínculo cerrado 409" |
-| T4: se saca `split(";")` del content-type | el ejemplo agregado del `codecs` |
-| T4: `WorkshopRecording.unscoped.find_by!` / `find_by!` sin scope | el ejemplo de otra empresa (con audio adjunto) y el de otra sala |
-| T4: `where(workshop_group:)` fuera de `show` | el ejemplo de otra mesa (1 falla) |
-| T4: `find_by!` → `find_by` para `idea_id` | "bogus → 404 y sin fila" |
-| T5: se borra `return false if recording.status == "ready"` | "idempotente" (8 ejemplos, 1 falla) |
-| T5: `rescue TranscriptionFailed` → `rescue StandardError` | **verde** al principio (nada lo distinguía); con el ejemplo del `NoMethodError` rojo (`expected "transcribing" got "failed"`) |
-| T6: `load_recordings` sin el filtro de mesa | "no lista las grabaciones de OTRA mesa" |
-| T6: `%details{ open: i.zero? }` → `%details` | "la última grabación abre su transcripción sola" |
-| T7-B: `mismoNodo = false` (el `start()` no repinta en el morph) | `[GRABAR]`, **fase del morph**: «el botón dice "Grabar" (antes "Parar")»; cae de 2 a 0 |
-| T7-C: `nivel()` devuelve `Math.random() * 0.3` | `[GRABAR]`, **por la corrida de silencio** ("1 muestras y hacen falta 8"), NO por el pico |
-| T7-A (reemplazo): se borra `caja.dataset.level = ...` | `[GRABAR]`, **por el pico** ("0.000", "AnalyserNode no está leyendo"): espejo exacto de C |
-| T7-D: se comenta la llamada de evolución | `[GRABAR] sólo 1 de 2 caras`, cae de 2 a 1 |
+| ideas → `group_of(current_user)` | 2 (administra crea la idea; llegada nombrada) |
+| proposals → `group_of(current_user)` | 2 (administra propone; llegada nombrada) |
+| drafts → `group_of(current_user)` | 1 (administra escribe el borrador) |
+| recordings `create` → `group_of(current_user)` | 1 (administra graba) |
+| `alcanzables` → `policy(@workshop).update?` | 1 (el gestor ajeno baja el audio: 200 en vez de 404) |
 
-A y C son independientes: C falla donde A pasa y al revés, que es lo que prueba que
-las dos aserciones de la onda miden cosas distintas.
+En la corrida RED fallaban **7 de 18**, o sea que once ejemplos pasaban ya antes
+del cambio. Se revisaron uno por uno y **ninguno es vacuo**: los dos de llegada
+pasan en RED porque sin mesa nombrada el admin igual come 403, pero después del
+cambio el único freno es `return head :forbidden if group.arrival?` y borrar esa
+línea los pone rojos; los cuatro del gestor ajeno guardan el `enter_any_group?`
+de `named_group`; los cuatro de `participant` son guardas de regresión que
+comparan la FILA `workshop_group` y no títulos; y el GET 200 guarda que el 404
+nuevo del audio no cierre de más.
 
-## 4. Intentos fallidos (los que no funcionaron)
+**Tarea 4 — el «Entrar» (`047b912`, `361319a`).** Mutación
+`enter_any_group?` → `true`: **1** rojo, el del gestor que administra uno de los
+dos desafíos del taller y tiene que ver el «Entrar» de ese y no el del otro. Los
+otros dos ejemplos negativos («no aparece en la llegada», «quien participa no ve
+ninguno») pasan antes y después: el segundo prueba `can_assemble` —el partial
+entero no se renderiza—, no el predicado. Son guardas de regresión y su nombre
+lo dice.
 
-- **Medir el español y la diarización con audio real: BLOQUEADO.** El archivo
-  (veinte segundos de dos personas hablando español) lo tenía que producir Raúl y
-  no llegó. No se sintetizó un sustituto ni se llamó a la API. El resultado está
-  escrito en la spec como un `Ojo:` fechado: las dos mediciones que hay (un sondeo
-  de diseño con dos voces `flite` y la llamada de la tarea 7 con el wav del repo)
-  dieron **un solo `speaker 0`** (`speaker_confidence` 0,196–0,687 y 0,69 / 0,0),
-  y las dos son **voces de síntesis**, que un diarizador no separa por razones que
-  no dicen nada del proveedor. **Inconcluso, riesgo 1 abierto.** El español nunca
-  se midió: `flite` no habla otro idioma.
-- **La mutación A original de la tarea 7 era imposible.** Borrar las dos líneas
-  `impedimento()` de `start()` quedó **verde**: el recorrido corre en `localhost`
-  (contexto seguro) con micrófono falso, y la rama nunca se alcanza. Se reemplazó
-  por borrar `caja.dataset.level`. La detección de contexto seguro **no tiene
-  testigo**.
-- **Un refresco que nunca existió.** La spec decía que la tarjeta se refrescaba con
-  "el mismo mecanismo de `arrival_live.js`". No se construyó (no hay frame, ni
-  `data-live`, ni poller). `[GRABAR]` pasaba igual porque su primera versión
-  esperaba una `details` en una página que nunca se refresca; se arregló
-  re-visitando con `Turbo.visit` (hasta 20 veces, ~2 s). Un `[GRABAR]` verde no
-  prueba el refresco. Hay una nota fechada en la spec.
-- **El `start()` que no repintaba.** Con retorno temprano en un morph, el servidor
-  devolvía el botón en «Grabar» y el micrófono seguía abierto: quien veía la onda
-  moverse apretaba "Grabar" y cortaba. Arreglado en dos rondas (`repintar()` desde
-  el estado del módulo; la bandera `subiendo`; la onda sólo si hay `analizador`).
-- **Mutación del `rescue` que no discriminaba** (T5): el único ejemplo de fallo
-  lanzaba `TranscriptionFailed`, que `StandardError` también atrapa. Hizo falta un
-  proveedor que lance `NoMethodError`.
-- **Estado compartido en el proveedor** (`last_metadata`): una carrera entre hilos.
-  Se reemplazó por un valor de retorno (`Data`).
-- **El helper de sesión del plan era inventado** y cuatro conteos estaban mal
-  (commit `3d9dd49`); la mutación B del plan nombraba código viejo.
-- **El conteo de `arrival?` del brief (ocho) no cierra** y ningún número es estable
-  (depende de cómo se agrupen las cuatro lecturas de `WorkshopRoomsController`):
-  por eso CLAUDE.md enumera y no cuenta. `grep -rn "arrival?" app` es la verificación.
+## 4. Intentos fallidos y lo que se encontró midiendo
 
-### Lo que la revisión de rama encontró, y que ninguna revisión de tarea podía ver
+Todo esto salió de la ejecución y **no estaba en el plan**. Cuatro de los cinco
+son defectos del plan mismo.
 
-Las ocho tareas se revisaron **contra su propio brief**, así que nadie miró las
-costuras. La revisión de rama entera (cuatro pasadas) dio **no lista para
-mergear**, con esto:
+- **Un conteo de ejemplos del plan estaba mal, y el implementador NO lo tapó.**
+  El brief de la Tarea 1 pedía 7 ejemplos y el spec que él mismo traía tenía 3 +
+  3 = 6; la suite dio 1776 y no 1777. Lo reportó como diferencia en vez de
+  inventar un ejemplo para que cuadrara, que es lo correcto. Corregido en el plan
+  por `2a4bcab`. Es la quinta vez en este proyecto que un conteo de ejemplos del
+  plan sale mal.
+- **El ejemplo que el plan YA tenía para el asiento propio no discriminaba
+  nada.** Era un `participant` sentado mandando el parámetro de otra mesa — y a
+  esa persona `named_group` le devuelve `nil` **por permiso**, así que cae a su
+  asiento **de rebote** y no por precedencia: con el `||` invertido el ejemplo
+  pasa igual. Hizo falta un admin **sentado**, que es lo único que mide el orden
+  del `||`.
+- **El spec de la Tarea 2 no podía pasar como estaba escrito.** Sin ninguna idea
+  sembrada en la mesa, la cara de idear dibuja el vacío («Ninguna idea en esta
+  mesa todavía») y el título «Las ideas de …» **no existe**, así que los ejemplos
+  fallaban por el motivo equivocado. Es la familia «un bloque que sólo se dibuja
+  con datos se fotografía AUSENTE y da verde» que `CLAUDE.md` ya documenta. Se
+  arregló sembrando una idea.
+- **El XSS que se reportó NO existía, y el peligro real era el `.html_safe`.** El
+  implementador avisó que el aviso interpolaba el nombre de la mesa crudo. Se
+  midió: con la clave `foreign_group_html` el valor sale **ya escapado**, y un
+  `ERB::Util.html_escape` explícito encima da una salida **byte por byte
+  idéntica** (`==` → true), o sea que no había XSS ni doble escape. El control
+  —la misma clave **sin** el sufijo más un `.html_safe`— sí da
+  `<script>alert(1)</script>`. Conclusión invertida: lo que había que sacar era
+  el `.html_safe`, que es un no-op hoy y un arma cargada el día que alguien
+  renombre la clave. La línea quedó con el sufijo como único mecanismo.
+- **La cara de evolución entera no tenía un solo testigo.** Los 8 ejemplos de la
+  primera entrega usaban sólo el link de idear, y cuatro de las frases viven en
+  `_evolution.html.haml`: podían volver a decir «tu mesa» sin que nada se
+  pusiera rojo. Es el riesgo nº1 de la feature sin cubrir en la mitad de las
+  frases, y era **plan-mandated** (el brief pedía siete ejemplos, todos de
+  idear). La ronda de arreglo sumó 5 ejemplos y la mutación `@mesa_propia` pasó
+  de 3 rojos a 7. El argumento es el mismo que el repo ya usa para `[DRAFT]` y
+  `[GRABAR]`: las dos caras se miden POR SEPARADO porque un piso flojo no
+  cazaría que una dejó de medirse.
+- **Un cómputo invariante dentro de un loop, y el plan lo traía así.** `entrables`
+  se calculaba **dentro** del `groups.each` y no depende de `group`: se
+  recalculaba una vez por mesa, con un `select` que llama
+  `policy(l.challenge).enter_any_group?` por vínculo. Para quien administra la
+  empresa `manager?` corta antes y no consulta; **para un gestor
+  `reaches_challenge?` hace `ChallengeGestor.exists?` sin memoización**, o sea
+  mesas × vínculos llamadas. El query cache de Rails amortigua —la base ve ~1
+  consulta por vínculo— pero sigue siendo trabajo de Ruby repetido y depende del
+  caché. Es la familia que este repo ya pagó con el `newer_version_for` del
+  builder. Movido arriba del loop (`361319a`), junto a `already_in_ids`,
+  `can_edit` y `convocable`; el reviewer confirmó que fue **puro movimiento**.
+- **El defecto de maquetación lo vio una persona abriendo la captura, no una
+  guarda.** El «Entrar» salía alineado a la **derecha** dentro de la caja angosta
+  del listado de integrantes (~280px), con los 24px de `.form-actions` arriba,
+  mientras el «Convocar» de la misma mesa iba a la izquierda: dos controles de la
+  misma mesa contra bordes opuestos. Se vio en `tmp/screenshots/25a-taller-salas.png`.
+  Arreglado cambiando el wrapper por `.flex.flex-wrap.gap-2.mt-2` (utilidades
+  puras, con `make yarn-build` después) — y ese wrapper es justamente **invisible**
+  para `[CLASES]`, que mira una lista fija de familias.
+- **Dos textos más mentían, y el grep del plan no los veía.** El plan contaba los
+  «tu mesa» y `workshops/_my_group` tenía además «Estás en la mesa de llegada…» y
+  «Trabajás sola o solo en este taller». **Medido en la Tarea 5: de esos dos sólo
+  el segundo se le escapa al grep** —el primero termina en «acá aparece tu mesa»,
+  así que `grep -rni "tu mesa"` sí lo encuentra—. Los dos se condicionaron a
+  `mesa_propia`.
+- **`String#capitalize` minusculiza el resto.** «Mesa A» → «Mesa a». Hoy sólo se
+  alcanza con la llegada, cuyo nombre lo pone la app, pero el nombre de una mesa
+  en general lo escribe una persona. Reemplazado por `sub(/\A./, &:upcase)`.
+- **Y el hallazgo de la Tarea 5, que ninguna revisión de tarea podía ver porque
+  mira un archivo a la vez: el parámetro `mesa` no lo manda nadie.** Ver §5.1.
 
-- **CRITICAL: repartir mesas de nuevo destruía grabaciones y PURGABA el audio, en
-  silencio.** El barrido de mesas vacías de `Flow::Workshops::AssignGroups#seat!`
-  preguntaba por miembros, propuestas y borradores; nunca se le enseñó de
-  grabaciones. Con `dependent: :destroy` + `ON DELETE CASCADE` + el
-  `purge_later` que `has_one_attached` trae por default, en un taller de **idear**
-  cambiar el tamaño de mesa y apretar «Repartir mesas» se llevaba la transcripción
-  **y el blob**. El guarda que protege a las propuestas no ayudaba: sólo se niega
-  si hay una `WorkshopProposal`, que es artefacto de evolución.
-  **La lección, que es la que hay que recordar:** la advertencia estaba
-  *inmediatamente arriba* de la asociación nueva —`workshop_group.rb` dice, dos
-  líneas antes, «`dependent: :destroy` crea un peligro que `AssignGroups` tiene
-  que conocer… ver la cláusula de `seat!`»— y la asociación se agregó debajo con
-  un comentario que afirmaba paridad con los borradores. **Todo artefacto nuevo
-  que cuelgue de la FILA de una mesa tiene que sumarse a ese barrido**, y el
-  comentario de al lado no alcanza para que alguien lo haga.
-- **El eje de voz era inalcanzable en el runtime.** `docker-compose.yml` enumera
-  el entorno y no pasaba las tres variables: **sidekiq, que corre el job, tenía
-  cero**. Dos documentos decían que la clave «anda» —cierto sólo de los sondeos
-  desde el host—. Arreglado y **verificado midiendo el env del contenedor**, no
-  leyendo el compose.
-- **Una grabación podía quedar archivada en la sala equivocada.** `subir()` leía
-  el destino del DOM al **parar**, y `start()` reasigna el contenedor antes del
-  `rec.stop()`: grabar en la sala A, navegar, entrar a la B y parar subía la
-  conversación de A **como grabación de B**, reproducible por sus integrantes. Hoy
-  el destino se captura en `arrancar()`.
-- **Un gestor sentado no tenía grabador ni transcripciones** (el render estaba
-  detrás de `puede_crear`, que excluye gestores por conflicto de interés en las
-  IDEAS, no en grabar). Y **la cara de evolución tenía el mismo defecto**: una
-  mesa sin idea trabajable perdía acceso a lo que ella misma había grabado. Los
-  dos arreglados.
-- **Un ejemplo que decía «dice de qué proveedor salió» aseveraba el MODELO.** La
-  columna `provider` se escribía y no se mostraba en ninguna parte.
+### Lo que quedó parkeado a propósito
 
-### Dos errores de ejecución míos, anotados porque son reutilizables
-
-- **Un `&` adentro de un comando en background desprendió el recorrido**: el
-  padre salió y se perdió su salida **y su código de salida**. No se relanzó
-  encima: dos recorridos contra la misma app y la misma base se corrompen, porque
-  el segundo siembra sobre lo que el primero fotografía.
-- **Un `pgrep` de guarda que se matcheaba a sí mismo.** `while pgrep -f
-  "capture_screens.js"` nunca puede salir: la línea de comando del propio bash
-  contiene ese literal. Giró 21 minutos esperándose. Lo delató que los números no
-  cerraran —última captura 20:55 contra hora 21:16, y `98`/`99` son las últimas
-  del recorrido—. Un `pgrep` de guarda tiene que excluirse (`grep -v`) o usar el
-  PID.
+- **El setup de grabación duplicado** en `spec/requests/escribir_en_una_mesa_ajena_spec.rb`:
+  dos veces las mismas seis líneas. Es setup de test y no un bloque de lógica, y
+  son dos ocurrencias; una ronda de arreglo por eso cuesta más de lo que rinde.
+- **El `include ActsOnAGroup` debajo de la constante `AUDIO_TYPES`** en
+  `workshop_recordings_controller.rb`. Cosmético.
+- **El ejemplo de «otra mesa de otro taller» no cruza empresas.** Esa mitad la
+  cubre `spec/tenancy/`, y `group_named` queda excluida dos veces de todos modos.
+- **El predicado `unless mesa_propia || group.nil?` repetido** en las dos caras de
+  la sala. Son dos lugares que preguntan lo mismo, así que no pueden divergir;
+  una variable de controller por dos usos es la abstracción prematura que el repo
+  evita.
+- **Un ejemplo del asiento propio por endpoint.** Es un mecanismo único en una
+  línea del concern; cuatro ejemplos más no agregan. El costo de esa decisión
+  está en §5.2 y escrito en `CLAUDE.md`.
 
 ## 5. Próximos pasos
 
-La rama está **mergeada**, así que esto es lo que queda del sub-proyecto y de lo
-que no se cerró.
-
-1. **Conseguir los veinte segundos de audio real** (dos personas, español) y
-   medir. Es lo único que cierra el riesgo 1, y **decide si C2 vale la pena como
-   está diseñada**:
-
-   ```bash
-   KEY=$(sed -nE 's/^DEEPGRAM_API_KEY=(.*)/\1/p' .env | tr -d '\r\n"')
-   curl -sS -o /tmp/real.json -w "HTTP %{http_code}\n" \
-     -X POST "https://api.deepgram.com/v1/listen?model=nova-3&diarize=true&utterances=true&punctuate=true&language=es" \
-     -H "Authorization: Token $KEY" -H "Content-Type: audio/mp4" \
-     --data-binary @/tmp/real.m4a
-   ```
-
-   Cuesta ~0,0015 USD. Escribir el resultado en la spec como un `Ojo:` fechado
-   encima del de hoy, **gane o pierda**: si no separa voces, eso es lo que C2
-   necesita saber antes de diseñarse.
-2. **C2 y C3 siguen pendientes.** C2 —resumen de la reunión y «armar la idea
-   desde el resumen»— son dos propósitos de chat sobre la capa que ya existe, y
-   **reusan el `WorkshopDraft` de B** en vez de duplicarlo. No puede diseñarse
-   con confianza mientras las etiquetas de hablante estén sin verificar.
-3. **El primer incremento obvio de C1: que la tarjeta se refresque sola.** Hoy la
-   mesa sube, ve «en cola» y no se mueve hasta navegar o recargar. Hacerlo es
-   ruta + acción + frame + poller con su propia fase de guarda, o sea una tarea.
-   **Y la alternativa barata está descartada por una razón dura:** Turbo 8 morfea
-   llamando a `morphElements` sin `ignoreActiveValue`, así que un poller de
-   página completa **le pisaría a la mesa lo que está tecleando** en el borrador.
-4. **HTTPS, antes de mostrar la grabación desde un teléfono.** Fuera de
-   `localhost` no hay grabación —`getUserMedia` no existe sin contexto seguro— y
-   **ninguna corrida verde lo dice**, porque el recorrido corre en `localhost`.
-   La pantalla lo detecta y lo explica; resolverlo es certificado o túnel.
-5. **Retención del audio.** Se conserva a propósito —re-transcribir es cómo se
-   arregla una diarización colapsada— y **nadie escribió la política**. Son voces
-   de personas identificables, con link de descarga.
-6. **`.env.example` omite el tercer eje.** Documenta chat y vectores; es el único
-   documento cuyo trabajo es decir cómo se enciende un eje. Tres líneas
-   comentadas.
-7. **Devolver el proveedor de chat si hace falta.** El stack quedó en
-   `FLOW_AI_PROVIDER=fixture` (lado seguro: el handoff anterior se quejaba de
-   haber heredado `anthropic` sin saberlo y de que cada corrida costara plata):
+1. **La mitad del cliente que falta, y es lo que decide si esto se mergea como
+   está.** Los cuatro endpoints aceptan `mesa` en el cuerpo y
+   `escribir_en_una_mesa_ajena_spec.rb` lo prueba con un bloque por endpoint,
+   pero **lo manda a mano**. En la app, el único lugar que escribe el parámetro
+   es el «Entrar» de `workshops/_groups`, y es un **GET**:
 
    ```bash
-   FLOW_AI_PROVIDER=anthropic docker compose up -d --force-recreate app sidekiq
+   grep -rn "mesa: group.id" app     # un solo hit: el link «Entrar»
+   grep -rn "params\[:mesa\]" app    # dos hits, los dos en el concern
    ```
 
-   El recreate tiene que incluir `sidekiq` (`Flow::AI.provider` memoiza por
-   proceso) y **no** sirve `make reup`, que baja el stack entero.
-
-### Lo que sigue sin testigo (declarado, no olvidado)
-
-- La detección de **contexto seguro**: el recorrido corre en `localhost`, donde
-  siempre funciona.
-- El **camino HTTP de Deepgram**: `post`, `query`, el header, `parse`, `hint` y el
-  rescue de red no tienen spec (el repo no tiene webmock ni VCR, igual que sus dos
-  adapters de embeddings). Corrió **una sola vez**, a mano, en la tarea 7.
-- La mitad **`purge_later`** del hallazgo crítico: el ejemplo fija la fila pero la
-  factory no adjunta blob.
-- Tres de las cuatro ramas de estado de la tarjeta (`pending`, `transcribing`,
-  `failed`): ningún ejemplo las renderiza, así que el aviso de `failed` —el único
-  lugar donde `recording.error` llega a una persona— está sin ejercitar.
-- `beforeunload` y `pagehide`: si alguien los saca «por limpieza», se pierden
-  reuniones en silencio.
-- El **camino concurrente** del uploader: `[GRABAR]` aprieta una sola vez.
-
-### *Minors* diferidos (de `progress.md`, líneas «minor (deferred)»)
-
-- T2: «canneada» en un comentario de `fixture.rb` no es español estándar (viene del
-  plan y está en los dos lados).
-- T3: `speakers` devuelve `[nil]` si una utterance no trae `"speaker"` y se
-  anunciaría como «diarización colapsada». Teórico: Deepgram con `diarize=true`
-  siempre manda `speaker`.
-- T3: `db/structure.sql` churnea dos líneas por migración (`\restrict` /
-  `\unrestrict` de pg_dump 17+): ruido.
-- T3: el CHECK de Postgres no está ejercitado (el ejemplo del status inválido
-  prueba la validación de Ruby).
-- T3: nada prueba el `SET NULL` a nivel base (borrar una idea y ver la grabación
-  sobrevivir con `idea_id` nil).
-- T4: el job stub no llevaba `frozen_string_literal` (la tarea 5 lo restauró).
-- T4: ~~los dos comentarios «los otros seis lugares» están viejos (ver §5.3).~~
-  Arreglado en la revisión final, y eran tres.
-- T6: ~~si la mesa navega a una pantalla SIN el contenedor mientras graba, `caja`
-  queda en null y la grabación sigue corriendo (Turbo no dispara `pagehide`); al
-  volver, `subir()` descarta el audio porque `url` es null.~~ **Era peor que
-  eso, y la revisión final lo arregló:** el audio no se descartaba, se subía a
-  donde hubieras aterrizado. `start()` hace `caja = encontrado` ANTES del
-  `rec.stop()`, así que la subida leía el `recording-url` de la pantalla nueva y
-  la conversación de la mesa A quedaba guardada como grabación de la mesa B
-  —reproducible por sus integrantes—; en evolución, un clic a otra idea la
-  etiquetaba con la idea nueva. Hoy el destino se captura en `arrancar()`
-  (`urlDeSubida`, `ideaDeSubida`). Lo que SÍ se pierde es cerrar la pestaña
-  estando en una pantalla sin contenedor, y por el límite ya conocido: un
-  `fetch` sin `keepalive` no sobrevive al unload, y con `keepalive` el tope son
-  64 KB.
-- T6: tras un morph las barras quedan en blanco un instante (idiomorph resetea sus
-  `height` en línea) y el historial se rellena en los frames siguientes.
-- T7: una segunda corrida de `make screens` sin `make seed` falla `[CHECKIN]`
-  (Lucía Llegada queda sentada). Preexistente y documentado.
-- T7: el sello del morph es testigo débil (el tick de 1 s reescribe el cronómetro
-  dentro de la espera); el texto del botón es la única aserción fuerte de esa fase.
-- T7: `Math.max` sobre una serie con NaN devuelve NaN y `NaN < VOZ_MINIMA` es
-  false, así que el chequeo del pico se saltea; la corrida de silencio sí lo caza.
-- T7: la ruta interceptada del POST queda registrada tras un `return` temprano,
-  por el resto de la corrida (sólo continúa pedidos).
-- T7: ~~en el bloque de comentario conviven la estimación teórica («~15 muestras») y
-  el valor medido (17).~~ La estimación se borró en la revisión final: queda el 17
-  medido.
-
-### Si hay que repetir algo de esto
-
-- Mutar una guarda: restaurar con `cp` de un backup tomado **después** del arreglo;
-  `git checkout` deshace el arreglo, no la mutación.
-- `make seed` antes de cada `make screens`; `make yarn-build` antes de ambos si se
-  tocó `app/javascript/` o Tailwind.
+   Los dos `form_with` de la sala y los dos `fetch` del JS arman su URL con
+   `workshop_sala_*_path(workshop, link)`, sin el parámetro, y no hay
+   `default_url_options` que lo arrastre. O sea que hoy quien administra y **no**
+   está sentado entra, lee la mesa ajena, y cada escritura cae a `own_group` →
+   `nil` → 403 (borrador y grabación) o redirect con «no estás en ninguna de este
+   taller» (ideas y propuestas): **un formulario que se dibuja y rebota**. Es un
+   `hidden_field_tag :mesa` en los dos formularios y el parámetro en las dos URLs
+   de `data-`, más un testigo que mire el HTML servido (los request specs no lo
+   pueden ver: mandan el parámetro ellos). Es la misma mitad que
+   `base_version_id` tuvo que cubrir con `spec/lint/sello_del_borrador_spec.rb`,
+   y acá no hay ningún lint.
+2. **«El asiento propio gana» tiene UN SOLO testigo y ninguna guarda del
+   recorrido lo respalda.** Es el ejemplo de `entrar_a_una_mesa_spec.rb` con un
+   admin **sentado** que nombra otra mesa. Los cuatro bloques de escritura
+   seguirían verdes con el `||` invertido, y `[DRAFT]` y `[GRABAR]` tampoco lo
+   cazarían, porque no mandan `mesa` y con el parámetro ausente el resultado es el
+   mismo en cualquier orden. Si alguien borra ese ejemplo, la precedencia se queda
+   sin nada.
+3. **Nada mide el «Entrar» en el recorrido.** `[CLASES]` lo ve sólo por la familia
+   `btn` y sólo saltaría si perdiera **toda** regla —imposible en la práctica:
+   `btn`, `btn-ghost` y `btn-sm` ya existen por el «Convocar» de la misma mesa—, y
+   el wrapper de utilidades le es invisible. Que el link esté, que lleve el `mesa=`
+   correcto, el rótulo y el colapso a «Entrar» pelado los cubren los ejemplos de
+   request; la maquetación, nadie.
+4. **El selector de mesa dentro de la sala** se descartó para esta spec y se puede
+   sumar encima de este mecanismo: hoy, para ver otra mesa hay que volver al
+   taller. Deja la sala con dos modos y un control que hay que esconder para quien
+   no administra.
+5. **La atribución no alcanza como auditoría.** Cada fila dice quién actuó
+   (`updated_by`, `recorded_by`, el autor de la `Idea`), pero **ninguna pantalla
+   lista «lo que hizo quien administra desde afuera»**. Si eso hace falta, es otra
+   feature.
+6. **La carrera entre quien administra y la mesa tecleando el mismo borrador** es
+   último-que-escribe-gana por diseño y el sello nombra a quien tecleó — pero
+   ahora los dos pueden ser personas que no se ven entre sí, y a la mesa no se le
+   avisa en vivo que alguien entró desde afuera (un push pediría el canal
+   autenticado y scopeado por empresa que la spec de la lista de llegada ya
+   descartó).
+7. **Y el efecto de borde de «el asiento propio gana»:** quien está sentado no
+   puede entrar a otra mesa. Apretar «Entrar» en la Mesa 3 estando sentado en la
+   Mesa 1 muestra la Mesa 1, sin decir por qué. Es deliberado —es lo que hace que
+   nada cambie de comportamiento, el recorrido incluido— pero el «Entrar» se
+   dibuja igual, así que para un admin sentado es un control que no hace lo que
+   su rótulo promete. Esconderlo, o decirlo, es una decisión que nadie tomó.

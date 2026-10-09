@@ -712,6 +712,42 @@ volvería muda la pantalla justo en lo que el selector existe para decir. En est
 GET el 403 es inalcanzable: todo rol que `WorkshopPolicy::Scope` admite pasa
 también `work?`, y quien no pasa el scope ya tuvo 404.
 
+**Entrar a una mesa es un permiso por DESAFÍO, y es consecuencia directa del
+párrafo de arriba.** `ChallengePolicy#enter_any_group?` —que es
+`administers?(record)`— es lo que deja a quien administra un desafío trabajar
+**cualquier** mesa de un taller que lo trabaja, sin ocupar un asiento. Por
+desafío y **no** por taller (`WorkshopPolicy#update?` y `#work?`, que son los
+dos `administers_any?`): si la sala ya le esconde a un gestor el `brief` de un
+desafío que no le asignaron, dejarlo ESCRIBIR ahí sería abrir escritura sobre
+algo que no puede leer.
+
+**Y `alcanzables`, en las grabaciones, lo contradecía** —desde antes de la rama
+que sumó esto—: abría el audio de la mesa con `policy(@workshop).update?`, o sea
+`administers_any?`, un permiso por TALLER sobre contenido de UN desafío. Un
+gestor del desafío A podía pedir por URL el audio grabado en la sala del desafío
+B, con las voces de esa mesa adentro. Hoy pregunta `enter_any_group?` del
+desafío del vínculo. **La otra línea de ese mismo método sigue con
+`group_of(current_user)` a propósito**: a ese camino sólo llega quien no
+administra, y quien no administra siempre está sentado.
+
+**El predicado es NUEVO y no reusa `builder?` ni `curate_pool?`**, que hoy son
+los dos exactamente `administers?(record)`. Reusar uno ahorra una línea y ata el
+acceso a las mesas al significado de otra cosa: el día que alguien mueva
+`curate_pool?`, esto se movería con él sin que nadie lo decida. Un nombre
+prestado es cómo un permiso se ensancha en silencio.
+
+**Las dos reglas del gestor con las ideas NO se abrieron, y no hizo falta
+escribir nada para que se cumplan adentro de la sala.** `IdeaPolicy#create?` es
+`membership.present? && !membership.gestor?`, y `submit?` es
+`update? && !assigned_gestor?`: son conflicto de interés y no permisos —«Crear
+borrador» deja a quien aprieta como AUTOR de una `Idea` que compite en un
+proceso que el gestor administra, y el motivo pesa MÁS adentro de la sala que
+afuera—. El formulario de idear ya vive detrás de `puede_crear`, que ES
+`IdeaPolicy#create?`, así que un gestor que entra a una mesa ve las ideas, el
+borrador, las propuestas, la grabación y las transcripciones, y **no** ve el
+formulario. Un admin no toca ninguna de las dos: `create?` sólo excluye al
+gestor y `submit?` sólo al gestor asignado.
+
 **Un taller trabaja sobre una sola fase.** Se verifica en
 `Flow::Workshops::Open` y no como validación de modelo: en borrador el vínculo
 todavía no tiene `challenge_step`, así que la fase no existe y no hay con qué
@@ -821,6 +857,76 @@ asiento de quien mira: el panel listaría una persona en vez de la mesa, y todos
 los specs del panel seguirían verdes porque miran a quien está logueado. La
 precarga va en el punto de uso (`workshops/_my_group`).
 
+**«Mi mesa» y «la mesa sobre la que ACTÚO» son dos preguntas distintas, y por
+eso `group_of` no se tocó.** Darle un parámetro era la tentación obvia y es la
+peor salida: dos de sus llamadores preguntan legítimamente por la propia —el
+`@my_group` de `workshops#show`, que es literalmente el panel «Tu mesa», y el
+camino sin administrar de `alcanzables` en las grabaciones—, y un método con dos
+significados es cómo se abren las fugas que este archivo ya documenta. La
+pregunta nueva vive UNA vez, en el concern `ActsOnAGroup`
+(`acting_group(workshop, link)`), y la consultan los cinco caminos de la sala:
+el GET que decide qué dibuja y los cuatro que escriben. Se verifica con
+`grep -rn "group_of(current_user)" app`, que tiene que devolver esos dos
+llamadores y nada más —los otros dos hits son del concern mismo: un comentario y
+el `own_group` memoizado—. Un número no se verifica; el grep sí.
+
+**El asiento propio GANA SIEMPRE** (`own_group(workshop) ||
+named_group(workshop, link)`), y no es un detalle de implementación: es lo que
+hace que nada de lo que ya funciona cambie de comportamiento. El seed sienta al
+admin del recorrido en las mesas de los dos talleres que el recorrido trabaja, y
+`[DRAFT]` y `[GRABAR]` —con piso EXACTO en 2— lo miden de rebote. De paso
+significa que quien está sentado **no** puede entrar a otra mesa: nombre lo que
+nombre, le sigue saliendo la suya.
+
+**Para quien no administra ese desafío el parámetro se IGNORA, no se rechaza.**
+Cae a su propio asiento, sin 403. Un 403 confirmaría que esa mesa existe, o sea
+el oráculo de existencia que este archivo persigue en todas partes.
+
+**`Workshop#group_named` es segura por dos vías independientes, y sólo una se
+lee del código.** La que se lee: cuelga de `workshop_groups`, que filtra por
+taller y —vía `TenantScoped`— por `company_id`, así que una mesa de otro taller
+o de otra empresa queda excluida dos veces. La que no: la columna es **`uuid`**,
+así que `OID::Uuid` castea a `nil` antes de llegar al SQL. Medido el 2026-10-08:
+el hash de `?mesa[a]=1` (`ActionController::Parameters`), un array, una cadena
+basura, `""` y `nil` castean los cinco a `nil`, y `group_named` devuelve `nil` en
+los cinco; sólo el id real resuelve. Es el mismo par portante que este archivo
+documenta para `base_version_id`, y las dos se pierden por caminos distintos:
+si la columna cambiara de tipo se va el casteo, y si el `find_by` se moviera a
+`WorkshopGroup.find_by` se va el filtro por TALLER y queda sólo el de empresa
+—una mesa de otro taller de la misma empresa pasaría a resolver—.
+
+**«El asiento propio gana» tiene UN SOLO testigo, y ninguna guarda del recorrido
+lo respalda.** Es un ejemplo de `spec/requests/entrar_a_una_mesa_spec.rb` con un
+admin **sentado** que nombra otra mesa. Tiene que ser alguien con asiento **y**
+permiso de nombrar: con un `participant` el ejemplo pasa igual con el `||`
+invertido, porque `named_group` le devuelve `nil` por permiso y cae al asiento
+**de rebote** y no por precedencia. Los cuatro bloques de los endpoints de
+escritura seguirían verdes con el `||` al revés —medido: con esa inversión cae
+ese ejemplo y nada más—, y `[DRAFT]` y `[GRABAR]` **tampoco lo cazarían**: no
+mandan `mesa`, así que con el parámetro ausente `named_group` devuelve `nil` y el
+resultado es el mismo en cualquier orden. Un ejemplo por endpoint sería caro y no
+agregaría nada —es un mecanismo único en una línea—, pero que nadie lea «está
+cubierto»: borrar ese ejemplo deja la precedencia sin testigo.
+
+**Y el límite que hay que saber antes de creer que la feature está entera: el
+`mesa` del cuerpo no lo manda NADIE.** Lo escribe un solo lugar
+—`grep -rn "mesa: group.id" app` devuelve el «Entrar» de `workshops/_groups` y
+nada más— y ese link es un **GET**. Los dos formularios de la sala
+(`_ideation`, `_evolution`) y los dos `fetch` del JS (`workshop_draft.js`,
+`workshop_recording.js`) arman su URL con `workshop_sala_*_path(workshop,
+link)`, sin el parámetro, y no hay `default_url_options` que lo arrastre. O sea
+que hoy, desde un navegador, quien administra y **no** está sentado ENTRA y LEE
+la mesa ajena, y después cada escritura cae a `own_group` → `nil` → 403 (el
+borrador y la grabación) o redirect con «no estás en ninguna de este taller»
+(las ideas y las propuestas): un formulario que se dibuja y rebota, que es el
+control-que-no-responde de siempre. Los cuatro endpoints SÍ aceptan el parámetro
+y `spec/requests/escribir_en_una_mesa_ajena_spec.rb` los prueba con un bloque
+por endpoint, porque **manda el parámetro a mano** —es exactamente la mitad que
+`base_version_id` tuvo que cubrir con un lint, y acá no hay ninguno—. Completar
+el camino es un `hidden_field_tag :mesa` en los dos formularios y el parámetro
+en las dos URLs de `data-`, más un testigo que mire el HTML servido; **no está
+hecho**.
+
 **Con quién estás sentado ya se ve, y sin controles.** `workshops/_my_group`
 —nombre de la mesa, integrantes, «(vos)» y «· ausente»— se sirve a cualquiera
 con `work?`, en la pantalla del taller y en la columna de referencia de la sala:
@@ -829,6 +935,50 @@ nadie se entera. Sin controles a propósito: marcar presente y sacar gente son d
 quien administra y viven en el bloque de armado, que sigue dibujando el asiento
 con su propio markup (`workshops/_group_body`). La lista COMPLETA de mesas sigue
 detrás del permiso de armar (`can_assemble`, que es `WorkshopPolicy#update?`).
+
+**Y los textos que decían «tu mesa» salen de UNA variable por archivo, no de un
+`if` por frase.** `de_la_mesa` en `workshop_rooms/_ideation` y en `_evolution`, y
+el local `mesa_propia` —con default `true`— en `workshops/_my_group`, que es el
+partial compartido: en la pantalla del taller la mesa es siempre la propia y sólo
+la sala puede mostrar una ajena. Con una mesa ajena cada frase dice el NOMBRE.
+**Si alguien agrega un texto nuevo con «tu mesa» fijo, miente en cuanto la mesa
+es ajena**, que es la misma fuga que este archivo nombra para la lista de ideas:
+contenido de otra mesa bajo un título que dice que es de ésta. El grep es
+`grep -rni "tu mesa" app/views` —varias de sus líneas son comentarios y no
+textos—, y **no los encuentra todos**: «Trabajás sola o solo en este taller» no
+contiene «tu mesa» y también mentía sobre una mesa ajena; se arregló, pero el
+grep no la habría encontrado. **No hay ninguna guarda**: ni un spec de lint ni
+`make screens` cazarían un texto fijo nuevo. Lo único que cubre esto son los
+ejemplos de `spec/requests/entrar_a_una_mesa_spec.rb`, y cubren las frases que
+existen hoy, y cubren las DOS caras por separado —medido: con `@mesa_propia`
+fijo en `true` caen ejemplos de idear **y** de evolución, no de una sola—.
+
+**El aviso de mesa ajena se escapa con el sufijo `_html` de la clave de
+traducción, y con NADA más.** El nombre de la mesa es texto libre que escribe
+quien la crea, y el aviso lo interpola adentro de un `<strong>`. Medido: con la
+clave `flow.rooms.foreign_group_html` el valor interpolado sale **ya escapado**,
+y un `ERB::Util.html_escape` explícito encima da una salida byte por byte
+idéntica —no hay doble escape, y no hacía falta—. Pero el control —la misma
+clave **sin** el sufijo más un `.html_safe` encima— sí deja pasar un `<script>`
+ejecutable. Por eso la línea **no lleva `.html_safe`**: sería un no-op hoy y
+volvería explotable un renombre de la clave mañana. Sin él, el mismo renombre
+sólo mostraría el `<strong>` como texto, que falla hacia el lado seguro.
+
+**Del «Entrar» de cada mesa, `make screens` cubre casi nada, y conviene saber
+exactamente qué.** El link es un `a.btn.btn-ghost.btn-sm` dentro de un wrapper de
+utilidades sueltas (`.flex.flex-wrap.gap-2.mt-2`). `[CLASES]` lo ve **sólo por la
+familia `btn`** y **sólo salta si pierde toda regla** —y `btn`, `btn-ghost` y
+`btn-sm` ya existen por el «Convocar» de la misma mesa, así que en la práctica no
+puede quedarse sin ninguna—. El **wrapper**, hecho sólo de utilidades, es
+**invisible** para `[CLASES]`, que mira una lista fija de familias: es la familia
+de la tarjeta del QR que sobrevivió seis corridas verdes. **Nada mide** que el
+link esté, que lleve el `mesa=` correcto, su rótulo, el colapso a «Entrar» pelado
+con un solo vínculo trabajable, ni su maquetación. Lo primero lo cubren los
+ejemplos de request, que aseveran sobre el HTML servido; la maquetación **sólo la
+vio una persona abriendo `tmp/screenshots/25a-taller-salas.png`**, y ahí
+apareció el defecto que la ronda de arreglo cerró —el control contra el borde
+derecho de la caja de integrantes mientras el «Convocar» de la misma mesa iba a
+la izquierda—.
 
 **El reparto se niega a correr en cuanto hay propuestas.** Rearmar borra las
 mesas que queden vacías, y eso se llevaría las propuestas aceptadas, que son la
