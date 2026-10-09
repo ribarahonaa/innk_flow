@@ -4,5 +4,13 @@
 -#
 -# `alert` de DaisyUI es `display: grid` con `grid-auto-flow: column`, así que el
 -# contenido va en UN solo `%div` o se reparte en columnas.
+-#
+-# El nombre de la mesa lo escribe quien la crea (texto libre) y se interpola
+-# en HTML, así que escaparlo no es opcional. Lo hace el SUFIJO `_html` de la
+-# clave: el `t` de la vista escapa los valores interpolados y marca el resultado
+-# como safe. Ese sufijo es el ÚNICO mecanismo: un `.html_safe` encima sería un
+-# no-op hoy y, el día que alguien renombre la clave sin el sufijo, convertiría
+-# la interpolación en XSS. Sin él, el mismo renombre sólo mostraría el
+-# `<strong>` como texto, que falla hacia el lado seguro.
 .alert.alert-soft.alert-warning
-  %div= t("flow.rooms.foreign_group_html", group: ERB::Util.html_escape(group.name)).html_safe
+  %div= t("flow.rooms.foreign_group_html", group: group.name)
