@@ -28,7 +28,18 @@ la feature y está en §4.
 
 ## 2. Estado actual
 
-**NO mergeada, NO pusheada.** Rama `entrar-a-una-mesa` sobre `master` (`d8be50f`).
+**MERGEADA y PUSHEADA.** `f24ce80` en `master` (merge `--no-ff` de
+`entrar-a-una-mesa` sobre `d8be50f`), y la rama local se borró con `-d`, que la
+borra sólo si está mergeada. El remoto se verificó por `git ls-remote` sobre
+HTTPS: `f24ce80` en `refs/heads/master`, igual al local.
+
+Ojo con `git status` en este repo: dice `ahead N` porque el ref local
+`origin/master` queda viejo — `git fetch origin` usa la URL **SSH** del remoto y
+no hay clave en este entorno. El push va por HTTPS con el helper de `gh`, y la
+verificación, por `git ls-remote https://…`.
+
+`make spec` se corrió **sobre el resultado del merge**, no sólo sobre la rama:
+**1821 ejemplos, 0 fallas**.
 
 - `make spec`: **1821 ejemplos, 0 fallas** (baseline de la rama: 1770).
 - `make screens` (tras `make seed` y `make yarn-build`): verde, «Sin errores de
@@ -359,3 +370,94 @@ y `nil` castean los cinco a `nil`. **No es un problema de seguridad** —resuelv
 la misma mesa que el parámetro plano, con el mismo filtro por taller y por
 empresa— pero la frase afirmaba más de lo que alguien había medido. Hay un
 ejemplo nuevo en `spec/models/workshop_acting_group_spec.rb` que lo fija.
+
+---
+
+## 7. Después del merge: el eje de voz quedó ENCENDIDO
+
+Esto es de la misma sesión pero no es de esta rama: se tocó la configuración
+local, no el código.
+
+### Lo que se cambió, y lo que eso cuesta
+
+`.env` ahora declara **`FLOW_SPEECH_PROVIDER=deepgram`** (antes estaba ausente,
+o sea vacío). La `DEEPGRAM_API_KEY` ya estaba y tiene saldo.
+
+**Con eso puesto, `make screens` FACTURA**: el recorrido graba en las dos caras
+de la sala en cada corrida, y cada grabación se transcribe de verdad. Vaciar la
+variable devuelve la cascada al fixture —determinista, sin red, sin costo—, que
+es el estado que `CLAUDE.md` describe como deliberado. Hay un backup del `.env`
+anterior en `.env.backup-<epoch>`.
+
+Y acordate de que el `.env` sólo **interpola**: el compose no tiene `env_file:`,
+así que editarlo no alcanza — hace falta `make reup` para que el valor llegue a
+los procesos.
+
+### Lo que se midió, y es la primera vez que se mide
+
+La cadena de transcripción **funciona de punta a punta contra el proveedor
+real**. Medido el 2026-10-09 desde el contenedor `app`, con
+`script/fake_audio.wav` (208.078 bytes):
+
+| | |
+|---|---|
+| Credencial | autentica, sin 401 |
+| Latencia | 0,98 s |
+| Modelo que resolvió | `general-nova-3` — o sea que el default `DEFAULT_MODEL = "nova-3"` está en efecto y **`FLOW_SPEECH_MODEL` no hace falta declararlo** |
+| Duración detectada | 6,5 s |
+| `request_id` | presente |
+| Utterances | 1, hablante `0`, texto `""` |
+
+**El texto vacío no es una falla.** `fake_audio.wav` son tonos sintéticos
+armados voz → silencio → voz para que `[GRABAR]` pueda medir la onda: no tiene
+palabras. Deepgram escuchó 6,5 segundos y devolvió cero, que es lo correcto.
+
+Lo que esta medición cierra es **la plomería**: credencial, HTTP, schema,
+normalización y metadata. Lo que **no** toca es el español ni la diarización,
+porque ese archivo no puede decir nada de ninguno de los dos.
+
+Y lo que también quedó probado antes de eso: la `DEEPGRAM_API_KEY` llega a los
+**dos** contenedores, `app` y `sidekiq` —éste es el que corre el job de
+transcripción—, así que el arreglo del compose de la rama C1 funciona.
+
+## 8. Por dónde seguir: C2, y su bloqueante
+
+La pregunta que quedó abierta al cerrar el día fue: «la transcripción queda
+escrita y no se hace nada con ella». **Es alcance, no algo que se perdió.** La
+spec de C1 (`docs/superpowers/specs/2026-10-08-grabacion-de-la-mesa-design.md`)
+parte C en tres:
+
+| | Qué hace | Estado |
+|---|---|---|
+| **C1** | la mesa graba, se transcribe con hablantes, y la sala lo muestra | **embarcado** |
+| **C2** | resumen de la reunión y «armar la idea desde el resumen» | pendiente, spec propia |
+| **C3** | dictado al campo del formulario | pendiente, spec propia |
+
+C1 fue primero porque es «la única de las tres con riesgo técnico real»: estrena
+el tercer eje de proveedor. Ese riesgo ya está cerrado (§7).
+
+**El bloqueante de C2 no es técnico, es una medición que falta.** Su premisa
+central son **las etiquetas de hablante**, y la diarización **sigue sin
+verificar**: las dos pruebas que se hicieron usaron voces sintéticas y las dos
+colapsaron en un solo hablante, y el español no se midió nunca. Si el colapso
+fuera real, C2 recibiría transcripciones de una sola voz y su premisa se cae.
+Lo que lo cierra, textual en la spec de C1: **veinte segundos de dos personas
+reales hablando español**.
+
+**Orden sano: medir la diarización primero, y recién ahí escribir la spec de
+C2.** Dos caminos para medirla, y el primero prueba más:
+
+1. Grabar veinte segundos desde la sala en la app con dos voces — eso ejercita
+   el camino completo (navegador → subida → job de Sidekiq → tarjeta con
+   hablantes), que es más de lo que mide un `bin/rails runner`.
+2. Pasar el archivo y medirlo con un `runner`, como se hizo en §7.
+
+El resultado va a la spec de C1 como `Ojo:` fechado, salga como salga.
+
+**Y una puerta que C1 ya cerró, para que C2 no la reabra:** el proveedor de voz
+devuelve transcripción **y nada más**. Pedirle el resumen a Deepgram se evaluó y
+se descartó porque dejaría un texto generado por un modelo «sin `AiRun`, sin
+propuesta, sin schema validado y sin modos asistido/automático: por fuera de
+toda la disciplina de `Flow::AI::Runner`». El resumen de C2 va por el runner,
+como cualquier otra tarea de IA — con su clase, su `AiRun::PURPOSES`, el CHECK
+de Postgres sobre `ai_runs.purpose` y su clave en `flow.ai_purposes`.
