@@ -3459,12 +3459,20 @@ async function revisarTema(page, pantalla, url) {
   // Nunca `goto`: Turbo no dispara `DOMContentLoaded` al navegar por link, y un
   // `goto` monta la pantalla igual y esconde el bug.
   //
-  // El `li` se busca por el NOMBRE del desafío y el link adentro: el bloque de
-  // armado lista los mismos nombres en sus propios `li.field-list__item`, así
-  // que el locator matchea dos y lo que desempata es tener un «Entrar», que es
-  // del selector y de nadie más.
+  // El `li` se busca por el NOMBRE del desafío y el link adentro, ANCLADO al
+  // selector de salas (la `card` cuyo título es «Salas»): el bloque de armado
+  // lista los mismos nombres en sus propios `li.field-list__item` y desde que
+  // cada mesa ofrece su propio «Entrar» tiene links con ese texto, así que
+  // «tener un Entrar» ya no desempata. Hoy no colisiona por casualidad —los
+  // talleres abiertos del seed tienen UN vínculo trabajable, así que el rótulo
+  // de la mesa es «Entrar» pelado y el nombre del desafío no aparece en su
+  // `li`—, pero con dos salas `first()` tomaría el de la mesa, porque el bloque
+  // de armado se renderiza ANTES que el selector, y la corrida seguiría verde
+  // midiendo otra navegación.
   const goToRoom = async (challengeName) => {
-    const entrar = page.locator('li.field-list__item', { hasText: challengeName })
+    const selector = page.locator('.card')
+      .filter({ has: page.locator('h2.section-title', { hasText: 'Salas' }) });
+    const entrar = selector.locator('li.field-list__item', { hasText: challengeName })
       .locator('a:has-text("Entrar")');
     if (!(await entrar.count())) {
       failures++;
@@ -3536,7 +3544,7 @@ async function revisarTema(page, pantalla, url) {
     // 25: la sala de idear ofrece el formulario del módulo de ideación y dice
     // con quién se comparte el borrador.
     if (await goToRoom('Ideas para la sala de descanso')) {
-      if (!(await page.locator('form[action*="/ideas"] input[value="Crear borrador"]').count())) {
+      if (!(await page.locator('form[action*="/ideas?"] input[value="Crear borrador"]').count())) {
         failures++;
         console.error('[TALLER] la sala de idear no ofrece «Crear borrador»');
       }
@@ -3628,7 +3636,7 @@ async function revisarTema(page, pantalla, url) {
           primera.click()
         ]);
         await page.waitForSelector('h2.section-title:has-text("Contenido")', { timeout: 10000 });
-        const forms = await page.locator('form[action*="/proposals"] input[value="Proponer"]').count();
+        const forms = await page.locator('form[action*="/proposals?"] input[value="Proponer"]').count();
         if (forms !== 1) {
           failures++;
           console.error(`[TALLER] con una idea elegida hay ${forms} formularios de propuesta y se esperaba 1`);

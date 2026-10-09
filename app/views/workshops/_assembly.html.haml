@@ -62,7 +62,10 @@
     - else
       %p.field-hint Los desafíos se suman y se sacan mientras el taller es un borrador.
 
-= render "workshops/groups", workshop: workshop, groups: groups
+-# `rooms` baja hasta acá porque el «Entrar» de cada mesa pregunta por
+-# `rooms.workable`, y `links` es literalmente `rooms.links`: la colección ya
+-# está cargada, así que el bloque de mesas no vuelve a consultar los vínculos.
+= render "workshops/groups", workshop: workshop, groups: groups, rooms: rooms
 
 = render "workshops/checkin", workshop: workshop
 

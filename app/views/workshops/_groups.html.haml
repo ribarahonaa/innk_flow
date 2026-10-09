@@ -2,6 +2,9 @@
 -# `_assembly`, detrás del mismo `can_assemble` (calculado en `show.html.haml`
 -# y reusado en toda la cadena): acá no se vuelve a preguntar el permiso.
 -#
+-# `rooms` llega desde `_assembly` —es el `Flow::Workshops::Rooms` del
+-# controller— y es quien contesta qué vínculos son trabajables.
+-#
 -# Convocar ES sumar a una mesa (`Flow::Workshops::Convoke`): no hay una lista
 -# de convocados aparte. En modo individual, elegir a la persona alcanza — el
 -# servicio le arma su propia mesa —, así que ahí no hace falta "Crear mesa" ni
@@ -24,7 +27,16 @@
 -# Los vínculos a los que quien mira puede ENTRAR: no dependen de la mesa, así
 -# que se calculan UNA vez y no por mesa (para un gestor `enter_any_group?` es
 -# una consulta por vínculo).
-- entrables = workshop.workshop_challenges.select { |l| l.workable? && policy(l.challenge).enter_any_group? }
+-#
+-# `rooms.workable` y no una segunda copia de «¿este vínculo es trabajable?»: es
+-# la misma pregunta que decide el redirect de `workshops#show`, el breadcrumb de
+-# la sala y el «Entrar» del selector, sobre los MISMOS objetos ya cargados de
+-# `rooms.links`. `WorkshopChallenge#workable?` NO es el mismo conjunto —no mira
+-# el `kind`, y `workable` además pide que esté en `WORKABLE_KINDS`—, así que
+-# escribirlo de nuevo acá ofrecería entrar a una sala que `only_room` ya no
+-# cuenta. Y de paso no paga consultas: `workshop.workshop_challenges` era una
+-# consulta nueva sin precarga en un render que ya tiene la colección.
+- entrables = rooms.workable.select { |l| policy(l.challenge).enter_any_group? }
 
 .card
   .card-body

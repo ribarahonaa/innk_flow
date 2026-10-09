@@ -104,10 +104,15 @@ class WorkshopIdeasController < ApplicationController
   end
 
   # La mesa de llegada no trabaja. El rechazo es explícito y con su mensaje: un
-  # 404 pelado en una sala que debería decir «tu mesa todavía no se armó» es el
+  # 404 pelado en una sala que debería decir por qué no se puede trabajar es el
   # control que no responde.
+  #
+  # El texto es NEUTRO («esa mesa» y no «tu mesa») porque quien administra puede
+  # nombrar la llegada y llegar acá sin estar sentado en ella: un «tu» ahí
+  # miente. Las vistas resuelven lo mismo con `de_la_mesa`, que dice el nombre;
+  # acá sería un condicional por un redirect, y neutro no puede mentir.
   def reject_arrival
     redirect_to workshop_sala_path(@workshop, @link),
-                alert: "Tu mesa todavía no se armó: esperá el reparto para trabajar."
+                alert: "Esa mesa todavía no se armó: esperá el reparto para trabajar."
   end
 end

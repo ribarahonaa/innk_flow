@@ -119,6 +119,26 @@ RSpec.describe "escribir sobre una mesa ajena", type: :request do
       expect(response).to have_http_status(:forbidden)
       expect(as_company(company) { WorkshopDraft.count }).to eq(0)
     end
+
+    # El lado POSITIVO del gestor, que es el rol para el que la feature es menos
+    # obvia: el resto de los bloques lo prueban sólo negativo (administrando
+    # OTRO desafío del taller) y al admin positivo. Sin asiento y asignado a
+    # ESTE desafío, escribe sobre la mesa nombrada igual que quien administra la
+    # empresa: `enter_any_group?` es `administers?`, o sea
+    # `manager? || (gestor? && le asignaron ESE desafío)`.
+    it "un gestor asignado a ESTE desafío escribe sobre la mesa que nombra" do
+      as_company(company) { ChallengeGestor.create!(challenge: idear[:link].challenge, user: gestor) }
+      sign_in(gestor, company: company)
+
+      patch_draft(idear, mesa: idear[:mesa])
+
+      expect(response).to have_http_status(:no_content)
+      as_company(company) do
+        draft = WorkshopDraft.last
+        expect(draft.workshop_group).to eq(idear[:mesa])
+        expect(draft.updated_by).to eq(gestor)
+      end
+    end
   end
 
   describe "la idea nueva (idear)" do

@@ -14,7 +14,10 @@
     %p.muted= t("flow.workshop_statuses.#{@workshop.status}")
 
 - if can_assemble
-  = render "workshops/assembly", workshop: @workshop, links: @links, groups: @groups
+  -# `rooms` además de `links` (que es `@rooms.links`, la misma colección ya
+  -# cargada): el bloque de mesas pregunta por `rooms.workable`, que es la misma
+  -# pregunta que el selector de salas y el redirect.
+  = render "workshops/assembly", workshop: @workshop, links: @links, groups: @groups, rooms: @rooms
 
 - if can_work
   = render "workshops/room_picker", workshop: @workshop, rooms: @rooms

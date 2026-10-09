@@ -13,8 +13,11 @@
 -# ajena (la nombró quien administra) «tu mesa» mentiría.
 - de_la_mesa = mesa_propia ? "tu mesa" : group&.name
 
--# Antes de todo el trabajo: dice qué estás haciendo, no de quién es el contenido.
-- unless mesa_propia || group.nil?
+-# Antes de todo el trabajo: dice qué estás haciendo, no de quién es el
+-# contenido. Y no sobre la LLEGADA: ahí los cuatro endpoints devuelven 403, así
+-# que «lo que escribas, grabes o mandes queda a tu nombre» prometería algo que
+-# no existe, justo arriba de «… todavía no se armó».
+- unless mesa_propia || group.nil? || group.arrival?
   = render "workshop_rooms/aviso_mesa_ajena", group: group
 
 - if group.nil?
