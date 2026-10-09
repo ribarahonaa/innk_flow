@@ -131,6 +131,10 @@ RSpec.describe "entrar a una mesa del taller", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).not_to match(/tu mesa todavía no se armó/i)
+      # Y sin el aviso de mesa ajena: desde la llegada los cuatro endpoints
+      # devuelven 403, así que «lo que escribas queda a tu nombre» prometería
+      # algo que no existe.
+      expect(response.body).not_to include("sin estar sentado")
     end
   end
 
@@ -159,26 +163,52 @@ RSpec.describe "entrar a una mesa del taller", type: :request do
     end
   end
 
+  # El orden del `||` de `acting_group`, que es lo único que lo mide. Tiene que
+  # ser alguien SENTADO y con permiso de nombrar mesas: con un `participant` los
+  # dos ejemplos pasan con el `||` en cualquier orden, porque `named_group` le
+  # devuelve nil por permiso y cae al asiento **de rebote** y no por
+  # precedencia.
+  #
+  # Las DOS mesas tienen una idea a propósito: el título «Las ideas de …» sólo
+  # se dibuja con datos, así que sobre una mesa vacía la aserción mediría una
+  # ausencia.
   context "quien administra y está sentado" do
-    it "con asiento propio, el parámetro NO lo pisa" do
-      # El invariante del que depende todo: el asiento propio gana SIEMPRE, y de
-      # eso depende que nada de lo que ya funciona cambie —el seed sienta al
-      # admin a propósito, y `[DRAFT]` y `[GRABAR]` lo miden—.
-      #
-      # Tiene que ser alguien SENTADO que además pueda nombrar mesas: con un
-      # `participant` este ejemplo pasa igual con el `||` invertido, porque
-      # `named_group` le devuelve nil por permiso y cae al asiento de rebote.
-      otra = as_company(company) do
-        create(:workshop_group_member, workshop_group: idear[:mesa], user: admin)
-        create(:workshop_group, workshop: idear[:workshop], name: "Mesa de la ventana")
+    def sentar_al_admin_aparte
+      as_company(company) do
+        suya = create(:workshop_group, workshop: idear[:workshop], name: "Mesa de la ventana")
+        create(:workshop_group_member, workshop_group: suya, user: admin)
+        create(:idea, challenge: idear[:challenge], author: admin, status: "draft")
+        suya
       end
+    end
+
+    it "nombrando otra mesa entra a la NOMBRADA, aunque tenga asiento" do
+      # La mesa nombrada gana, y el motivo es del dominio: quien administra no
+      # participa de ninguna mesa, así que no hay asiento propio que proteger.
+      # Con el asiento ganando, apretar «Entrar» en otra mesa navegaba, cambiaba
+      # la URL y dibujaba la propia con el título «tu mesa», sin una palabra.
+      sentar_al_admin_aparte
       sign_in(admin, company: company)
 
-      visitar(mesa: otra)
+      visitar(mesa: idear[:mesa])
 
-      expect(response.body).to match(/ideas de tu mesa/i)
+      expect(response.body).to include("Las ideas de Mesa del fondo")
+      expect(response.body).not_to match(/ideas de tu mesa/i)
+      expect(response.body).to include("sin estar sentado")
+    end
+
+    it "sin nombrar ninguna cae a su asiento" do
+      # La otra mitad del `||`: el asiento sigue siendo lo que resuelve la
+      # entrada sin parámetro, que es la entrada de la mesa —y de lo que
+      # dependen `[DRAFT]` y `[GRABAR]`, cuyo admin está sentado en el seed—.
+      sentar_al_admin_aparte
+      sign_in(admin, company: company)
+
+      visitar
+
+      expect(response.body).to include("Las ideas de tu mesa")
       expect(response.body).not_to include("sin estar sentado")
-      expect(response.body).not_to include("Mesa de la ventana")
+      expect(response.body).not_to include("Mesa del fondo")
     end
   end
 
@@ -210,6 +240,7 @@ RSpec.describe "entrar a una mesa del taller", type: :request do
 
       expect(response.body).to include("Mesa de llegada todavía no se armó")
       expect(response.body).not_to match(/tu mesa todavía no se armó/i)
+      expect(response.body).not_to include("sin estar sentado")
     end
 
     it "el aviso de base vieja dice el nombre de la mesa ajena" do

@@ -16,20 +16,30 @@ module ActsOnAGroup
 
   private
 
-  # El asiento propio GANA SIEMPRE, y no es un detalle: es lo que hace que nada
-  # de lo que ya funciona cambie de comportamiento —incluido el recorrido, cuyo
-  # admin está sentado a propósito en el seed (`db/seeds.rb:857` y `:888`), de
-  # lo que dependen `[DRAFT] 2` y `[GRABAR] 2`—.
+  # La mesa NOMBRADA gana, y el asiento propio es el FALLBACK. El orden sale del
+  # modelo del dominio y no de la implementación: los únicos que se mueven entre
+  # mesas son quien administra la empresa y el gestor, y ninguno de los dos
+  # **participa** en una —se mueven para monitorear y dar feedback—, así que
+  # para ellos no hay asiento propio que proteger y nombrar una mesa es la forma
+  # normal de entrar a ella. Quien participa nunca se mueve solo: lo mueve quien
+  # administra.
   #
-  # Si no hay asiento y quien mira administra ESE desafío, vale la mesa que
-  # nombra el parámetro. Para todos los demás el parámetro se **ignora**, no se
-  # rechaza: un 403 confirmaría que esa mesa existe.
+  # Al revés —el asiento primero— quedaba un control que no responde: estando
+  # sentado en una mesa, apretar «Entrar» en otra navegaba, cambiaba la URL y
+  # dibujaba la mesa propia con el título «tu mesa», sin una palabra.
+  #
+  # El asiento propio sigue siendo lo que resuelve la entrada SIN parámetro, que
+  # es la entrada de la mesa. Y para quien no administra ESE desafío el
+  # parámetro se **ignora**, no se rechaza —un 403 confirmaría que esa mesa
+  # existe—, así que para la mesa el orden no cambia nada: `named_group` le
+  # devuelve `nil` y cae a su asiento igual.
   def acting_group(workshop, link)
-    own_group(workshop) || named_group(workshop, link)
+    named_group(workshop, link) || own_group(workshop)
   end
 
-  # Memoizado porque lo preguntan dos veces por render: `acting_group` y el
-  # aviso de mesa ajena, que compara una contra la otra. Ojo: la memoización no
+  # Memoizado porque el GET de la sala lo puede preguntar dos veces: el fallback
+  # de `acting_group` —sólo si no hay mesa nombrada— y el aviso de mesa ajena,
+  # que compara una contra la otra y lo pregunta siempre. Ojo: la memoización no
   # mira `workshop`; asume UN solo taller por request, que es lo que vale hoy en
   # los cinco consumidores.
   def own_group(workshop)

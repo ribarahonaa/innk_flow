@@ -3,8 +3,11 @@
 require "rails_helper"
 
 # «Sobre qué mesa estoy actuando» es una pregunta distinta de «cuál es mi mesa»,
-# y vive en un solo lugar. El asiento propio gana siempre: es lo que hace que
-# nada de lo que ya funciona cambie de comportamiento.
+# y vive en un solo lugar. Gana la mesa NOMBRADA y el asiento propio es el
+# fallback de la entrada sin parámetro: quien administra no participa de ninguna
+# mesa, así que no hay asiento propio que proteger. El orden lo miden dos
+# ejemplos de `spec/requests/entrar_a_una_mesa_spec.rb`; acá viven las dos piezas
+# que el concern usa, `group_named` y `enter_any_group?`.
 RSpec.describe "la mesa sobre la que se actúa" do
   let!(:company) { without_tenant { create(:company, slug: "acme") } }
 
@@ -58,11 +61,22 @@ RSpec.describe "la mesa sobre la que se actúa" do
       end
     end
 
-    it "no revienta con basura: la columna es uuid y castea a nil" do
+    it "no revienta con lo que llega del query: la basura cae a nil" do
       as_company(company) do
         expect(setup[:workshop].group_named("no-es-un-uuid")).to be_nil
         expect(setup[:workshop].group_named(nil)).to be_nil
         expect(setup[:workshop].group_named([1, 2])).to be_nil
+      end
+    end
+
+    it "un array con un id REAL resuelve: `find_by` arma un IN y no castea el array" do
+      # Medido, y escrito acá para que nadie lea «un array castea a nil»:
+      # `?mesa[]=<uuid>` llega como `["<uuid>"]`, no es `blank?`, y `find_by`
+      # castea elemento por elemento. No es un problema —resuelve la misma mesa
+      # que el parámetro plano, con el mismo filtro por taller y por empresa—,
+      # pero es la rama que un array de basura no ejercita.
+      as_company(company) do
+        expect(setup[:workshop].group_named([setup[:otra_mesa].id])).to eq(setup[:otra_mesa])
       end
     end
   end
