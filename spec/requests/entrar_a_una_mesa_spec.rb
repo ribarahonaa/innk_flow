@@ -289,7 +289,9 @@ RSpec.describe "entrar a una mesa del taller", type: :request do
       expect(response.body).to include("Entrar · #{idear[:challenge].name}")
     end
 
-    it "quien participa no ve ninguno" do
+    # Ojo: ana no pasa `can_assemble`, así que el partial entero no se dibuja;
+    # esto prueba la guarda externa y no `enter_any_group?` (lo cubre el del gestor).
+    it "quien participa no ve ninguno (la guarda externa del partial)" do
       sign_in(ana, company: company)
 
       pantalla_del_taller
@@ -307,6 +309,8 @@ RSpec.describe "entrar a una mesa del taller", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include(%(href="#{entrar_href(idear[:workshop], segundo[:link], idear[:mesa])}"))
       expect(response.body).not_to include(%(href="#{entrar_href(idear[:workshop], idear[:link], idear[:mesa])}"))
+      # Con un solo vínculo entrable ve la forma pelada, sin rótulo.
+      expect(response.body).not_to include("Entrar · ")
     end
   end
 end

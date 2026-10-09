@@ -21,6 +21,11 @@
 - can_edit = !workshop.closed?
 - convocable = can_edit ? User.joins(:memberships).where(memberships: { company_id: Current.company.id }).where.not(id: already_in_ids).order(:name) : User.none
 
+-# Los vínculos a los que quien mira puede ENTRAR: no dependen de la mesa, así
+-# que se calculan UNA vez y no por mesa (para un gestor `enter_any_group?` es
+-# una consulta por vínculo).
+- entrables = workshop.workshop_challenges.select { |l| l.workable? && policy(l.challenge).enter_any_group? }
+
 .card
   .card-body
     .section-head
@@ -80,9 +85,8 @@
               -# convocar vive en este mismo bloque, y un form dentro de otro es
               -# HTML inválido.
               - unless group.arrival?
-                - entrables = workshop.workshop_challenges.select { |l| l.workable? && policy(l.challenge).enter_any_group? }
                 - if entrables.any?
-                  .form-actions
+                  .flex.flex-wrap.gap-2.mt-2
                     - entrables.each do |link|
                       = link_to workshop_sala_path(workshop, link, mesa: group.id), class: "btn btn-ghost btn-sm" do
                         - if entrables.one?
