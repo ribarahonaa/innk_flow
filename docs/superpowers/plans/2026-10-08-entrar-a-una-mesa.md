@@ -343,7 +343,7 @@ end
 make spec-file FILE=spec/models/workshop_acting_group_spec.rb
 ```
 
-Esperado: PASS, **7 ejemplos**. Si contás otro número, decilo en el reporte en
+Esperado: PASS, **6 ejemplos**. Si contás otro número, decilo en el reporte en
 vez de ajustar nada.
 
 - [ ] **Paso 7: Correr la suite**
@@ -352,7 +352,7 @@ vez de ajustar nada.
 make spec
 ```
 
-Esperado: 1770 + 7 = **1777 ejemplos, 0 fallas**. Nada existente debería
+Esperado: 1770 + 6 = **1776 ejemplos, 0 fallas**. Nada existente debería
 moverse: el concern todavía no lo usa nadie.
 
 - [ ] **Paso 8: Commit**
@@ -630,7 +630,7 @@ no la mutación—, y verificá con `git diff HEAD -- app` vacío.
 make spec
 ```
 
-Esperado: 1777 + 7 = **1784 ejemplos, 0 fallas**.
+Esperado: 1776 + 7 = **1783 ejemplos, 0 fallas**.
 
 ```bash
 git add app/controllers/workshop_rooms_controller.rb app/views/workshop_rooms/ \
