@@ -908,24 +908,32 @@ resultado es el mismo en cualquier orden. Un ejemplo por endpoint sería caro y 
 agregaría nada —es un mecanismo único en una línea—, pero que nadie lea «está
 cubierto»: borrar ese ejemplo deja la precedencia sin testigo.
 
-**Y el límite que hay que saber antes de creer que la feature está entera: el
-`mesa` del cuerpo no lo manda NADIE.** Lo escribe un solo lugar
-—`grep -rn "mesa: group.id" app` devuelve el «Entrar» de `workshops/_groups` y
-nada más— y ese link es un **GET**. Los dos formularios de la sala
-(`_ideation`, `_evolution`) y los dos `fetch` del JS (`workshop_draft.js`,
-`workshop_recording.js`) arman su URL con `workshop_sala_*_path(workshop,
-link)`, sin el parámetro, y no hay `default_url_options` que lo arrastre. O sea
-que hoy, desde un navegador, quien administra y **no** está sentado ENTRA y LEE
-la mesa ajena, y después cada escritura cae a `own_group` → `nil` → 403 (el
-borrador y la grabación) o redirect con «no estás en ninguna de este taller»
-(las ideas y las propuestas): un formulario que se dibuja y rebota, que es el
-control-que-no-responde de siempre. Los cuatro endpoints SÍ aceptan el parámetro
-y `spec/requests/escribir_en_una_mesa_ajena_spec.rb` los prueba con un bloque
-por endpoint, porque **manda el parámetro a mano** —es exactamente la mitad que
-`base_version_id` tuvo que cubrir con un lint, y acá no hay ninguno—. Completar
-el camino es un `hidden_field_tag :mesa` en los dos formularios y el parámetro
-en las dos URLs de `data-`, más un testigo que mire el HTML servido; **no está
-hecho**.
+**El parámetro `mesa` viaja en la ESCRITURA y no sólo en el «Entrar», y eso
+tiene testigo.** Cinco helpers de ruta lo arman con `mesa: group&.id`:
+`workshop_sala_ideas_path` y `workshop_sala_draft_path` en `_ideation`,
+`workshop_sala_proposals_path` y `workshop_sala_draft_path` en `_evolution`, y
+`workshop_sala_recordings_path` en `_recording` (que recibe `group:` de las dos
+caras). Va en el **query de la URL de acción** y no en un campo oculto, para que
+sea un solo mecanismo también en `draft_url` y `recording_url`, que no son
+formularios sino URLs que lee el JavaScript. No es un segundo id en el segmento
+de ruta (que mentiría: el `:id` es el del vínculo). Se manda SIEMPRE: con asiento
+propio `own_group` gana y se ignora. **No lo «limpies» por redundante**: sin él
+quien administra y no está sentado ENTRA, lee la mesa ajena, y cada escritura
+cae a `own_group` -> `nil` y rebota (403, o redirect con «no estás en ninguna de
+este taller»): un formulario que se dibuja y no responde.
+
+**La lección: los request specs que mandan `mesa` a mano no cubren la cadena.**
+Los 18 ejemplos de `spec/requests/escribir_en_una_mesa_ajena_spec.rb` prueban el
+servidor, y estuvieron verdes con las cinco vistas sin el parámetro; `make
+screens` tampoco lo ve, porque su admin está sentado y nunca manda `mesa`. El
+testigo es `spec/requests/la_mesa_viaja_en_la_escritura_spec.rb`: renderiza la
+sala con `?mesa=`, **saca la URL de acción del HTML servido** (formulario o
+atributo `data-`) y escribe contra ESA. Medido: sacar el `mesa:` de uno solo de
+los cinco helpers pone en rojo sólo su ejemplo (el de `_recording` pone dos, uno
+por cara, porque el partial es compartido). Es el mismo patrón que
+`base_version_id` cubre con un lint, pero acá el eslabón del medio se puede leer
+en runtime. Lo que sigue sin cubrir: que el JS use `draftUrl`/`recordingUrl`
+tal cual, sin recortarles el query.
 
 **Con quién estás sentado ya se ve, y sin controles.** `workshops/_my_group`
 —nombre de la mesa, integrantes, «(vos)» y «· ausente»— se sirve a cualquiera

@@ -23,8 +23,10 @@
     -# puente por el que `[GRABAR]` puede medir la onda: las alturas de las
     -# barras dicen cómo quedó el dibujo, y esto dice qué midió el micrófono.
     -#
+    -# `mesa:` viaja en la escritura: ver el comentario de `_ideation`.
+    -#
     -# Los textos viajan acá para que el JS los lea y no duplique el locale.
-    %div{ data: { recording_url: workshop_sala_recordings_path(workshop, link),
+    %div{ data: { recording_url: workshop_sala_recordings_path(workshop, link, mesa: group&.id),
                   bitrate: 32_000,
                   level: "0",
                   idea_id: defined?(selected) && selected ? selected.id : nil,

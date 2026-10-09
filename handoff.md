@@ -213,28 +213,13 @@ son defectos del plan mismo.
 
 ## 5. Próximos pasos
 
-1. **La mitad del cliente que falta, y es lo que decide si esto se mergea como
-   está.** Los cuatro endpoints aceptan `mesa` en el cuerpo y
-   `escribir_en_una_mesa_ajena_spec.rb` lo prueba con un bloque por endpoint,
-   pero **lo manda a mano**. En la app, el único lugar que escribe el parámetro
-   es el «Entrar» de `workshops/_groups`, y es un **GET**:
-
-   ```bash
-   grep -rn "mesa: group.id" app     # un solo hit: el link «Entrar»
-   grep -rn "params\[:mesa\]" app    # dos hits, los dos en el concern
-   ```
-
-   Los dos `form_with` de la sala y los dos `fetch` del JS arman su URL con
-   `workshop_sala_*_path(workshop, link)`, sin el parámetro, y no hay
-   `default_url_options` que lo arrastre. O sea que hoy quien administra y **no**
-   está sentado entra, lee la mesa ajena, y cada escritura cae a `own_group` →
-   `nil` → 403 (borrador y grabación) o redirect con «no estás en ninguna de este
-   taller» (ideas y propuestas): **un formulario que se dibuja y rebota**. Es un
-   `hidden_field_tag :mesa` en los dos formularios y el parámetro en las dos URLs
-   de `data-`, más un testigo que mire el HTML servido (los request specs no lo
-   pueden ver: mandan el parámetro ellos). Es la misma mitad que
-   `base_version_id` tuvo que cubrir con `spec/lint/sello_del_borrador_spec.rb`,
-   y acá no hay ningún lint.
+1. **(Resuelto) El parámetro `mesa` ahora viaja en la escritura.** Los cinco
+   helpers de ruta de las vistas de la sala lo arman con `mesa: group&.id`, en el
+   query de la URL de acción. Lo cuida
+   `spec/requests/la_mesa_viaja_en_la_escritura_spec.rb`, que saca la URL del HTML
+   servido y escribe contra ella. La lección que queda: los request specs que
+   mandan `mesa` a mano (`escribir_en_una_mesa_ajena_spec.rb`) prueban el servidor
+   y no la cadena, y estuvieron verdes con el defecto entero.
 2. **«El asiento propio gana» tiene UN SOLO testigo y ninguna guarda del
    recorrido lo respalda.** Es el ejemplo de `entrar_a_una_mesa_spec.rb` con un
    admin **sentado** que nombra otra mesa. Los cuatro bloques de escritura

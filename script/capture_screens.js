@@ -1533,7 +1533,7 @@ const MINIMO_DE_CAMPOS_POR_CARA = 2;
 
 // El PATCH del autoguardado, para interceptarlo en la fase de fallo. La ruta es
 // `resource :draft` anidado en la sala, o sea `/workshops/:id/salas/:id/draft`.
-const RUTA_DEL_AUTOGUARDADO = '**/salas/*/draft';
+const RUTA_DEL_AUTOGUARDADO = /\/salas\/[^/]+\/draft(\?.*)?$/;
 
 async function revisarBorrador(page, nombre) {
   const campos = page.locator(SELECTOR_DE_CAMPO);
@@ -1671,7 +1671,7 @@ async function revisarGrabacion(page, nombre) {
   // ignora el audio, así que un blob vacío pasaría todo lo demás: la onda prueba
   // que el analizador recibió sonido, no que `MediaRecorder` lo grabó.
   let bytesSubidos = null;
-  const RUTA_DE_GRABACIONES = /\/recordings$/;
+  const RUTA_DE_GRABACIONES = /\/recordings(\?.*)?$/;
   await page.route(RUTA_DE_GRABACIONES, async (route) => {
     const req = route.request();
     if (req.method() === 'POST') bytesSubidos = (req.postDataBuffer() || Buffer.alloc(0)).length;
@@ -3536,7 +3536,7 @@ async function revisarTema(page, pantalla, url) {
     // 25: la sala de idear ofrece el formulario del módulo de ideación y dice
     // con quién se comparte el borrador.
     if (await goToRoom('Ideas para la sala de descanso')) {
-      if (!(await page.locator('form[action$="/ideas"] input[value="Crear borrador"]').count())) {
+      if (!(await page.locator('form[action*="/ideas"] input[value="Crear borrador"]').count())) {
         failures++;
         console.error('[TALLER] la sala de idear no ofrece «Crear borrador»');
       }
@@ -3628,7 +3628,7 @@ async function revisarTema(page, pantalla, url) {
           primera.click()
         ]);
         await page.waitForSelector('h2.section-title:has-text("Contenido")', { timeout: 10000 });
-        const forms = await page.locator('form[action$="/proposals"] input[value="Proponer"]').count();
+        const forms = await page.locator('form[action*="/proposals"] input[value="Proponer"]').count();
         if (forms !== 1) {
           failures++;
           console.error(`[TALLER] con una idea elegida hay ${forms} formularios de propuesta y se esperaba 1`);

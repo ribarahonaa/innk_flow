@@ -66,7 +66,7 @@
                       %span.people-list__role= t("flow.contributor_roles.#{contributor.role}")
 
   = render "workshop_rooms/recording", workshop: workshop, link: link,
-                                       recordings: recordings, selected: selected
+                                       recordings: recordings, selected: selected, group: group
 
   - if selected
     .card
@@ -114,8 +114,9 @@
         -# importa: así resellar pasa a ser un no-op seguro en vez de una regresión
         -# silenciosa para quien saque esa condición creyendo que el cliente ya dice
         -# la base correcta.
-        = form_with url: workshop_sala_proposals_path(workshop, link),
-                    data: { draft_url: workshop_sala_draft_path(workshop, link),
+        -# `mesa:` viaja en la escritura: ver el comentario de `_ideation`.
+        = form_with url: workshop_sala_proposals_path(workshop, link, mesa: group&.id),
+                    data: { draft_url: workshop_sala_draft_path(workshop, link, mesa: group&.id),
                             draft_idea: selected.id,
                             draft_base: draft&.based_on_version_id || selected.current_version_id,
                             debounce: 2000 } do
