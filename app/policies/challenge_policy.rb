@@ -43,6 +43,20 @@ class ChallengePolicy < ApplicationPolicy
   # de evolución abierta, porque comparar no edita ninguna idea.
   def curate_pool? = administers?(record)
 
+  # Entrar a cualquier mesa de un taller que trabaja este desafío, y trabajarla
+  # sin estar sentado.
+  #
+  # Predicado propio y NO `builder?` ni `curate_pool?`, que hoy son los dos
+  # exactamente `administers?(record)`: reusar uno ahorra una línea y ata el
+  # acceso a las mesas al significado de otra cosa. El día que alguien mueva
+  # `curate_pool?`, esto se movería con él sin que nadie lo decida.
+  #
+  # Y es por DESAFÍO y no por taller (`WorkshopPolicy#administers_any?`): la
+  # sala ya le esconde a un gestor el brief de un desafío que no le asignaron
+  # —`alcanza = policy(link.challenge).show?`—, así que dejarlo ESCRIBIR ahí
+  # sería abrir escritura sobre algo que no puede leer.
+  def enter_any_group? = administers?(record)
+
   # LEER el pool ajeno: hoy, el resumen narrativo de reportería, que nombra
   # ideas por título. Quien participa ve sólo las ideas en las que participa
   # (`IdeaPolicy::Scope`), así que un resumen que nombra las otras le muestra
