@@ -6,6 +6,14 @@
 -# puede firmar una idea (el gestor, por conflicto de interés) no recibe un
 -# formulario que rebotaría en un 403.
 - puede_crear = policy(link.challenge.ideas.new).create?
+-# UNA variable para los textos que dicen de quién es la mesa: con una mesa
+-# ajena (la nombró quien administra) «tu mesa» mentiría. Un `if` por frase serían
+-# tres lugares que olvidar.
+- de_la_mesa = mesa_propia ? "tu mesa" : group&.name
+
+-# Antes de todo el trabajo: dice qué estás haciendo, no de quién es el contenido.
+- unless mesa_propia || group.nil?
+  = render "workshop_rooms/aviso_mesa_ajena", group: group
 
 - if group.nil?
   -# Sin mesa el POST rechaza (`reject_without_group`): ofrecer el formulario
@@ -20,7 +28,7 @@
   -# silencio.
   .card
     .card-body
-      %p.muted Tu mesa todavía no se armó: en cuanto se reparta, acá aparece el formulario.
+      %p.muted #{de_la_mesa.capitalize} todavía no se armó: en cuanto se reparta, acá aparece el formulario.
 - else
   -# De acá para abajo son DOS bloques detrás de `puede_crear` y no uno, con la
   -# grabación en el medio a propósito: grabar y leer la transcripción son de
@@ -52,8 +60,8 @@
       .card
         .card-body
           .section-head
-            %h2.section-title Las ideas de tu mesa
-          %p.muted Las que creó alguien de tu mesa o en las que colabora, en este desafío.
+            %h2.section-title= "Las ideas de #{de_la_mesa}"
+          %p.muted= "Las que creó alguien de #{de_la_mesa} o en las que colabora, en este desafío."
           %ul.field-list
             - mesa_ideas.each do |idea|
               %li.field-list__item

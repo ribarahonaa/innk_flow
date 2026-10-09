@@ -204,6 +204,8 @@ es:
       draft: "Borrador"
       open: "Abierto"
       closed: "Cerrado"
+    rooms:
+      foreign_group_html: "Estás trabajando <strong>%{group}</strong> sin estar sentado en ella. Lo que escribas, grabes o mandes queda a tu nombre."
     workshop_draft:
       saved: "Guardado ahora."
       failed: "No se pudo guardar: copiá el texto antes de salir."

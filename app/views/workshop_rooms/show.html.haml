@@ -20,12 +20,12 @@
 - when :ideation
   = render "workshop_rooms/ideation", workshop: @workshop, link: @link, group: @group,
                                       mesa_ideas: @mesa_ideas, draft: @draft,
-                                      recordings: @recordings
+                                      recordings: @recordings, mesa_propia: @mesa_propia
 - when :evolution
   = render "workshop_rooms/evolution", workshop: @workshop, link: @link, group: @group,
                                        ideas: @workable_ideas, selected: @selected_idea,
                                        proposals: @mesa_proposals, draft: @draft,
-                                       recordings: @recordings
+                                       recordings: @recordings, mesa_propia: @mesa_propia
 - when :unopened
   .card
     .card-body
@@ -40,4 +40,5 @@
 -# el taller no hay drawer —`desafio_del_shell` devuelve nil, porque el taller
 -# no cuelga de un desafío—, así que la grilla queda centro + referencia.
 - content_for :referencia do
-  = render "workshop_rooms/referencia", workshop: @workshop, link: @link, group: @group
+  = render "workshop_rooms/referencia", workshop: @workshop, link: @link, group: @group,
+                                          mesa_propia: @mesa_propia

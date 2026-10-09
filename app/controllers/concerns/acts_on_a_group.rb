@@ -4,8 +4,8 @@
 #
 # `Workshop#group_of` se queda significando «mi mesa» y la siguen preguntando
 # los dos lugares donde eso es lo correcto —el panel «Mi mesa» de la pantalla
-# del taller (`workshops_controller:84`) y el camino sin administrar de las
-# grabaciones alcanzables (`workshop_recordings_controller:72`)—. Esto contesta
+# del taller (el `@my_group` de `workshops#show`) y el camino sin administrar de
+# `alcanzables` en las grabaciones—. Esto contesta
 # la otra, y la consultan los cinco caminos de la sala.
 #
 # Escrita una vez a propósito: cinco caminos que resuelvan la mesa por su cuenta
@@ -29,7 +29,9 @@ module ActsOnAGroup
   end
 
   # Memoizado porque lo preguntan dos veces por render: `acting_group` y el
-  # aviso de mesa ajena, que compara una contra la otra.
+  # aviso de mesa ajena, que compara una contra la otra. Ojo: la memoización no
+  # mira `workshop`; asume UN solo taller por request, que es lo que vale hoy en
+  # los cinco consumidores.
   def own_group(workshop)
     @own_group = workshop.group_of(current_user) unless defined?(@own_group)
     @own_group

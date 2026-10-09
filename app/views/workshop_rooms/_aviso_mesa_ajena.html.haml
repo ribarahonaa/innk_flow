@@ -1,0 +1,8 @@
+-# El título dice de quién es el contenido; esto dice qué estás haciendo. Son
+-# cosas distintas, y la segunda es la que previene tipear creyendo que estás en
+-# la propia. Va arriba de todo el trabajo.
+-#
+-# `alert` de DaisyUI es `display: grid` con `grid-auto-flow: column`, así que el
+-# contenido va en UN solo `%div` o se reparte en columnas.
+.alert.alert-soft.alert-warning
+  %div= t("flow.rooms.foreign_group_html", group: ERB::Util.html_escape(group.name)).html_safe

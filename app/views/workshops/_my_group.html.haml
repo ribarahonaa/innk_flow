@@ -2,16 +2,21 @@
 -# pantalla del taller: UN markup, porque dos copias divergen y nadie se
 -# entera.
 -#
+-# `mesa_propia` es `true` por default: en la pantalla del taller la mesa
+-# siempre es la propia, y sólo la sala puede mostrar una ajena (la que nombra
+-# quien administra). Con una ajena el título dice el nombre y no «Tu mesa».
+-#
 -# Sin controles: marcar presente y sacar gente son de quien administra y viven
 -# en el bloque de armado. Acá la mesa se LEE.
+- mesa_propia = true unless local_assigns.key?(:mesa_propia)
 .card
   .card-body
     .section-head
-      %h2.section-title Tu mesa
+      %h2.section-title= mesa_propia || group.nil? ? "Tu mesa" : group.name
     - if group.nil?
       %p.muted No estás en ninguna mesa de este taller.
     - elsif group.arrival?
-      %p.muted Estás en la mesa de llegada: en cuanto alguien reparta, acá aparece tu mesa.
+      %p.muted= mesa_propia ? "Estás en la mesa de llegada: en cuanto alguien reparta, acá aparece tu mesa." : "Es la mesa de llegada: en cuanto alguien reparta, acá aparece su mesa."
     - else
       %p.muted= group.name
       -# Los ASIENTOS y no `group.members`: `attended` vive en el asiento, y
@@ -32,5 +37,5 @@
                 %span.muted= " (vos)"
               - unless seat.attended
                 %span.muted= " · ausente"
-      - if workshop.individual?
+      - if mesa_propia && workshop.individual?
         %p.field-hint Trabajás sola o solo en este taller: en modo individual cada persona es su mesa.
