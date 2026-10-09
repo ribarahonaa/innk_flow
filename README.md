@@ -14,6 +14,9 @@ make setup          # build + up + db:prepare + seed + assets
 ```
 → **http://localhost:3001** · `admin@demo.test` / `Test1234`
 
+**¿Primera vez en el repo?** [`docs/orientacion.md`](docs/orientacion.md) tiene
+qué leer en qué orden, el mapa del código y las recetas.
+
 La pantalla de login **lista todas las cuentas sembradas** con su empresa y su
 rol: tener nueve cuentas de demo y no saber cuál es cuál es lo mismo que no
 tenerlas. Un clic precarga el correo. Fuera de producción, obviamente.
@@ -38,6 +41,17 @@ al mismo tiempo.
 solo se pueden agregar módulos **a partir del último ya ejecutado**. Nunca antes,
 nunca intercalado. El builder la *muestra* —una "línea de agua" con los módulos
 bloqueados— y el server la revalida igual.
+
+### Y una cosa que NO es un módulo: el taller
+
+Un **taller** es un evento que abarca N desafíos y se monta encima de la fase que
+cada uno ya está corriendo: no lo hace avanzar ni lo traba. La gente se reparte
+en mesas, entra escaneando un QR, y cada mesa trabaja en su sala —idea o
+evoluciona, con autoguardado y con la conversación grabada y transcripta—.
+
+Trabaja sobre **una sola fase** (idear o evolución), y lo que lo ata al desafío
+es el **módulo**, resuelto al abrir con el mismo late binding del pipeline.
+→ [`docs/taller.md`](docs/taller.md)
 
 ---
 
@@ -93,8 +107,9 @@ vino cada puntaje. Las fórmulas las escribe el usuario y **nunca** llegan a
 
 ## Los cuatro roles
 
-`admin` administra · `gestor` acompaña la evolución · `evaluator` evalúa lo que
-se le asigna · `participant` postula y comenta.
+`admin` administra la empresa · `gestor` administra **los desafíos que le
+asignaron** · `evaluator` evalúa lo que se le asigna · `participant` postula y
+comenta. `owner` **no existe**: daba los mismos permisos que `admin`.
 
 Dos reglas **no viven en el rol**, y son las que más se rompen si se olvidan:
 
@@ -104,9 +119,35 @@ Dos reglas **no viven en el rol**, y son las que más se rompen si se olvidan:
   aquellas en las que colabora—. Lo que no se ve da 404, no 403: un 403 es un
   oráculo de existencia.
 
+Y una que es fácil escribir al revés: **tener membresía dejó de significar ver
+todo lo de la empresa.** `manager?` quedó significando «administra la empresa» y
+protege lo que no cuelga de ningún desafío —la gente, la auditoría de IA, la
+biblioteca de criterios—; para lo que sí cuelga, la pregunta es
+`administers?(challenge)`. De rebote, **una puerta nueva escrita con `manager?`
+nace cerrada para el gestor**, que es el lado seguro.
+→ [`docs/permisos.md`](docs/permisos.md)
+
 ---
 
-## Dos diagramas
+## La documentación
+
+Empezá por [`docs/orientacion.md`](docs/orientacion.md), que dice qué leer en
+qué orden. El resto son deep-dives de un subsistema cada uno:
+
+| Archivo | Qué cubre |
+|---|---|
+| [`docs/orientacion.md`](docs/orientacion.md) | **El primer día**: el mapa del código, cómo verificar, las recetas |
+| [`docs/datos.md`](docs/datos.md) | Las 34 tablas y las invariantes del esquema |
+| [`docs/pipeline.md`](docs/pipeline.md) | El motor: handlers, `insertion_floor`, late binding, concurrencia |
+| [`docs/tenancy.md`](docs/tenancy.md) | Las cuatro capas del aislamiento por empresa |
+| [`docs/permisos.md`](docs/permisos.md) | Los cuatro roles, las doce policies, la regla 404-vs-403 |
+| [`docs/criteria.md`](docs/criteria.md) | Criterios, escalas, fórmulas, versionado de la biblioteca |
+| [`docs/ai.md`](docs/ai.md) | Los tres modos, las trece tareas, los tres proveedores, pgvector |
+| [`docs/taller.md`](docs/taller.md) | El taller: mesas, check-in, la sala, borrador, grabación |
+| [`docs/frontend.md`](docs/frontend.md) | Turbo morph, las cuatro islas, las tres capas de CSS, las guardas visuales |
+| [`CLAUDE.md`](CLAUDE.md) | **Las trampas**: «esto ya se rompió, así se rompió» |
+
+Y dos diagramas, que se abren en el navegador:
 
 | Archivo | Qué muestra |
 |---|---|
