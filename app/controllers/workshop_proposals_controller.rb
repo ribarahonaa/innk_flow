@@ -3,6 +3,8 @@
 # Lo que una mesa propone sobre una idea ya existente, en una ronda de
 # evolución. Nace `pending`: el autor la acepta o la rechaza (otra tarea).
 class WorkshopProposalsController < ApplicationController
+  include ActsOnAGroup
+
   before_action :set_link
 
   def create
@@ -12,7 +14,7 @@ class WorkshopProposalsController < ApplicationController
     payload = payload_params
     return reject_payload if payload.nil? && params.key?(:payload)
 
-    group = @workshop.group_of(current_user)
+    group = acting_group(@workshop, @link)
     return reject_without_group unless group
     return reject_arrival if group.arrival?
 

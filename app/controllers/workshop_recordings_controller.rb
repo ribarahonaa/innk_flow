@@ -12,6 +12,8 @@ class WorkshopRecordingsController < ApplicationController
   # viaja en el Content-Type, así que se compara el tipo base.
   AUDIO_TYPES = %w[audio/webm audio/ogg audio/mp4 audio/wav audio/mpeg].freeze
 
+  include ActsOnAGroup
+
   before_action :set_link
 
   def create
@@ -21,7 +23,7 @@ class WorkshopRecordingsController < ApplicationController
     # `administers_any?` SIN mesa.
     return head :conflict unless @link.workable?
 
-    group = @workshop.group_of(current_user)
+    group = acting_group(@workshop, @link)
     return head :forbidden unless group
     # La mesa de llegada no trabaja. Misma pregunta que en los demás lugares que
     # no dejan trabajar desde ella; cuántos son lo dice CLAUDE.md y no este
@@ -67,7 +69,7 @@ class WorkshopRecordingsController < ApplicationController
   # sentado (`work?` sólo da true sin mesa por `administers_any?`), pero se
   # cubre igual el caso sin mesa.
   def alcanzables
-    return @link.workshop_recordings if policy(@workshop).update?
+    return @link.workshop_recordings if policy(@link.challenge).enter_any_group?
 
     grupo = @workshop.group_of(current_user)
     return WorkshopRecording.none if grupo.nil?
