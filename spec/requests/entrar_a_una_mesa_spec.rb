@@ -38,6 +38,49 @@ RSpec.describe "entrar a una mesa del taller", type: :request do
     end
   end
 
+  # La OTRA cara de la sala. Las dos están medidas por separado a propósito (en
+  # `make screens`, `[DRAFT]` y `[GRABAR]` cuentan caras): cuatro de las frases
+  # viven en `_evolution` y sin esto podrían volver a decir «tu mesa» sobre una
+  # mesa ajena sin que nada se ponga rojo.
+  #
+  # La idea es `active` y no `draft`: la cara de evolución lista por
+  # `workable_ideas`, que filtra con `Idea.alive` y no trae borradores.
+  let!(:evolucion) do
+    as_company(company) do
+      challenge = create(:challenge)
+      ideation = create(:challenge_step, challenge: challenge, kind: "ideation", status: "completed")
+      field = create(:form_field, challenge_step: ideation, label: "Resumen", field_type: "text")
+      round = create(:challenge_step, challenge: challenge, kind: "evolution", status: "active")
+      workshop = create(:workshop, status: "open")
+      link = create(:workshop_challenge, workshop: workshop, challenge: challenge, challenge_step: round)
+      mesa = create(:workshop_group, workshop: workshop, name: "Mesa de evolución")
+      create(:workshop_group_member, workshop_group: mesa, user: ana)
+      vacia = create(:workshop_group, workshop: workshop, name: "Mesa sin ideas")
+      idea = create(:idea, challenge: challenge, author: ana, status: "active")
+      version = Flow::Ideas::PublishVersion.new(
+        idea, payload: { field.key => "lo publicado" }, author: ana
+      ).call.version
+      { workshop: workshop, link: link, mesa: mesa, vacia: vacia, idea: idea,
+        version: version, field: field }
+    end
+  end
+
+  def visitar_evolucion(mesa: nil)
+    get workshop_sala_path(evolucion[:workshop], evolucion[:link], mesa: mesa&.id)
+  end
+
+  def borrador_viejo
+    as_company(company) do
+      create(:workshop_draft, workshop_group: evolucion[:mesa], workshop_challenge: evolucion[:link],
+                              idea: evolucion[:idea], based_on_version: evolucion[:version],
+                              updated_by: ana, payload: { evolucion[:field].key => "lo de la mesa" })
+      # La versión avanza DESPUÉS del borrador: es lo que lo vuelve viejo.
+      Flow::Ideas::PublishVersion.new(
+        evolucion[:idea], payload: { evolucion[:field].key => "lo nuevo" }, author: ana
+      ).call
+    end
+  end
+
   def visitar(mesa: nil)
     get workshop_sala_path(idear[:workshop], idear[:link], mesa: mesa&.id)
   end
@@ -66,7 +109,9 @@ RSpec.describe "entrar a una mesa del taller", type: :request do
       # es ajena.
       visitar(mesa: idear[:mesa])
 
-      expect(response.body).to include("Mesa del fondo")
+      # La positiva apunta al TÍTULO: el nombre ya sale en el aviso y en la
+      # referencia aunque el título dijera «tu mesa».
+      expect(response.body).to include("Las ideas de Mesa del fondo")
       expect(response.body).not_to match(/ideas de tu mesa/i)
     end
 
@@ -134,6 +179,58 @@ RSpec.describe "entrar a una mesa del taller", type: :request do
       expect(response.body).to match(/ideas de tu mesa/i)
       expect(response.body).not_to include("sin estar sentado")
       expect(response.body).not_to include("Mesa de la ventana")
+    end
+  end
+
+  context "la cara de evolución" do
+    it "quien administra, nombrando la mesa: el título dice el NOMBRE" do
+      sign_in(admin, company: company)
+
+      visitar_evolucion(mesa: evolucion[:mesa])
+
+      expect(response.body).to include("Las ideas de Mesa de evolución")
+      expect(response.body).not_to match(/ideas de tu mesa/i)
+      expect(response.body).to include("sin estar sentado")
+    end
+
+    it "la rama de vacío también dice el nombre" do
+      sign_in(admin, company: company)
+
+      visitar_evolucion(mesa: evolucion[:vacia])
+
+      expect(response.body).to include("Ninguna persona de Mesa sin ideas tiene ideas postuladas")
+      expect(response.body).not_to match(/persona de tu mesa/i)
+    end
+
+    it "la rama de LLEGADA dice el nombre y no «tu mesa»" do
+      llegada = as_company(company) { create(:workshop_group, :arrival, workshop: evolucion[:workshop]) }
+      sign_in(admin, company: company)
+
+      visitar_evolucion(mesa: llegada)
+
+      expect(response.body).to include("Mesa de llegada todavía no se armó")
+      expect(response.body).not_to match(/tu mesa todavía no se armó/i)
+    end
+
+    it "el aviso de base vieja dice el nombre de la mesa ajena" do
+      borrador_viejo
+      sign_in(admin, company: company)
+
+      visitar_evolucion(mesa: evolucion[:mesa])
+
+      expect(response.body).to include("lo que tecleó Mesa de evolución sobre")
+      expect(response.body).not_to match(/tecleó tu mesa/i)
+    end
+
+    it "quien participa en su propia mesa ve «tu mesa» y ningún aviso" do
+      borrador_viejo
+      sign_in(ana, company: company)
+
+      visitar_evolucion
+
+      expect(response.body).to match(/ideas de tu mesa/i)
+      expect(response.body).to include("lo que tecleó tu mesa sobre")
+      expect(response.body).not_to include("sin estar sentado")
     end
   end
 end

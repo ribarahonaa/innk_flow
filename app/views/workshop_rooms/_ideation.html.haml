@@ -28,7 +28,7 @@
   -# silencio.
   .card
     .card-body
-      %p.muted #{de_la_mesa.capitalize} todavía no se armó: en cuanto se reparta, acá aparece el formulario.
+      %p.muted #{de_la_mesa.sub(/\A./, &:upcase)} todavía no se armó: en cuanto se reparta, acá aparece el formulario.
 - else
   -# De acá para abajo son DOS bloques detrás de `puede_crear` y no uno, con la
   -# grabación en el medio a propósito: grabar y leer la transcripción son de

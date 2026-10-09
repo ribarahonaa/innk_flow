@@ -24,7 +24,7 @@
 - elsif group.arrival?
   .card
     .card-body
-      %p.muted #{de_la_mesa.capitalize} todavía no se armó: en cuanto se reparta, acá aparecen las ideas para proponer.
+      %p.muted #{de_la_mesa.sub(/\A./, &:upcase)} todavía no se armó: en cuanto se reparta, acá aparecen las ideas para proponer.
 - else
   -# La grabación se dibuja ACÁ, afuera de `ideas.empty?`, y no dentro de la
   -# rama del trabajo: grabar y leer la transcripción son de quien está SENTADO
