@@ -92,6 +92,18 @@ en cinco lugares es una que el día que cambie miente en cuatro.
 que hace que nada de lo que ya funciona cambie de comportamiento, incluido el
 recorrido, cuyo admin está sentado a propósito en el seed.
 
+> **Corregido el 2026-10-09, en la revisión final de la rama: la precedencia
+> quedó al revés de lo que dice este párrafo.** La mesa NOMBRADA gana y el
+> asiento propio es el fallback de la entrada sin parámetro. El dueño del
+> producto aclaró el modelo: los únicos que se mueven entre mesas son quien
+> administra y el gestor, y **nunca están participando en una** —se mueven para
+> monitorear y dar feedback—, así que para ellos no hay asiento propio que
+> proteger. Con el asiento ganando, un admin sentado que apretaba «Entrar» en
+> otra mesa navegaba, cambiaba la URL y veía la suya con el título «tu mesa»,
+> sin una palabra: un control que no responde, y en el seed —que sienta al
+> admin— todo «Entrar» a otra mesa era un no-op silencioso. El porqué vigente
+> está en `CLAUDE.md`.
+
 ### Lo que hace seguro al parámetro, y son tres cosas
 
 1. **La búsqueda cuelga de `workshop_groups`** del taller, que ya filtra por
@@ -231,10 +243,16 @@ Más, en la pantalla: que el «Entrar» no aparezca en la llegada ni en un vínc
 que quien mira no administra; que el aviso de mesa ajena esté; y que los títulos
 digan el nombre de la mesa y no «tu mesa».
 
-**El recorrido no cambia, y está medido:** el seed sienta al admin
-(`seeds.rb:857`, `:888`) y `acting_group_for` prefiere el asiento propio. Si
-alguien saca ese asiento del seed, `[DRAFT]` y `[GRABAR]` caen a 0 — y ahora
-además habría que enterarse de que la sala empezó a resolver otra mesa.
+**El recorrido no cambia, y está medido:** el seed sienta al admin y la sala
+resuelve su mesa. Si alguien saca ese asiento del seed, `[DRAFT]` y `[GRABAR]`
+caen a 0 — y ahora además habría que enterarse de que la sala empezó a resolver
+otra mesa.
+
+> **Corregido el 2026-10-09:** el motivo ya no es que el asiento gane. Con la
+> precedencia invertida, el recorrido sigue en `[DRAFT] 2` / `[GRABAR] 2` porque
+> las cinco URLs de escritura de la sala mandan `mesa` con el id de la **propia**
+> mesa de quien mira, así que `named_group` y `own_group` resuelven la misma
+> fila y el resultado no depende del orden.
 
 ## Lo que NO cubre, declarado
 

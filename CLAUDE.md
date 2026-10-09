@@ -727,8 +727,16 @@ que sumó esto—: abría el audio de la mesa con `policy(@workshop).update?`, o
 gestor del desafío A podía pedir por URL el audio grabado en la sala del desafío
 B, con las voces de esa mesa adentro. Hoy pregunta `enter_any_group?` del
 desafío del vínculo. **La otra línea de ese mismo método sigue con
-`group_of(current_user)` a propósito**: a ese camino sólo llega quien no
-administra, y quien no administra siempre está sentado.
+`group_of(current_user)` a propósito, y su `grupo.nil?` es ALCANZABLE**: el
+`authorize` de arriba es `work?`, que para un gestor es `administers_any?`
+—administrar ALGUNO de los desafíos del taller—, o sea más ancho que
+`enter_any_group?`, que es por desafío. Un gestor del desafío B del mismo taller
+pasa `work?`, no pasa la guarda y **no está sentado**, así que cae ahí con la
+mesa en `nil`; lo ejercita un ejemplo de
+`spec/requests/escribir_en_una_mesa_ajena_spec.rb`. Sin ese `return` queda
+`where(workshop_group: nil)`, y la seguridad pasa a depender de que el esquema
+no deje filas con la mesa en nulo: **no es una línea defensiva que se pueda
+borrar**.
 
 **El predicado es NUEVO y no reusa `builder?` ni `curate_pool?`**, que hoy son
 los dos exactamente `administers?(record)`. Reusar uno ahorra una línea y ata el
@@ -870,13 +878,30 @@ el GET que decide qué dibuja y los cuatro que escriben. Se verifica con
 llamadores y nada más —los otros dos hits son del concern mismo: un comentario y
 el `own_group` memoizado—. Un número no se verifica; el grep sí.
 
-**El asiento propio GANA SIEMPRE** (`own_group(workshop) ||
-named_group(workshop, link)`), y no es un detalle de implementación: es lo que
-hace que nada de lo que ya funciona cambie de comportamiento. El seed sienta al
-admin del recorrido en las mesas de los dos talleres que el recorrido trabaja, y
-`[DRAFT]` y `[GRABAR]` —con piso EXACTO en 2— lo miden de rebote. De paso
-significa que quien está sentado **no** puede entrar a otra mesa: nombre lo que
-nombre, le sigue saliendo la suya.
+**La mesa NOMBRADA gana, y el asiento propio es el FALLBACK**
+(`named_group(workshop, link) || own_group(workshop)`), y el orden sale del
+modelo del dominio y no de la implementación: **los únicos que se mueven entre
+mesas son quien administra la empresa y el gestor, y ninguno de los dos
+PARTICIPA en una** —se mueven para monitorear y dar feedback—, así que para
+ellos no hay asiento propio que proteger y nombrar una mesa es la forma normal
+de entrar a ella. Quien participa nunca se mueve solo: lo mueve quien
+administra. El asiento sigue siendo lo que resuelve la entrada SIN parámetro,
+que es la entrada de la mesa; y para quien no administra ese desafío el
+parámetro se ignora, así que el orden no cambia nada de lo que ya funcionaba
+—`named_group` le devuelve `nil` y cae a su asiento igual—.
+
+**Al revés —el asiento primero, como nació esta rama— era un control que no
+responde:** estando sentado en una mesa, apretar «Entrar» en otra navegaba,
+cambiaba la URL y dibujaba la mesa propia con el título «tu mesa», sin una
+palabra. Y como el seed sienta al admin, **todo «Entrar» del seed que apuntara
+a otra mesa era un no-op silencioso**.
+
+**Ojo con el seed, que contradice ese modelo: sienta al admin en los dos
+talleres con mesas, y eso es una conveniencia de la SIEMBRA y no el modelo del
+dominio.** `[DRAFT]` y `[GRABAR]` —con piso EXACTO en 2— necesitan a alguien
+escribiendo desde una sala, y sentar al usuario del recorrido fue el camino
+corto. Se deja así a propósito: rehacerlo es rehacer parte del recorrido. **No
+deduzcas del admin sentado que los admins se sientan.**
 
 **Para quien no administra ese desafío el parámetro se IGNORA, no se rechaza.**
 Cae a su propio asiento, sin 403. Un 403 confirmaría que esa mesa existe, o sea
@@ -886,27 +911,44 @@ el oráculo de existencia que este archivo persigue en todas partes.
 lee del código.** La que se lee: cuelga de `workshop_groups`, que filtra por
 taller y —vía `TenantScoped`— por `company_id`, así que una mesa de otro taller
 o de otra empresa queda excluida dos veces. La que no: la columna es **`uuid`**,
-así que `OID::Uuid` castea a `nil` antes de llegar al SQL. Medido el 2026-10-08:
-el hash de `?mesa[a]=1` (`ActionController::Parameters`), un array, una cadena
-basura, `""` y `nil` castean los cinco a `nil`, y `group_named` devuelve `nil` en
-los cinco; sólo el id real resuelve. Es el mismo par portante que este archivo
+así que `OID::Uuid` castea a `nil` antes de llegar al SQL. Medido el 2026-10-09:
+el hash de `?mesa[a]=1` (`ActionController::Parameters`), una cadena basura, un
+no-entero, `""` y `nil` castean los cinco a `nil`, y `group_named` devuelve `nil`
+en los cinco.
+**Un ARRAY es el caso que hay que contar aparte, porque no castea a `nil`:**
+`find_by(id: [...])` no pasa el valor entero por `cast`, arma un `IN` y castea
+cada elemento, así que `?mesa[]=<uuid real>` llega como `["<uuid>"]`, no es
+`blank?` y **resuelve la mesa** —medido, igual que `?mesa[]=<ajena>&mesa[]=<uuid
+real>`, donde el `IN` lo filtra el taller—. Un array de basura sí cae a `nil`
+(`IN (NULL)`), y uno vacío es `blank?`. **No es un problema**: resuelve la misma
+mesa que el parámetro plano, con el mismo filtro por taller y por empresa, y el
+permiso se pregunta igual; lo que no se puede escribir es que «un array castea a
+`nil`», que es lo que decía esta línea. Es el mismo par portante que este archivo
 documenta para `base_version_id`, y las dos se pierden por caminos distintos:
 si la columna cambiara de tipo se va el casteo, y si el `find_by` se moviera a
 `WorkshopGroup.find_by` se va el filtro por TALLER y queda sólo el de empresa
 —una mesa de otro taller de la misma empresa pasaría a resolver—.
 
-**«El asiento propio gana» tiene UN SOLO testigo, y ninguna guarda del recorrido
-lo respalda.** Es un ejemplo de `spec/requests/entrar_a_una_mesa_spec.rb` con un
-admin **sentado** que nombra otra mesa. Tiene que ser alguien con asiento **y**
-permiso de nombrar: con un `participant` el ejemplo pasa igual con el `||`
-invertido, porque `named_group` le devuelve `nil` por permiso y cae al asiento
-**de rebote** y no por precedencia. Los cuatro bloques de los endpoints de
-escritura seguirían verdes con el `||` al revés —medido: con esa inversión cae
-ese ejemplo y nada más—, y `[DRAFT]` y `[GRABAR]` **tampoco lo cazarían**: no
-mandan `mesa`, así que con el parámetro ausente `named_group` devuelve `nil` y el
-resultado es el mismo en cualquier orden. Un ejemplo por endpoint sería caro y no
-agregaría nada —es un mecanismo único en una línea—, pero que nadie lea «está
-cubierto»: borrar ese ejemplo deja la precedencia sin testigo.
+**El orden del `||` lo miden DOS ejemplos de
+`spec/requests/entrar_a_una_mesa_spec.rb`, y ninguna guarda del recorrido lo
+respalda.** Un admin **sentado** que nombra otra mesa tiene que entrar a la
+NOMBRADA; el mismo admin sin nombrar ninguna tiene que caer a su asiento. Tiene
+que ser alguien con asiento **y** permiso de nombrar: con un `participant` los
+dos pasan con el `||` en cualquier orden, porque `named_group` le devuelve `nil`
+por permiso y cae al asiento **de rebote** y no por precedencia. Y las dos mesas
+del ejemplo tienen una idea, porque el título «Las ideas de …» sólo se dibuja
+con datos: sobre una mesa vacía la aserción mediría una ausencia.
+
+Los cuatro bloques de los endpoints de escritura pasan con el `||` en cualquier
+orden —medido—, y `[DRAFT]` y `[GRABAR]` **tampoco lo cazan, pero no por no
+mandar el parámetro: sí lo mandan.** El recorrido entra por el selector de salas
+sin `mesa`, y ahí la sala renderiza `data-draft-url` y `data-recording-url` con
+`?mesa=<su propia mesa>` —por eso las dos rutas interceptadas del script
+tuvieron que aceptar el query—; lo que las deja ciegas es que ese id es el del
+**propio asiento** de quien mira, así que `named_group` y `own_group` devuelven
+la MISMA mesa y el resultado no depende del orden. Un ejemplo por endpoint sería
+caro y no agregaría nada —es un mecanismo único en una línea—, pero que nadie
+lea «está cubierto»: borrar esos dos ejemplos deja la precedencia sin testigo.
 
 **El parámetro `mesa` viaja en la ESCRITURA y no sólo en el «Entrar», y eso
 tiene testigo.** Cinco helpers de ruta lo arman con `mesa: group&.id`:
@@ -916,16 +958,19 @@ tiene testigo.** Cinco helpers de ruta lo arman con `mesa: group&.id`:
 caras). Va en el **query de la URL de acción** y no en un campo oculto, para que
 sea un solo mecanismo también en `draft_url` y `recording_url`, que no son
 formularios sino URLs que lee el JavaScript. No es un segundo id en el segmento
-de ruta (que mentiría: el `:id` es el del vínculo). Se manda SIEMPRE: con asiento
-propio `own_group` gana y se ignora. **No lo «limpies» por redundante**: sin él
+de ruta (que mentiría: el `:id` es el del vínculo). Se manda SIEMPRE, y con la
+mesa propia no cambia nada: el id que viaja es el de esa misma mesa, así que
+`named_group` y `own_group` resuelven la misma fila. **No lo «limpies» por
+redundante**: sin él
 quien administra y no está sentado ENTRA, lee la mesa ajena, y cada escritura
 cae a `own_group` -> `nil` y rebota (403, o redirect con «no estás en ninguna de
 este taller»): un formulario que se dibuja y no responde.
 
 **La lección: los request specs que mandan `mesa` a mano no cubren la cadena.**
-Los 18 ejemplos de `spec/requests/escribir_en_una_mesa_ajena_spec.rb` prueban el
+Los ejemplos de `spec/requests/escribir_en_una_mesa_ajena_spec.rb` prueban el
 servidor, y estuvieron verdes con las cinco vistas sin el parámetro; `make
-screens` tampoco lo ve, porque su admin está sentado y nunca manda `mesa`. El
+screens` tampoco lo ve, porque su admin está sentado y el `mesa` que manda es el
+de su propio asiento. El
 testigo es `spec/requests/la_mesa_viaja_en_la_escritura_spec.rb`: renderiza la
 sala con `?mesa=`, **saca la URL de acción del HTML servido** (formulario o
 atributo `data-`) y escribe contra ESA. Medido: sacar el `mesa:` de uno solo de
@@ -952,14 +997,22 @@ la sala puede mostrar una ajena. Con una mesa ajena cada frase dice el NOMBRE.
 **Si alguien agrega un texto nuevo con «tu mesa» fijo, miente en cuanto la mesa
 es ajena**, que es la misma fuga que este archivo nombra para la lista de ideas:
 contenido de otra mesa bajo un título que dice que es de ésta. El grep es
-`grep -rni "tu mesa" app/views` —varias de sus líneas son comentarios y no
-textos—, y **no los encuentra todos**: «Trabajás sola o solo en este taller» no
+`grep -rni "tu mesa" app/` —y es `app/` y no `app/views` a propósito: **los
+controllers también tienen textos**, y el censo que mira sólo las vistas se
+perdió los dos «Tu mesa todavía no se armó» de los rechazos de la llegada
+(`WorkshopIdeasController` y `WorkshopProposalsController`), alcanzables justo
+por el camino que esta feature abrió—. Varias de sus líneas son comentarios y no
+textos, y **no los encuentra todos**: «Trabajás sola o solo en este taller» no
 contiene «tu mesa» y también mentía sobre una mesa ajena; se arregló, pero el
-grep no la habría encontrado. **No hay ninguna guarda**: ni un spec de lint ni
-`make screens` cazarían un texto fijo nuevo. Lo único que cubre esto son los
-ejemplos de `spec/requests/entrar_a_una_mesa_spec.rb`, y cubren las frases que
-existen hoy, y cubren las DOS caras por separado —medido: con `@mesa_propia`
-fijo en `true` caen ejemplos de idear **y** de evolución, no de una sola—.
+grep no la habría encontrado. En un redirect la salida no es `de_la_mesa` sino
+un texto **neutro** («esa mesa»): condicionarlo cuesta más y neutro no puede
+mentir. **No hay ninguna guarda**: ni un spec de lint ni `make screens` cazarían
+un texto fijo nuevo —y los dos ejemplos que recorren el rechazo de la llegada
+aseveran sobre «todavía no se armó», la subcadena común, así que no se enteran
+del «Tu» ni del «Esa»—. Lo único que cubre esto son los ejemplos de
+`spec/requests/entrar_a_una_mesa_spec.rb`, y cubren las frases que existen hoy,
+y cubren las DOS caras por separado —medido: con `@mesa_propia` fijo en `true`
+caen ejemplos de idear **y** de evolución, no de una sola—.
 
 **El aviso de mesa ajena se escapa con el sufijo `_html` de la clave de
 traducción, y con NADA más.** El nombre de la mesa es texto libre que escribe

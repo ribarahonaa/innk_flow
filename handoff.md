@@ -1,4 +1,7 @@
-# Handoff — entrar a una mesa (quien administra trabaja sin estar sentado), 2026-10-08
+# Handoff — entrar a una mesa (quien administra trabaja sin estar sentado)
+
+Escrito el 2026-10-08; la ronda final de la revisión de rama lo actualizó el
+2026-10-09 (§4 y §6).
 
 ## 1. Objetivo
 
@@ -17,55 +20,49 @@ La forma elegida: **una pregunta nueva, no una segunda fuente**. `group_of`
 sigue significando «mi mesa»; al lado vive «sobre qué mesa estoy actuando», una
 vez, en un concern.
 
-Cinco tareas por subagentes, con revisión y loop de arreglos cada una. La quinta
-—esta— es sólo documentación.
+Seis tareas por subagentes, con revisión y loop de arreglos cada una: la quinta
+fue sólo documentación, y la sexta salió de medir en la quinta —el parámetro
+`mesa` no lo mandaba ningún formulario—. Encima, la **ronda final de la revisión
+de rama**, que arregló once hallazgos; uno de ellos cambia el comportamiento de
+la feature y está en §4.
 
 ## 2. Estado actual
 
 **NO mergeada, NO pusheada.** Rama `entrar-a-una-mesa` sobre `master` (`d8be50f`).
 
-- `make spec`: **1812 ejemplos, 0 fallas** (baseline de la rama: 1770).
-- `make screens` (tras `make seed` y `make yarn-build`, en la Tarea 4): verde,
-  «Sin errores de JS ni respuestas >= 400», con las once cifras y los dos pisos
-  exactos en su valor:
-  `[RITMO] 40 de 76 · [RELLENO] 299 · [PASTILLA] 790 · [CRITERIO] 195 · [LIVE] 1 · [RIEL] 71 · [BANDA] 71 · [SOMBRA] 302 · [CAMPO] 289 · [DRAFT] 2 · [GRABAR] 2`
-- Commits (del más nuevo al más viejo):
+- `make spec`: **1821 ejemplos, 0 fallas** (baseline de la rama: 1770).
+- `make screens` (tras `make seed` y `make yarn-build`): verde, «Sin errores de
+  JS ni respuestas >= 400», con las once cifras y los tres pisos exactos en su
+  valor: ver la línea literal en §6.
+- Commits: `git log --oneline master..HEAD`. Van del más nuevo al más viejo y la
+  lista no se copia acá, porque una lista de commits pegada a mano se queda
+  corta en cuanto se suma uno —ya pasó, este mismo archivo terminaba en
+  `361319a`—.
 
-```
-361319a El «Entrar» se calcula una vez fuera del loop de mesas y se alinea a la izquierda, con el «Convocar»
-047b912 La lista de mesas del taller ofrece «Entrar» por mesa y por vínculo trabajable, sólo para quien administra ese desafío
-5cb469b Los cuatro caminos de escritura de la sala actúan sobre la mesa nombrada, y el audio deja de abrirse por taller
-9a5e580 La cara de evolución de la sala tiene testigo propio, y la frase de la llegada ya no pone en minúscula el nombre
-2a4bcab Corrijo los conteos de ejemplos del plan: eran 6 y no 7, y arrastraban
-590be50 El aviso de mesa ajena deja el sufijo _html como único mecanismo de escape
-d4dd45c La sala resuelve la mesa sobre la que se actúa, y los títulos dejan de decir «tu mesa» cuando es ajena
-13ac246 La mesa sobre la que se actúa es una pregunta nueva, con un solo lugar donde vive
-c01f891 El plan de entrar a una mesa: nueve hechos medidos del repo antes de escribirlo
-eb62105 La spec de entrar a una mesa: una pregunta nueva y no una segunda fuente
-```
-
-**Lo que hay que leer antes de mergear:** §5.1. La feature está entera del lado
-del servidor y **le falta la mitad del cliente**: ningún formulario ni ningún
-`fetch` manda el parámetro `mesa`, así que desde un navegador quien administra y
-no está sentado **lee** una mesa ajena y **no puede escribirla**. Lo encontré
-midiendo en la Tarea 5 y está escrito en `CLAUDE.md`.
+**Lo que hay que leer antes de mergear:** §4, el bloque de la ronda final. **La
+precedencia de la mesa se invirtió** y es un cambio de comportamiento, no una
+corrección de texto: gana la mesa NOMBRADA y el asiento propio quedó como
+fallback de la entrada sin parámetro. Y la contradicción que se deja escrita y
+no arreglada: **el seed sienta al admin**, que es una conveniencia de la siembra
+y no el modelo del dominio.
 
 ## 3. Archivos y cambios
 
-21 archivos, +2.169/−21 (la mayoría specs y los dos documentos del plan).
+28 archivos, +3.044/−397 (la mayoría specs y los documentos del plan).
 
 | Pieza | Dónde |
 |---|---|
 | El permiso: `ChallengePolicy#enter_any_group?` (= `administers?(record)`), predicado propio y no `builder?`/`curate_pool?` | `app/policies/challenge_policy.rb` |
 | La mesa por id, segura por el scope **y** por el tipo `uuid`: `Workshop#group_named` | `app/models/workshop.rb` |
-| La pregunta nueva, UNA vez: `acting_group(workshop, link)` = `own_group \|\| named_group`, con `own_group` memoizado | `app/controllers/concerns/acts_on_a_group.rb` |
+| La pregunta nueva, UNA vez: `acting_group(workshop, link)` = `named_group \|\| own_group` —la mesa nombrada gana, el asiento es el fallback—, con `own_group` memoizado | `app/controllers/concerns/acts_on_a_group.rb` |
 | Los cinco consumidores: el GET de la sala (`@group`, `@mesa_propia`) y los cuatro que escriben | `workshop_rooms_controller.rb`, `workshop_ideas_controller.rb`, `workshop_proposals_controller.rb`, `workshop_drafts_controller.rb`, `workshop_recordings_controller.rb` |
 | El audio: `alcanzables` pasa de `policy(@workshop).update?` (por TALLER) a `policy(@link.challenge).enter_any_group?` (por DESAFÍO) | `workshop_recordings_controller.rb` |
 | Los textos: `de_la_mesa` (una variable por archivo) y el local `mesa_propia` con default `true` | `workshop_rooms/_ideation`, `_evolution`, `_referencia`, `show`, `workshops/_my_group` |
-| El aviso de mesa ajena, escapado por el sufijo `_html` de la clave | `workshop_rooms/_aviso_mesa_ajena.html.haml`, `config/locales/es.yml` |
-| El «Entrar» por mesa y por vínculo trabajable, `link_to` (no `button_to`: hay un form alrededor) | `app/views/workshops/_groups.html.haml` |
-| Specs | `spec/models/workshop_acting_group_spec.rb` (6), `spec/requests/entrar_a_una_mesa_spec.rb` (18), `spec/requests/escribir_en_una_mesa_ajena_spec.rb` (18) |
-| Los documentos (Tarea 5) | `CLAUDE.md`, este archivo |
+| El aviso de mesa ajena, escapado por el sufijo `_html` de la clave y **no** sobre la llegada (ahí los cuatro endpoints devuelven 403) | `workshop_rooms/_aviso_mesa_ajena.html.haml`, `config/locales/es.yml` |
+| El «Entrar» por mesa y por vínculo trabajable, `link_to` (no `button_to`: hay un form alrededor); pregunta `rooms.workable`, la misma que el selector y el redirect, sobre la colección ya cargada | `app/views/workshops/_groups.html.haml`, con `rooms` bajando desde `show` por `_assembly` |
+| El parámetro en la ESCRITURA: cinco helpers de ruta con `mesa: group&.id` (Tarea 6) | `workshop_rooms/_ideation`, `_evolution`, `_recording` |
+| Specs | `spec/models/workshop_acting_group_spec.rb` (7), `spec/requests/entrar_a_una_mesa_spec.rb` (19), `spec/requests/escribir_en_una_mesa_ajena_spec.rb` (19), `spec/requests/la_mesa_viaja_en_la_escritura_spec.rb` (6) |
+| Los documentos | `CLAUDE.md`, la spec de diseño y el plan (los dos con su nota fechada de la inversión), este archivo |
 
 ### Qué mutación puso en rojo a qué, por tarea
 
@@ -89,8 +86,11 @@ fallan distinto a propósito:
   Quedan verdes los dos de `participant`, que es correcto: para ellos la mesa
   **es** la propia. En la primera entrega, con 8 ejemplos, caían 3 — todos de
   idear, porque evolución no tenía testigo (ver §4).
-- `||` invertido (`named_group(...) || own_group(...)`): cae **UNO**, siempre el
-  mismo, el del asiento propio. Ver §5.2: es el único testigo que tiene.
+- `||` invertido: cae **UNO**, siempre el mismo, el de la precedencia. Ojo al
+  leerlo hoy: en esa tarea el orden embarcado era `own_group || named_group` y la
+  mutación era `named_group || own_group`, que es lo que la ronda final dejó como
+  **el orden correcto** (§4). La lección sobrevive igual al cambio de signo: ese
+  ejemplo es el único que mide el orden. Ver §5.2.
 
 **Tarea 3 — los cuatro caminos de escritura (`5cb469b`).** Cinco mutaciones, y
 **cada una puso rojo SÓLO el bloque de su propio endpoint**, que es lo que
@@ -136,9 +136,9 @@ son defectos del plan mismo.
 - **El ejemplo que el plan YA tenía para el asiento propio no discriminaba
   nada.** Era un `participant` sentado mandando el parámetro de otra mesa — y a
   esa persona `named_group` le devuelve `nil` **por permiso**, así que cae a su
-  asiento **de rebote** y no por precedencia: con el `||` invertido el ejemplo
-  pasa igual. Hizo falta un admin **sentado**, que es lo único que mide el orden
-  del `||`.
+  asiento **de rebote** y no por precedencia: pasa con el `||` en cualquier
+  orden. Hizo falta un admin **sentado**, que es lo único que mide el orden del
+  `||`.
 - **El spec de la Tarea 2 no podía pasar como estaba escrito.** Sin ninguna idea
   sembrada en la mesa, la cara de idear dibuja el vacío («Ninguna idea en esta
   mesa todavía») y el título «Las ideas de …» **no existe**, así que los ejemplos
@@ -194,6 +194,63 @@ son defectos del plan mismo.
 - **Y el hallazgo de la Tarea 5, que ninguna revisión de tarea podía ver porque
   mira un archivo a la vez: el parámetro `mesa` no lo manda nadie.** Ver §5.1.
 
+### La ronda final de la revisión de rama
+
+Once hallazgos —cinco Important y seis Minor—, y **cuatro de ellos eran
+comentarios o documentación que afirmaban algo que el código no hacía**, que es
+la familia que este repo paga más caro. Lo que cambió de verdad:
+
+- **La precedencia se INVIRTIÓ** (`named_group || own_group`), y es el único
+  cambio de comportamiento de la ronda. El dueño del producto aclaró el modelo:
+  los únicos que se mueven entre mesas son quien administra y el gestor, y
+  **nunca están participando en una**. O sea que para ellos no hay asiento
+  propio que proteger, y la regla anterior existía para un caso que no ocurre
+  —produciendo un control que no responde: estando sentado, «Entrar» en otra
+  mesa navegaba, cambiaba la URL y dibujaba la propia con el título «tu mesa»,
+  sin una palabra, y en el seed eso valía para TODO «Entrar» a otra mesa—. Cayó
+  **un solo** ejemplo de los 1818, el que aseveraba lo contrario, y se reescribió
+  en dos: uno por cada rama del `||`.
+- **Dos «Tu mesa todavía no se armó» fijos en los CONTROLLERS**
+  (`WorkshopIdeasController` y `WorkshopProposalsController`), alcanzables justo
+  por el camino que la feature abrió. El censo de la spec no los vio porque contó
+  «diez textos en cuatro VISTAS» y el grep de `CLAUDE.md` miraba `app/views`.
+  Quedaron **neutros** («esa mesa»), que no puede mentir y es más barato que
+  condicionar un redirect, y el grep pasó a `app/`. Los dos ejemplos que recorren
+  ese texto aseveran la subcadena común («todavía no se armó»), así que **no se
+  pusieron rojos**: el arreglo no tiene testigo nuevo.
+- **El aviso de mesa ajena se dibujaba también sobre la mesa de LLEGADA**, donde
+  los cuatro endpoints devuelven 403: prometía «lo que escribas queda a tu
+  nombre» justo arriba de «… todavía no se armó». Se le sumó `|| group.arrival?`
+  y la negativa se metió en los dos ejemplos de llegada que ya existían.
+- **`entrables` era una segunda copia de «¿este vínculo es trabajable?»**, contra
+  la advertencia escrita al lado en `_room_picker`, y además pagaba consultas ya
+  hechas (`workshop.workshop_challenges` sin precarga en un render que ya tenía
+  la colección). Hoy es `rooms.workable`, con `rooms` bajando de `show` por
+  `_assembly`. La divergencia era inalcanzable hoy —`Open` sólo abre
+  `WORKABLE_KINDS`— pero `workable?` no mira el `kind` y `workable` sí.
+- **El locator de `goToRoom` quedó anclado al selector de salas.** Su comentario
+  decía que lo que lo desempataba era «tener un Entrar, que es del selector y de
+  nadie más», y desde `047b912` cada mesa tiene el suyo. Hoy no colisiona por
+  casualidad (un vínculo trabajable por taller en el seed), y con dos salas
+  `first()` habría tomado el de la mesa —el bloque de armado se renderiza antes—
+  y la corrida habría seguido verde midiendo otra navegación.
+- **`form[action*="/ideas"]` volvió a `*="/ideas?"`** (ídem proposals): el cambio
+  era forzado por el query nuevo, pero aflojó el borde del segmento sin
+  necesidad. Las otras dos rutas (`RUTA_DEL_AUTOGUARDADO`,
+  `RUTA_DE_GRABACIONES`) ya estaban bien ancladas con `(\?.*)?$`.
+- **Un ejemplo positivo del gestor**, que es el rol para el que la feature es
+  menos obvia: estaba probado negativo cuatro veces (administrando OTRO desafío)
+  y el positivo sólo con el admin. Ahora un gestor asignado a ESE desafío y sin
+  asiento escribe el borrador sobre la mesa nombrada.
+- **Dos textos de documentación que la rama volvió falsos.** El `grupo.nil?` de
+  `alcanzables` se presentaba como defensivo-e-inalcanzable: con la guarda nueva
+  —`enter_any_group?`, por desafío— un gestor del desafío B del mismo taller pasa
+  `work?`, no pasa la guarda y no está sentado, así que cae ahí. Y «`[DRAFT]` y
+  `[GRABAR]` no mandan `mesa`» es falso desde `2fb718a`: **lo mandan**, con el id
+  del propio asiento, que es por lo que resuelve igual en cualquier orden.
+- **«Un array castea a `nil`» era más de lo medido, y se midió de nuevo.** Ver
+  §6.
+
 ### Lo que quedó parkeado a propósito
 
 - **El setup de grabación duplicado** en `spec/requests/escribir_en_una_mesa_ajena_spec.rb`:
@@ -203,11 +260,11 @@ son defectos del plan mismo.
   `workshop_recordings_controller.rb`. Cosmético.
 - **El ejemplo de «otra mesa de otro taller» no cruza empresas.** Esa mitad la
   cubre `spec/tenancy/`, y `group_named` queda excluida dos veces de todos modos.
-- **El predicado `unless mesa_propia || group.nil?` repetido** en las dos caras de
-  la sala. Son dos lugares que preguntan lo mismo, así que no pueden divergir;
-  una variable de controller por dos usos es la abstracción prematura que el repo
-  evita.
-- **Un ejemplo del asiento propio por endpoint.** Es un mecanismo único en una
+- **El predicado `unless mesa_propia || group.nil? || group.arrival?` repetido**
+  en las dos caras de la sala. Son dos lugares que preguntan lo mismo, así que no
+  pueden divergir; una variable de controller por dos usos es la abstracción
+  prematura que el repo evita.
+- **Un ejemplo de la precedencia por endpoint.** Es un mecanismo único en una
   línea del concern; cuatro ejemplos más no agregan. El costo de esa decisión
   está en §5.2 y escrito en `CLAUDE.md`.
 
@@ -220,13 +277,14 @@ son defectos del plan mismo.
    servido y escribe contra ella. La lección que queda: los request specs que
    mandan `mesa` a mano (`escribir_en_una_mesa_ajena_spec.rb`) prueban el servidor
    y no la cadena, y estuvieron verdes con el defecto entero.
-2. **«El asiento propio gana» tiene UN SOLO testigo y ninguna guarda del
-   recorrido lo respalda.** Es el ejemplo de `entrar_a_una_mesa_spec.rb` con un
-   admin **sentado** que nombra otra mesa. Los cuatro bloques de escritura
-   seguirían verdes con el `||` invertido, y `[DRAFT]` y `[GRABAR]` tampoco lo
-   cazarían, porque no mandan `mesa` y con el parámetro ausente el resultado es el
-   mismo en cualquier orden. Si alguien borra ese ejemplo, la precedencia se queda
-   sin nada.
+2. **La precedencia tiene DOS testigos y ninguna guarda del recorrido la
+   respalda.** Son dos ejemplos de `entrar_a_una_mesa_spec.rb` con un admin
+   **sentado**: nombrando otra mesa entra a la NOMBRADA, y sin nombrar ninguna
+   cae a su asiento. Los cuatro bloques de escritura pasan con el `||` en
+   cualquier orden, y `[DRAFT]`/`[GRABAR]` tampoco lo cazan — pero **no** porque
+   no manden `mesa`: lo mandan, y es el id de su propio asiento, así que las dos
+   ramas resuelven la misma fila. Si alguien borra esos dos ejemplos, la
+   precedencia se queda sin nada.
 3. **Nada mide el «Entrar» en el recorrido.** `[CLASES]` lo ve sólo por la familia
    `btn` y sólo saltaría si perdiera **toda** regla —imposible en la práctica:
    `btn`, `btn-ghost` y `btn-sm` ya existen por el «Convocar» de la misma mesa—, y
@@ -247,9 +305,57 @@ son defectos del plan mismo.
    avisa en vivo que alguien entró desde afuera (un push pediría el canal
    autenticado y scopeado por empresa que la spec de la lista de llegada ya
    descartó).
-7. **Y el efecto de borde de «el asiento propio gana»:** quien está sentado no
-   puede entrar a otra mesa. Apretar «Entrar» en la Mesa 3 estando sentado en la
-   Mesa 1 muestra la Mesa 1, sin decir por qué. Es deliberado —es lo que hace que
-   nada cambie de comportamiento, el recorrido incluido— pero el «Entrar» se
-   dibuja igual, así que para un admin sentado es un control que no hace lo que
-   su rótulo promete. Esconderlo, o decirlo, es una decisión que nadie tomó.
+7. **El seed sienta al admin, y eso contradice el modelo del dominio.** Quien
+   administra no participa de ninguna mesa; la siembra lo sienta igual porque
+   `[DRAFT]` y `[GRABAR]` —piso EXACTO en 2— necesitan a alguien escribiendo
+   desde una sala. **Queda así a propósito**: rehacerlo es rehacer parte del
+   recorrido. Está anotado en `CLAUDE.md` para que nadie deduzca del admin
+   sentado que los admins se sientan. Si algún día el seed usa un `participant`
+   para esas dos guardas, ese asiento se puede sacar.
+8. **Nadie escribe desde la sala estando sentado en OTRA mesa en el recorrido.**
+   Con la precedencia invertida ése es ahora el camino central de la feature, y
+   lo cubren sólo los request specs: el admin del recorrido manda el `mesa` de su
+   propio asiento, así que `make screens` nunca ejercita el caso en un navegador.
+
+## 6. Lo medido en la ronda final
+
+**`make spec`: 1821 ejemplos, 0 fallas.** Son los 1818 de `2fb718a` más tres: el
+positivo del gestor escribiendo el borrador, la segunda rama del `||` (sin
+nombrar ninguna mesa cae al asiento) y el array con un id real en
+`group_named`.
+
+**`make screens`**, tras `make yarn-build` y `make seed`, verde y con 76
+capturas. La línea de las once cifras, literal:
+
+```
+[RITMO] 40 de 76 pantallas tuvieron dos tarjetas que comparar · [RELLENO] 299 `card-body` medidos · [PASTILLA] 790 chips y avisos medidos · [CRITERIO] 195 nombres medidos · [LIVE] 1 pantalla(s) medida(s) · [RIEL] 71 pantallas con riel · [BANDA] 71 pantallas con banda · [SOMBRA] 302 tarjetas medidas · [CAMPO] 289 campos medidos · [DRAFT] 2 caras medidas · [GRABAR] 2 caras medidas
+```
+
+**Ojo con esas cifras: cuatro de ellas sólo valen sobre una siembra FRESCA.** La
+revisión de rama daba por finales `[RELLENO] 302`, `[PASTILLA] 797`,
+`[SOMBRA] 305` y `[CAMPO] 291`, y medidas con `make seed` inmediatamente antes
+dan 299/790/302/289. El patrón ya está documentado en `CLAUDE.md` para
+`[PASTILLA]`, que crece sola entre corridas porque el recorrido le pide cosas a
+la IA y después fotografía `/admin/ai_runs`; y el recorrido además siembra a
+Lucía Llegada, que el seed borra. O sea: **una corrida encadenada a otra sin
+resembrar mide más que una limpia**, y las once cifras son pisos, no igualdades
+—salvo `[BANDA]`, `[DRAFT]` y `[GRABAR]`, que son exactas—.
+
+**La mutación de la precedencia.** `named_group || own_group` vuelto a
+`own_group || named_group`: cae **un** ejemplo, «quien administra y está sentado
+/ nombrando otra mesa entra a la NOMBRADA, aunque tenga asiento», con
+`expected … to include "Las ideas de Mesa del fondo"`. Y la de al lado, que es
+la que prueba que el segundo ejemplo no es vacuo: borrando el fallback
+(`acting_group` = `named_group` a secas) caen **cuatro**, y uno de ellos es «sin
+nombrar ninguna cae a su asiento». Dos mutaciones, dos conjuntos distintos de
+rojos: cada ejemplo mide su propia rama del `||`.
+
+**`?mesa[]=<uuid real>` resuelve la mesa, y «un array castea a `nil`» era más de
+lo medido.** Medido el 2026-10-09 en `app_test`: `find_by(id: [...])` no pasa el
+valor entero por `cast`, arma un `IN` y castea cada elemento. Un array con un id
+real no es `blank?` y **resuelve**; uno con basura cae a `nil` (`IN (NULL)`); uno
+vacío es `blank?`. Un hash (`?mesa[a]=1`), una cadena basura, un no-entero, `""`
+y `nil` castean los cinco a `nil`. **No es un problema de seguridad** —resuelve
+la misma mesa que el parámetro plano, con el mismo filtro por taller y por
+empresa— pero la frase afirmaba más de lo que alguien había medido. Hay un
+ejemplo nuevo en `spec/models/workshop_acting_group_spec.rb` que lo fija.

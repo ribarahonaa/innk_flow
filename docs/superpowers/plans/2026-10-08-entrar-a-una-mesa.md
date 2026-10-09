@@ -19,6 +19,13 @@ existencia.
 
 **Spec:** `docs/superpowers/specs/2026-10-08-entrar-a-una-mesa-design.md`
 
+> **Plan EJECUTADO, con una corrección posterior: la precedencia quedó al revés
+> de lo que dice este plan** (2026-10-09, revisión final de la rama). Gana la
+> mesa NOMBRADA y el asiento propio es el fallback de la entrada sin parámetro;
+> el motivo —quien administra nunca participa de una mesa— y lo que lo mide
+> están en `CLAUDE.md` y en la nota de la spec. Todo lo demás del plan sigue
+> describiendo lo embarcado.
+
 ## Global Constraints
 
 - **El código va en inglés; los comentarios y los mensajes de commit, en
