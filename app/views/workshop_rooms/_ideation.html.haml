@@ -6,6 +6,17 @@
 -# puede firmar una idea (el gestor, por conflicto de interés) no recibe un
 -# formulario que rebotaría en un 403.
 - puede_crear = policy(link.challenge.ideas.new).create?
+-# UNA variable para los textos que dicen de quién es la mesa: con una mesa
+-# ajena (la nombró quien administra) «tu mesa» mentiría. Un `if` por frase serían
+-# tres lugares que olvidar.
+- de_la_mesa = mesa_propia ? "tu mesa" : group&.name
+
+-# Antes de todo el trabajo: dice qué estás haciendo, no de quién es el
+-# contenido. Y no sobre la LLEGADA: ahí los cuatro endpoints devuelven 403, así
+-# que «lo que escribas, grabes o mandes queda a tu nombre» prometería algo que
+-# no existe, justo arriba de «… todavía no se armó».
+- unless mesa_propia || group.nil? || group.arrival?
+  = render "workshop_rooms/aviso_mesa_ajena", group: group
 
 - if group.nil?
   -# Sin mesa el POST rechaza (`reject_without_group`): ofrecer el formulario
@@ -20,7 +31,7 @@
   -# silencio.
   .card
     .card-body
-      %p.muted Tu mesa todavía no se armó: en cuanto se reparta, acá aparece el formulario.
+      %p.muted #{de_la_mesa.sub(/\A./, &:upcase)} todavía no se armó: en cuanto se reparta, acá aparece el formulario.
 - else
   -# De acá para abajo son DOS bloques detrás de `puede_crear` y no uno, con la
   -# grabación en el medio a propósito: grabar y leer la transcripción son de
@@ -52,8 +63,8 @@
       .card
         .card-body
           .section-head
-            %h2.section-title Las ideas de tu mesa
-          %p.muted Las que creó alguien de tu mesa o en las que colabora, en este desafío.
+            %h2.section-title= "Las ideas de #{de_la_mesa}"
+          %p.muted= "Las que creó alguien de #{de_la_mesa} o en las que colabora, en este desafío."
           %ul.field-list
             - mesa_ideas.each do |idea|
               %li.field-list__item
@@ -80,7 +91,7 @@
                         %span.people-list__role= t("flow.contributor_roles.#{contributor.role}")
 
   = render "workshop_rooms/recording", workshop: workshop, link: link,
-                                       recordings: recordings
+                                       recordings: recordings, group: group
 
   - if puede_crear
     .card
@@ -93,8 +104,15 @@
         -# `data-draft-url` es lo que enciende el autoguardado: el JS no sabe ni
         -# tiene que saber si esta sala admite trabajo. Mismo principio que
         -# `data-live` en `arrival_live.js`.
-        = form_with url: workshop_sala_ideas_path(workshop, link), multipart: true,
-                    data: { draft_url: workshop_sala_draft_path(workshop, link), debounce: 2000 } do
+        -# `mesa:` viaja en la ESCRITURA y no sólo en el «Entrar»: quien
+        -# administra y no está sentado llega acá por `?mesa=`, y `acting_group`
+        -# resuelve la mesa de cada POST/PATCH desde `params[:mesa]`. Sin él la
+        -# escritura cae a `own_group` (nil) y rebota. Va en el query de la URL y
+        -# no en un campo oculto para que sea un solo mecanismo también en
+        -# `draft_url`, que lee el JS. Con asiento propio se ignora. Lo cuida
+        -# `spec/requests/la_mesa_viaja_en_la_escritura_spec.rb`.
+        = form_with url: workshop_sala_ideas_path(workshop, link, mesa: group&.id), multipart: true,
+                    data: { draft_url: workshop_sala_draft_path(workshop, link, mesa: group&.id), debounce: 2000 } do
           -# Sin `id_prefix`: existía porque dos salas se renderizaban en la misma
           -# pantalla y las dos emitían `id="payload_<clave>"`, así que el
           -# `<label for>` de la segunda enfocaba el campo de la primera. Con una

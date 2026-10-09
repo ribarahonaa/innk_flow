@@ -12,6 +12,8 @@ class WorkshopRecordingsController < ApplicationController
   # viaja en el Content-Type, así que se compara el tipo base.
   AUDIO_TYPES = %w[audio/webm audio/ogg audio/mp4 audio/wav audio/mpeg].freeze
 
+  include ActsOnAGroup
+
   before_action :set_link
 
   def create
@@ -21,7 +23,7 @@ class WorkshopRecordingsController < ApplicationController
     # `administers_any?` SIN mesa.
     return head :conflict unless @link.workable?
 
-    group = @workshop.group_of(current_user)
+    group = acting_group(@workshop, @link)
     return head :forbidden unless group
     # La mesa de llegada no trabaja. Misma pregunta que en los demás lugares que
     # no dejan trabajar desde ella; cuántos son lo dice CLAUDE.md y no este
@@ -60,14 +62,21 @@ class WorkshopRecordingsController < ApplicationController
     @link = @workshop.workshop_challenges.find_by!(id: params[:sala_id])
   end
 
-  # La grabación es de la MESA, igual que el borrador: la oye quien está
-  # sentado en esa mesa. Quien administra el taller las oye todas, porque es
-  # quien lo lleva. Va en la búsqueda y no en un `authorize` aparte: así lo
-  # inalcanzable da 404. Quien pasa `work?` sin administrar siempre está
-  # sentado (`work?` sólo da true sin mesa por `administers_any?`), pero se
-  # cubre igual el caso sin mesa.
+  # La grabación es de la MESA, igual que el borrador: la oye quien está sentado
+  # en esa mesa. Quien administra ESE desafío las oye todas, porque es quien lo
+  # lleva. Va en la búsqueda y no en un `authorize` aparte: así lo inalcanzable
+  # da 404.
+  #
+  # **El `grupo.nil?` es alcanzable y no defensivo**: `work?` da true por
+  # `administers_any?` —administrar ALGUNO de los desafíos del taller—, que es
+  # más ancho que el `enter_any_group?` de arriba, así que un gestor del desafío
+  # B del mismo taller pasa `work?`, NO pasa la guarda y no está sentado. Lo
+  # ejercita el ejemplo «quien administra OTRO desafío del taller no baja el
+  # audio de esta sala: 404». Sin la línea queda `where(workshop_group: nil)`, y
+  # la seguridad pasaría a depender de que el esquema no deje filas con la mesa
+  # en nulo: no lo borres por inalcanzable.
   def alcanzables
-    return @link.workshop_recordings if policy(@workshop).update?
+    return @link.workshop_recordings if policy(@link.challenge).enter_any_group?
 
     grupo = @workshop.group_of(current_user)
     return WorkshopRecording.none if grupo.nil?

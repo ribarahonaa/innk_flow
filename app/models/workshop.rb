@@ -77,6 +77,16 @@ class Workshop < ApplicationRecord
                    .find_by(workshop_group_members: { user_id: user.id })
   end
 
+  # Una mesa de ESTE taller, por id. Lo que la hace segura son dos cosas
+  # independientes: cuelga de `workshop_groups` —que filtra por taller y, vía
+  # `TenantScoped`, por empresa— y la columna es `uuid`, así que basura, un
+  # no-entero o un array castean a `nil` antes del SQL. Es el mismo par que
+  # `CLAUDE.md` documenta como portante para `base_version_id`.
+  #
+  # No pregunta permisos: quién puede nombrar una mesa lo decide el controller,
+  # porque es una pregunta de Pundit y el modelo no la tiene.
+  def group_named(id) = workshop_groups.find_by(id: id)
+
   def presumed_attendance? = attendance_mode == "presumed"
   def registered_attendance? = attendance_mode == "registered"
 

@@ -7,6 +7,8 @@
 # ideas de mi mesa y no las de las otras» sea `IdeaPolicy::Scope` tal como
 # está, sin una excepción nueva a la regla que este repo más audita.
 class WorkshopIdeasController < ApplicationController
+  include ActsOnAGroup
+
   before_action :set_link
 
   def create
@@ -20,7 +22,7 @@ class WorkshopIdeasController < ApplicationController
     # prohíbe por conflicto de interés— y podía hacerlo en la sala de un
     # desafío ajeno, que por la ruta normal le da 404. Y el `&.` que había al
     # sembrar los contribuyentes toleraba el `nil`: la idea nacía sin uno solo.
-    group = @workshop.group_of(current_user)
+    group = acting_group(@workshop, @link)
     return reject_without_group unless group
     return reject_arrival if group.arrival?
 
@@ -102,10 +104,15 @@ class WorkshopIdeasController < ApplicationController
   end
 
   # La mesa de llegada no trabaja. El rechazo es explícito y con su mensaje: un
-  # 404 pelado en una sala que debería decir «tu mesa todavía no se armó» es el
+  # 404 pelado en una sala que debería decir por qué no se puede trabajar es el
   # control que no responde.
+  #
+  # El texto es NEUTRO («esa mesa» y no «tu mesa») porque quien administra puede
+  # nombrar la llegada y llegar acá sin estar sentado en ella: un «tu» ahí
+  # miente. Las vistas resuelven lo mismo con `de_la_mesa`, que dice el nombre;
+  # acá sería un condicional por un redirect, y neutro no puede mentir.
   def reject_arrival
     redirect_to workshop_sala_path(@workshop, @link),
-                alert: "Tu mesa todavía no se armó: esperá el reparto para trabajar."
+                alert: "Esa mesa todavía no se armó: esperá el reparto para trabajar."
   end
 end

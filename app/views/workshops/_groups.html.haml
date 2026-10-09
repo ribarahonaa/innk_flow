@@ -2,6 +2,9 @@
 -# `_assembly`, detrás del mismo `can_assemble` (calculado en `show.html.haml`
 -# y reusado en toda la cadena): acá no se vuelve a preguntar el permiso.
 -#
+-# `rooms` llega desde `_assembly` —es el `Flow::Workshops::Rooms` del
+-# controller— y es quien contesta qué vínculos son trabajables.
+-#
 -# Convocar ES sumar a una mesa (`Flow::Workshops::Convoke`): no hay una lista
 -# de convocados aparte. En modo individual, elegir a la persona alcanza — el
 -# servicio le arma su propia mesa —, así que ahí no hace falta "Crear mesa" ni
@@ -20,6 +23,20 @@
 -# mismo; ofrecer los controles igual sería un control que no responde.
 - can_edit = !workshop.closed?
 - convocable = can_edit ? User.joins(:memberships).where(memberships: { company_id: Current.company.id }).where.not(id: already_in_ids).order(:name) : User.none
+
+-# Los vínculos a los que quien mira puede ENTRAR: no dependen de la mesa, así
+-# que se calculan UNA vez y no por mesa (para un gestor `enter_any_group?` es
+-# una consulta por vínculo).
+-#
+-# `rooms.workable` y no una segunda copia de «¿este vínculo es trabajable?»: es
+-# la misma pregunta que decide el redirect de `workshops#show`, el breadcrumb de
+-# la sala y el «Entrar» del selector, sobre los MISMOS objetos ya cargados de
+-# `rooms.links`. `WorkshopChallenge#workable?` NO es el mismo conjunto —no mira
+-# el `kind`, y `workable` además pide que esté en `WORKABLE_KINDS`—, así que
+-# escribirlo de nuevo acá ofrecería entrar a una sala que `only_room` ya no
+-# cuenta. Y de paso no paga consultas: `workshop.workshop_challenges` era una
+-# consulta nueva sin precarga en un render que ya tiene la colección.
+- entrables = rooms.workable.select { |l| policy(l.challenge).enter_any_group? }
 
 .card
   .card-body
@@ -64,6 +81,30 @@
                   src: arrival_workshop_path(workshop), live: workshop.checkin_open?
               - else
                 = render "workshops/group_body", workshop: workshop, group: group, can_edit: can_edit
+
+              -# Entrar a trabajar ESTA mesa sin sentarse. Uno por vínculo
+              -# trabajable, porque las mesas son del TALLER y las salas son por
+              -# vínculo: con tres desafíos y cuatro mesas hay doce salas. Con un
+              -# solo vínculo el rótulo sobra, igual que en el selector de
+              -# `workshops#show`.
+              -#
+              -# En la llegada no va: de ahí no se trabaja, y eso no depende de
+              -# quién mire. Y sólo los vínculos cuyo desafío quien mira
+              -# administra — el MISMO predicado que autoriza el POST, no
+              -# `can_assemble`, que es por taller.
+              -#
+              -# Es un `link_to` y no un `button_to` a propósito: el form de
+              -# convocar vive en este mismo bloque, y un form dentro de otro es
+              -# HTML inválido.
+              - unless group.arrival?
+                - if entrables.any?
+                  .flex.flex-wrap.gap-2.mt-2
+                    - entrables.each do |link|
+                      = link_to workshop_sala_path(workshop, link, mesa: group.id), class: "btn btn-ghost btn-sm" do
+                        - if entrables.one?
+                          Entrar
+                        - else
+                          = "Entrar · #{link.challenge.name}"
 
               - if workshop.mode == "group" && convocable.any?
                 -# El `id:` explícito evita ids duplicados: cada mesa repite

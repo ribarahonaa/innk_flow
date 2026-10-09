@@ -9,6 +9,16 @@
 -# Un archivo no viaja en una propuesta: sólo campos de valor.
 - fields = all_fields.reject { |field| field.field_type == "file" }
 - file_fields = all_fields.select { |field| field.field_type == "file" }
+-# UNA variable para los textos que dicen de quién es la mesa: con una mesa
+-# ajena (la nombró quien administra) «tu mesa» mentiría.
+- de_la_mesa = mesa_propia ? "tu mesa" : group&.name
+
+-# Antes de todo el trabajo: dice qué estás haciendo, no de quién es el
+-# contenido. Y no sobre la LLEGADA: ahí los cuatro endpoints devuelven 403, así
+-# que «lo que escribas, grabes o mandes queda a tu nombre» prometería algo que
+-# no existe, justo arriba de «… todavía no se armó».
+- unless mesa_propia || group.nil? || group.arrival?
+  = render "workshop_rooms/aviso_mesa_ajena", group: group
 
 - if group.nil?
   .card
@@ -17,7 +27,7 @@
 - elsif group.arrival?
   .card
     .card-body
-      %p.muted Tu mesa todavía no se armó: en cuanto se reparta, acá aparecen las ideas para proponer.
+      %p.muted #{de_la_mesa.sub(/\A./, &:upcase)} todavía no se armó: en cuanto se reparta, acá aparecen las ideas para proponer.
 - else
   -# La grabación se dibuja ACÁ, afuera de `ideas.empty?`, y no dentro de la
   -# rama del trabajo: grabar y leer la transcripción son de quien está SENTADO
@@ -31,12 +41,12 @@
     .card
       .card-body.empty-state
         %h2 Ninguna idea para trabajar
-        %p.muted Ninguna persona de tu mesa tiene ideas postuladas en este desafío todavía.
+        %p.muted Ninguna persona de #{de_la_mesa} tiene ideas postuladas en este desafío todavía.
   - else
     .card
       .card-body
         .section-head
-          %h2.section-title Las ideas de tu mesa
+          %h2.section-title= "Las ideas de #{de_la_mesa}"
         %p.muted Proponé cambios sobre ellas: quien es autor decide si los acepta.
         %ul.field-list
           - ideas.each do |idea|
@@ -59,7 +69,7 @@
                       %span.people-list__role= t("flow.contributor_roles.#{contributor.role}")
 
   = render "workshop_rooms/recording", workshop: workshop, link: link,
-                                       recordings: recordings, selected: selected
+                                       recordings: recordings, selected: selected, group: group
 
   - if selected
     .card
@@ -92,7 +102,7 @@
     - if draft&.stale?
       -# Un solo `%div`, igual que el aviso de los campos de archivo (ver arriba).
       .alert.alert-soft.alert-warning
-        %div= "El formulario muestra lo que tecleó tu mesa sobre #{draft.based_on_version.label}, pero la versión vigente ya es #{selected.current_version.label}: mirá «Contenido» más arriba antes de proponer."
+        %div= "El formulario muestra lo que tecleó #{de_la_mesa} sobre #{draft.based_on_version.label}, pero la versión vigente ya es #{selected.current_version.label}: mirá «Contenido» más arriba antes de proponer."
 
     .card
       .card-body
@@ -107,8 +117,9 @@
         -# importa: así resellar pasa a ser un no-op seguro en vez de una regresión
         -# silenciosa para quien saque esa condición creyendo que el cliente ya dice
         -# la base correcta.
-        = form_with url: workshop_sala_proposals_path(workshop, link),
-                    data: { draft_url: workshop_sala_draft_path(workshop, link),
+        -# `mesa:` viaja en la escritura: ver el comentario de `_ideation`.
+        = form_with url: workshop_sala_proposals_path(workshop, link, mesa: group&.id),
+                    data: { draft_url: workshop_sala_draft_path(workshop, link, mesa: group&.id),
                             draft_idea: selected.id,
                             draft_base: draft&.based_on_version_id || selected.current_version_id,
                             debounce: 2000 } do

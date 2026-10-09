@@ -6,13 +6,16 @@
 # el trabajo. Antes las dos cosas vivían en la misma pantalla, con un
 # formulario por desafío apilado y sin nada que dijera de qué trataba cada uno.
 class WorkshopRoomsController < ApplicationController
+  include ActsOnAGroup
+
   def show
     # `policy_scope(...).find_by!` y no `Workshop.find_by!`: lo que no se ve da
     # 404 y no 403, que sería un oráculo de existencia.
     @workshop = policy_scope(Workshop).find_by!(id: params[:workshop_id])
     # El mismo predicado que los dos POST de la sala, no uno nuevo. Incluye a
     # quien administra sin estar sentado (`work?` da true por
-    # `administers_any?`): entra, y la cara le dice que no tiene mesa.
+    # `administers_any?`): entra, y si no nombra una mesa por parámetro la cara
+    # le dice que no tiene.
     authorize @workshop, :work?
 
     # ANTES de leer el vínculo. El cierre es perezoso —nada se engancha en
@@ -22,7 +25,14 @@ class WorkshopRoomsController < ApplicationController
     Flow::Workshops::MaterializeClosures.new(@workshop).call
 
     @link = @workshop.workshop_challenges.find_by!(id: params[:id])
-    @group = @workshop.group_of(current_user)
+    # «Sobre qué mesa actúo», no «cuál es mi mesa»: quien administra ESE desafío
+    # puede nombrar una.
+    @group = acting_group(@workshop, @link)
+    # Si la mesa salió del parámetro y no del asiento, los títulos no pueden
+    # decir «tu mesa»: es la misma fuga que `load_ideation` documenta, con el
+    # título mintiendo en vez del scope. `own_group` está memoizado, así que
+    # esto no paga una segunda consulta.
+    @mesa_propia = @group.present? && @group == own_group(@workshop)
     @rooms = Flow::Workshops::Rooms.new(@workshop)
 
     case @link.room_state

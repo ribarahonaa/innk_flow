@@ -12,6 +12,8 @@
 # `redirect_to` haría que el `fetch` siga la redirección y traiga la pantalla
 # entera cada vez.
 class WorkshopDraftsController < ApplicationController
+  include ActsOnAGroup
+
   before_action :set_link
 
   def update
@@ -30,7 +32,7 @@ class WorkshopDraftsController < ApplicationController
     # documentan —`work?` da true por `administers_any?` SIN mesa—.
     return head :conflict unless @link.workable?
 
-    group = @workshop.group_of(current_user)
+    group = acting_group(@workshop, @link)
     return head :forbidden unless group
     # La mesa de llegada no trabaja. Misma pregunta que en los demás lugares que
     # no dejan trabajar desde ella; cuáles son lo enumera CLAUDE.md y no este
